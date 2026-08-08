@@ -12,7 +12,7 @@ __debug_bin*
 .idea/
 
 # Local config (copy from app2.json.example)
-server_web_new/conf/app2.json
+**/app2.json
 
 # SQLite databases
 *.db
