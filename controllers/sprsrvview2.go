@@ -160,7 +160,8 @@ func (this *MainController) SprSrvViewV2() {
 	allocationBtn := ""
 
 	flash := beego.NewFlash()
-	if this.Ctx.Input.Method() == "POST" {
+	isPost := this.Ctx.Input.Method() == "POST"
+	if isPost {
 		if err := this.ParseForm(record); err != nil {
 			//beego.Error("Ошибка распознавания формы:", err)
 			flash.Error("Ошибка распознавания формы %s", err)
@@ -185,6 +186,11 @@ func (this *MainController) SprSrvViewV2() {
 		}
 
 		this.Data["ViewOn"] = 1
+		// запоминаем в сессии, что список уже был показан с текущим фильтром -
+		// это позволяет при возврате обычным GET (после редактирования сервера,
+		// просмотра деталей или группового редактирования) снова показать
+		// список с учётом внесённых изменений без повторного нажатия "Просмотр"
+		m["ViewOnFlag"] = true
 		for idx, cl := range clusterList {
 			clusterList[idx].ID = 0
 			if this.GetString("ch"+cl.Name) == "on" {
@@ -208,6 +214,15 @@ func (this *MainController) SprSrvViewV2() {
 		this.Data["ViewOn"] = 1
 	}
 
+	// обычный GET-переход (ссылка "Отмена", редирект после сохранения на
+	// /sprsrv/updatebase, /sprsrv/updateselectedbase и т.п.) - если фильтр уже
+	// применялся раньше в этой сессии, восстанавливаем список автоматически
+	if !isPost && this.Data["ViewOn"] == 0 {
+		if v, ok := m["ViewOnFlag"].(bool); ok && v {
+			this.Data["ViewOn"] = 1
+		}
+	}
+
 	if this.Data["ViewOn"] == 0 {
 		return
 	}
@@ -221,9 +236,17 @@ func (this *MainController) SprSrvViewV2() {
 	//		return
 	//	}
 	//
+	// состояние чекбоксов "Основной блок фильтра" / "Дополнение фильтра по
+	// кластерам" тоже сохраняем в сессии, иначе при автоматическом
+	// восстановлении списка на обычном GET (см. ViewOnFlag выше) они бы
+	// читались как пустые (GetString на GET-запросе без тела формы) и фильтр
+	// применялся бы не так, как был настроен пользователем
 	baseFilter := false
-	if this.GetString("chBaseFilter") == "on" {
-		baseFilter = true
+	if isPost {
+		baseFilter = this.GetString("chBaseFilter") == "on"
+		m["ChBaseFilter"] = baseFilter
+	} else if v, ok := m["ChBaseFilter"].(bool); ok {
+		baseFilter = v
 	}
 
 	var num int64
@@ -432,7 +455,14 @@ func (this *MainController) SprSrvViewV2() {
 			numAdd, errAdd = o.Raw(rawSelect).QueryRows(&recordsAdd)
 		}
 	*/
-	if this.GetString("chClusters") == "on" {
+	chClusters := false
+	if isPost {
+		chClusters = this.GetString("chClusters") == "on"
+		m["ChClusters"] = chClusters
+	} else if v, ok := m["ChClusters"].(bool); ok {
+		chClusters = v
+	}
+	if chClusters {
 		found := false
 		for idx, cl := range clusterList {
 			if clusterList[idx].ID == 1 {
@@ -778,7 +808,7 @@ func (this *MainController) SprSrvViewV2() {
 		}
 	}
 
-	if baseBtn == "Внести общие данные для группы серверов" {
+	if baseBtn == "Редактировать выделенные" {
 		strList := ""
 		for _, s := range list {
 			strId := strconv.FormatInt(s.S.Id, 10)

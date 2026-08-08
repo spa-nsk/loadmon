@@ -1,0 +1,170 @@
+package controllers
+
+import (
+	"loadmon/itsystem"
+	"loadmon/models"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/beego/beego/v2/client/orm"
+	beego "github.com/beego/beego/v2/server/web"
+)
+
+// SprSrvUpdateBase отображает и сохраняет форму редактирования общих данных
+// записи справочника серверов (models.ServerSprRecords). Значения для
+// справочников (Type, TypeMicroservice, RoleType, TypeWork, CriticalLevel,
+// Active, DPCOffice, Monitoring, Backuped) берутся из комментариев к полям
+// структуры в models/models_add.go.
+//
+// Маршрут: /sprsrv/updatebase/:backmode/:id([0-9]+)
+// :backmode - зарезервирован, текущее значение всегда "all"
+// :id - models.ServerSprRecords.Id редактируемой записи
+func (this *MainController) SprSrvUpdateBase() {
+
+	backmode := this.Ctx.Input.Param(":backmode")
+	idStr := this.Ctx.Input.Param(":id")
+
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Redirect("/user/login/sprsrv_updatebase_"+backmode+"_"+idStr, 302)
+		return
+	}
+
+	this.activeContent("sprsrv/updatebase")
+	this.Data["backmode"] = backmode
+
+	flash := beego.NewFlash()
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		flash.Error("Некорректный идентификатор записи: %s", idStr)
+		flash.Store(&this.Controller)
+		this.Redirect("/sprsrv/view2/"+backmode+"/0", 302)
+		return
+	}
+
+	o := orm.NewOrm()
+
+	record := models.ServerSprRecords{Id: id}
+	if err := o.Read(&record); err != nil {
+		flash.Error("Запись с id=%d не найдена: %v", id, err)
+		flash.Store(&this.Controller)
+		this.Redirect("/sprsrv/view2/"+backmode+"/0", 302)
+		return
+	}
+
+	// справочник ИТ-систем для select ITSystemKey (тот же источник, что и в
+	// фильтре /sprsrv/view2)
+	this.Data["ITSystemSpr"] = itsystem.ImportITSystemSpr()
+
+	if this.Ctx.Input.Method() == "POST" {
+
+		form := models.ServerSprRecords{}
+		if err := this.ParseForm(&form); err != nil {
+			flash.Error("Ошибка распознавания формы: %v", err)
+			flash.Store(&this.Controller)
+			this.Data["record"] = record
+			return
+		}
+
+		// переносим в запись только поля, доступные для редактирования на этой
+		// форме; служебные поля (Id, OldId, Stat, ссылки VMSprId/HWSprId/
+		// ZabbixHostId, метрики CPU/Mem/Disk, время создания и т.п.) не трогаем
+		record.Type = form.Type
+
+		// Серийный номер имеет смысл только для физического сервера (0) и
+		// гипервизора (2); vCenter/Датацентр/Кластер - только для виртуальной
+		// машины (1) и гипервизора (2). Если для текущего Type поле
+		// недоступно для редактирования (см. JS в updatebase.tpl), значение
+		// из формы игнорируется и в записи остаётся то, что было в БД -
+		// это одновременно и защита от прямого POST в обход интерфейса.
+		allowSerialNumber := record.Type == 0 || record.Type == 2
+		allowVCenterFields := record.Type == 1 || record.Type == 2
+
+		if allowSerialNumber {
+			record.SerialNumber = strings.TrimSpace(form.SerialNumber)
+		}
+		if allowVCenterFields {
+			record.Vcenter = strings.TrimSpace(form.Vcenter)
+			record.Datacenter = strings.TrimSpace(form.Datacenter)
+			record.Cluster = strings.TrimSpace(form.Cluster)
+		}
+
+		record.TypeMicroservice = form.TypeMicroservice
+		record.RoleType = form.RoleType
+		record.TypeWork = form.TypeWork
+		record.CriticalLevel = form.CriticalLevel
+
+		record.Name = strings.TrimSpace(form.Name)
+		record.NameFQDN = strings.TrimSpace(form.NameFQDN)
+		record.NameInfo = strings.TrimSpace(form.NameInfo)
+		record.IPAddress = strings.TrimSpace(form.IPAddress)
+		record.MacAddress = strings.TrimSpace(form.MacAddress)
+		record.Network = strings.TrimSpace(form.Network)
+		record.NetworkName = strings.TrimSpace(form.NetworkName)
+		record.ITSystemKey = strings.TrimSpace(form.ITSystemKey)
+		record.OS = strings.TrimSpace(form.OS)
+		record.Owner = strings.TrimSpace(form.Owner)
+		record.BusinessOwner = strings.TrimSpace(form.BusinessOwner)
+		record.ITOwner = strings.TrimSpace(form.ITOwner)
+		record.ProductOwner = strings.TrimSpace(form.ProductOwner)
+		record.Support = strings.TrimSpace(form.Support)
+		record.SupportTeam = strings.TrimSpace(form.SupportTeam)
+		record.SystemType = strings.TrimSpace(form.SystemType)
+		record.LicensingType = strings.TrimSpace(form.LicensingType)
+		record.SolutionType = strings.TrimSpace(form.SolutionType)
+		record.Users = strings.TrimSpace(form.Users)
+		record.Allocation = strings.TrimSpace(form.Allocation)
+		record.Anotation = strings.TrimSpace(form.Anotation)
+		record.Role = strings.TrimSpace(form.Role)
+		record.Details = strings.TrimSpace(form.Details)
+		record.DPCOffice = form.DPCOffice
+		record.SZHistory = strings.TrimSpace(form.SZHistory)
+		record.Monitoring = form.Monitoring
+		record.Backuped = form.Backuped
+		record.MonitoringSZ = strings.TrimSpace(form.MonitoringSZ)
+
+		now := time.Now().Local()
+
+		var currentUserId int64
+		if uid, ok := this.Data["UserId"].(int64); ok {
+			currentUserId = uid
+		}
+
+		// record.Active на этот момент ещё хранит значение из БД (form.Active
+		// в него не копировался) - используем это, чтобы понять, изменился ли
+		// статус активности, и только тогда проставить служебные поля
+		prevActive := record.Active
+		record.Active = form.Active
+
+		if prevActive != record.Active {
+			switch record.Active {
+			case 1:
+				record.TimeActiveState = now
+				record.ActivatorUser = currentUserId
+			case 2:
+				record.TimeDeActiveState = now
+				record.DeActivatorUser = currentUserId
+			}
+		}
+
+		if record.Monitoring == 1 && record.TimeActiveMonitoring.IsZero() {
+			record.TimeActiveMonitoring = now
+		}
+
+		record.Id_User = currentUserId
+		record.Time_Mfy = now
+
+		if _, err := o.Update(&record); err != nil {
+			flash.Error("Ошибка сохранения записи: %v", err)
+			flash.Store(&this.Controller)
+		} else {
+			flash.Notice("Данные сервера \"%s\" сохранены", record.Name)
+			flash.Store(&this.Controller)
+			RegisterRequest(this, 6) //изменение данных справочника
+		}
+	}
+
+	this.Data["record"] = record
+}

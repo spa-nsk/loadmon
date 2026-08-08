@@ -31,9 +31,9 @@ func init() {
 	//beego.Router("/detailsvmid/:Mode/:Id", &controllers.MainController{}, "get,post:ServerDetailsVMId") // метод ServerDetailsVMId не реализован в controllers
 	beego.Router("/notice", &controllers.MainController{}, "get:Notice")
 	beego.Router("/sprsrv/view2/:mode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvViewV2")
-	//beego.Router("/sprsrv/addserver/:backmode/:name", &controllers.MainController{}, "get,post:SprAddServer") // метод SprAddServer не реализован в controllers
-	//beego.Router("/sprsrv/updatebase/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateBase") // метод SprSrvUpdateBase не реализован в controllers
-	//beego.Router("/sprsrv/updateselectedbase/:selected", &controllers.MainController{}, "get,post:SprSrvUpdateSelectedBase") // метод SprSrvUpdateSelectedBase не реализован в controllers
+	beego.Router("/sprsrv/addserver/:backmode/:name", &controllers.MainController{}, "get,post:SprAddServer")
+	beego.Router("/sprsrv/updatebase/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateBase")
+	beego.Router("/sprsrv/updateselectedbase/:selected", &controllers.MainController{}, "get,post:SprSrvUpdateSelectedBase")
 	//beego.Router("/sprsrv/updatecfo/:backmode/:mode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateCFO") // метод SprSrvUpdateCFO не реализован в controllers
 	//beego.Router("/sprsrv/viewserverhw/:server", &controllers.MainController{}, "get,post:ViewServerHW") // метод ViewServerHW не реализован в controllers
 	//beego.Router("/sprsrv/updatehw/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateHW") // метод SprSrvUpdateHW не реализован в controllers
