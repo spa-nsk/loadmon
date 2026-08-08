@@ -1,0 +1,33 @@
+{
+	"AliasName": "default",
+	"DriverName": "sqlite3",
+	"UserName": "work",
+	"Password": "change-me",
+	"DBName": "loadmonv",
+	"DBFile": "server_web_new/db/loadmon.db",
+	"DBFileAdd": "server_web_new/db/loadmon-add.db",
+	"HostName": "127.0.0.1",
+	"Port": 5432,
+	"SSLmode": "disable",
+	"ORMdebug": false,
+	"WorkMode": "web",
+	"AuthMode": "local",
+	"HttpKey": "http_proxy",
+	"HttpsKey": "https_proxy",
+	"GRPCSrvDBAddr": "127.0.0.1",
+	"GRPCSrvDBPort": 50064,
+	"GRPCCliDBAddr": "127.0.0.1",
+	"GRPCCliDBPort": 50064,
+	"GRPCSrvApiAddr": "127.0.0.1",
+	"GRPCSrvApiPort": 50063,
+	"GRPCCliApiAddr": "127.0.0.1",
+	"GRPCCliApiPort": 50063,
+	"GRPCSwitchAddr": "",
+	"GRPCSwitchPort": 0,
+	"ConfigVCenters": [
+		{"Hostname":"vc.example.local","Username":"user@example.local","Password":"change-me","Wait":60}
+	],
+	"ConfigOV": [
+		{"Domain":"example.local","Login":"user","Password":"change-me","Endpoint":"https://oneview.example.local","Version":3800}
+	]
+}

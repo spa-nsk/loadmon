@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "go build with ldflags",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "build",
+        "-ldflags=-s -w",
+        "-o",
+        "${workspaceFolder}\\server_web_new\\main_web.exe",
+        "${workspaceFolder}\\server_web_new\\main_web.go"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$go"]
+    },
+    {
+      "label": "go: build sqliteadmin",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "build",
+        "-o",
+        "${workspaceFolder}/tools/sqliteadmin/sqliteadmin.exe",
+        "."
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/tools/sqliteadmin"
+      },
+      "problemMatcher": ["$go"]
+    }
+  ]
+}

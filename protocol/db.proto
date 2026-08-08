@@ -1,0 +1,414 @@
+// Copyright 2015 gRPC authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "loadmon/protocol";
+
+package protocol;
+
+// The DB service definition.
+service LoadmonDB {
+  //
+  rpc GetServer(DBKeyString) returns (ServerSprRecords){}
+  rpc GetClusterSprRecords(ClusterSprKey1) returns(stream ClusterSprRecord){}
+  rpc AddClusterSprRecord(ClusterSprRecord) returns(ClusterSprId){}
+  rpc UpdateClusterSprRecord(ClusterSprRecord) returns(ClusterSprId){}
+  rpc AddClusterRecord(ClusterRecord) returns(ClusterRecordId){}
+}
+
+//
+message DBKeyString {
+  string Key=1;
+}
+
+message ClusterSprKey1{
+  string Vcenter = 1;
+  string Datacenter = 2;
+  string Cluster = 3;
+}
+
+message ClusterSprId{
+  int64 Id = 1;
+  int32 Status = 2;
+}
+
+message ClusterRecordId{
+  int64 Id = 1;
+  int32 Status = 2;
+
+}
+
+message ServerSprRecords {
+  int64   Id =1;
+  int64   OldId =2;
+  int32   Type =3;
+  int32   TypeMicroservice =4;
+  int32   RoleType =5;
+  int32   TypeWork =6;
+  int32   CriticalLevel =7;
+  int64   VMSprId =8;
+  int32   Stat =9;
+  int32   PowerState =10;
+  int32   Active =11;
+  google.protobuf.Timestamp TimeActiveState = 12;
+  int64   ActivatorUser =13;
+  google.protobuf.Timestamp TimeDeActiveState = 14;
+  int64   DeActivatorUser =15;
+  google.protobuf.Timestamp TimeCreate =16;
+  int64   CreatorUser = 17;
+  int64   BusinesPrivilage =18;
+  string  Name =19;
+  string  NameFQDN =20;
+  string  NameInfo =21;
+  string  IPAddress =22;
+  string  IPSharedVIP =23;
+  string  Network =24;
+  string  NetworkName =25;
+  double  CPUCount =26;
+  double  CPULogical =27;
+  double  MemSize =28;
+  double  DiskSize = 29;
+  string  Service = 30;
+  int64   ServiceId =31;
+  string  ITSystemKey =32;
+  string  OS =33;
+  string  Component =34;
+  string  Owner =35;
+  string  BusinessOwner =36;
+  string  ITOwner = 37;
+  string  ProductOwner =38;
+  string  Support = 39;
+  string  SupportTeam =40;
+  string  SystemType =41;
+  string  LicensingType =42;
+  string  SolutionType = 43;
+  string  Users = 44;
+  string  Allocation = 45;
+  string  Anotation = 46;
+  string  Role = 47;
+  string  Details = 48;
+  int32 DPCAddress = 49;
+  int32 DPCOffice = 50;
+  string SZhistory = 51;
+  string Warning = 52;
+  double Level = 53;
+  int32 Monitoring = 54;
+  int32 Backuped = 55;
+  google.protobuf.Timestamp TimeActiveMonitoring = 56;
+  string MonitoringSZ = 57;
+  int64 Id_User = 58;
+  google.protobuf.Timestamp Time_Mfy = 59;
+  int32 Privilage = 60;
+  string ClusterId = 61;
+  string Vcenter = 62;
+  string Datacenter = 63;
+  string Cluster = 64;
+  string MacAddress = 65;
+}
+
+message VMSprRecord{
+  int64 Id = 1;
+  int64 ServerId = 2;
+  string Vcenter = 3;
+  string Datacenter = 4;
+  string Cluster = 5;
+  string Vm_Name = 6;
+  string Vm_GuestFullName = 7;
+  string Vm_HostName = 8;
+  string Vm_PathName = 9;
+  bool Vm_PowerState = 10;
+  string KeyName = 11;
+  string Vm_Uuid = 12;
+  string Vm_GuestId = 13;
+  string Vm_Annotation = 14;
+  int32 Vm_NumCPU = 15;
+  int32 Vm_NumCores = 16;
+  double Vm_MemorySizeGB = 17;
+  string Vm_IpAddress = 18;
+  int32 Vm_NumEthernetCards = 19;
+  int32 Vm_NumVirtualDisks = 20;
+  double Vm_DiskCommittedGB = 21;
+  double Vm_DiskUncommittedGB = 22;
+  double Vm_CapacityGb=23;
+  double Vm_FreeSpaceGb=24;
+  double Vm_PercentUsed=25;
+  double CpuUsageMaximum=26;
+  double MemUsageMaximum=27;
+  double DiskUsageMaximum=28;
+  double NetUsageMaximum=29;
+  string ClusterId=30;
+  string Vm_MacAddress=31;
+  string GuestDetailedData =32;
+  string ToolsStatus =33;
+  string DomainName =34;
+}
+
+message ClusterSprRecord{
+  int64 Id=1;
+  string Vcenter=2;
+  string Datacenter=3;
+  string Name=4;
+  string Annotation=5;
+  int32 Production=6;
+  int64 Id_User=7;
+  google.protobuf.Timestamp Time_Mfy=8;
+  int32 TypeWork=9;
+  int32 Stat=10;
+  string ClusterId=11;
+}
+
+message VMRecord {
+  int64 Id=1;
+  int64 ServerId=2;
+  int64 VMSprId=3;
+  int64 ClusterId=4;
+  google.protobuf.Timestamp Date=5;
+  int32 Vm_NumCPU=6;
+  int32 Vm_NumCores=7;
+  double Vm_MemorySizeGB=8;
+  string Vm_IpAddress=9;
+  int32 Vm_NumEthernetCards=10;
+  int32 Vm_NumVirtualDisks=11;
+  double Vm_DiskCommittedGB=12;
+  double Vm_DiskUncommittedGB=13;
+  double Vm_CapacityGb=14;
+  double Vm_FreeSpaceGb=15;
+  double Vm_PercentUsed=16;
+  double Cpu_usage_maximum=17;
+  google.protobuf.Timestamp Cpu_usage_maximum_time=18;
+  double                    Cpu_usage_average=19;
+  double                    Cpu_usage_minimum=20;
+  google.protobuf.Timestamp Cpu_usage_minimum_time=21;
+  double                    Mem_usage_maximum=22;
+  google.protobuf.Timestamp Mem_usage_maximum_time=23;
+  double                    Mem_usage_average=24;
+  double                    Mem_usage_minimum=25;
+  google.protobuf.Timestamp Mem_usage_minimum_time=26;
+  double                    Disk_usage_maximum=27;
+  google.protobuf.Timestamp Disk_usage_maximum_time=28;
+  double                    Disk_usage_average=29;
+  double                    Disk_usage_minimum=30;
+  google.protobuf.Timestamp Disk_usage_minimum_time=31;
+  double                    Disk_totalReadLatency_maximum=32;
+  google.protobuf.Timestamp Disk_totalReadLatency_maximum_time=33;
+  double                    Disk_totalReadLatency_average=34;
+  double                    Disk_totalReadLatency_minimum=35;
+  google.protobuf.Timestamp Disk_totalReadLatency_minimum_time=36;
+  double                    Disk_totalWriteLatency_maximum=37;
+  google.protobuf.Timestamp Disk_totalWriteLatency_maximum_time=38;
+  double                    Disk_totalWriteLatency_average=39;
+  double                    Disk_totalWriteLatency_minimum=40;
+  google.protobuf.Timestamp Disk_totalWriteLatency_minimum_time=41;
+  double                    Disk_write_maximum=42;
+  google.protobuf.Timestamp Disk_write_maximum_time=43;
+  double                    Disk_write_average=44;
+  double                    Disk_write_minimum=45;
+  google.protobuf.Timestamp Disk_write_minimum_time=46;
+  double                    Disk_read_maximum=47;
+  google.protobuf.Timestamp Disk_read_maximum_time=48;
+  double                    Disk_read_average=49;
+  double                    Disk_read_minimum=50;
+  google.protobuf.Timestamp Disk_read_minimum_time=51;
+  double                    Net_usage_maximum=52;
+  google.protobuf.Timestamp Net_usage_maximum_time=53;
+  double                    Net_usage_average=54;
+  double                    Net_usage_minimum=55;
+  google.protobuf.Timestamp Net_usage_minimum_time=56;
+  double                    CpuBilling=57;
+  double                    MemBilling=58;
+  double                    DiskBilling=59;
+  double                    NetBilling=60;
+}
+
+message HostRecord {
+  int64               Id=1;
+  int64               ServerId=2;
+  int64               ClusterId=3;
+  google.protobuf.Timestamp    Date=4;
+  string              Vcenter=5;
+  string              Datacenter=6;
+  string              Cluster=7;
+  string              Name=8;
+  string              Vendor=9;
+  string              Model=10;
+  string              CpuModel=11;
+  int32               CpuMhz=12;
+  int32               NumCpuPkgs=13;
+  int32               NumCpuCores=14;
+  int32               NumCpuThreads=15;
+  int32               NumNics=16;
+  int32               NumHBAs=17;
+  double              MemorySizeGB=18;
+  double              HostMaxVirtualDiskCapacity=19;
+  double              Cpu_usage_maximum=20;
+  google.protobuf.Timestamp    Cpu_usage_maximum_time=21;
+  double              Cpu_usage_average=22;
+  double              Cpu_usage_minimum=23;
+  google.protobuf.Timestamp    Cpu_usage_minimum_time=24;
+  double              Mem_usage_maximum=25;
+  google.protobuf.Timestamp    Mem_usage_maximum_time=26;
+  double              Mem_usage_average=27;
+  double              Mem_usage_minimum=28;
+  google.protobuf.Timestamp    Mem_usage_minimum_time=29;
+  double              Disk_usage_maximum=30;
+  google.protobuf.Timestamp    Disk_usage_maximum_time=31;
+  double              Disk_usage_average=32;
+  double              Disk_usage_minimum=33;
+  google.protobuf.Timestamp    Disk_usage_minimum_time=34;
+  double              Disk_totalReadLatency_maximum=35;
+  google.protobuf.Timestamp    Disk_totalReadLatency_maximum_time=36;
+  double              Disk_totalReadLatency_average=37;
+  double              Disk_totalReadLatency_minimum=38;
+  google.protobuf.Timestamp    Disk_totalReadLatency_minimum_time=39;
+  double              Disk_totalWriteLatency_maximum=40;
+  google.protobuf.Timestamp    Disk_totalWriteLatency_maximum_time=41;
+  double              Disk_totalWriteLatency_average=42;
+  double              Disk_totalWriteLatency_minimum=43;
+  google.protobuf.Timestamp    Disk_totalWriteLatency_minimum_time=44;
+  double              Disk_write_maximum=45;
+  google.protobuf.Timestamp    Disk_write_maximum_time=46;
+  double              Disk_write_average=47;
+  double              Disk_write_minimum=48;
+  google.protobuf.Timestamp    Disk_write_minimum_time=49;
+  double              Disk_read_maximum=50;
+  google.protobuf.Timestamp    Disk_read_maximum_time=51;
+  double              Disk_read_average=52;
+  double              Disk_read_minimum=53;
+  google.protobuf.Timestamp    Disk_read_minimum_time=54;
+  double              Net_usage_maximum=55;
+  google.protobuf.Timestamp    Net_usage_maximum_time=56;
+  double              Net_usage_average=57;
+  double              Net_usage_minimum=58;
+  google.protobuf.Timestamp    Net_usage_minimum_time=59;
+  double              CpuBilling=60;
+  double              MemBilling=61;
+  double              DiskBilling=62;
+  double              NetBilling=63;
+}
+
+message ClusterRecord {
+  int64 Id = 1;
+  int64 ClusterId = 2;
+  google.protobuf.Timestamp Date = 3;
+  string Vcenter = 4;
+  string Datacenter = 5;
+  string Name = 6;
+  int32 CpuMhzAvg = 7;
+  int32 AllNumCpuPkgs = 8;
+  int32 AllNumCpuCores = 9;
+  int32 AllNumCpuThreads = 10;
+  double AllMemorySizeGB = 11;
+  double AllCapacityGb = 12;
+  double AllFreeSpaceGb = 13;
+  double AllPercentUsed = 14;
+  double Cpu_usage_maximum = 15;
+  google.protobuf.Timestamp Cpu_usage_maximum_time = 16;
+  double Cpu_usage_average = 17;
+  double Cpu_usage_minimum = 18;
+  google.protobuf.Timestamp Cpu_usage_minimum_time = 19;
+  double Mem_usage_maximum = 20;
+  google.protobuf.Timestamp Mem_usage_maximum_time = 21;
+  double Mem_usage_average = 22;
+  double Mem_usage_minimum = 23;
+  google.protobuf.Timestamp Mem_usage_minimum_time = 24;
+  double Disk_usage_maximum = 25;
+  google.protobuf.Timestamp Disk_usage_maximum_time = 26;
+  double Disk_usage_average = 27;
+  double Disk_usage_minimum = 28;
+  google.protobuf.Timestamp Disk_usage_minimum_time = 29;
+  double Disk_totalReadLatency_maximum = 30;
+  google.protobuf.Timestamp Disk_totalReadLatency_maximum_time = 31;
+  double Disk_totalReadLatency_average = 32;
+  double Disk_totalReadLatency_minimum = 33;
+  google.protobuf.Timestamp Disk_totalReadLatency_minimum_time = 34;
+  double                     Disk_totalWriteLatency_maximum = 35;
+  google.protobuf.Timestamp  Disk_totalWriteLatency_maximum_time = 36;
+  double                     Disk_totalWriteLatency_average = 37;
+  double                     Disk_totalWriteLatency_minimum = 38;
+  google.protobuf.Timestamp  Disk_totalWriteLatency_minimum_time = 39;
+  double                     Disk_write_maximum = 40;
+  google.protobuf.Timestamp  Disk_write_maximum_time = 41;
+  double                     Disk_write_average = 42;
+  double                     Disk_write_minimum = 43;
+  google.protobuf.Timestamp  Disk_write_minimum_time = 44;
+  double                     Disk_read_maximum = 45;
+  google.protobuf.Timestamp  Disk_read_maximum_time = 46;
+  double                     Disk_read_average = 47;
+  double                     Disk_read_minimum = 48;
+  google.protobuf.Timestamp  Disk_read_minimum_time = 49;
+  double                     Net_usage_maximum = 50;
+  google.protobuf.Timestamp  Net_usage_maximum_time = 51;
+  double                     Net_usage_average = 52;
+  double                     Net_usage_minimum = 53;
+  google.protobuf.Timestamp  Net_usage_minimum_time = 54;
+  double                     CpuBilling = 55;
+  double                     DiskBilling = 56;
+  double                     MemBilling = 57;
+  double                     NetBilling = 58;
+  int64                      HostCount = 59;
+  int64                      VMCount = 60;
+  int64                      StorageCount = 61;
+  int32                      TypeWork = 62;
+}
+
+message ClusterPerf{
+  int64               Id = 1;
+  int64               ClusterId = 2;             //ссылка на запись в ClusterRecord
+  google.protobuf.Timestamp Start = 3;
+  double              Cpu_usage = 4;
+  double              Mem_usage = 5;
+  double              Disk_usage = 6;            //скорость диска kbps
+  double              Disk_totalReadLatency = 7; //Среднее время чтения с виртуального диска
+  double              Disk_totalWriteLatency = 8;//Среднее время записи на виртуальный диск
+  double              Disk_write = 9;            //Скорость записи данных на виртуальный диск kbps
+  double              Disk_read = 10;            //Скорость чтения данных с виртуального диска kbps
+  double              Net_usage = 11;            //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
+  double              Net_received = 12;         //Использование сети (скорость приема) в течение интервала kbps
+  double              Net_transmitted = 13;      //Использование сети (скорость передачи) в течение интервала kbps
+}
+
+message HostPerf{
+  int64               Id = 1;
+  int64               HostId = 2;               //ссылка на HostRecord
+  google.protobuf.Timestamp Start = 3;
+  double              Cpu_usage = 4;
+  double              Mem_usage = 5;
+  double              Disk_usage = 6;            //скорость диска kbps
+  double              Disk_totalReadLatency = 7; //Среднее время чтения с виртуального диска
+  double              Disk_totalWriteLatency = 8;//Среднее время записи на виртуальный диск
+  double              Disk_write = 9;            //Скорость записи данных на виртуальный диск kbps
+  double              Disk_read = 10;            //Скорость чтения данных с виртуального диска kbps
+  double              Net_usage = 11;            //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
+  double              Net_received = 12;         //Использование сети (скорость приема) в течение интервала kbps
+  double              Net_transmitted = 13;      //Использование сети (скорость передачи) в течение интервала kbps
+}
+
+message VMPerfRecord{
+  int64               Id = 1;
+  int64               VMID = 2;                 //ссылка на VMRecord
+  google.protobuf.Timestamp Start = 3;
+  double              Cpu_usage = 4;
+  double              Mem_usage = 5;
+  double              Disk_usage = 6;            //скорость диска kbps
+  double              Disk_totalReadLatency = 7; //Среднее время чтения с виртуального диска
+  double              Disk_totalWriteLatency = 8;//Среднее время записи на виртуальный диск
+  double              Disk_write = 9;            //Скорость записи данных на виртуальный диск kbps
+  double              Disk_read = 10;            //Скорость чтения данных с виртуального диска kbps
+  double              Net_usage = 11;            //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
+  double              Net_received = 12;         //Использование сети (скорость приема) в течение интервала kbps
+  double              Net_transmitted = 13;      //Использование сети (скорость передачи) в течение интервала kbps
+}

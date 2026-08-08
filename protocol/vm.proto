@@ -1,0 +1,1190 @@
+// Copyright 2015 gRPC authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "loadmon/protocol";
+
+package protocol;
+
+service Loadmon {
+  //Vsphere
+  rpc GetVCenters (VCReq) returns (stream VCenter){} //
+  rpc GetDatacenter(DCReq) returns (stream Datacenter){} //
+  rpc GetCluster(CLReq) returns (stream ClusterShort){} //
+  rpc GetClusterMedium(CLReq) returns (stream Cluster){} //
+  rpc GetClusterMetrics(CLReq) returns (stream CLPerf){} //
+  rpc GetClusterFull(CLReq) returns (stream ClusterFull){} //
+  rpc GetClusterStorages(CLReq) returns (stream Datastore){} //
+  rpc GetClusterHost(CLReq) returns (stream Host){} //
+  rpc GetHostFull(HSReq) returns (stream HostFull){} //
+  rpc GetVMByKey (VMReqKey) returns (VMPoint) {} //
+  rpc GetVMsSliceByKeyList (VMListKey) returns (VMPointSlice) {} //
+  rpc GetVMStreamByKeyList (VMListKey) returns (stream VMPoint) {} //
+  rpc GetVMShortByKey (VMReqKey) returns (VMPointShort) {} //
+  rpc GetVMListKey (VMReqListKey) returns (VMListKey) {} //
+  rpc GetHostListKey (HSReqListKey) returns (HSListKey) {} //
+  rpc GetClusterListKey (CLReqListKey) returns (CLListKey) {} //
+  rpc GetVMListKeyByVMName (VMReqVMName) returns (VMListKey) {} //
+  rpc GetVMListKeyByCluster (VMReqCluster) returns (VMListKey) {} //
+  rpc GetVMListKeyByVcenter (VMReqVcenter) returns (VMListKey) {} //
+  rpc GetVMListKeyByDatacenter (VMReqDatacenter) returns (VMListKey) {} //
+  rpc GetVMPerfByKey(VMReqKey) returns (VMPerfSlice){} //
+  rpc GetVMFiles(VMReqKey) returns(VMFileSlice){} //
+  rpc GetVMGuestDiskInfo(VMReqKey) returns(GuestDiskSlice){} //
+  rpc GetVMUsageOnDatastore(VMReqKey) returns (VMUsageOnDatastoreSlice) {} //
+  rpc GetHostPerf(HSReqKey) returns (stream HSPerf) {} //
+  rpc GetHostPerfByKey(HSReqKey) returns (HSPerfSlice) {} //
+  rpc GetClusterPerfByKey(CLReqKey) returns (CLPerfSlice) {} //
+  rpc GetHostByKey(HSReqKey) returns (Host) {} //
+  rpc GetHostBySN(SerialNumber) returns (Host) {} //
+  rpc GetClusterByKey(CLReqKey) returns (Cluster) {} //
+  rpc GetDSData(KeyString) returns (Datastore) {} //
+  rpc GetAllDSData(KeyString) returns (stream Datastore) {} //
+  rpc ClearMetric(Duration) returns (StatusWork) {} //
+  rpc ClearMetricByKey(ClearMetricKey) returns (StatusWork) {} //
+  rpc ClearAllMetricByKey(ClearMetricKey) returns (StatusWork) {} //
+  //HP One View
+  rpc GetServerHardwareBySN(SerialNumber) returns (ServerHardware) {} //
+  rpc GetServerHardwareByName(ServerName) returns (ServerHardware) {} //
+  rpc GetServerHardwareByVirtualSN(SerialNumber) returns (ServerHardware) {} //
+  rpc GetServerHardwareList(HWReq) returns (stream ServerHardware) {} //
+  // rpc GetDatacenter(HWReq) returns (stream ) {} //TODO
+  //all service
+  rpc RegisterWorkProcess(RegisterEndpoint) returns (StatusWork) {}
+  rpc GetClusterSprRecords(EndpointReq) returns (stream RegisterEndpoint) {}
+}
+//
+message EndpointReq {
+  string Vcenter=1;
+  string OneView=2;
+}
+
+//
+message RegisterEndpoint{
+  string GRPCSrvApiAddr=1;
+  int64 GRPCSrvApiPort=2;
+  string GRPCSrvDBAddr=3;
+  int64 GRPCSrvDBPort=4;
+  repeated VCenter VCenter=5;
+  repeated OV OneView=6;
+}
+
+//
+message HWReq {
+  string DatacenterName=1;
+  string RackName=2;
+  string PowerState=3;
+  string Status=4;
+  string MaintenanceMode=5;
+}
+
+//
+message ClearMetricKey{
+  string Vcenter=1;
+  string Datacenter=2;
+  string Cluster=3;
+  string VMName=4;
+  google.protobuf.Timestamp Start = 5;
+  google.protobuf.Timestamp End = 6;
+}
+
+//
+message Duration{
+  google.protobuf.Timestamp Start = 1;
+  google.protobuf.Timestamp End = 2;
+  string Cluster = 3;
+}
+
+//
+message StatusWork{
+  int64 State=1;
+  string Details=2;
+}
+
+//
+message KeyString {
+  string Key=1;
+}
+
+//
+message VCReq {
+  string Filter=1;
+}
+
+//
+message VCenter {
+  string Hostname = 1;
+  bool Connected =2;
+}
+
+//
+message OV {
+  string Endpoint = 1;
+}
+
+//
+message DCReq{
+  string Vcenter = 1;
+}
+
+//
+message Datacenter{
+  string VCenter = 1;
+  string Name = 2;
+}
+
+//
+message CLReq{
+  string Vcenter = 1;
+  string Datacenter = 2;
+  string Cluster = 3;
+}
+
+//
+message HSReq{
+  string Vcenter = 1;
+  string Datacenter = 2;
+  string Cluster = 3;
+  string HSName = 4;
+}
+
+//
+message VMReqKey {
+  string Key = 1;
+}
+
+//
+message HSReqKey {
+  string Key = 1;
+}
+
+//
+message CLReqKey {
+  string Key = 1;
+}
+
+//
+message VMReqListKey{
+  string Vcenter = 1;
+  string Datacenter = 2;
+  string Cluster = 3;
+  string VMName = 4;
+}
+
+//
+message HSReqListKey{
+  string Vcenter = 1;
+  string Datacenter = 2;
+  string Cluster = 3;
+  string HSName = 4;
+}
+
+//
+message CLReqListKey{
+  string Vcenter = 1;
+  string Datacenter = 2;
+  string Cluster = 3;
+}
+
+//
+message VMReqVMName{
+  string VMName = 1;
+}
+
+//
+message VMReqVcenter{
+  string Vcenter = 1;
+}
+
+//
+message VMReqDatacenter{
+  string Datacenter = 1;
+}
+
+//
+message VMReqCluster{
+  string Cluster = 1;
+}
+
+//
+message VMKeyRec{
+  string VMName = 1;
+  string Key = 2;
+}
+
+//
+message HSKeyRec{
+  string HSName = 1;
+  string Key = 2;
+}
+
+//
+message CLKeyRec{
+  string CLName = 1;
+  string Key = 2;
+}
+
+//
+message VMListKey {
+  int64 Count = 1;
+  repeated VMKeyRec KeyRecs = 2;
+}
+
+//
+message HSListKey {
+  int64 Count = 1;
+  repeated HSKeyRec KeyRecs = 2;
+}
+
+//
+message CLListKey {
+  int64 Count = 1;
+  repeated CLKeyRec KeyRecs = 2;
+}
+
+message VMPerf {
+  int64 Id = 1;
+  google.protobuf.Timestamp Start = 2;
+  double CpuUsage = 3;
+  double MemUsage = 4;
+  double DiskUsage = 5;
+  double DiskWrite = 6;
+  double DiskRead = 7;
+  double NetUsage = 8;
+  double NetReceived = 9;
+  double NetTransmitted = 10;
+  double DiskTotalReadLatency = 11;
+  double DiskTotalWriteLatency = 12;
+}
+
+//
+message HSPerf {
+  int64 Id = 1;
+  google.protobuf.Timestamp Start = 2;
+  double CpuUsage = 3;
+  double CpuUtilization = 4;
+  double MemUsage = 5;
+  double DiskUsage = 6;
+  double DiskWrite = 7;
+  double DiskRead = 8;
+  double NetUsage = 9;
+  double NetReceived = 10;
+  double NetTransmitted = 11;
+  double DiskTotalReadLatency = 12;
+  double DiskTotalWriteLatency = 13;
+}
+
+//
+message CLPerf {
+  int64 Id = 1;
+  google.protobuf.Timestamp Start = 2;
+  double CpuUsage = 3;
+  double CpuUtilization = 4;
+  double MemUsage = 5;
+  double DiskUsage = 6;
+  double DiskWrite = 7;
+  double DiskRead = 8;
+  double NetUsage = 9;
+  double NetReceived = 10;
+  double NetTransmitted = 11;
+}
+
+//
+message VMPerfSlice {
+  int64 Count = 1;
+  repeated VMPerf Perf = 2;
+}
+
+//
+message HSPerfSlice {
+  int64 Count = 1;
+  repeated HSPerf Perf = 2;
+}
+
+//
+message CLPerfSlice {
+  int64 Count = 1;
+  repeated CLPerf Perf = 2;
+}
+
+//
+message GuestDiskInfo {
+  string DiskPath = 1;
+  double CapacityGb = 2;
+  double FreeSpaceGb = 3;
+  double PercentUsed = 4;
+}
+
+//
+message GuestDiskSlice {
+  int64 Count = 1;
+  repeated GuestDiskInfo GuestDisks = 2;
+}
+
+//
+message VMUsageOnDatastore {
+  int64 Id = 1;
+  string UID = 2;
+  string Vcenter = 3;
+  string Datacenter = 4;
+  string Cluster = 5;
+  string Datastore = 6;
+  string StorageName = 7;
+  double CommittedGb = 8;
+  double UncommittedGb = 9;
+  double UnsharedGb = 10;
+  double PercentAllocateStorage = 11;
+}
+
+//
+message VMUsageOnDatastoreSlice {
+  int64 Count = 1;
+  repeated VMUsageOnDatastore UsageOnDatastores = 2;
+}
+
+//
+message VMFile {
+  string Type = 1;
+  string Name = 2;
+  double Size = 3;
+  double UniqueSize = 4;
+}
+
+//
+message VMFileSlice {
+  int64 Count = 1;
+  repeated VMFile VMFiles = 2;
+}
+
+//
+message Datastore {
+  int64 Id = 1;
+  string UID = 2;
+  string StorageName = 3;
+  double CapacityGb = 4;
+  double FreeSpaceGb = 5;
+  double PercentUsed = 6;
+  VMListKey VmKeys = 7;
+}
+
+//
+message DatastoreSlice {
+  int64 Count = 1;
+  repeated Datastore Datastores = 2;
+}
+
+//
+message ScsiLun {
+  string UID = 1; //UID/WWN Lun ("60:06:01:60:2B:40:45:00:5D:AD:03:5B:49:F9:20:1A")
+  string Uuid = 2; //Uuid ("0200010000600601602b4045005dad035b49f9201a565241494420")
+  string CanonicalName = 3; //("naa.600601602b4045005dad035b49f9201a")
+  string LunType = 4; //"disk"
+  string Vcenter = 5; //
+  string Datacenter = 6; //
+  string Cluster = 7; //
+  string DisplayName = 8; //"DGC Fibre Channel Over Ethernet Disk (naa.600601602b4045005dad03...+11 more"
+}
+
+//
+message ScsiLunSlice {
+  int64 Count = 1;
+  repeated ScsiLun ScsiLuns = 2;
+}
+
+//
+message Metric {
+  string Instance = 1;
+  double Value = 2;
+}
+
+//
+message VMPoint {
+  int64 Id = 1;
+  string Name = 2;
+  string GuestFullName = 3;
+  string HostName = 4;
+  string PathName = 5;
+  bool PowerState = 6;
+  int32 NumCPU = 7;
+  int32 NumCores = 8;
+  double MemorySizeGB = 9;
+  string IpAddress = 10;
+  double CapacityGb = 11;
+  double FreeSpaceGb = 12;
+  double PercentUsed = 13;
+
+  double CpuUsageMaximum = 14;
+  google.protobuf.Timestamp CpuUsageMaximumTime = 15;
+  double CpuUsageAverage = 16;
+  double CpuUsageMinimum = 17;
+  google.protobuf.Timestamp CpuUsageMinimumTime = 18;
+
+  double MemUsageMaximum = 19;
+  google.protobuf.Timestamp MemUsageMaximumTime = 20;
+  double MemUsageAverage = 21;
+  double MemUsageMinimum = 22;
+  google.protobuf.Timestamp MemUsageMinimumTime = 23;
+
+  double DiskUsageMaximum = 24;
+  google.protobuf.Timestamp DiskUsageMaximumTime = 25;
+  double DiskUsageAverage = 26;
+  double DiskUsageMinimum = 27;
+  google.protobuf.Timestamp DiskUsageMinimumTime = 28;
+
+  double DiskWriteMaximum = 29;
+  google.protobuf.Timestamp DiskWriteMaximumTime = 30;
+  double DiskWriteAverage = 31;
+  double DiskWriteMinimum = 32;
+  google.protobuf.Timestamp DiskWriteMinimumTime = 33;
+
+  double DiskReadMaximum = 34;
+  google.protobuf.Timestamp DiskReadMaximumTime = 35;
+  double DiskReadAverage = 36;
+  double DiskReadMinimum = 37;
+  google.protobuf.Timestamp DiskReadMinimumTime = 38;
+
+  double NetUsageMaximum = 39;
+  google.protobuf.Timestamp NetUsageMaximumTime = 40;
+  double NetUsageAverage = 41;
+  double NetUsageMinimum = 42;
+  google.protobuf.Timestamp NetUsageMinimumTime = 43;
+
+  string Vcenter = 44;
+  string Datacenter = 45;
+  string Cluster = 46;
+  string KeyName = 47;
+  string Uuid = 48;
+  string GuestId = 49;
+  string Annotation = 50;
+  int32 NumEthernetCards = 51;
+  int32 NumVirtualDisks = 52;
+  double DiskCommittedGB = 53;
+  double DiskUncommittedGB = 54;
+  double CpuBilling = 55;
+  double MemBilling = 56;
+  double DiskBilling = 57;
+  double NetBilling = 58;
+  repeated VMPerf Perf = 59;
+  repeated VMFile VMFiles = 60;
+  repeated GuestDiskInfo VMDisk = 61;
+  repeated VMUsageOnDatastore UsageDatastore = 62;
+  string TagName = 63;
+  string TagDescription = 64;
+  double CpuMhz = 65;
+  string Network = 66;
+  bool Workstation = 67;
+  bool Template = 68;
+  string ClusterId = 69;
+  int32 TypeWork = 70;
+  string MacAddress = 71;
+  string GuestDetailedData = 72;
+  string ToolsStatus = 73;
+  string DomainName = 74;
+}
+
+//
+message VMPointShort {
+  int64 Id = 1;
+  string Name = 2;
+  string GuestFullName = 3;
+  string HostName = 4;
+  string PathName = 5;
+  bool PowerState = 6;
+  int32 NumCPU = 7;
+  int32 NumCores = 8;
+  double MemorySizeGB = 9;
+  string IpAddress = 10;
+  double CapacityGb = 11;
+  double FreeSpaceGb = 12;
+  double PercentUsed = 13;
+
+  double CpuUsageMaximum = 14;
+  google.protobuf.Timestamp CpuUsageMaximumTime = 15;
+  double CpuUsageAverage = 16;
+  double CpuUsageMinimum = 17;
+  google.protobuf.Timestamp CpuUsageMinimumTime = 18;
+
+  double MemUsageMaximum = 19;
+  google.protobuf.Timestamp MemUsageMaximumTime = 20;
+  double MemUsageAverage = 21;
+  double MemUsageMinimum = 22;
+  google.protobuf.Timestamp MemUsageMinimumTime = 23;
+
+  double DiskUsageMaximum = 24;
+  google.protobuf.Timestamp DiskUsageMaximumTime = 25;
+  double DiskUsageAverage = 26;
+  double DiskUsageMinimum = 27;
+  google.protobuf.Timestamp DiskUsageMinimumTime = 28;
+
+  double DiskWriteMaximum = 29;
+  google.protobuf.Timestamp DiskWriteMaximumTime = 30;
+  double DiskWriteAverage = 31;
+  double DiskWriteMinimum = 32;
+  google.protobuf.Timestamp DiskWriteMinimumTime = 33;
+
+  double DiskReadMaximum = 34;
+  google.protobuf.Timestamp DiskReadMaximumTime = 35;
+  double DiskReadAverage = 36;
+  double DiskReadMinimum = 37;
+  google.protobuf.Timestamp DiskReadMinimumTime = 38;
+
+  double NetUsageMaximum = 39;
+  google.protobuf.Timestamp NetUsageMaximumTime = 40;
+  double NetUsageAverage = 41;
+  double NetUsageMinimum = 42;
+  google.protobuf.Timestamp NetUsageMinimumTime = 43;
+  int64 PerfCount = 44;
+  string TagName = 45;
+  string TagDescription = 46;
+  double CpuMhz = 47;
+  string Network = 48;
+  bool Workstation = 49;
+  bool Template = 50;
+  string ClusterId = 51;
+  int32 TypeWork = 52;
+  string MacAddress = 53;
+  string GuestDetailedData = 54;
+  string ToolsStatus = 55;
+  string DomainName = 56;
+}
+
+//
+message VMPointSlice {
+  int64 Count = 1;
+  repeated VMPoint VMPoints = 2;
+}
+
+//
+message Host {
+  int64 Id = 1;
+  string Vcenter = 2;
+  string Datacenter = 3;
+  string Cluster = 4;
+  string Name = 5;
+  string KeyName = 6;
+  string Vendor = 7;
+  string Model = 8;
+  string SerialNumber = 9;
+  string VirtualSerialNumber = 10;
+  string EnclosureSerialNumber = 11;
+  string Uuid = 12;
+  bool PowerState = 13;
+  bool InMaintenanceMode = 14;
+  string CpuModel = 15;
+  int32 CpuMhz = 16;
+  int32 NumCpuPkgs = 17;
+  int32 NumCpuCores = 18;
+  int32 NumCpuThreads = 19;
+  int32 NumNics = 20;
+  int32 NumHBAs = 21;
+  double MemorySizeGB = 22;
+  double HostMaxVirtualDiskCapacity = 23;
+  double CpuUsageMaximum = 24;
+  google.protobuf.Timestamp CpuUsageMaximumTime = 25;
+  double CpuUsageAverage = 26;
+  double CpuUsageMinimum = 27;
+  google.protobuf.Timestamp CpuUsageMinimumTime = 28;
+  double MemUsageMaximum = 29;
+  google.protobuf.Timestamp MemUsageMaximumTime = 30;
+  double MemUsageAverage = 31;
+  double MemUsageMinimum = 32;
+  google.protobuf.Timestamp MemUsageMinimumTime = 33;
+  double DiskUsageMaximum = 34;
+  google.protobuf.Timestamp DiskUsageMaximumTime = 35;
+  double DiskUsageAverage = 36;
+  double DiskUsageMinimum = 37;
+  google.protobuf.Timestamp DiskUsageMinimumTime = 38;
+  double DiskWriteMaximum = 39;
+  google.protobuf.Timestamp DiskWriteMaximumTime = 40;
+  double DiskWriteAverage = 41;
+  double DiskWriteMinimum = 42;
+  google.protobuf.Timestamp DiskWriteMinimumTime = 43;
+  double DiskReadMaximum = 44;
+  google.protobuf.Timestamp DiskReadMaximumTime = 45;
+  double DiskReadAverage = 46;
+  double DiskReadMinimum = 47;
+  google.protobuf.Timestamp DiskReadMinimumTime = 48;
+  double NetUsageMaximum = 49;
+  google.protobuf.Timestamp NetUsageMaximumTime = 50;
+  double NetUsageAverage = 51;
+  double NetUsageMinimum = 52;
+  google.protobuf.Timestamp NetUsageMinimumTime = 53;
+  int64 PerfCount = 54;
+  string TagName = 55;
+  string TagDescription = 56;
+  string IpAddress = 57;
+  string ProductFullName = 58;
+  string ClusterId = 59;
+  string MacAddress = 60;
+}
+
+//
+message HostFull {
+  int64 Id = 1;
+  string Vcenter = 2;
+  string Datacenter = 3;
+  string Cluster = 4;
+  string Name = 5;
+  string KeyName = 6;
+  string Vendor = 7;
+  string Model = 8;
+  string SerialNumber = 9;
+  string VirtualSerialNumber = 10;
+  string EnclosureSerialNumber = 11;
+  string Uuid = 12;
+  bool PowerState = 13;
+  bool InMaintenanceMode = 14;
+  string CpuModel = 15;
+  int32 CpuMhz = 16;
+  int32 NumCpuPkgs = 17;
+  int32 NumCpuCores = 18;
+  int32 NumCpuThreads = 19;
+  int32 NumNics = 20;
+  int32 NumHBAs = 21;
+  double MemorySizeGB = 22;
+  double HostMaxVirtualDiskCapacity = 23;
+  double CpuUsageMaximum = 24;
+  google.protobuf.Timestamp CpuUsageMaximumTime = 25;
+  double CpuUsageAverage = 26;
+  double CpuUsageMinimum = 27;
+  google.protobuf.Timestamp CpuUsageMinimumTime = 28;
+  double MemUsageMaximum = 29;
+  google.protobuf.Timestamp MemUsageMaximumTime = 30;
+  double MemUsageAverage = 31;
+  double MemUsageMinimum = 32;
+  google.protobuf.Timestamp MemUsageMinimumTime = 33;
+  double DiskUsageMaximum = 34;
+  google.protobuf.Timestamp DiskUsageMaximumTime = 35;
+  double DiskUsageAverage = 36;
+  double DiskUsageMinimum = 37;
+  google.protobuf.Timestamp DiskUsageMinimumTime = 38;
+  double DiskWriteMaximum = 39;
+  google.protobuf.Timestamp DiskWriteMaximumTime = 40;
+  double DiskWriteAverage = 41;
+  double DiskWriteMinimum = 42;
+  google.protobuf.Timestamp DiskWriteMinimumTime = 43;
+  double DiskReadMaximum = 44;
+  google.protobuf.Timestamp DiskReadMaximumTime = 45;
+  double DiskReadAverage = 46;
+  double DiskReadMinimum = 47;
+  google.protobuf.Timestamp DiskReadMinimumTime = 48;
+  double NetUsageMaximum = 49;
+  google.protobuf.Timestamp NetUsageMaximumTime = 50;
+  double NetUsageAverage = 51;
+  double NetUsageMinimum = 52;
+  google.protobuf.Timestamp NetUsageMinimumTime = 53;
+  int64 PerfCount = 54;
+  repeated HSPerf Perf = 55;
+  string TagName = 56;
+  string TagDescription = 57;
+  string IpAddress = 58;
+  string ProductFullName = 59;
+  string ClusterId = 60;
+  string MacAddress = 61;
+}
+
+//
+message Cluster {
+  int64 Id = 1;
+  google.protobuf.Timestamp Date = 2;
+  string Vcenter = 3;
+  string Datacenter = 4;
+  string Name = 5;
+  int32 CpuMhzAvg = 6;
+  int32 AllNumCpuPkgs = 7;
+  int32 AllNumCpuCores = 8;
+  int32 AllNumCpuThreads = 9;
+  double AllMemorySizeGB = 10;
+  double AllCapacityGb = 11;
+  double AllFreeSpaceGb = 12;
+  double AllPercentUsed = 13;
+  int32 AllocatedCoreCount = 14;
+  int32 AllocatedMemorySizeGb = 15;
+  double CoreTransferRate = 16;
+  double MemoryTransferRate = 17;
+  double CpuUsageMaximum = 18;
+  google.protobuf.Timestamp CpuUsageMaximumTime = 19;
+  double CpuUsageAverage = 20;
+  double CpuUsageMinimum = 21;
+  google.protobuf.Timestamp CpuUsageMinimumTime = 22;
+  double MemUsageMaximum = 23;
+  google.protobuf.Timestamp MemUsageMaximumTime = 24;
+  double MemUsageAverage = 25;
+  double MemUsageMinimum = 26;
+  google.protobuf.Timestamp MemUsageMinimumTime = 27;
+  double DiskUsageMaximum = 28;
+  google.protobuf.Timestamp DiskUsageMaximumTime = 29;
+  double DiskUsageAverage = 30;
+  double DiskUsageMinimum = 31;
+  google.protobuf.Timestamp DiskUsageMinimumTime = 32;
+  double DiskWriteMaximum = 33;
+  google.protobuf.Timestamp DiskWriteMaximumTime = 34;
+  double DiskWriteAverage = 35;
+  double DiskWriteMinimum = 36;
+  google.protobuf.Timestamp DiskWriteMinimumTime = 37;
+  double DiskReadMaximum = 38;
+  google.protobuf.Timestamp DiskReadMaximumTime = 39;
+  double DiskReadAverage = 40;
+  double DiskReadMinimum = 41;
+  google.protobuf.Timestamp DiskReadMinimumTime = 42;
+  double NetUsageMaximum = 43;
+  google.protobuf.Timestamp NetUsageMaximumTime = 44;
+  double NetUsageAverage = 45;
+  double NetUsageMinimum = 46;
+  google.protobuf.Timestamp NetUsageMinimumTime = 47;
+  int64 PerfCount = 48;
+  bool HostFlag = 49;
+  int64 HostCount = 50;
+  int64 VMCount = 51;
+  int32 TypeWork = 52;
+  string ClusterId = 53;
+}
+
+//
+message ClusterFull {
+  int64 Id = 1;
+  google.protobuf.Timestamp Date = 2;
+  string Vcenter = 3;
+  string Datacenter = 4;
+  string Name = 5;
+  int32 CpuMhzAvg = 6;
+  int32 AllNumCpuPkgs = 7;
+  int32 AllNumCpuCores = 8;
+  int32 AllNumCpuThreads = 9;
+  double AllMemorySizeGB = 10;
+  double AllCapacityGb = 11;
+  double AllFreeSpaceGb = 12;
+  double AllPercentUsed = 13;
+  int32 AllocatedCoreCount = 14;
+  int32 AllocatedMemorySizeGb = 15;
+  double CoreTransferRate = 16;
+  double MemoryTransferRate = 17;
+  double CpuUsageMaximum = 18;
+  google.protobuf.Timestamp CpuUsageMaximumTime = 19;
+  double CpuUsageAverage = 20;
+  double CpuUsageMinimum = 21;
+  google.protobuf.Timestamp CpuUsageMinimumTime = 22;
+  double MemUsageMaximum = 23;
+  google.protobuf.Timestamp MemUsageMaximumTime = 24;
+  double MemUsageAverage = 25;
+  double MemUsageMinimum = 26;
+  google.protobuf.Timestamp MemUsageMinimumTime = 27;
+  double DiskUsageMaximum = 28;
+  google.protobuf.Timestamp DiskUsageMaximumTime = 29;
+  double DiskUsageAverage = 30;
+  double DiskUsageMinimum = 31;
+  google.protobuf.Timestamp DiskUsageMinimumTime = 32;
+  double DiskWriteMaximum = 33;
+  google.protobuf.Timestamp DiskWriteMaximumTime = 34;
+  double DiskWriteAverage = 35;
+  double DiskWriteMinimum = 36;
+  google.protobuf.Timestamp DiskWriteMinimumTime = 37;
+  double DiskReadMaximum = 38;
+  google.protobuf.Timestamp DiskReadMaximumTime = 39;
+  double DiskReadAverage = 40;
+  double DiskReadMinimum = 41;
+  google.protobuf.Timestamp DiskReadMinimumTime = 42;
+  double NetUsageMaximum = 43;
+  google.protobuf.Timestamp NetUsageMaximumTime = 44;
+  double NetUsageAverage = 45;
+  double NetUsageMinimum = 46;
+  google.protobuf.Timestamp NetUsageMinimumTime = 47;
+  int64 PerfCount = 48;
+  repeated CLPerf Perf = 49;
+  repeated Datastore Storages = 50;
+  bool HostFlag = 51;
+  int64 HostCount = 52;
+  int64 VMCount = 53;
+  int32 TypeWork = 54;
+  string ClusterId = 55;
+}
+
+//
+message ClusterShort {
+  string Vcenter = 1;
+  string Datacenter = 2;
+  string Name = 3;
+}
+
+// OneView interface
+//
+message SerialNumber {
+  string SerialNumber = 1;
+}
+
+//
+message ServerName {
+  string Name = 1;
+}
+
+//
+message ServerHardware {
+  OVServerHardware Base = 1;
+  ServerHardwareMemory Memory = 2;
+  ServerHardwareLocalStorage Storage = 3;
+  DatacenterInfo Datacenter = 4;
+  Racks Rack = 5;
+  Enclosure EnclosureInfo = 6;
+  DeviceBayInfo BayInfo = 7;
+}
+
+//
+message OVServerHardware {
+  string Hostname = 1;
+  int32 HostOsType = 2;
+  bool MaintenanceMode = 3;
+  int32 MemoryMb = 4;
+  string Model=5;
+  string Name=6;
+  string PartNumber=7;
+  int32 Position=8;
+  string PowerState=9;
+  int32 ProcessorCoreCount=10;
+  int32 ProcessorCount=11;
+  int32 ProcessorSpeedMhz=12;
+  string ProcessorType=13;
+  string SerialNumber=14;
+  string ServerName=15;
+  string ShortModel=16;
+  string Status=17;
+  string UUID=18;
+  string OperatingSystem=19;
+  string VirtualSerialNumber=20;
+  string FormFactor=21;
+}
+
+//
+message ServerHardwareMemory {
+  string URI=1;
+  string CollectionState=2;
+  google.protobuf.Timestamp Modified=3;
+  repeated MemoryModule Data=4;
+  string Etag=5;
+  int32 Count=6;
+  string Name=7;
+}
+
+// MemoryStatus - состояние модуля памяти Health в значении "OK", State в значении "Enabled"
+message MemoryStatus{
+  string Healt=1;
+  string State=2;
+}
+
+// MemoryLocation - расположение модуля памяти (Slot, Socket)
+message MemoryLocation {
+  int32 Slot=1;
+  int32 Socket=2;
+}
+
+// Hpe - состояние модуля памяти DIMMStatus в нормальном состоянии в значении "GoodInUse", MinimumVoltageVoltsX10 - напряжение питания в вольтах
+message Hpe {
+  string DIMMStatus=1;
+  int32 MinimumVoltageVoltsX10=2;
+}
+
+// OemMemory - дополнения от производителя
+message OemMemory {
+  Hpe Hpe=1;
+}
+
+//
+message MemoryModule {
+  string BaseModuleType=1;
+  int32 CapacityMiB=2;
+  string DeviceLocator=3;
+  string Manufacturer=4;
+  string MemoryDeviceType=5;
+  MemoryLocation MemoryLocation=6; //расположение модуля памяти
+  string Name=7;
+  OemMemory Oem=8; //дополнения от производителя
+  int32 OperatingSpeedMhz=9;
+  string PartNumber=10;
+  int32 RankCount=11;
+  MemoryStatus Status=12; //MemoryStatus - состояние модуля памяти Health в значении "OK", State в значении "Enabled"
+}
+
+//
+message ServerHardwareLocalStorage {
+  string URI=1;
+  string CollectionState=2;
+  google.protobuf.Timestamp Modified=3;
+  repeated LocalStorage Data=4;
+  string Etag=5;
+  int32 Count=6;
+  string Name=7;
+}
+
+// Status - состояние Health "OK", State "Enabled"
+message Status{
+  string Health=1;
+  string State=2;
+}
+
+//
+message LocalStorage {
+  string              AdapterType=1;             //тип адаптера "SmartArray"
+  int32               CacheMemorySizeMiB=2;      //размер кэша контроллера в мегабайтах
+  string              CacheModuleSerialNumber=3; //серийный номер контроллера
+  CacheModuleStatus   CacheModuleStatus=4;       //состояние кэша
+  ControllerBoard     ControllerBoard=5;
+  bool                EncryptionCspTestPassed=6; //результат тестового прохода
+  bool                EncryptionEnabled=7;       //шифрование включено?
+  bool                EncryptionSelfTestPassed=8; //результата теста шифрования
+  FirmwareVersion     FirmwareVersion=9;         //прошивка
+  string              Location=10;               //расположение "Slot 3"
+  repeated LocalLogicalDrive LogicalDrives=11;    //томы (логические диски)
+  string              Model=12;                  //модель "Smart Array p840 Controller"
+  string              Name=13;                   //наименование "Controller in Slot 3"
+  repeated LocalPhysicalDrive PhysicalDrives=14;  //диски подключенные к хранилищу
+  string              SerialNumber=15;           //серийный номер
+  Status              Status=16;                 //состояние
+  repeated LocalStorageEnclosure StorageEnclosures=17; //корзины для дисков
+}
+
+//
+message CacheModuleStatus {
+  string Health=1;
+}
+
+//
+message ControllerBoard {
+  ControllerSatus Status=1;
+}
+
+//
+message ControllerSatus {
+  string Health=1;
+  string State=2;
+}
+
+// Version - версия в виде строки VersionString
+message Version{
+  string VersionString=1;
+}
+
+// FirmwareVersion - текущая версия Firmware
+message FirmwareVersion {
+  Version Current=1;
+}
+
+// LogicalDataDrive - описание диска в логическом томе
+message LogicalDataDrive {
+  double          CapacityMiB=1;          //емкость диска в мегабайтах
+  repeated string DiskDriveStatusReasons=2; //стаатусы "None"
+  string          DiskDriveUse=3;         //использование диска в томе "Data"
+  bool            EncryptedDrive=4;       //включено ли шифрование true, false
+  FirmwareVersion FirmwareVersion=5;      //текущая версия прошивки
+  string          Location=6;             //расположение "11:1:7"
+  string          LocationFormat=7;       //формат строки расположения "ControllerPort:Box:Bay"
+  string          MediaType=8;            //тип диска "HDD", ...
+  string          Model=9;                //модель "MB4000JVYZQ"
+  string          SerialNumber=10;        //серийный номер "ZC17LE2X"
+  Status          Status=11;              //состояние
+}
+
+// LocalLogicalDrive - описание тома
+message LocalLogicalDrive {
+  double                CapacityMiB=1;            //емкость в мегабайтах
+  repeated LogicalDataDrive DataDrives=2;         //диски
+  bool                  LogicalDriveEncryption=3; //шифрование
+  int32                 LogicalDriveNumber=4;     //номер логического диска
+  string                LogicalDriveType=5;       //тип логического диска
+  string                Raid=6;                   //уровень Raid "5", ...
+  Status                Status=7;                 //состояние
+}
+
+// LocalPhysicalDrive - описание диска
+message LocalPhysicalDrive {
+  double          CapacityMiB=1;          //емкость
+  repeated string DiskDriveStatusReasons=2; //стаатусы "None"
+  string          DiskDriveUse=3;         //использование диска в томе "Data"
+  bool            EncryptedDrive=4;       //включено ли шифрование true, false
+  FirmwareVersion FirmwareVersion=5;      //текущая версия прошивки
+  string          Location=6;             //расположение "11:1:7"
+  string          LocationFormat=7;       //формат строки расположения "ControllerPort:Box:Bay"
+  string          MediaType=8;            //тип диска "HDD", ...
+  string          Model=9;                //модель "MB4000JVYZQ"
+  string          SerialNumber=10;        //серийный номер "ZC17LE2X"
+  Status          Status=11;              //состояние
+}
+
+// LocalStorageEnclosure - описание корзины для дисков
+message LocalStorageEnclosure {
+  int32           DriveBayCount=1;        //количество мест
+  FirmwareVersion FirmwareVersion=2;      //версия прошивки
+  string          Location=3;             //расположение "1I:1"
+  string          LocationFormat=4;       //формат расположения "ControllerPort:Box"
+  Status          Status=5;               //состояние
+}
+
+//
+message Contents {
+  double X=1;
+  double Y=2;
+  double Rotation=3;
+}
+
+//
+message DatacenterInfo {
+  int32 Width=1;
+  int32 Depth=2;
+  string Currency=3;
+  string DeratingType=4;
+  double DeratingPercentage=5;
+  double CoolingMultiplier=6;
+  repeated Contents   Contents=7;
+  string Category=8;
+  google.protobuf.Timestamp Created=9;
+  google.protobuf.Timestamp Modified=10;
+  string ID=11;
+  string UUID=12;
+  int32 DefaultPowerLineVoltage=13;
+  string Name=14;
+  string State=15;
+  string Status=16;
+}
+
+//
+message Racks {
+  int32           UHeight=1;
+  int32           Width=2;
+  int32           Height=3;
+  int32           Depth=4;
+  string          SerialNumber=5;
+  google.protobuf.Timestamp   Created=6;
+  google.protobuf.Timestamp   Modified=7;
+  string                  ID=8;
+  string                  UUID=9;
+  string                  Name=10;
+  string                  State=11;
+  string                  Status=12;
+}
+
+//
+message DeviceBayInfo{
+  string      Type=1;
+  int32       BayNumber=2;
+  string      DevicePresence=3;
+  string      CoveredByDevice=4;
+  string      URI=5;
+  string      Category=6;
+  bool        AvailableForHalfHeightProfile=7;
+  bool        AvailableForFullHeightProfile=8;
+  string      DeviceBayType=9;
+  string      DeviceFormFactor=10;
+  string      BayPowerState=11;
+  string      ChangeState=12;
+  bool        AvailableForHalfHeightDoubleWideProfile=13;
+  bool        AvailableForFullHeightDoubleWideProfile=14;
+}
+
+//
+message InterconnectBayInfo{
+  int32       BayNumber=1;
+  string      InterconnectModel=2;
+  string      SerialNumber=3;
+  string      InterconnectBayType=4;
+  string      ChangeState=5;
+  string      BayPowerState=6;
+}
+
+//
+message FanBayInfo{
+  int32       BayNumber=1;
+  string      DevicePresence=2;
+  bool        DeviceRequired=3;
+  string      Status=4;
+  string      Model=5;
+  string      PartNumber=6;
+  string      SparePartNumber=7;
+  string      FanBayType=8;
+  string      ChangeState=9;
+  string      State=10;
+}
+
+//
+message PowerSupplyBayInfo {
+  int32 BayNumber = 1;
+  string DevicePresence = 2;
+  string Status = 3;
+  string Model = 4;
+  string SerialNumber = 5;
+  string PartNumber = 6;
+  string SparePartNumber = 7;
+  string PowerSupplyBayType = 8;
+  string ChangeState = 9;
+}
+
+//
+message ManagerBayInfo {
+  int32 BayNumber = 1;
+  string ManagerType = 2;
+  string BayPowerState = 3;
+  string FwVersion = 4;
+  string DevicePresence = 5;
+  string Role = 6;
+  string IPAddress = 7;
+  string ChangeState = 8;
+  string FwBuildDate = 9;
+  bool DhcpIpv6Enable = 10;
+  string FqdnHostName = 11;
+  bool DhcpEnable = 12;
+}
+
+//
+message Enclosure {
+  string                          Type=1;
+  string                          Category=2;
+  google.protobuf.Timestamp      Created=3;
+  google.protobuf.Timestamp      Modified=4;
+  string                          RefreshState=5;
+  string                          StateReason=6;
+  string                          EnclosureType=7;
+  string                          EnclosureModel=8;
+  string                          UUID=9;
+  string                          SerialNumber=10;
+  string                          PartNumber=11;
+  string                          ReconfigurationState=12;
+  string                          LicensingIntent=13;
+  int32                           DeviceBayCount=14;
+  repeated DeviceBayInfo          DeviceBays=15;
+  int32                           InterconnectBayCount=16;
+  repeated InterconnectBayInfo    InterconnectBays=17;
+  int32                           FanBayCount=18;
+  repeated FanBayInfo             FanBays=19;
+  int32                           PowerSupplyBayCount=20;
+  repeated PowerSupplyBayInfo     PowerSupplyBays=21;
+  bool                            IsFwManaged=22;
+  bool                            ForceInstallFirmware=23;
+  repeated ManagerBayInfo         ManagerBays=24;
+  string                          SupportState=25;
+  string                          SupportDataCollectionState=26;
+  string                          SupportDataCollectionType=27;
+  string                          Status=28;
+  string                          Name=29;
+  string                          State=30;
+  string                          StandbyOaPreferredIP=31;
+  string                          ActiveOaPreferredIP=32;
+  string                          AssetTag=33;
+  string                          RackName=34;
+  string                          VcmDomainID=35;
+  string                          VcmDomainName=36;
+  string                          VcmMode=37;
+  string                          VcmURL=38;
+  int32                           OaBays=39;
+  string                          MigrationState=40;
+}

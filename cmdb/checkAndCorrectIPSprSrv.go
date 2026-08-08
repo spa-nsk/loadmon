@@ -1,0 +1,81 @@
+package cmdb
+
+import (
+	"fmt"
+	"loadmon/models"
+	"net"
+	"strings"
+
+	"github.com/beego/beego/v2/client/orm"
+)
+
+func CheckAndCorrectIPSprSrv() {
+	records := make([]*models.ServerSprRecords, 0)
+	o := orm.NewOrm()
+	qs := o.QueryTable("server_spr_records")
+	qs = qs.OrderBy("name").Filter("Type__ne", 1) // сортировка по именам серверов и фильтр по имени и Type !=1
+	num, err := qs.All(&records)
+	if err != nil || num < 1 {
+		fmt.Println("Запрос серверов по фильтру Name=", "Ошибка: ", err)
+		return
+	}
+
+	for _, rec := range records {
+		s := models.ServerSprRecords{Id: rec.Id}
+
+		o.Read(&s, "Id")
+		s.NameFQDN = strings.TrimSuffix(s.NameFQDN, ".")
+		o.Update(&s)
+
+		ips, err := net.LookupIP(rec.Name)
+		if err != nil {
+			fmt.Println(rec.Name, rec.NameFQDN, "Нет данных в DNS")
+			srv := models.ServerSprRecords{Id: rec.Id}
+			err := o.Read(&srv, "Id")
+			if err == nil {
+				srv.Stat = 0
+				srv.Active = 2
+				srv.PowerState = 2
+				o.Update(&srv)
+			}
+			continue
+		}
+		fmt.Println(rec.Name, rec.NameFQDN)
+		ipstr := ""
+		for _, ip := range ips {
+			addr := ip.String()
+			ipstr = fmt.Sprintf("%s%s;", ipstr, addr)
+			fmt.Printf("%s\n", addr)
+			hosts, err := net.LookupAddr(addr)
+			if err == nil {
+				foundNameFQDN := false
+				for _, h := range hosts {
+					host := strings.TrimSuffix(h, ".")
+					fmt.Printf("\t%s\n", host)
+					if !foundNameFQDN {
+						hostUP := strings.ToUpper(host)
+						nameUP := strings.ToUpper(rec.Name)
+						nameFQDNUP := strings.ToUpper(rec.NameFQDN)
+						if strings.Contains(hostUP, nameUP) && (rec.NameFQDN == "" || nameFQDNUP == nameUP) {
+							foundNameFQDN = true
+							srv := models.ServerSprRecords{Id: rec.Id}
+							err := o.Read(&srv, "Id")
+							if err == nil {
+								srv.NameFQDN = host
+								o.Update(&srv)
+							}
+						}
+					}
+				}
+			}
+		}
+		if rec.IPAddress == "" && ipstr != "" {
+			srv := models.ServerSprRecords{Id: rec.Id}
+			err := o.Read(&srv, "Id")
+			if err == nil {
+				srv.IPAddress = ipstr
+				o.Update(&srv)
+			}
+		}
+	}
+}

@@ -1,0 +1,35 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+__debug_bin*
+
+# Go
+/vendor/
+
+# IDE
+.idea/
+
+# Local config (copy from app2.json.example)
+server_web_new/conf/app2.json
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+server_web_new/db/
+
+# Protobuf toolchain archives
+protoc-*.zip
+
+# Backups
+*.save
+views.save/
+
+# Screenshot sources used during restoration
+*_screenshots/
+
+# OS
+.DS_Store
+Thumbs.db

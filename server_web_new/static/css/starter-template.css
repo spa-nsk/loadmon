@@ -1,0 +1,28 @@
+.icon-link > .bi {
+  width: .75em;
+  height: .75em;
+}
+
+.icon-link-hover:hover > .bi {
+  transform: translateX(3px);
+  transition: transform .3s ease-in-out;
+}
+
+body {
+  padding-top: 5rem;
+}
+
+.iframe-container {
+  overflow: hidden;
+  padding-top: 56.25%;
+  position: relative;
+}
+
+.iframe-container iframe {
+  border: 0;
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
