@@ -21,6 +21,50 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// newLightServerView строит "лёгкую" запись models.ServerSprView по одной
+// записи справочника rec: заполняет только r.S и вычисляет
+// PercentFilledField, без дополнительных запросов к БД (VM/Hardware
+// остаются пустыми заглушками и заполняются позже - см. enrichServerViews).
+func newLightServerView(rec *models.ServerSprRecords) models.ServerSprView {
+	r := models.ServerSprView{}
+	r.S = *rec
+	r.VM = &models.VMSprRecordView{}
+	r.Hardware = &models.ServerHardwareView{}
+	CalcPercentFilled(&r)
+	return r
+}
+
+// enrichServerViews догружает детали виртуальной машины (vm_spr_record) и
+// аппаратной конфигурации (server_hardware) для каждой записи списка list -
+// по два дополнительных запроса на запись. Вызывается точечно, только для
+// того среза записей, который реально нужен на этом шаге (текущая страница
+// при обычном просмотре, либо весь список непосредственно перед экспортом
+// в CSV/XLSX) - а не для всей найденной фильтром выборки сразу, как было
+// раньше. Именно повторение этих запросов для каждой найденной записи (а
+// не только отображаемой странице) было основной причиной медленной
+// загрузки /sprsrv/view2 при больших объёмах справочника.
+func enrichServerViews(o orm.Ormer, list []models.ServerSprView) {
+	for i := range list {
+		rec := &list[i].S
+
+		if rec.VMSprId != 0 && rec.Type == 1 {
+			vm := models.VMSprRecordView{}
+			qs := o.QueryTable("vm_spr_record").OrderBy("id").Filter("id", rec.VMSprId)
+			if err := qs.One(&vm.VMSprRecord); err == nil {
+				list[i].VM = &vm
+			}
+		}
+
+		if rec.Type == 2 || rec.Type == 0 {
+			hw := models.ServerHardwareView{}
+			qs := o.QueryTable("server_hardware").OrderBy("server_id").Filter("server_id", rec.Id)
+			if err := qs.One(&hw.H); err == nil {
+				list[i].Hardware = &hw
+			}
+		}
+	}
+}
+
 // SprSrvViewV2 отображает справочник серверов/ВМ (актуальная версия страницы
 // просмотра): список с фильтрацией и постраничной навигацией, а также экспорт
 // данных в CSV/Excel в зависимости от режима Mode.
@@ -44,7 +88,12 @@ func (this *MainController) SprSrvViewV2() {
 		list         []models.ServerSprView
 	)
 
-	indexSrv := make(map[string]*models.ServerSprRecords)
+	// indexSrv - множество Id уже добавленных в list записей: используется
+	// для дедупликации, когда одна и та же запись server_spr_records может
+	// быть найдена и основным фильтром, и расширенным поиском по кластерам
+	// (recordsVMAdd). Дедупликация по Id (первичный ключ) проще и надёжнее,
+	// чем прежний вариант по конкатенации Name/NameFQDN/IPAddress.
+	indexSrv := make(map[int64]bool)
 
 	//rawSelect := "SELECT B.* FROM server_spr_records B JOIN spr_cfo_allocation C ON B.id = C.server_id WHERE B.stat != '666' "
 	rawVMSelect := "SELECT B.* FROM server_spr_records B JOIN vm_spr_record C ON B.v_m_spr_id = C.id WHERE B.stat != '666' "
@@ -487,147 +536,49 @@ func (this *MainController) SprSrvViewV2() {
 	//----------------------------------------------------------------------------
 	log.Println("Количество записей", len(records))
 
+	// Построение list выполняется в лёгком режиме: без запросов CFO/Busines
+	// (эти поля - срезы spr_cfo_allocation/spr_busines_allocation - нигде не
+	// отображаются в шаблоне и не попадают в CSV/XLSX-экспорт, т.к.
+	// csvtools.GetCSVHeader/GetCSVData пропускают поля-срезы; тратить на них
+	// запрос на каждую запись не имеет смысла) и без запросов VM/Hardware
+	// (server_id-детали подгружаются отдельно функцией enrichServerViews -
+	// см. ниже - только для записей текущей страницы при обычном просмотре,
+	// либо для всего списка непосредственно перед экспортом в CSV/XLSX).
+	// Раньше эти 4 запроса на запись выполнялись для ВСЕХ найденных записей
+	// ещё до пагинации - именно это было причиной медленной загрузки
+	// /sprsrv/view2 при большом количестве серверов: пагинация лишь урезала
+	// то, что отдавалось в шаблон, а не объём уже выполненной работы.
 	if err != orm.ErrNoRows && num > 0 {
-		list = make([]models.ServerSprView, 0)
-		for k, rec := range records {
-			indexSrv[rec.Name+"/"+rec.NameFQDN+"/"+rec.IPAddress] = records[k]
-			r := models.ServerSprView{}
-			r.S = *rec
-
-			qs = o.QueryTable("spr_cfo_allocation")
-			qs = qs.OrderBy("server_id")
-			qs = qs.Filter("server_id", rec.Id)
-			qs.All(&r.CFO)
-
-			qs = o.QueryTable("spr_busines_allocation")
-			qs = qs.OrderBy("server_id")
-			qs = qs.Filter("server_id", rec.Id)
-			qs.All(&r.Busines)
-			if rec.VMSprId != 0 && rec.Type == 1 {
-				vm := models.VMSprRecordView{}
-				qs = o.QueryTable("vm_spr_record").OrderBy("id").Filter("id", rec.VMSprId)
-				err := qs.One(&vm.VMSprRecord)
-				if err == nil {
-					r.VM = &vm
-				} else {
-					//				r.VM = nil
-					r.VM = &models.VMSprRecordView{}
-				}
-
-			} else {
-				//			r.VM = nil
-				r.VM = &models.VMSprRecordView{}
+		list = make([]models.ServerSprView, 0, len(records))
+		for k := range records {
+			rec := records[k]
+			if indexSrv[rec.Id] {
+				continue
 			}
-			if rec.Type == 2 || rec.Type == 0 {
-				hw := models.ServerHardwareView{}
-				qs = o.QueryTable("server_hardware").OrderBy("server_id").Filter("server_id", rec.Id)
-				err := qs.One(&hw.H)
-				if err == nil {
-					r.Hardware = &hw
-				} else {
-					r.Hardware = &models.ServerHardwareView{}
-				}
-			} else {
-				r.Hardware = &models.ServerHardwareView{}
-			}
-			CalcPercentFilled(&r)
-			list = append(list, r)
+			indexSrv[rec.Id] = true
+			list = append(list, newLightServerView(rec))
 		}
 	}
 
 	if errAdd == nil && numAdd > 0 { // добавляем из расширенного поиска
-		for k, rec := range recordsAdd {
-			_, ok := indexSrv[rec.Name+"/"+rec.NameFQDN+"/"+rec.IPAddress]
-			if ok {
+		for k := range recordsAdd {
+			rec := recordsAdd[k]
+			if indexSrv[rec.Id] {
 				continue
 			}
-			indexSrv[rec.Name+"/"+rec.NameFQDN+"/"+rec.IPAddress] = recordsAdd[k]
-			r := models.ServerSprView{}
-			r.S = *rec
-
-			qs = o.QueryTable("spr_cfo_allocation")
-			qs = qs.OrderBy("server_id")
-			qs = qs.Filter("server_id", rec.Id)
-			qs.All(&r.CFO)
-
-			qs = o.QueryTable("spr_busines_allocation")
-			qs = qs.OrderBy("server_id")
-			qs = qs.Filter("server_id", rec.Id)
-			qs.All(&r.Busines)
-			if rec.VMSprId != 0 && rec.Type == 1 {
-				vm := models.VMSprRecordView{}
-				qs = o.QueryTable("vm_spr_record").OrderBy("id").Filter("id", rec.VMSprId)
-				err := qs.One(&vm.VMSprRecord)
-				if err == nil {
-					r.VM = &vm
-				} else {
-					r.VM = &models.VMSprRecordView{}
-				}
-			} else {
-				r.VM = &models.VMSprRecordView{}
-			}
-			if rec.Type == 2 || rec.Type == 0 {
-				hw := models.ServerHardwareView{}
-				qs = o.QueryTable("server_hardware").OrderBy("server_id").Filter("server_id", rec.Id)
-				err := qs.One(&hw.H)
-				if err == nil {
-					r.Hardware = &hw
-				} else {
-					r.Hardware = &models.ServerHardwareView{}
-				}
-			} else {
-				r.Hardware = &models.ServerHardwareView{}
-			}
-			CalcPercentFilled(&r)
-			list = append(list, r)
+			indexSrv[rec.Id] = true
+			list = append(list, newLightServerView(rec))
 		}
 	}
 
 	if errVMAdd == nil && numVMAdd > 0 { //добавляем из расширенного поиска
-		for k, rec := range recordsVMAdd {
-			_, ok := indexSrv[rec.Name+"/"+rec.NameFQDN+"/"+rec.IPAddress]
-			if ok {
+		for k := range recordsVMAdd {
+			rec := recordsVMAdd[k]
+			if indexSrv[rec.Id] {
 				continue
 			}
-			indexSrv[rec.Name+"/"+rec.NameFQDN+"/"+rec.IPAddress] = recordsVMAdd[k]
-			r := models.ServerSprView{}
-			r.S = *rec
-			qs = o.QueryTable("spr_cfo_allocation")
-			qs = qs.OrderBy("server_id")
-			qs = qs.Filter("server_id", rec.Id)
-			qs.All(&r.CFO)
-
-			qs = o.QueryTable("spr_busines_allocation")
-			qs = qs.OrderBy("server_id")
-			qs = qs.Filter("server_id", rec.Id)
-			qs.All(&r.Busines)
-			if rec.VMSprId != 0 && rec.Type == 1 {
-				vm := models.VMSprRecordView{}
-				qs = o.QueryTable("vm_spr_record").OrderBy("id").Filter("id", rec.VMSprId)
-				err := qs.One(&vm.VMSprRecord)
-				if err == nil {
-					r.VM = &vm
-				} else {
-					r.VM = &models.VMSprRecordView{}
-				}
-
-			} else {
-				r.VM = &models.VMSprRecordView{}
-			}
-			if rec.Type == 2 || rec.Type == 0 {
-				hw := models.ServerHardwareView{}
-				qs = o.QueryTable("server_hardware").OrderBy("server_id").Filter("server_id", rec.Id)
-				err := qs.One(&hw.H)
-				if err == nil {
-					r.Hardware = &hw
-				} else {
-					r.Hardware = &models.ServerHardwareView{}
-				}
-			} else {
-				r.Hardware = &models.ServerHardwareView{}
-			}
-			CalcPercentFilled(&r)
-			list = append(list, r)
+			indexSrv[rec.Id] = true
+			list = append(list, newLightServerView(rec))
 		}
 	}
 	// Пагинация HTML-таблицы: отдаём в шаблон только текущую страницу
@@ -664,6 +615,13 @@ func (this *MainController) SprSrvViewV2() {
 		pagedList = list[offset:end]
 	}
 
+	// Детали VM/Hardware (2 доп. запроса на запись) подгружаются только для
+	// записей текущей страницы - не более PageSize (25/50/100/200) штук,
+	// а не для всей найденной выборки. pagedList - это подсрез list с общим
+	// backing-массивом, поэтому изменения видны и в list (важно для экспорта
+	// ниже, если он запрошен для того же результата).
+	enrichServerViews(o, pagedList)
+
 	this.Data["records"] = pagedList
 	this.Data["CountRecords"] = totalRecords
 	this.Data["Page"] = page
@@ -674,6 +632,15 @@ func (this *MainController) SprSrvViewV2() {
 		this.Data["PageFrom"] = offset + 1
 	}
 	this.Data["PageTo"] = end
+
+	if exportxlsx || exportcsv {
+		// экспорт отдаёт весь найденный список (list), а не только текущую
+		// страницу - поэтому здесь (и только здесь) детали VM/Hardware
+		// догружаются для всех записей списка, а не только для pagedList
+		// (для записей внутри диапазона текущей страницы это повторный, но
+		// безвредный запрос - основная часть list детализируется впервые)
+		enrichServerViews(o, list)
+	}
 
 	if exportxlsx {
 		if len(list) > 0 {

@@ -114,6 +114,13 @@ func ClusterToMessageFull(cl vsphere.Cluster, out *pb.ClusterFull) {
 	if out == nil {
 		return
 	}
+	// CalcPerfomance пересчитывает cl.Perf (по хостам кластера, cl.Hosts) и
+	// все агрегаты Min/Avg/Max ниже - без этого вызова срез Perf остаётся
+	// пустым (PerfCount=0), а метрики CPU/память/диск/сеть - нулевыми, даже
+	// если у хостов кластера есть накопленные данные. ClusterToMessage и
+	// ClusterToMessageMedium уже делают этот вызов - здесь он отсутствовал,
+	// из-за чего /sprsrv/listclusterview и /sprsrv/clusterperfday (оба
+	// используют GetClusterFull) получали кластеры без метрик.
 	cl.CalcPerfomance()
 	out.HostFlag = cl.HostFlag
 	out.Id = cl.ID

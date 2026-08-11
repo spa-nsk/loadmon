@@ -16,7 +16,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v5.29.3
-// source: protocol/vm.proto
+// source: vm.proto
 
 package protocol
 
@@ -79,6 +79,39 @@ const (
 // LoadmonClient is the client API for Loadmon service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Настоящий файл описывает gRPC API системы мониторинга loadmon для
+// инвентаризации и сбора метрик производительности инфраструктуры vSphere
+// (виртуальные машины, кластеры, хосты, датасторы) и оборудования HPE OneView
+// (server hardware, шасси, блейд-корзины).
+//
+// Основной сервис:
+//
+//	Loadmon — предоставляет методы получения справочной информации и метрик
+//	по vCenter/датацентрам/кластерам/хостам/ВМ, постраничную навигацию по
+//	ключам, а также вспомогательные методы очистки метрик и регистрации
+//	рабочих процессов-поставщиков данных.
+//
+// Основные группы сообщений:
+//
+//	VMPoint          — полные данные по ВМ, включая срез метрик (Perf),
+//	                    файлы ВМ (VMFiles), диски гостевой ОС (VMDisk) и
+//	                    использование датастора (UsageDatastore).
+//	VMPointShort      — облегчённый вариант VMPoint без вложенных срезов
+//	                    (только агрегированные метрики).
+//	VMListKey/VMKeyRec, HSListKey/HSKeyRec, CLListKey/CLKeyRec
+//	                  — списки пар "имя/ключ" для постраничной выборки
+//	                    ВМ, хостов и кластеров по ключу.
+//	VMPerf/HSPerf/CLPerf и их *Slice-обёртки
+//	                  — точки метрик производительности (CPU/память/диск/
+//	                    сеть) для ВМ, хостов и кластеров соответственно.
+//	Host/HostFull, Cluster/ClusterFull/ClusterShort, Datastore
+//	                  — описания хостов, кластеров и датасторов различной
+//	                    степени детализации.
+//	ServerHardware и связанные сообщения (OVServerHardware, Enclosure,
+//	LocalStorage, MemoryModule и т.д.)
+//	                  — данные аппаратного обеспечения серверов из HPE
+//	                    OneView.
 type LoadmonClient interface {
 	// Vsphere
 	GetVCenters(ctx context.Context, in *VCReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[VCenter], error)
@@ -674,6 +707,39 @@ type Loadmon_GetClusterSprRecordsClient = grpc.ServerStreamingClient[RegisterEnd
 // LoadmonServer is the server API for Loadmon service.
 // All implementations must embed UnimplementedLoadmonServer
 // for forward compatibility.
+//
+// Настоящий файл описывает gRPC API системы мониторинга loadmon для
+// инвентаризации и сбора метрик производительности инфраструктуры vSphere
+// (виртуальные машины, кластеры, хосты, датасторы) и оборудования HPE OneView
+// (server hardware, шасси, блейд-корзины).
+//
+// Основной сервис:
+//
+//	Loadmon — предоставляет методы получения справочной информации и метрик
+//	по vCenter/датацентрам/кластерам/хостам/ВМ, постраничную навигацию по
+//	ключам, а также вспомогательные методы очистки метрик и регистрации
+//	рабочих процессов-поставщиков данных.
+//
+// Основные группы сообщений:
+//
+//	VMPoint          — полные данные по ВМ, включая срез метрик (Perf),
+//	                    файлы ВМ (VMFiles), диски гостевой ОС (VMDisk) и
+//	                    использование датастора (UsageDatastore).
+//	VMPointShort      — облегчённый вариант VMPoint без вложенных срезов
+//	                    (только агрегированные метрики).
+//	VMListKey/VMKeyRec, HSListKey/HSKeyRec, CLListKey/CLKeyRec
+//	                  — списки пар "имя/ключ" для постраничной выборки
+//	                    ВМ, хостов и кластеров по ключу.
+//	VMPerf/HSPerf/CLPerf и их *Slice-обёртки
+//	                  — точки метрик производительности (CPU/память/диск/
+//	                    сеть) для ВМ, хостов и кластеров соответственно.
+//	Host/HostFull, Cluster/ClusterFull/ClusterShort, Datastore
+//	                  — описания хостов, кластеров и датасторов различной
+//	                    степени детализации.
+//	ServerHardware и связанные сообщения (OVServerHardware, Enclosure,
+//	LocalStorage, MemoryModule и т.д.)
+//	                  — данные аппаратного обеспечения серверов из HPE
+//	                    OneView.
 type LoadmonServer interface {
 	// Vsphere
 	GetVCenters(*VCReq, grpc.ServerStreamingServer[VCenter]) error
@@ -1702,5 +1768,5 @@ var Loadmon_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "protocol/vm.proto",
+	Metadata: "vm.proto",
 }

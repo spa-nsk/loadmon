@@ -58,6 +58,8 @@ func init() {
 	//beego.Router("/sprsrv/vmperfkeytest/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVMPerfKeyTest") //тестовой вывод метрик по виртуальной машине // метод SprSrvVMPerfKeyTest не реализован в controllers
 	//beego.Router("/sprsrv/vmdelperfkey/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVMDelPerfKey") //удаление метрик по VM в определенном диалозоне времени // метод SprSrvVMDelPerfKey не реализован в controllers
 	beego.Router("/sprsrv/vmperfperiod/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVMPerfPeriod") // динамические графики загрузки ВМ по данным БД (VMRecord/VMPerfRecord) за произвольный период
+	beego.Router("/sprsrv/clusterperfday/:Vcenter/:Datacenter/:Cluster", &controllers.MainController{}, "get,post:SprSrvClusterPerfDay")       // динамические графики метрик кластера (CLPerf) за текущий день
+	beego.Router("/sprsrv/clusterperfperiod/:Vcenter/:Datacenter/:Cluster", &controllers.MainController{}, "get,post:SprSrvClusterPerfPeriod") // динамические графики загрузки кластера по данным БД (ClusterRecord/ClusterPerf) за произвольный период
 	//beego.Router("/sprsrv/vmperfperiodbysrvid/:ServerId", &controllers.MainController{}, "get,post:SprSrvVMPerfPeriodSererId") // метод SprSrvVMPerfPeriodSererId не реализован в controllers
 	//beego.Router("/sprsrv/hostperfbyid/:Id", &controllers.MainController{}, "get:HostPerfById") // метод HostPerfById не реализован в controllers
 	//beego.Router("/sprsrv/hostperfbyserverid/:Mode/:ServerId", &controllers.MainController{}, "get,post:HostPerfByServerId") // метод HostPerfByServerId не реализован в controllers
@@ -86,7 +88,7 @@ func init() {
 	//beego.Router("/sprsrv/editsrvdoc/:Id/:docid", &controllers.MainController{}, "get,post:EditServerDocument") // метод EditServerDocument не реализован в controllers
 	//beego.Router("/sprsrv/addsrvdoc/:Id", &controllers.MainController{}, "get,post:AddServerDocument") // метод AddServerDocument не реализован в controllers
 	//beego.Router("/sprsrv/csvdata", &controllers.MainController{}, "get:GetCSVListServer") // метод GetCSVListServer не реализован в controllers
-	//beego.Router("/sprsrv/listclusterview", &controllers.MainController{}, "get,post:ListClusterView") // метод ListClusterView не реализован в controllers
+	beego.Router("/sprsrv/listclusterview", &controllers.MainController{}, "get,post:SprSrvListClusterView") // список кластеров vSphere по аналогии со списком ВМ (/sprsrv/vm)
 	beego.Router("/api/:json", &controllers.MainController{}, "get,post:RequestAPI")
 	beego.Router("/debug/pprof/", &controllers.MainController{}, "get,post:Prof")
 	beego.Router("/debug/pprof/cmdline", &controllers.MainController{}, "get,post:ProfCmdline")

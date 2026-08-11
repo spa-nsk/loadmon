@@ -44,6 +44,33 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
+// Настоящий файл описывает gRPC API сервиса LoadmonDB — отдельного
+// интерфейса прямого доступа к базе данных системы мониторинга loadmon,
+// используемого для хранения и обновления справочных ("Spr") и
+// исторических записей по серверам, кластерам, хостам и ВМ, а также их
+// метрик производительности.
+//
+// Основной сервис:
+//
+//	LoadmonDB — методы получения серверных справочных записей (ServerSpr),
+//	работы со справочными записями кластеров (ClusterSprRecord: получение,
+//	добавление, обновление) и добавления исторической записи кластера
+//	(ClusterRecord).
+//
+// Основные группы сообщений:
+//
+//	ServerSprRecords, VMSprRecord, ClusterSprRecord
+//	                  — справочные ("Spr") записи о серверах, ВМ и
+//	                    кластерах (бизнес-атрибуты: владелец, поддержка,
+//	                    критичность, статус активности и т.п.).
+//	ClusterRecord, VMRecord, HostRecord
+//	                  — исторические записи снимков состояния кластеров,
+//	                    ВМ и хостов с агрегированными метриками
+//	                    (min/max/avg по CPU, памяти, диску, сети).
+//	ClusterPerf, HostPerf, VMPerfRecord
+//	                  — точечные (по времени) метрики производительности
+//	                    кластеров, хостов и ВМ.
+//
 // The DB service definition.
 type LoadmonDBClient interface {
 	GetServer(ctx context.Context, in *DBKeyString, opts ...grpc.CallOption) (*ServerSprRecords, error)
@@ -123,6 +150,33 @@ func (c *loadmonDBClient) AddClusterRecord(ctx context.Context, in *ClusterRecor
 // LoadmonDBServer is the server API for LoadmonDB service.
 // All implementations must embed UnimplementedLoadmonDBServer
 // for forward compatibility.
+//
+// Настоящий файл описывает gRPC API сервиса LoadmonDB — отдельного
+// интерфейса прямого доступа к базе данных системы мониторинга loadmon,
+// используемого для хранения и обновления справочных ("Spr") и
+// исторических записей по серверам, кластерам, хостам и ВМ, а также их
+// метрик производительности.
+//
+// Основной сервис:
+//
+//	LoadmonDB — методы получения серверных справочных записей (ServerSpr),
+//	работы со справочными записями кластеров (ClusterSprRecord: получение,
+//	добавление, обновление) и добавления исторической записи кластера
+//	(ClusterRecord).
+//
+// Основные группы сообщений:
+//
+//	ServerSprRecords, VMSprRecord, ClusterSprRecord
+//	                  — справочные ("Spr") записи о серверах, ВМ и
+//	                    кластерах (бизнес-атрибуты: владелец, поддержка,
+//	                    критичность, статус активности и т.п.).
+//	ClusterRecord, VMRecord, HostRecord
+//	                  — исторические записи снимков состояния кластеров,
+//	                    ВМ и хостов с агрегированными метриками
+//	                    (min/max/avg по CPU, памяти, диску, сети).
+//	ClusterPerf, HostPerf, VMPerfRecord
+//	                  — точечные (по времени) метрики производительности
+//	                    кластеров, хостов и ВМ.
 //
 // The DB service definition.
 type LoadmonDBServer interface {
