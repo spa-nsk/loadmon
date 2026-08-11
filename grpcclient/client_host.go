@@ -154,3 +154,16 @@ func LinkVMToCluster(vm []*vsphere.VMPoint, cl []*vsphere.Cluster) {
 // LinkHostToCluster связывает список хостов со списком кластеров по
 // составному ключу vcenter/datacenter/cluster, заполняя cl[i].Hosts и
 // cl[i].HostCount. Чисто локальная операция, gRPC не использует.
+func LinkHostToCluster(hs []*vsphere.HostInfo, cl []*vsphere.Cluster) {
+	mapcl := make(map[string]*vsphere.Cluster)
+	for _, clp := range cl {
+		mapcl[clp.Vcenter+"/"+clp.Datacenter+"/"+clp.Name] = clp
+	}
+	for _, hsp := range hs {
+		clp, ok := mapcl[hsp.Vcenter+"/"+hsp.Datacenter+"/"+hsp.Cluster]
+		if ok {
+			clp.Hosts = append(clp.Hosts, hsp)
+			clp.HostCount++
+		}
+	}
+}
