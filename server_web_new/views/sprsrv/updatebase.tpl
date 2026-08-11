@@ -5,6 +5,22 @@
         color: var(--bs-secondary-color);
         cursor: not-allowed;
     }
+
+    .it-system-dropdown {
+        z-index: 1000;
+        max-height: 280px;
+        overflow-y: auto;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .25);
+    }
+
+    .it-system-dropdown .list-group-item {
+        cursor: pointer;
+    }
+
+    .it-system-dropdown .list-group-item small {
+        display: block;
+        color: var(--bs-secondary-color);
+    }
 </style>
 
 <script>
@@ -43,7 +59,138 @@
         if (typeSelect) {
             typeSelect.addEventListener('change', applyServerTypeFieldRules);
         }
+        initITSystemPicker();
     });
+
+    // Поле "ИТ система" - два синхронизированных способа ввода:
+    // 1) прямой ввод кода в ITSystemKey (значение поля отправляется формой как есть);
+    // 2) поиск по справочнику (ITSystemSearch) с фильтрацией списка по вводимым
+    //    символам (код/название/статус/тип/бизнес-направление/ЦФО) - выбор
+    //    элемента списка подставляет его код в ITSystemKey.
+    // Оба поля синхронизированы: выбор в справочнике обновляет код, а прямой
+    // ввод/изменение кода обновляет подсказку с расшифровкой найденной записи.
+    function initITSystemPicker() {
+        var keyInput = document.getElementById('ITSystemKey');
+        var hint = document.getElementById('ITSystemKeyHint');
+        var searchInput = document.getElementById('ITSystemSearch');
+        var results = document.getElementById('ITSystemSearchResults');
+        var dataList = document.getElementById('ITSystemDataList');
+        if (!keyInput || !searchInput || !results || !dataList) return;
+
+        var items = Array.prototype.map.call(dataList.querySelectorAll('.it-system-item'), function (el) {
+            return {
+                key: el.getAttribute('data-key') || '',
+                label: el.getAttribute('data-label') || '',
+                full: el.getAttribute('data-full') || '',
+                status: el.getAttribute('data-status') || '',
+                type: el.getAttribute('data-type') || '',
+                biz: el.getAttribute('data-biz') || '',
+                cfo: el.getAttribute('data-cfo') || ''
+            };
+        });
+
+        function findByKey(key) {
+            if (!key) return null;
+            var lower = key.toLowerCase();
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].key.toLowerCase() === lower) return items[i];
+            }
+            return null;
+        }
+
+        function describe(item) {
+            var parts = [item.key];
+            if (item.label) parts.push(item.label);
+            if (item.full) parts.push(item.full);
+            return parts.join(' — ');
+        }
+
+        function updateHint() {
+            var match = findByKey(keyInput.value.trim());
+            if (match) {
+                hint.textContent = describe(match) + (match.status ? ' (' + match.status + ')' : '');
+                hint.classList.remove('text-danger');
+            } else if (keyInput.value.trim() !== '') {
+                hint.textContent = 'Код не найден в справочнике - будет сохранён как есть';
+                hint.classList.add('text-danger');
+            } else {
+                hint.textContent = '';
+                hint.classList.remove('text-danger');
+            }
+        }
+
+        function hideResults() {
+            results.classList.add('d-none');
+            results.innerHTML = '';
+        }
+
+        function renderResults(query) {
+            var q = query.trim().toLowerCase();
+            if (q === '') {
+                hideResults();
+                return;
+            }
+            var matches = items.filter(function (item) {
+                return item.key.toLowerCase().indexOf(q) !== -1 ||
+                    item.label.toLowerCase().indexOf(q) !== -1 ||
+                    item.full.toLowerCase().indexOf(q) !== -1 ||
+                    item.status.toLowerCase().indexOf(q) !== -1 ||
+                    item.type.toLowerCase().indexOf(q) !== -1 ||
+                    item.biz.toLowerCase().indexOf(q) !== -1 ||
+                    item.cfo.toLowerCase().indexOf(q) !== -1;
+            }).slice(0, 50);
+
+            if (matches.length === 0) {
+                results.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
+                results.classList.remove('d-none');
+                return;
+            }
+
+            results.innerHTML = '';
+            matches.forEach(function (item) {
+                var row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'list-group-item list-group-item-action';
+                row.innerHTML = '<div>' + escapeHtml(item.key) + (item.label ? ' — ' + escapeHtml(item.label) : '') + '</div>' +
+                    (item.full ? '<small>' + escapeHtml(item.full) + '</small>' : '');
+                row.addEventListener('click', function () {
+                    keyInput.value = item.key;
+                    searchInput.value = describe(item);
+                    updateHint();
+                    hideResults();
+                });
+                results.appendChild(row);
+            });
+            results.classList.remove('d-none');
+        }
+
+        function escapeHtml(s) {
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        searchInput.addEventListener('input', function () {
+            renderResults(searchInput.value);
+        });
+        searchInput.addEventListener('focus', function () {
+            if (searchInput.value.trim() !== '') renderResults(searchInput.value);
+        });
+        document.addEventListener('click', function (evt) {
+            if (evt.target !== searchInput && !results.contains(evt.target)) hideResults();
+        });
+
+        keyInput.addEventListener('input', updateHint);
+        keyInput.addEventListener('blur', updateHint);
+
+        // первичная инициализация: если запись уже содержит код ИТ-системы,
+        // сразу показать расшифровку и заполнить строку поиска для наглядности
+        var initial = findByKey(keyInput.value.trim());
+        if (initial) {
+            searchInput.value = describe(initial);
+        }
+        updateHint();
+    }
 </script>
 
 <div class="hero-text mb-3">
@@ -214,15 +361,35 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-12">
-                    <label for="ITSystemKey" class="form-label">ИТ система</label>
-                    <select name="ITSystemKey" id="ITSystemKey" class="form-select">
-                        <option value="" {{if eq .record.ITSystemKey "" }}selected{{end}}>не выбрано</option>
+                    <label class="form-label">ИТ система</label>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" name="ITSystemKey" id="ITSystemKey" class="form-control"
+                                value="{{.record.ITSystemKey}}" placeholder="Код, например ITS-000123" autocomplete="off">
+                            <div id="ITSystemKeyHint" class="form-text"></div>
+                        </div>
+                        <div class="col-md-8 position-relative">
+                            <input type="text" id="ITSystemSearch" class="form-control"
+                                placeholder="Поиск по справочнику: код, название, статус..." autocomplete="off">
+                            <div id="ITSystemSearchResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
+                        </div>
+                    </div>
+                    <!-- источник данных справочника ИТ-систем для поиска на клиенте - сами
+                         элементы скрыты, JS читает их data-атрибуты один раз при загрузке
+                         страницы (см. скрипт ниже); html/template экранирует значения, что
+                         избавляет от ручного экранирования при встраивании в JSON/JS -->
+                    <div id="ITSystemDataList" class="d-none">
                         {{range $its := .ITSystemSpr}}
-                        <option value="{{$its.ObjectKey}}" {{if eq $its.ObjectKey $.record.ITSystemKey}}selected{{end}}>
-                            {{$its.ObjectKey}} {{$its.Label}}: {{$its.FullName}} {{$its.Status}} {{$its.SystemType}} {{$its.BusinessColumn}} {{$its.CFO}}
-                        </option>
+                        <div class="it-system-item"
+                            data-key="{{$its.ObjectKey}}"
+                            data-label="{{$its.Label}}"
+                            data-full="{{$its.FullName}}"
+                            data-status="{{$its.Status}}"
+                            data-type="{{$its.SystemType}}"
+                            data-biz="{{$its.BusinessColumn}}"
+                            data-cfo="{{$its.CFO}}"></div>
                         {{end}}
-                    </select>
+                    </div>
                 </div>
                 <div class="col-sm-6 col-md-3">
                     <label for="OS" class="form-label">Операционная система</label>

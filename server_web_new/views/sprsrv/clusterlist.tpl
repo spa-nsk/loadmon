@@ -124,6 +124,28 @@
 <!-- всплывающее меню строки (правая кнопка мыши) -->
 <div id="vmRowContextMenu"></div>
 
+<div class="pager-bar pager-bar-sticky d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+    <div class="text-muted small">
+        Показано {{.PageFrom}}&ndash;{{.PageTo}} из {{.ClusterCount}}
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <label for="pageSizeSelect" class="small text-muted mb-0">На странице:</label>
+        <select id="pageSizeSelect" class="form-select form-select-sm pager-pagesize" style="width:auto;" onchange="clusterPagerChangePageSize(this.value)">
+            <option value="25" {{if eq .PageSize 25}}selected{{end}}>25</option>
+            <option value="50" {{if eq .PageSize 50}}selected{{end}}>50</option>
+            <option value="100" {{if eq .PageSize 100}}selected{{end}}>100</option>
+            <option value="200" {{if eq .PageSize 200}}selected{{end}}>200</option>
+        </select>
+        <div class="btn-group pager-nav" role="group" aria-label="Постраничная навигация">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clusterPagerGoTo(1)" {{if eq .Page 1}}disabled{{end}} title="Первая страница">&laquo;</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clusterPagerGoTo({{.Page}}-1)" {{if eq .Page 1}}disabled{{end}} title="Предыдущая страница">&lsaquo;</button>
+            <span class="btn btn-sm disabled border-0 px-2">Стр. {{.Page}} из {{.TotalPages}}</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clusterPagerGoTo({{.Page}}+1)" {{if eq .Page .TotalPages}}disabled{{end}} title="Следующая страница">&rsaquo;</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clusterPagerGoTo({{.TotalPages}})" {{if eq .Page .TotalPages}}disabled{{end}} title="Последняя страница">&raquo;</button>
+        </div>
+    </div>
+</div>
+
 <style>
     .vm-filter-bar {
         position: sticky;
@@ -210,6 +232,45 @@
         background-color: var(--bs-primary);
         color: #fff;
     }
+
+    /* панель постраничной навигации - оформление идентично /sprsrv/vm (vmlist.tpl) */
+    .pager-bar {
+        background-color: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .pager-bar-sticky {
+        position: sticky;
+        bottom: 0;
+        z-index: 6;
+        margin-left: -1rem;
+        margin-right: -1rem;
+        margin-bottom: -1rem;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    @media (min-width: 768px) {
+        .pager-bar-sticky {
+            margin-left: -1.5rem;
+            margin-right: -1.5rem;
+        }
+    }
+
+    .pager-nav .btn:disabled {
+        color: var(--bs-secondary-color);
+        opacity: 0.55;
+    }
+
+    .pager-nav .btn:not(:disabled):not(.disabled):hover {
+        background-color: var(--bs-primary);
+        color: #fff;
+    }
 </style>
 
 <script>
@@ -221,8 +282,23 @@
         if (changed === 'vcenter') { dc = 'all'; cl = 'all'; }
         if (changed === 'datacenter') { cl = 'all'; }
 
+        // смена фильтра всегда возвращает на первую страницу списка
         var enc = encodeURIComponent;
-        window.location.href = '/sprsrv/listclusterview?vcenter=' + enc(vc) + '&datacenter=' + enc(dc) + '&cluster=' + enc(cl);
+        window.location.href = '/sprsrv/listclusterview?vcenter=' + enc(vc) + '&datacenter=' + enc(dc) + '&cluster=' + enc(cl) + '&page=1';
+    }
+
+    function clusterPagerGoTo(page) {
+        if (page < 1) page = 1;
+        var url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        window.location.href = url.toString();
+    }
+
+    function clusterPagerChangePageSize(size) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('pagesize', size);
+        url.searchParams.set('page', 1);
+        window.location.href = url.toString();
     }
 
     // Всплывающее меню строки - тот же приём, что и в /sprsrv/vm (vmlist.tpl)

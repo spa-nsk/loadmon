@@ -44,11 +44,12 @@ func init() {
 	//beego.Router("/sprsrv/updatehw/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateHW") // метод SprSrvUpdateHW не реализован в controllers
 	//beego.Router("/sprsrv/updatevm/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateVM") // метод SprSrvUpdateVM не реализован в controllers
 	//beego.Router("/sprsrv/updatevmcluster/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateVMCluster") // метод SprSrvUpdateVMCluster не реализован в controllers
-	//beego.Router("/sprsrv/hwconflist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfig") // метод SprHwConfig не реализован в controllers
-	//beego.Router("/sprsrv/hwconfedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfigEdit") // метод SprHwConfigEdit не реализован в controllers
+	beego.Router("/sprsrv/hwconflist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfig")     // список записей models.ServerHardware (справочник конфигураций серверов) с фильтром и пагинацией
+	beego.Router("/sprsrv/hwconfedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfigEdit") // просмотр/редактирование одной записи models.ServerHardware по Id
+	beego.Router("/sprsrv/hwconfbulkedit", &controllers.MainController{}, "get,post:SprHwConfigBulkEdit")     // групповое редактирование статуса/размещения выбранных записей models.ServerHardware
 	//beego.Router("/sprsrv/hwconfadd", &controllers.MainController{}, "get,post:SprAddHWServerConfig") // метод SprAddHWServerConfig не реализован в controllers
-	//beego.Router("/sprsrv/srvhwviewbysn/:SN", &controllers.MainController{}, "get,post:SrvHwViewBySn") // метод SrvHwViewBySn не реализован в controllers
-	//beego.Router("/sprsrv/hwviewlist", &controllers.MainController{}, "get,post:SprHwViewList") // метод SprHwViewList не реализован в controllers
+	beego.Router("/sprsrv/srvhwviewbysn/:SN", &controllers.MainController{}, "get,post:SrvHwViewBySn") // подробная карточка сервера HPE OneView по серийному номеру (ссылка из /sprsrv/hwviewlist)
+	beego.Router("/sprsrv/hwviewlist", &controllers.MainController{}, "get,post:SprHwViewList")
 	beego.Router("/sprsrv/vm/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVM")
 	beego.Router("/sprsrv/vmperfday/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVMPerfDay") // динамические графики метрик ВМ (VMPerf) за текущий день
 	//beego.Router("/sprsrv/hs/:Vcenter/:Datacenter/:Cluster/:HS", &controllers.MainController{}, "get,post:SprHost") // метод SprHost не реализован в controllers

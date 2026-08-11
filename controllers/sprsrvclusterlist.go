@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"loadmon/grpcclient"
+	vsphere "loadmon/vspheremetrics"
 	"sort"
+	"strconv"
 )
 
 // SprSrvListClusterView отображает список кластеров vSphere по всем
@@ -105,13 +107,47 @@ func (this *MainController) SprSrvListClusterView() {
 		return clusterList[i].Name < clusterList[j].Name
 	})
 
-	for _, cl := range clusterList {
-		if cl == nil {
-			continue
-		}
-		cl.CalcPerfomance()
+	// пагинация - тот же приём и те же параметры (page/pagesize), что и в
+	// /sprsrv/vm (controllers/sprsrvvm.go, views/sprsrv/vmlist.tpl); в
+	// отличие от /sprsrv/vm здесь не требуется двухшаговая загрузка по
+	// ключам (кластеров на порядок меньше, чем ВМ), поэтому нарезка страницы
+	// выполняется прямо по уже полученному clusterList.
+	pageSize, _ := strconv.Atoi(this.GetString("pagesize"))
+	switch pageSize {
+	case 25, 50, 100, 200:
+	default:
+		pageSize = 50
+	}
+	page, _ := strconv.Atoi(this.GetString("page"))
+	if page < 1 {
+		page = 1
+	}
+	totalRecords := len(clusterList)
+	totalPages := (totalRecords + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	offset := (page - 1) * pageSize
+	end := offset + pageSize
+	if end > totalRecords {
+		end = totalRecords
+	}
+	pagedList := make([]*vsphere.Cluster, 0)
+	if offset < end {
+		pagedList = clusterList[offset:end]
 	}
 
-	this.Data["ClusterFullList"] = clusterList
-	this.Data["ClusterCount"] = len(clusterList)
+	this.Data["ClusterFullList"] = pagedList
+	this.Data["ClusterCount"] = totalRecords
+	this.Data["Page"] = page
+	this.Data["PageSize"] = pageSize
+	this.Data["TotalPages"] = totalPages
+	this.Data["PageFrom"] = 0
+	if totalRecords > 0 {
+		this.Data["PageFrom"] = offset + 1
+	}
+	this.Data["PageTo"] = end
 }
