@@ -9,6 +9,9 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// CheckServerSprRecordsLink обходит все записи server_spr_records и в зависимости от типа
+// записи (физический сервер, виртуальная машина, гипервизор) проверяет и восстанавливает
+// её связи с данными оборудования (ServerHardware) и виртуальной машины (VMSprRecord).
 func CheckServerSprRecordsLink() {
 	records := make([]models.ServerSprRecords, 0)
 	o := orm.NewOrm()

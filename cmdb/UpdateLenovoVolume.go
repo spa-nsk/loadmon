@@ -13,6 +13,9 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// UpdateLenovoVolume подключается к СХД Lenovo, получает список томов, групп хостов и
+// их привязку к кластерам, после чего обновляет либо создаёт соответствующие записи
+// StorageVolumes в базе данных CMDB.
 func UpdateLenovoVolume(shd *models.StorageSystems) error {
 	key := "monitor"
 	c, err := lenovostorage.NewSession(shd.IpAddress, true, key, datamap.GetKeyData(key))

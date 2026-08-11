@@ -144,6 +144,9 @@ func init() {
 	prometheus.MustRegister(netTransmitted)
 }
 
+// SetMetric публикует текущие значения показателей всех виртуальных машин
+// глобальной инфраструктуры (ресурсы и последний снимок метрик производительности)
+// в зарегистрированные Prometheus-гейджи для последующего скрейпа через /metrics.
 func SetMetric() {
 	if infrastructureGlobal == nil {
 		return

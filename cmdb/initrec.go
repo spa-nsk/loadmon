@@ -1,3 +1,12 @@
+// Package cmdb реализует функции CMDB (Configuration Management Database) — базы данных
+// управления конфигурациями — в составе системы мониторинга loadmon. Пакет обеспечивает
+// синхронизацию и хранение сведений об инфраструктуре: виртуальных машинах и кластерах
+// vSphere, физических серверах и их аппаратной конфигурации (HP OneView, Lenovo, СХД
+// Huawei/EMC), а также метрик их производительности. Функции пакета преобразуют данные,
+// полученные из внешних систем мониторинга и управления оборудованием, в записи справочников
+// CMDB (ServerSprRecords, ServerHardware, VMSprRecord, ClusterSprRecords и др.), поддерживают
+// их актуальность, устраняют дубликаты и восстанавливают связи между записями, а также
+// выгружают показатели производительности в Zabbix и SCOM.
 package cmdb
 
 import (
@@ -15,6 +24,7 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// CheckHypervisorOS определяет, является ли операционная система сервера гипервизором ESXi.
 func CheckHypervisorOS(srv *models.ServerSprRecords) bool {
 	if srv.OS != "" {
 		if strings.Contains(strings.ToUpper(srv.OS), "ESXI") {
@@ -24,6 +34,8 @@ func CheckHypervisorOS(srv *models.ServerSprRecords) bool {
 	return false
 }
 
+// GetSNFromServerSprRecords возвращает серийный номер сервера: явно указанный либо, если он
+// отсутствует, извлечённый из текстового поля Details по маркеру "Добавлен из".
 func GetSNFromServerSprRecords(srv *models.ServerSprRecords) string {
 	if srv.SerialNumber != "" {
 		return srv.SerialNumber
@@ -35,6 +47,8 @@ func GetSNFromServerSprRecords(srv *models.ServerSprRecords) string {
 	return ""
 }
 
+// CopyVmToSprSrv переносит данные виртуальной машины vSphere (VMPoint) в новую запись
+// справочника серверов ServerSprRecords, включая параметры ресурсов и признаки перегрузки.
 func CopyVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 	if to == nil {
 		return
@@ -116,6 +130,8 @@ func CopyVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 	}
 }
 
+// UpdateVmToSprSrv обновляет существующую запись справочника серверов ServerSprRecords
+// текущими данными виртуальной машины vSphere (VMPoint).
 func UpdateVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 	if to == nil {
 		return
@@ -169,6 +185,8 @@ func UpdateVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 	}
 }
 
+// CopyHostToSprHW переносит аппаратные характеристики хоста ESXi (HostInfo) в запись
+// справочника конфигураций оборудования ServerHardware.
 func CopyHostToSprHW(from vsphere.HostInfo, to *models.ServerHardware) {
 	if to == nil {
 		return
@@ -189,6 +207,8 @@ func CopyHostToSprHW(from vsphere.HostInfo, to *models.ServerHardware) {
 	to.Time_Mfy = time.Now().Local()
 }
 
+// CopyHostToSprSrv переносит данные хоста ESXi (HostInfo) в запись справочника серверов
+// ServerSprRecords как запись типа "гипервизор".
 func CopyHostToSprSrv(from vsphere.HostInfo, to *models.ServerSprRecords) {
 	if to == nil {
 		return
@@ -233,6 +253,8 @@ func CopyHostToSprSrv(from vsphere.HostInfo, to *models.ServerSprRecords) {
 	to.Time_Mfy = time.Now().Local()
 }
 
+// CopyVmToSprVm переносит полные данные виртуальной машины vSphere (VMPoint) в запись
+// справочника виртуальных машин VMSprRecord.
 func CopyVmToSprVm(from vsphere.VMPoint, to *models.VMSprRecord) {
 	if to == nil {
 		return
@@ -286,6 +308,8 @@ func CopyVmToSprVm(from vsphere.VMPoint, to *models.VMSprRecord) {
 	to.Net_usage_maximum = from.NetUsageMaximum
 }
 
+// CopySprVmToVm выполняет обратное преобразование: переносит данные из записи справочника
+// виртуальных машин VMSprRecord в структуру vsphere.VMPoint.
 func CopySprVmToVm(from models.VMSprRecord, to *vsphere.VMPoint) {
 	if to == nil {
 		return
@@ -386,6 +410,8 @@ func importClusterRecord(to *models.ClusterRecord, from *vsphere.Cluster) {
 	to.Net_usage_average = from.NetUsageAverage
 }
 
+// ImportClusterPerf переносит показатели производительности кластера (vsphere.CLPerf) в
+// запись метрик ClusterPerf.
 func ImportClusterPerf(to *models.ClusterPerf, from *vsphere.CLPerf) {
 	if from == nil || to == nil {
 		return
@@ -404,6 +430,8 @@ func ImportClusterPerf(to *models.ClusterPerf, from *vsphere.CLPerf) {
 	to.Net_transmitted = from.NetTransmitted
 }
 
+// ImportHostPerf переносит показатели производительности хоста (vsphere.HSPerf) в
+// запись метрик HostPerf.
 func ImportHostPerf(to *models.HostPerf, from *vsphere.HSPerf) {
 	if from == nil || to == nil {
 		return
@@ -422,6 +450,8 @@ func ImportHostPerf(to *models.HostPerf, from *vsphere.HSPerf) {
 	to.Net_transmitted = from.NetTransmitted
 }
 
+// ImportVMPerf переносит показатели производительности виртуальной машины (vsphere.VMPerf)
+// в запись метрик VMPerfRecord.
 func ImportVMPerf(to *models.VMPerfRecord, from *vsphere.VMPerf) {
 	if from == nil || to == nil {
 		return
@@ -662,6 +692,8 @@ func importHostRecord(from *vsphere.HostInfo, to *models.HostRecord) {
 	to.Net_usage_average = from.NetUsageAverage
 }
 
+// CopyReportRecToPerfZabbix преобразует запись отчёта по серверу (ReportServerRecord) в
+// формат метрик для выгрузки производительности в Zabbix (ServerPerfZabbix).
 func CopyReportRecToPerfZabbix(from *models.ReportServerRecord, to *models.ServerPerfZabbix) {
 	if from == nil || to == nil {
 		return
@@ -684,6 +716,8 @@ func CopyReportRecToPerfZabbix(from *models.ReportServerRecord, to *models.Serve
 	to.Mem_usage_minimum = from.MemUseMin
 }
 
+// CopyReportRecToPerfSCOM преобразует запись отчёта по серверу (ReportServerRecord) в
+// формат метрик для выгрузки производительности в SCOM (ServerPerfSCOM).
 func CopyReportRecToPerfSCOM(from *models.ReportServerRecord, to *models.ServerPerfSCOM) {
 	if from == nil || to == nil {
 		return
@@ -744,6 +778,9 @@ func CopyReportRecToPerfSCOM(from *models.ReportServerRecord, to *models.ServerP
 	}
 }
 
+// RestoreSprData переносит ранее заполненные вручную атрибуты записи ServerSprRecords
+// (владелец, назначение, аннотации, признаки типа и т.п.) из старой версии записи (from)
+// в новую (to), если соответствующие поля в новой записи ещё не заполнены.
 func RestoreSprData(to *models.ServerSprRecords, from models.ServerSprRecords) {
 	if to == nil {
 		return
@@ -831,6 +868,9 @@ func RestoreSprData(to *models.ServerSprRecords, from models.ServerSprRecords) {
 	to.Privilage = from.Privilage
 }
 
+// ImportHWSprRecord переносит аппаратные характеристики сервера, полученные из HP OneView
+// (oneview.ServerHardware), в запись справочника конфигураций оборудования ServerHardware,
+// включая определение блейд-корзины (BladeSystems) и её местоположения в стойке.
 func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.ServerHardware, ov *oneview.OVInfrastructure) {
 	if h == nil || srv == nil || ov == nil {
 		return
@@ -921,6 +961,9 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.ServerHardware, ov
 	h.Time_Mfy = time.Now().Local()
 }
 
+// ImportServerSprFromHW переносит данные о процессорах, памяти, дисковой ёмкости,
+// состоянии питания и операционной системе из данных HP OneView (oneview.ServerHardware)
+// в запись справочника серверов ServerSprRecords.
 func ImportServerSprFromHW(srvspr *models.ServerSprRecords, srv *oneview.ServerHardware) {
 	if srvspr == nil || srv == nil {
 		return

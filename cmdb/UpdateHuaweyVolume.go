@@ -13,6 +13,8 @@ import (
 	"github.com/lovi-cloud/go-dorado-sdk/dorado"
 )
 
+// DoradoLunInfo содержит сведения о томе (LUN) СХД Huawei Dorado, полученные через API,
+// используется как промежуточная структура при синхронизации с таблицей StorageVolumes.
 type DoradoLunInfo struct {
 	Id                int64   //
 	UID               string  //
@@ -24,6 +26,8 @@ type DoradoLunInfo struct {
 	Servers           string  //
 }
 
+// UpdateHuaweyVolume подключается к СХД Huawei Dorado, получает список томов и обновляет
+// либо создаёт соответствующие записи StorageVolumes в базе данных CMDB.
 func UpdateHuaweyVolume(shd *models.StorageSystems) error {
 
 	key := "spaview"
@@ -94,6 +98,8 @@ func UpdateHuaweyVolume(shd *models.StorageSystems) error {
 	return nil
 }
 
+// GetDoradoLun запрашивает у СХД Huawei Dorado список LUN-ов и связанных с ними хостов
+// и возвращает карту DoradoLunInfo по имени тома.
 func GetDoradoLun(client *dorado.Client) (map[string]*DoradoLunInfo, error) {
 
 	ctx := context.Background()

@@ -98,6 +98,7 @@ type ServerHardwareMemory struct {
 	Name           string         `json:"name"`  //"Memory"
 }
 
+// ServerHardwareMemory300 - структура ответа Redfish (endpoint.Version == 300) с данными о модулях памяти сервера
 type ServerHardwareMemory300 struct {
 	URI             string    `json:"uri"`
 	CollectionState string    `json:"collectionState"`
@@ -147,6 +148,7 @@ type ServerHardwareMemory300 struct {
 	Name  string `json:"name"`
 }
 
+// MemoryList300 - структура ответа Redfish (endpoint.Version == 300) со сводными данными о памяти сервера
 type MemoryList300 struct {
 	URI             string    `json:"uri"`
 	CollectionState string    `json:"collectionState"`
@@ -163,6 +165,7 @@ type MemoryList300 struct {
 	Name  string `json:"name"`
 }
 
+// ServerHardwareListNew - структура ответа /rest/server-hardware, получаемого через собственный Redfish-парсер
 type ServerHardwareListNew struct {
 	Category string `json:"category"`
 	Count    int    `json:"count"`
@@ -3017,6 +3020,8 @@ SubResources0              struct {
 	URI0         string `json:"uri"`
 }
 
+// ServerHardwareExt - расширенное описание сервера OneView (ответ /rest/server-hardware),
+// включая вложенные под-ресурсы (память, память AMP и т.п.)
 type ServerHardwareExt struct {
 	ApplianceLocation string          `json:"applianceLocation"`
 	ApplianceName     string          `json:"applianceName"`
@@ -3108,6 +3113,7 @@ type ServerHardwareExt struct {
 	VirtualUUID         string `json:"virtualUuid"`
 }
 
+// EnvironmentalConfiguration - конфигурация питания/охлаждения и позиция сервера в стойке (энвайронментал-параметры OneView)
 type EnvironmentalConfiguration struct {
 	PowerHistorySupported       bool   `json:"powerHistorySupported"`
 	ThermalHistorySupported     bool   `json:"thermalHistorySupported"`
@@ -3250,6 +3256,7 @@ type ServerHardwareLocalStorage struct {
 	Name            string         `json:"name"`             ///"LocalStorage"
 }
 
+// DeviceBayInfo - описание отсека (bay) для сервера в корзине (enclosure) OneView
 type DeviceBayInfo struct {
 	Type                                string      `json:"type"`
 	BayNumber                           int         `json:"bayNumber"`
@@ -3277,6 +3284,7 @@ type DeviceBayInfo struct {
 	UUID                                interface{} `json:"uuid"`
 }
 
+// InterconnectBayInfo - описание отсека коммутатора-интерконнекта в корзине (enclosure) OneView
 type InterconnectBayInfo struct {
 	BayNumber           int         `json:"bayNumber"`
 	InterconnectURI     string      `json:"interconnectUri"`
@@ -3290,6 +3298,7 @@ type InterconnectBayInfo struct {
 	BayPowerState       string      `json:"bayPowerState"`
 }
 
+// FanBayInfo - описание отсека вентилятора в корзине (enclosure) OneView
 type FanBayInfo struct {
 	BayNumber      int    `json:"bayNumber"`
 	DevicePresence string `json:"devicePresence"`
@@ -3303,6 +3312,7 @@ type FanBayInfo struct {
 	State          string `json:"state"`
 }
 
+// PowerSupplyBayInfo - описание отсека блока питания в корзине (enclosure) OneView
 type PowerSupplyBayInfo struct {
 	BayNumber           int    `json:"bayNumber"`
 	DevicePresence      string `json:"devicePresence"`
@@ -3315,6 +3325,7 @@ type PowerSupplyBayInfo struct {
 	ChangeState         string `json:"changeState"`
 }
 
+// ManagerBayInfo - описание отсека модуля управления (Onboard Administrator) в корзине (enclosure) OneView
 type ManagerBayInfo struct {
 	BayNumber      int         `json:"bayNumber"`
 	ManagerType    string      `json:"managerType"`
@@ -3332,6 +3343,7 @@ type ManagerBayInfo struct {
 	DhcpEnable     bool        `json:"dhcpEnable"`
 }
 
+// Enclosure - описание корзины (enclosure) OneView со всеми её отсеками (серверы, интерконнекты, вентиляторы, БП, менеджеры)
 type Enclosure struct {
 	Type     string    `json:"type"`
 	URI      string    `json:"uri"`
@@ -3395,14 +3407,17 @@ type Enclosure struct {
 	MigrationState string `json:"migrationState"`
 }
 
+// ServerSSOUrl - ссылка для single sign-on на iLO сервера
 type ServerSSOUrl struct {
 	IloSsoURL string `json:"iloSsoUrl"`
 }
 
+// ServerjavaRemoteConsoleUrl - ссылка для запуска Java-консоли удалённого управления сервером
 type ServerjavaRemoteConsoleUrl struct {
 	JavaRemoteConsoleUrl string `json:"javaRemoteConsoleUrl"`
 }
 
+// Content - элемент содержимого дата-центра (позиция объекта на плане: координаты и ссылка на ресурс)
 type Content struct {
 	X           float64 `json:"x"`
 	Y           float64 `json:"y"`
@@ -3410,6 +3425,7 @@ type Content struct {
 	ResourceURI string  `json:"resourceUri"`
 }
 
+// DatacenterInfo - описание дата-центра OneView (геометрия, охлаждение, стоимость электроэнергии, содержимое)
 type DatacenterInfo struct {
 	Width                int         `json:"width"`
 	Depth                int         `json:"depth"`
@@ -3434,6 +3450,7 @@ type DatacenterInfo struct {
 	Status               string      `json:"status"`
 }
 
+// DatacentersList - постраничный список дата-центров OneView
 type DatacentersList struct {
 	Type     string      `json:"type"`
 	URI      string      `json:"uri"`
@@ -3450,6 +3467,7 @@ type DatacentersList struct {
 	Members  []DatacenterInfo `json:"members"`
 }
 
+// Racks - описание стойки OneView (габариты, тепловой лимит, серийный номер, состояние)
 type Racks struct {
 	UHeight      int           `json:"uHeight"`
 	Width        int           `json:"width"`
@@ -3472,6 +3490,7 @@ type Racks struct {
 	Status       string        `json:"status"`
 }
 
+// DeviceInfo - краткое описание устройства, установленного в стойке
 type DeviceInfo struct {
 	URI           string      `json:"uri"`
 	Name          string      `json:"name"`
@@ -3488,6 +3507,7 @@ type DeviceInfo struct {
 	Model         string      `json:"model"`
 }
 
+// DeviceRecord - подробная запись об устройстве в стойке (габариты, точки монтажа, состояние)
 type DeviceRecord struct {
 
 	UHeight      int         `json:"uHeight"`
@@ -3517,6 +3537,7 @@ type DeviceRecord struct {
 	Status   string      `json:"status"`
 }
 
+// RacksDeviceTopology - топология размещения устройств в стойке (температура, мощность, вложенная иерархия устройств)
 type RacksDeviceTopology struct {
 	Device            DeviceRecord    `json:"device"`
 	Max               int             `json:"max"`
@@ -3576,6 +3597,7 @@ type RacksDeviceTopology struct {
 	} `json:"unconnectedPowerSupplies"`
 }
 
+// ServerProfile - список профилей серверов OneView (ответ /rest/server-profiles)
 type ServerProfile struct {
 	Category string `json:"category"`
 	Count    int    `json:"count"`
@@ -3678,6 +3700,7 @@ type ServerProfile struct {
 	URI         string `json:"uri"`
 }
 
+// ServerHardware300 - структура ответа /rest/server-hardware через Redfish-парсер (endpoint.Version == 300)
 type ServerHardware300 struct {
 	Category    string      `json:"category"`
 	Count       int         `json:"count"`
@@ -3689,6 +3712,7 @@ type ServerHardware300 struct {
 	URI         string      `json:"uri"`
 }
 
+// Members300 - элемент списка серверов в ответе Redfish-парсера (endpoint.Version == 300)
 type Members300 struct {
 	Type            string      `json:"type"`
 	Name            string      `json:"name"`

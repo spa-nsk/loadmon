@@ -4,6 +4,8 @@ import (
 	"github.com/beego/beego/v2/core/validation"
 )
 
+// SplitNameFQDN разбирает полное доменное имя (FQDN) на короткое имя хоста и домен.
+// Если переданное значение является IP-адресом, оно возвращается целиком как имя без домена.
 func SplitNameFQDN(nameFQDN string) (string, string) {
 	name := nameFQDN
 	domain := ""

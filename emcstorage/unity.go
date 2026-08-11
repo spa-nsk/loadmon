@@ -1,3 +1,6 @@
+// Package emcstorage реализует клиент для сбора информации со СХД EMC/Dell Unity через REST API
+// (/api/types/..., /api/instances/...): аутентификация с CSRF-токеном (unity.go), а также получение
+// сведений о системе, пулах, ресурсах хранения, дисках, LUN, хостах и метриках производительности.
 package emcstorage
 
 import (

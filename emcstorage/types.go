@@ -40,6 +40,7 @@ type MetricRealTimeQueryResponse struct {
 	} `json:"content"`
 }
 
+// MetricValueResponseContent - содержимое элемента исторических значений метрики (metricValue)
 type MetricValueResponseContent struct {
 	Interval  int         `json:"interval"`
 	Path      string      `json:"path"`
@@ -66,6 +67,7 @@ type MetricValueResponse struct {
 	} `json:"entries"`
 }
 
+// KpiValueResponseContent - содержимое элемента исторических значений KPI-метрики (kpiValue)
 type KpiValueResponseContent struct {
 	Path      string                `json:"path"`
 	StartTime time.Time             `json:"startTime"`
@@ -89,6 +91,7 @@ type KpiValueResponse struct {
 	} `json:"entries"`
 }
 
+// MetricRealTimeQueryResultContent - содержимое результата запроса метрик в реальном времени (metricQueryResult)
 type MetricRealTimeQueryResultContent struct {
 	QueryID   int         `json:"queryId"`
 	Path      string      `json:"path"`
@@ -115,6 +118,7 @@ type MetricRealTimeQueryResult struct {
 	} `json:"entries"`
 }
 
+// BasicSystemInfoContent - содержимое базовой информации о системе (basicSystemInfo)
 type BasicSystemInfoContent struct {
 	ID                 string `json:"id"`                 // Unique identifier of the basicSystemInfo instance.
 	Model              string `json:"model"`              // Model name of this storage system. This value comes from the model attribute of the system resource.
@@ -143,6 +147,7 @@ type BasicSystemInfo struct {
 	} `json:"entries"`
 }
 
+// PoolContent - содержимое сведений о пуле хранения (pool)
 type PoolContent struct {
 	ID             string `json:"id"`             //Unique identifier of the pool instance.
 	Name           string `json:"name"`           //Pool name, unique in the storage system.
@@ -171,6 +176,7 @@ type Pool struct {
 	} `json:"entries"`
 }
 
+// storageResourceTypeEnum - тип ресурса хранения (значения перечислены в блоке констант ниже)
 type storageResourceTypeEnum int
 
 const (
@@ -183,6 +189,7 @@ const (
 	vVolDatastoreISCSI
 )
 
+// StorageResourceContent - содержимое сведений о ресурсе хранения (storageResource)
 type StorageResourceContent struct {
 	ID            string `json:"id"`            //Unique identifier of the storage resource.
 	Name          string `json:"name"`          //Name of the storage resource.

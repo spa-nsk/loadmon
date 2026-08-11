@@ -1,0 +1,31 @@
+{
+	"listenAddr": "127.0.0.1:8989",
+	"username": "vcsim@local",
+	"password": "pass",
+	"tls": true,
+	"autostart": true,
+	"inventory": {
+		"datacenter": 2,
+		"cluster": 5,
+		"clusterHost": 8,
+		"pool": 0,
+		"host": 0,
+		"machine": 50,
+		"datastore": 3,
+		"portgroup": 1,
+		"app": 0
+	},
+	"perf": {
+		"verifyOnStart": true
+	},
+	"loadmon": {
+		"configVCenters": [
+			{
+				"hostname": "127.0.0.1:8989",
+				"username": "vcsim@local",
+				"password": "pass",
+				"wait": 60
+			}
+		]
+	}
+}

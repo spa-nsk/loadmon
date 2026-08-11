@@ -158,7 +158,7 @@ func UpdateVolumeStorage() {
 					}
 				}
 			case 2: //Unity Rest
-				mapHosts := make(map[string]string, 0)          //карта по именам lun в качестве ключа, значение имена хостов
+				mapHosts := make(map[string]string, 0)             //карта по именам lun в качестве ключа, значение имена хостов
 				hosts, err := storages.GetHostsRest(shd.IpAddress) //запрашиваем список хостов
 
 				if err == nil {
@@ -338,6 +338,8 @@ func UpdateVolumeStorage() {
 	fmt.Println(time.Now().Local().Format(fmtdate), "Данные томов СХД обновлены")
 }
 
+// GetWWNMaskKey формирует укороченный ключ маски WWN (удаляет разделители ":" и
+// обрезает до 16 символов) для сопоставления идентификаторов томов между системами.
 func GetWWNMaskKey(str string) string {
 	s := strings.Split(str, ":")
 	s2 := ""
@@ -352,6 +354,8 @@ func GetWWNMaskKey(str string) string {
 	return string(v[:n])
 }
 
+// GetShortNameStoreSys по имени тома LUN пытается определить краткое имя СХД и, при
+// наличии, имя пула/подсистемы, сверяясь со справочником известных систем хранения.
 func GetShortNameStoreSys(lun string, mapStorSys map[string]*models.StorageSystems) (string, string) {
 	s := strings.Split(lun, "_")
 	for i, sp := range s {

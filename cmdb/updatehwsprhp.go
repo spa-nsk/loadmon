@@ -12,6 +12,8 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// ExtractServerNameILO предназначена для извлечения имени сервера из адреса iLO.
+// В текущей реализации не выполняет действий (заглушка).
 func ExtractServerNameILO(ilo string) {
 
 }
@@ -161,7 +163,7 @@ func checkAndCorrect(records []*models.ServerSprRecords, serverName string, cpuC
 		if i == idx {
 			continue
 		}
-		exclude := false                          //флаг исключения
+		exclude := false                  //флаг исключения
 		for _, ex := range excludeIndex { //проверяем текущий индекс в списке исключений
 			if i == ex {
 				exclude = true
@@ -409,6 +411,9 @@ func UpdateRack(rk *models.Rack, srv *oneview.ServerHardware) int64 {
 	return rk.Code
 }
 
+// UpdateRamModel ищет в справочнике моделей оперативной памяти (ComponentsRAM) запись,
+// соответствующую характеристикам модуля памяти mem, и при отсутствии создаёт новую с
+// очередным кодом модели. Возвращает код модели.
 func UpdateRamModel(model *models.ComponentsRAM, srv *oneview.ServerHardware, mem *oneview.MemoryModule) int64 {
 	if model == nil || srv == nil || mem == nil {
 		return 0
@@ -448,6 +453,9 @@ func UpdateRamModel(model *models.ComponentsRAM, srv *oneview.ServerHardware, me
 	return model.Code
 }
 
+// UpdateCMDBHwSprHP обновляет справочники нормативных моделей оборудования (производитель,
+// модель, ЦОД, стойка, процессор, память) в CMDB на основании данных всех серверов из
+// HP OneView.
 func UpdateCMDBHwSprHP() {
 	fmt.Println("Обновление CMDB по данным из HP OneView")
 	ov := oneview.GetGlobalOVInfrastructure()
@@ -559,12 +567,12 @@ func UpdateCMDBHwSprHP() {
 				fmt.Println("Ошибка добавления конфигурационной единицы: ", srv.Base.Model, "=", srv.Base.PartNumber)
 			}
 		}
-		cpu := models.ComponentsCPU{}          //
+		cpu := models.ComponentsCPU{}         //
 		cpu_code := UpdateCpuModel(&cpu, srv) //поиск процессора в справочнике
 		comp_cpu := models.Components{
 			ConfigurationUnit: id_me,
-			CategoryEquipment: 1,           //серверное
-			Type:              1,           //процессор
+			CategoryEquipment: 1,        //серверное
+			Type:              1,        //процессор
 			Component:         cpu_code} //модель процессора
 		for i := 0; i < srv.Base.ProcessorCount; i++ {
 			o.Insert(&comp_cpu) //записываем компоненты процессооры
@@ -596,6 +604,8 @@ func UpdateCMDBHwSprHP() {
 // oneview.GetHwserverDomain(srv *ServerHardware) string
 // cmdb.SplitNameFQDN(nameFQDN string) (string, string)
 
+// UpdateHwSprHPBladeSystem синхронизирует справочник блейд-корзин (BladeSystems) и их
+// компонентов с данными корзин, полученными из HP OneView.
 func UpdateHwSprHPBladeSystem(ov *oneview.OVInfrastructure) {
 	o := orm.NewOrm()
 	for _, enc := range ov.AllEnclosureBySN { //проходим по списку всех корзин
@@ -656,7 +666,7 @@ func UpdateHwSprHPBladeSystem(ov *oneview.OVInfrastructure) {
 
 		//видимо ошибка в алгоритме компоненты уже удалены, а мы пытаемся искать interconnect похоже на дублирование на случай если удаление не прошло
 		m := models.ServerHardwareComponents{BladeSystemId: bls.Id, Type: 6} //тип компонент 1 память, 2 диск, 3 сетевой контроллер, 4 FC контроллер, 5 RAID контроллер, 6 interconnect
-		if err := o.Read(&m, "BladeSystemId", "Type"); err != nil {         //ничего не нашлось
+		if err := o.Read(&m, "BladeSystemId", "Type"); err != nil {          //ничего не нашлось
 			for _, inter := range enc.InterconnectBays { //проходим по всем interconnect в корзине
 				if inter.InterconnectUri == "" { //пропускаем записи где нет ссылки на interconnect
 					continue
@@ -698,9 +708,9 @@ func UpdateHwSprHPBladeSystem(ov *oneview.OVInfrastructure) {
 					continue
 				}
 				iManager := models.ServerHardwareComponents{ //формируем запись managment card blade для вставки в базу
-					BladeSystemId:   bls.Id,
-					Type:            7,
-					Vendor:          bls.Vendor,
+					BladeSystemId: bls.Id,
+					Type:          7,
+					Vendor:        bls.Vendor,
 					//					Model:           fmt.Sprintf("Name: %-20s IP: %-20s Fw v%s %s", manager.FqdnHostName, manager.IPAddr
 					Model:           fmt.Sprintf("Name: %-20s IP: %-20s Fw v%s %s", manager.Model, manager.IpAddress, manager.FwVersion, manager.FwBuildDate),
 					CapacityGb:      0,
@@ -787,6 +797,9 @@ func UpdateHwSprHPBladeSystem(ov *oneview.OVInfrastructure) {
 	}
 }
 
+// UpdateHwSprHPServers синхронизирует справочники конфигураций оборудования
+// (ServerHardware) и серверов (ServerSprRecords) с данными всех серверов, полученными
+// из HP OneView.
 func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
 	o := orm.NewOrm()
 	for _, srv := range ov.Servers { //проходим по списку всех серверов
@@ -795,7 +808,7 @@ func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
 		srvspr := models.ServerSprRecords{}
 		foundHwBySN := false
 		foundSrvSpr := false
-		hwId := int64(0)   //создание переменных
+		hwId := int64(0)     //создание переменных
 		serverId := int64(0) //
 
 		trn, err := o.Begin()
@@ -901,7 +914,7 @@ func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
 		}
 
 		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 1} //проверяем остались ли данные по памяти
-		if err := trn.Read(&m, "ServerId", "Type"); err != nil {     //нет записей по памяти
+		if err := trn.Read(&m, "ServerId", "Type"); err != nil {      //нет записей по памяти
 			for idx, mem := range srv.Memory.Data { //проходим в цикле по всем модулям памяти
 				ram := models.ServerHardwareComponents{ //формируем данные для записи по памяти
 					ServerId:        hw.Id,
@@ -1000,6 +1013,8 @@ func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
 	}
 }
 
+// UpdateHwSprHP выполняет полное обновление справочника оборудования CMDB по данным
+// HP OneView: последовательно синхронизирует блейд-корзины и серверы.
 func UpdateHwSprHP() {
 	fmt.Println("Обновление справочника оборудования по данным из HP OneView")
 	ov := oneview.GetGlobalOVInfrastructure()

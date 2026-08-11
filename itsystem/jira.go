@@ -1,3 +1,6 @@
+// Package itsystem реализует интеграцию с каталогом ИТ-систем (Jira Assets/Insight):
+// загрузку объектов из API, разбор их атрибутов в модель ItSystemRecord и
+// предоставление потокобезопасного локального справочника ИТ-систем по ключу объекта.
 package itsystem
 
 import (
@@ -16,6 +19,7 @@ var it_system []models.ItSystemRecord
 
 var itSystemMutex sync.RWMutex
 
+// Avatar описывает набор ссылок на изображение аватара объекта Jira Assets разных размеров.
 type Avatar struct {
 	URL16    string `json:"url16"`
 	URL48    string `json:"url48"`
@@ -25,6 +29,7 @@ type Avatar struct {
 	ObjectID int    `json:"objectId"`
 }
 
+// Icon описывает значок типа объекта Jira Assets.
 type Icon struct {
 	ID    int    `json:"id"`
 	Name  string `json:"name"`
@@ -32,6 +37,7 @@ type Icon struct {
 	URL48 string `json:"url48"`
 }
 
+// ObjectType описывает тип объекта в схеме Jira Assets.
 type ObjectType struct {
 	ID                        int       `json:"id"`
 	Name                      string    `json:"name"`
@@ -49,6 +55,7 @@ type ObjectType struct {
 	ParentObjectTypeInherited bool      `json:"parentObjectTypeInherited"`
 }
 
+// ObjectAttributeValues содержит значение атрибута объекта Jira Assets.
 type ObjectAttributeValues struct {
 	Value          string `json:"value"`
 	DisplayValue   string `json:"displayValue"`
@@ -56,6 +63,7 @@ type ObjectAttributeValues struct {
 	ReferencedType bool   `json:"referencedType"`
 }
 
+// Attributes описывает атрибут объекта Jira Assets с его значениями.
 type Attributes struct {
 	ID                    int                     `json:"id"`
 	ObjectTypeAttributeID int                     `json:"objectTypeAttributeId"`
@@ -63,10 +71,12 @@ type Attributes struct {
 	ObjectID              int                     `json:"objectId"`
 }
 
+// Links содержит ссылку на объект в API Jira Assets.
 type Links struct {
 	Self string `json:"self"`
 }
 
+// ObjectEntries описывает объект (запись) каталога Jira Assets со всеми его атрибутами.
 type ObjectEntries struct {
 	ID         int          `json:"id"`
 	Label      string       `json:"label"`
@@ -82,11 +92,13 @@ type ObjectEntries struct {
 	Name       string       `json:"name"`
 }
 
+// DefaultType описывает тип значения атрибута по умолчанию.
 type DefaultType struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
+// ReferenceType описывает тип ссылочного значения атрибута.
 type ReferenceType struct {
 	ID             int    `json:"id"`
 	Name           string `json:"name"`
@@ -96,6 +108,7 @@ type ReferenceType struct {
 	ObjectSchemaID int    `json:"objectSchemaId"`
 }
 
+// ReferenceObjectType описывает тип объекта, на который ссылается атрибут.
 type ReferenceObjectType struct {
 	ID                        int       `json:"id"`
 	Name                      string    `json:"name"`
@@ -112,6 +125,7 @@ type ReferenceObjectType struct {
 	ParentObjectTypeInherited bool      `json:"parentObjectTypeInherited"`
 }
 
+// ObjectTypeAttributes описывает атрибут типа объекта Jira Assets (схему атрибута).
 type ObjectTypeAttributes struct {
 	ID                      int                 `json:"id"`
 	Name                    string              `json:"name"`
@@ -142,6 +156,8 @@ type ObjectTypeAttributes struct {
 	AdditionalValue         string              `json:"additionalValue,omitempty"`
 }
 
+// ItSystem представляет страницу результата запроса объектов из Jira Assets
+// (набор объектов и метаданные постраничной выборки).
 type ItSystem struct {
 	ObjectEntries         []ObjectEntries        `json:"objectEntries"`
 	ObjectTypeAttributes  []ObjectTypeAttributes `json:"objectTypeAttributes"`
@@ -162,6 +178,8 @@ type ItSystem struct {
 	IqlSearchResult       bool                   `json:"iqlSearchResult"`
 }
 
+// ObjectTypeAttribute описывает схему атрибута типа объекта (используется в ответе
+// запроса атрибутов конкретного объекта).
 type ObjectTypeAttribute struct {
 	ID                      int                 `json:"id"`
 	Name                    string              `json:"name"`
@@ -190,6 +208,7 @@ type ObjectTypeAttribute struct {
 	Iql                     string              `json:"iql"`
 }
 
+// ITObjAttributes представляет список атрибутов объекта, возвращаемый API Jira Assets.
 type ITObjAttributes []struct {
 	ID                    int                     `json:"id"`
 	ObjectID              int                     `json:"objectId"`
@@ -197,6 +216,8 @@ type ITObjAttributes []struct {
 	ObjectTypeAttribute   []ObjectTypeAttribute   `json:"objectTypeAttribute,omitempty"`
 }
 
+// CheckResponse проверяет код ответа HTTP и возвращает ошибку, если он не входит
+// в диапазон успешных (200-299).
 func CheckResponse(r *http.Response) error {
 	if c := r.StatusCode; 200 <= c && c <= 299 {
 		return nil
@@ -206,6 +227,8 @@ func CheckResponse(r *http.Response) error {
 	return err
 }
 
+// GetAllItSystem постранично загружает из Jira Assets все объекты типа "ИТ-система"
+// и преобразует их в список моделей models.ItSystemRecord.
 func GetAllItSystem() ([]models.ItSystemRecord, error) {
 	var sys []ItSystem
 	var errExit error
@@ -285,6 +308,8 @@ func GetAllItSystem() ([]models.ItSystemRecord, error) {
 	return itSystem, errExit
 }
 
+// ObjAttr описывает атрибут объекта, возвращаемый запросом атрибутов конкретного
+// объекта Jira Assets.
 type ObjAttr struct {
 	ID                  int `json:"id"`
 	ObjectTypeAttribute struct {
@@ -320,7 +345,7 @@ type ObjAttr struct {
 	ObjectID int `json:"objectId"`
 }
 
-// Business-owner
+// GetBusinessOwner возвращает значение атрибута "Business-owner" из списка атрибутов объекта.
 func GetBusinessOwner(obj []ObjAttr) string {
 	for i := range obj {
 		if obj[i].ObjectTypeAttribute.Name == "Business-owner" {
@@ -337,6 +362,7 @@ func GetBusinessOwner(obj []ObjAttr) string {
 	return ""
 }
 
+// GetAttributes возвращает значение атрибута с именем name из списка атрибутов объекта.
 func GetAttributes(obj []ObjAttr, name string) string {
 	for i := range obj {
 		if obj[i].ObjectTypeAttribute.Name == name {
@@ -353,12 +379,12 @@ func GetAttributes(obj []ObjAttr, name string) string {
 	return ""
 }
 
-// IT-owner
+// GetITOwner возвращает значение атрибута "IT-owner" (в текущей реализации не заполнено).
 func GetITOwner(obj []ObjAttr) string {
 	return ""
 }
 
-// Support
+// GetSupport возвращает значение атрибута "Support" из списка атрибутов объекта.
 func GetSupport(obj []ObjAttr) string {
 	for i := range obj {
 		if obj[i].ObjectTypeAttribute.Name == "Support" {
@@ -375,6 +401,7 @@ func GetSupport(obj []ObjAttr) string {
 	return ""
 }
 
+// GetAttribString возвращает значение атрибута с именем keyName из списка атрибутов объекта.
 func GetAttribString(obj []ObjAttr, keyName string) string {
 	for i := range obj {
 		if obj[i].ObjectTypeAttribute.Name == keyName {
@@ -391,11 +418,13 @@ func GetAttribString(obj []ObjAttr, keyName string) string {
 	return ""
 }
 
-// Status
+// GetStatus возвращает значение атрибута "Status" (в текущей реализации не заполнено).
 func GetStatus(obj []ObjAttr) string {
 	return ""
 }
 
+// LoadITSystemObjectAttributes читает и разбирает список атрибутов объекта из
+// JSON-файла objectfile (используется для отладки/тестирования без обращения к API).
 func LoadITSystemObjectAttributes(objectfile string) ([]ObjAttr, error) {
 	var sys []ObjAttr
 	filebuffer, err := ioutil.ReadFile(objectfile)
@@ -409,6 +438,8 @@ func LoadITSystemObjectAttributes(objectfile string) ([]ObjAttr, error) {
 	return sys, nil
 }
 
+// GetITSystemObjectAttributes запрашивает в Jira Assets список атрибутов объекта
+// по его ключу objectKey.
 func GetITSystemObjectAttributes(objectKey string) ([]ObjAttr, error) {
 	var sys []ObjAttr
 	var errExit error
@@ -734,6 +765,8 @@ func setFiledObjectAttrib(rec *models.ItSystemRecord, obj *ObjectEntries, attr m
 	}
 }
 
+// LoadITSystemSpr загружает из Jira Assets полный перечень ИТ-систем и строит
+// локальный справочник, индексированный по ключу объекта.
 func LoadITSystemSpr() error {
 	var err error
 	it_system_spr = make(map[string]*models.ItSystemRecord)
@@ -748,6 +781,8 @@ func LoadITSystemSpr() error {
 	return err
 }
 
+// GetITSystemRec возвращает запись ИТ-системы из локального справочника по ключу key
+// и признак того, была ли она найдена.
 func GetITSystemRec(key string) (models.ItSystemRecord, bool) {
 	itSystemMutex.RLock()
 	defer itSystemMutex.RUnlock()
@@ -759,6 +794,7 @@ func GetITSystemRec(key string) (models.ItSystemRecord, bool) {
 	}
 }
 
+// ImportITSystemSpr возвращает копию всех записей ИТ-систем из локального справочника.
 func ImportITSystemSpr() []models.ItSystemRecord {
 	var spr []models.ItSystemRecord
 	itSystemMutex.RLock()

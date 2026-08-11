@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	// UserList — демонстрационное in-memory хранилище пользователей (пример из шаблона beego).
 	UserList map[string]*User
 )
 
@@ -16,6 +17,7 @@ func init() {
 	UserList["user_11111"] = &u
 }
 
+// User — демонстрационная структура пользователя (пример из шаблона beego), не связана с БД.
 type User struct {
 	Id       string
 	Username string
@@ -23,6 +25,7 @@ type User struct {
 	Profile  Profile
 }
 
+// Profile — демонстрационные профильные данные пользователя (пример из шаблона beego).
 type Profile struct {
 	Gender  string
 	Age     int
@@ -30,12 +33,14 @@ type Profile struct {
 	Email   string
 }
 
+// AddUser добавляет пользователя в хранилище UserList и возвращает сгенерированный Id.
 func AddUser(u User) string {
 	u.Id = "user_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	UserList[u.Id] = &u
 	return u.Id
 }
 
+// GetUser возвращает пользователя из хранилища UserList по идентификатору.
 func GetUser(uid string) (u *User, err error) {
 	if u, ok := UserList[uid]; ok {
 		return u, nil
@@ -43,10 +48,12 @@ func GetUser(uid string) (u *User, err error) {
 	return nil, errors.New("User not exists")
 }
 
+// GetAllUsers возвращает всех пользователей из хранилища UserList.
 func GetAllUsers() map[string]*User {
 	return UserList
 }
 
+// UpdateUser обновляет непустые поля пользователя uid данными из uu.
 func UpdateUser(uid string, uu *User) (a *User, err error) {
 	if u, ok := UserList[uid]; ok {
 		if uu.Username != "" {
@@ -72,6 +79,7 @@ func UpdateUser(uid string, uu *User) (a *User, err error) {
 	return nil, errors.New("User Not Exist")
 }
 
+// Login проверяет наличие пользователя с указанными логином и паролем в UserList.
 func Login(username, password string) bool {
 	for _, u := range UserList {
 		if u.Username == username && u.Password == password {
@@ -81,6 +89,7 @@ func Login(username, password string) bool {
 	return false
 }
 
+// DeleteUser удаляет пользователя из хранилища UserList по идентификатору.
 func DeleteUser(uid string) {
 	delete(UserList, uid)
 }

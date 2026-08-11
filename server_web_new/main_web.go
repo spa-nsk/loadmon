@@ -1,3 +1,8 @@
+// Команда main_web — точка входа веб-фронтенда loadmon на базе Beego.
+// Отвечает за инициализацию конфигурации и подключения к БД, настройку
+// авторизации (Kerberos/SPNEGO против Active Directory или локальная
+// логин/пароль-авторизация), запуск HTTP(S)-сервера Beego и корректное
+// завершение работы по сигналам ОС.
 package main
 
 import (
@@ -44,32 +49,41 @@ var baseLock sync.RWMutex
 var baseLocked bool = false
 var kt *keytab.Keytab
 
+// IsBaseLocked возвращает признак блокировки базы данных (используется для
+// защиты от параллельных операций конвертации/обслуживания базы).
 func IsBaseLocked() bool {
 	baseLock.RLock()
 	defer baseLock.RUnlock()
 	return baseLocked
 }
 
+// LockBase устанавливает признак блокировки базы данных.
 func LockBase() {
 	baseLock.Lock()
 	defer baseLock.Unlock()
 	baseLocked = true
 }
 
+// UnlockBase снимает признак блокировки базы данных.
 func UnlockBase() {
 	baseLock.Lock()
 	defer baseLock.Unlock()
 	baseLocked = false
 }
 
+// SessionMgr управляет HTTP-сессиями пользователя на основе cookie-хранилища.
 type SessionMgr struct {
 	store      sessions.Store
 	cookieName string
 }
 
 func init() {
-	config.ConfigData.LoadConfigData()
-	config.ConfigData.InitParams()
+	if _, err := config.ConfigData.LoadConfigData(); err != nil {
+		log.Printf("config: %v", err)
+	}
+	if err := config.ConfigData.InitParams(); err != nil {
+		log.Printf("InitParams: %v", err)
+	}
 
 	// Режим авторизации задаётся параметром AuthMode в conf/app2.json:
 	// "domain" - Kerberos/SPNEGO против Active Directory (поведение по умолчанию, в т.ч. если параметр не указан)
@@ -227,6 +241,7 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// NewSessionMgr создаёт менеджер сессий с cookie-хранилищем и заданным именем cookie.
 func NewSessionMgr(cookieName string) SessionMgr {
 
 	skey := []byte("loadmon")
@@ -237,6 +252,7 @@ func NewSessionMgr(cookieName string) SessionMgr {
 	}
 }
 
+// Get возвращает байтовое значение, сохранённое в сессии запроса под ключом k.
 func (smgr SessionMgr) Get(r *http.Request, k string) ([]byte, error) {
 	//func (smgr SessionMgr) Get(r *http.Request, k string) (any, error) {
 	s, err := smgr.store.Get(r, smgr.cookieName)
@@ -257,6 +273,7 @@ func (smgr SessionMgr) Get(r *http.Request, k string) ([]byte, error) {
 	return b, nil
 }
 
+// New создаёт новую сессию, сохраняет в ней значение v под ключом k и записывает cookie в ответ.
 func (smgr SessionMgr) New(w http.ResponseWriter, r *http.Request, k string, v []byte) error {
 	//func (smgr SessionMgr) New(w http.ResponseWriter, r *http.Request, k string, v any) error {
 	s, err := smgr.store.New(r, smgr.cookieName)
@@ -334,6 +351,8 @@ func main() {
 	}
 }
 
+// PageData содержит данные аутентифицированного пользователя (Kerberos SSO)
+// для передачи в шаблоны страниц.
 type PageData struct {
 	Title  string
 	User   string
@@ -342,7 +361,9 @@ type PageData struct {
 	AD     *credentials.ADCredentials
 }
 
-// Фильтр-функция для проверки Kerberos-токена
+// KerberosFilter — фильтр Beego для проверки Kerberos/SPNEGO-токена запроса
+// (альтернативная/вспомогательная реализация проверки токена, не используемая
+// как основной путь авторизации — см. spnegoFilter).
 var KerberosFilter = func(ctx *begocont.Context) {
 	// Здесь инициализируется контекст клиента/сервера gokrb5,
 	// разбираются заголовки запроса и проверяется подлинность.

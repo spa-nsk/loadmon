@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// GetSSO обрабатывает SSO-аутентификацию по протоколу Kerberos/Negotiate:
+// при отсутствии заголовка Authorization с токеном Negotiate запрашивает
+// у клиента повторную аутентификацию (HTTP 401 WWW-Authenticate: Kerberos).
 func (my *MainController) GetSSO() {
 	if my.Ctx.Input.Method() == "GET" {
 		wwwAuth := my.Ctx.Input.Header("WWW-Authenticate")

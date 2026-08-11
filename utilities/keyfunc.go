@@ -13,10 +13,13 @@ func init() {
 	keymap["spaview"] = data[5]
 	keymap["usr-nsk-dati-02@t-global.bcs"] = data[6]
 	keymap["spausvc"] = data[7]
+	keymap["vcsim@local"] = "pass"
 	keymap["8"] = data[7]
 	keymap["9"] = data[7]
 }
 
+// GetKeyData возвращает пароль/ключ, сопоставленный с указанной учётной записью key.
+// Если ключ не найден, возвращается строка "key".
 func GetKeyData(key string) string {
 	m, ok := keymap[key]
 	if ok {

@@ -1,3 +1,5 @@
+// Package storages объединяет получение данных с различных СХД EMC (Unity через REST API пакета emcstorage
+// и VNX через утилиту naviseccli, см. vnxcli.go) и агрегирует их в единую структуру Storage для дальнейшей обработки.
 package storages
 
 import (
@@ -84,6 +86,7 @@ type disk struct {
 
 var login = "spaview"
 
+// GetLunsRest получает список LUN СХД Unity по адресу adress через REST API (emcstorage)
 func GetLunsRest(adress string) ([]*emcstorage.LUNContent, error) {
 	var lunList []*emcstorage.LUNContent
 
@@ -108,6 +111,7 @@ func GetLunsRest(adress string) ([]*emcstorage.LUNContent, error) {
 	return lunList, nil
 }
 
+// GetHostsRest получает список хостов СХД Unity по адресу adress через REST API (emcstorage)
 func GetHostsRest(adress string) ([]*emcstorage.HostContent, error) {
 	var hostList []*emcstorage.HostContent
 

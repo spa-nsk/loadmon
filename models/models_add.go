@@ -18,10 +18,12 @@ type ModelPersonalEquipment struct {
 	//добавить детали конфигурации
 }
 
+// TableName возвращает имя таблицы БД для модели ModelPersonalEquipment (используется beego ORM).
 func (a *ModelPersonalEquipment) TableName() string {
 	return "model_personal_equipment"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ModelPersonalEquipment в beego ORM.
 func (u *ModelPersonalEquipment) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Code"},
@@ -44,10 +46,12 @@ type RolePersonal struct { //
 	MoneySumm    float64 `form:"MoneySumm"`    //сумма по роли
 }
 
+// TableName возвращает имя таблицы БД для модели RolePersonal (используется beego ORM).
 func (a *RolePersonal) TableName() string {
 	return "role_personal"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели RolePersonal в beego ORM.
 func (u *RolePersonal) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Code"},
@@ -57,22 +61,26 @@ func (u *RolePersonal) TableIndex() [][]string {
 	}
 }
 
+// RoleCompetenceCenter описывает запись/справочник БД loadmon, соответствующую сущности RoleCompetenceCenter.
 type RoleCompetenceCenter struct { // список ЦК или должностей для роли
 	Id             int64  `form:"Id"`             // уникальный идентификатор
 	CodeRole       string `form:"CodeRole"`       // идентификационный код роли
 	CodeCompetence string `form:"CodeCompetence"` //
 }
 
+// TableName возвращает имя таблицы БД для модели RoleCompetenceCenter (используется beego ORM).
 func (a *RoleCompetenceCenter) TableName() string {
 	return "role_competence_center"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели RoleCompetenceCenter в beego ORM.
 func (u *RoleCompetenceCenter) TableIndex() [][]string {
 	return [][]string{
 		[]string{"CodeRole"},
 	}
 }
 
+// CompetenceCenter описывает запись/справочник БД loadmon, соответствующую сущности CompetenceCenter.
 type CompetenceCenter struct { // jira https://jira.bcs.ru/secure/ObjectSchema.jspa?id=3&typeId=214&view=list&objectId=3061492
 	Id        int64  `form:"Id"`        // уникальный идентификатор
 	Code      string `form:"Code"`      // идентификационный код для всех
@@ -82,10 +90,12 @@ type CompetenceCenter struct { // jira https://jira.bcs.ru/secure/ObjectSchema.j
 	Status    int    `form:"Status"`    // 0-не указан 1-активен 2-не активен 3-требует действия
 }
 
+// TableName возвращает имя таблицы БД для модели CompetenceCenter (используется beego ORM).
 func (a *CompetenceCenter) TableName() string {
 	return "competence_center"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели CompetenceCenter в beego ORM.
 func (u *CompetenceCenter) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Code"},
@@ -101,10 +111,12 @@ type RolePersonalItem struct {
 	Count         int    `form:"Count"`         //количество единиц оборудования
 }
 
+// TableName возвращает имя таблицы БД для модели RolePersonalItem (используется beego ORM).
 func (a *RolePersonalItem) TableName() string {
 	return "role_personal_item"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели RolePersonalItem в beego ORM.
 func (u *RolePersonalItem) TableIndex() [][]string {
 	return [][]string{
 		[]string{"CodeRole"},
@@ -112,6 +124,9 @@ func (u *RolePersonalItem) TableIndex() [][]string {
 }
 
 // окончание блока ролевых моделей и типовых конфигураций
+
+// ReportServerRecord — запись отчёта по загрузке физического/виртуального сервера
+// (агрегированные показатели CPU, памяти, дисков за период).
 type ReportServerRecord struct {
 	Id                     int64     `form:"Id"`
 	Time                   time.Time `form:"Time"`
@@ -172,6 +187,7 @@ type ReportServerRecord struct {
 	UseWorkDisk            bool      `form:"-"`
 }
 
+// VMRecord описывает запись/справочник БД loadmon, соответствующую сущности VMRecord.
 type VMRecord struct {
 	Id                   int64     `form:"Id" csv:"-"`
 	ServerId             int64     `form:"ServerId" csv:"-"` //новая ссылка на справочник серверов. Добавить запись значений.
@@ -236,10 +252,12 @@ type VMRecord struct {
 	NetBilling           float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
 }
 
+// TableName возвращает имя таблицы БД для модели VMRecord (используется beego ORM).
 func (a *VMRecord) TableName() string {
 	return "vm_record"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMRecord в beego ORM.
 func (u *VMRecord) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Date"},
@@ -248,6 +266,7 @@ func (u *VMRecord) TableIndex() [][]string {
 	}
 }
 
+// VMRecordUsageOnDatastore описывает запись/справочник БД loadmon, соответствующую сущности VMRecordUsageOnDatastore.
 type VMRecordUsageOnDatastore struct {
 	Id                     int64   `form:"Id"`
 	VMRecordId             int64   `form:"VMRecordId"`
@@ -258,10 +277,12 @@ type VMRecordUsageOnDatastore struct {
 	PercentAllocateStorage float64 `form:"PercentAllocateStorage"` //процент выделения места под виртуальную магину на конкретном хранилище
 }
 
+// TableName возвращает имя таблицы БД для модели VMRecordUsageOnDatastore (используется beego ORM).
 func (a *VMRecordUsageOnDatastore) TableName() string {
 	return "vm_record_usage_datastore"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMRecordUsageOnDatastore в beego ORM.
 func (u *VMRecordUsageOnDatastore) TableIndex() [][]string {
 	return [][]string{
 		[]string{"VMRecordId"},
@@ -269,6 +290,7 @@ func (u *VMRecordUsageOnDatastore) TableIndex() [][]string {
 	}
 }
 
+// VMRecordGuestDiskInfo описывает запись/справочник БД loadmon, соответствующую сущности VMRecordGuestDiskInfo.
 type VMRecordGuestDiskInfo struct {
 	Id          int64   `form:"Id"`
 	VMRecordId  int64   `form:"VMRecordId"`
@@ -278,10 +300,12 @@ type VMRecordGuestDiskInfo struct {
 	PercentUsed float64 `form:"PercentUsed"`
 }
 
+// TableName возвращает имя таблицы БД для модели VMRecordGuestDiskInfo (используется beego ORM).
 func (a *VMRecordGuestDiskInfo) TableName() string {
 	return "vm_record_guest_disk_info"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMRecordGuestDiskInfo в beego ORM.
 func (u *VMRecordGuestDiskInfo) TableIndex() [][]string {
 	return [][]string{
 		[]string{"VMRecordId"},
@@ -289,6 +313,7 @@ func (u *VMRecordGuestDiskInfo) TableIndex() [][]string {
 	}
 }
 
+// VMSprRecordView описывает запись/справочник БД loadmon, соответствующую сущности VMSprRecordView.
 type VMSprRecordView struct {
 	VMSprRecord
 	Disks       []VMGuestDiskInfo `form:"Disks"`
@@ -297,6 +322,7 @@ type VMSprRecordView struct {
 	PercentUsed float64           `form:"PercentUsed"`
 }
 
+// HostRecord описывает запись/справочник БД loadmon, соответствующую сущности HostRecord.
 type HostRecord struct {
 	Id                         int64     `form:"Id" csv:"-"`
 	ServerId                   int64     `form:"ServerId" csv:"-"` //ссылка на справочник серверов (хостов)
@@ -364,10 +390,12 @@ type HostRecord struct {
 	NetBilling                 float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
 }
 
+// TableName возвращает имя таблицы БД для модели HostRecord (используется beego ORM).
 func (a *HostRecord) TableName() string {
 	return "host_record"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели HostRecord в beego ORM.
 func (u *HostRecord) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ServerId"},
@@ -376,6 +404,7 @@ func (u *HostRecord) TableIndex() [][]string {
 	}
 }
 
+// ClusterRecord описывает запись/справочник БД loadmon, соответствующую сущности ClusterRecord.
 type ClusterRecord struct {
 	Id                                 int64     `form:"Id"`
 	ClusterId                          int64     `form:"ClusterId"`
@@ -440,10 +469,12 @@ type ClusterRecord struct {
 	StorageCount                       int64     `form:"StorageCount"`
 }
 
+// TableName возвращает имя таблицы БД для модели ClusterRecord (используется beego ORM).
 func (a *ClusterRecord) TableName() string {
 	return "cluster_record"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ClusterRecord в beego ORM.
 func (u *ClusterRecord) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ClusterId"},
@@ -453,6 +484,7 @@ func (u *ClusterRecord) TableIndex() [][]string {
 	}
 }
 
+// ClusterSprRecords описывает запись/справочник БД loadmon, соответствующую сущности ClusterSprRecords.
 type ClusterSprRecords struct {
 	Id         int64     `form:"Id"`
 	Vcenter    string    `form:"Vcenter"`
@@ -467,16 +499,19 @@ type ClusterSprRecords struct {
 	Time_Mfy   time.Time `form:"Time_Mfy"`
 }
 
+// TableName возвращает имя таблицы БД для модели ClusterSprRecords (используется beego ORM).
 func (a *ClusterSprRecords) TableName() string {
 	return "cluster_spr_records"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ClusterSprRecords в beego ORM.
 func (u *ClusterSprRecords) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Name"},
 	}
 }
 
+// DatacenterSprRecords описывает запись/справочник БД loadmon, соответствующую сущности DatacenterSprRecords.
 type DatacenterSprRecords struct {
 	Id         int64     `form:"Id"`
 	Vcenter    string    `form:"Vcenter"`
@@ -486,16 +521,19 @@ type DatacenterSprRecords struct {
 	Time_Mfy   time.Time `form:"Time_Mfy"`
 }
 
+// TableName возвращает имя таблицы БД для модели DatacenterSprRecords (используется beego ORM).
 func (a *DatacenterSprRecords) TableName() string {
 	return "datacenter_spr_records"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели DatacenterSprRecords в beego ORM.
 func (u *DatacenterSprRecords) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Name"},
 	}
 }
 
+// VcenterSprRecords описывает запись/справочник БД loadmon, соответствующую сущности VcenterSprRecords.
 type VcenterSprRecords struct {
 	Id         int64     `form:"Id"`
 	Name       string    `form:"Name"`
@@ -505,16 +543,19 @@ type VcenterSprRecords struct {
 	Time_Mfy   time.Time `form:"Time_Mfy"`
 }
 
+// TableName возвращает имя таблицы БД для модели VcenterSprRecords (используется beego ORM).
 func (a *VcenterSprRecords) TableName() string {
 	return "vcenter_spr_records"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VcenterSprRecords в beego ORM.
 func (u *VcenterSprRecords) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Name"},
 	}
 }
 
+// VMSprRecord описывает запись/справочник БД loadmon, соответствующую сущности VMSprRecord.
 type VMSprRecord struct {
 	Id                   int64   `form:"Id"`
 	ServerId             int64   `form:"ServerId"` //новое поле. добавить запись ссылки на справочник серверов
@@ -556,10 +597,12 @@ type VMSprRecord struct {
 	Net_usage_maximum    float64 `form:"Net_usage_maximum"`
 }
 
+// TableName возвращает имя таблицы БД для модели VMSprRecord (используется beego ORM).
 func (a *VMSprRecord) TableName() string {
 	return "vm_spr_record"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMSprRecord в beego ORM.
 func (u *VMSprRecord) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Vm_Uuid"},
@@ -571,6 +614,7 @@ func (u *VMSprRecord) TableIndex() [][]string {
 	}
 }
 
+// VMGuestDiskInfo описывает запись/справочник БД loadmon, соответствующую сущности VMGuestDiskInfo.
 type VMGuestDiskInfo struct {
 	Id          int64   `form:"Id"`
 	VMId        int64   `form:"VMId"`
@@ -580,16 +624,19 @@ type VMGuestDiskInfo struct {
 	PercentUsed float64 `form:"PercentUsed"`
 }
 
+// TableName возвращает имя таблицы БД для модели VMGuestDiskInfo (используется beego ORM).
 func (a *VMGuestDiskInfo) TableName() string {
 	return "vm_guest_disk_info"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMGuestDiskInfo в beego ORM.
 func (u *VMGuestDiskInfo) TableIndex() [][]string {
 	return [][]string{
 		[]string{"VMId", "Id"},
 	}
 }
 
+// ClusterPerf описывает запись/справочник БД loadmon, соответствующую сущности ClusterPerf.
 type ClusterPerf struct {
 	Id                     int64     `form:"Id"`
 	ClusterId              int64     `form:"ClusterId"` //ссылка на запись в ClusterRecord
@@ -606,6 +653,7 @@ type ClusterPerf struct {
 	Net_transmitted        float64   `form:"Net_transmitted"`        //Использование сети (скорость передачи) в течение интервала kbps
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ClusterPerf в beego ORM.
 func (u *ClusterPerf) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ClusterId", "Id"},
@@ -613,10 +661,12 @@ func (u *ClusterPerf) TableIndex() [][]string {
 	}
 }
 
+// TableName возвращает имя таблицы БД для модели ClusterPerf (используется beego ORM).
 func (a *ClusterPerf) TableName() string {
 	return "cluster_perf"
 }
 
+// HostPerf описывает запись/справочник БД loadmon, соответствующую сущности HostPerf.
 type HostPerf struct {
 	Id                     int64     `form:"Id"`
 	HostId                 int64     `form:"HostId"` //ссылка на HostRecord
@@ -633,6 +683,7 @@ type HostPerf struct {
 	Net_transmitted        float64   `form:"Net_transmitted"`        //Использование сети (скорость передачи) в течение интервала kbps
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели HostPerf в beego ORM.
 func (u *HostPerf) TableIndex() [][]string {
 	return [][]string{
 		[]string{"HostId", "Id"},
@@ -640,10 +691,12 @@ func (u *HostPerf) TableIndex() [][]string {
 	}
 }
 
+// TableName возвращает имя таблицы БД для модели HostPerf (используется beego ORM).
 func (a *HostPerf) TableName() string {
 	return "host_perf"
 }
 
+// VMPerfRecord описывает запись/справочник БД loadmon, соответствующую сущности VMPerfRecord.
 type VMPerfRecord struct {
 	Id                     int64     `form:"Id"`
 	VMId                   int64     `form:"VMId"`
@@ -660,6 +713,7 @@ type VMPerfRecord struct {
 	Net_transmitted        float64   `form:"Net_transmitted"`        //Использование сети (скорость передачи) в течение интервала kbps
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMPerfRecord в beego ORM.
 func (u *VMPerfRecord) TableIndex() [][]string {
 	return [][]string{
 		[]string{"VMId", "Id"},
@@ -667,6 +721,7 @@ func (u *VMPerfRecord) TableIndex() [][]string {
 	}
 }
 
+// ServerSprRecords описывает запись/справочник БД loadmon, соответствующую сущности ServerSprRecords.
 type ServerSprRecords struct {
 	Id               int64     `form:"Id" json:"Id"`
 	OldId            int64     `form:"OldId" json:"OldId"` //ссылка на историческую запись после переименования. 0 если такой нет. Может быть цепочка записей.
@@ -740,6 +795,7 @@ type ServerSprRecords struct {
 	Privilage        int       `form:"Privilage" json:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя) // TODO: comment truncated in screenshot
 }
 
+// ServerSprRecordsArch описывает запись/справочник БД loadmon, соответствующую сущности ServerSprRecordsArch.
 type ServerSprRecordsArch struct {
 	ServerSprRecords
 }
@@ -796,10 +852,12 @@ type ServerPerfSCOM struct {
 	UseWorkDisk            int       `form:"UseWorkDisk" csv:"-"` //
 }
 
+// TableName возвращает имя таблицы БД для модели ServerPerfSCOM (используется beego ORM).
 func (a *ServerPerfSCOM) TableName() string {
 	return "server_perf_scom"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerPerfSCOM в beego ORM.
 func (a *ServerPerfSCOM) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -841,15 +899,18 @@ type ServerDiskPerfZabbix struct {
 	Disk_usage_minimum float64 `orm:"null" form:"Disk_usage_minimum"` //% Disk Usage min
 }
 
+// ServerPerfZabbixView описывает запись/справочник БД loadmon, соответствующую сущности ServerPerfZabbixView.
 type ServerPerfZabbixView struct {
 	Base  ServerPerfZabbix
 	Disks []*ServerDiskPerfZabbix `form:"Disks"` //диски
 }
 
+// TableName возвращает имя таблицы БД для модели ServerPerfZabbix (используется beego ORM).
 func (a *ServerPerfZabbix) TableName() string {
 	return "server_perf_zabbix"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerPerfZabbix в beego ORM.
 func (a *ServerPerfZabbix) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -860,10 +921,12 @@ func (a *ServerPerfZabbix) TableIndex() [][]string {
 	}
 }
 
+// TableName возвращает имя таблицы БД для модели ServerDiskPerfZabbix (используется beego ORM).
 func (a *ServerDiskPerfZabbix) TableName() string {
 	return "server_disk_perf_zabbix"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerDiskPerfZabbix в beego ORM.
 func (a *ServerDiskPerfZabbix) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -873,6 +936,8 @@ func (a *ServerDiskPerfZabbix) TableIndex() [][]string {
 }
 
 //------------------------------------------------------------------------------------------------------------------
+
+// ZabbixHost — справочник хостов Zabbix, сопоставленных серверам loadmon.
 type ZabbixHost struct {
 	Id                int64     `form:"Id" orm:"auto"` //
 	ServerId          int64     `form:"ServerId"` //ссылка на ServerSprRecords.Id
@@ -887,10 +952,12 @@ type ZabbixHost struct {
 	TimeMfy           time.Time `form:"TimeMfy"` //время последнего обновления
 }
 
+// TableName возвращает имя таблицы БД для модели ZabbixHost (используется beego ORM).
 func (a *ZabbixHost) TableName() string {
 	return "zabbix_host"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ZabbixHost в beego ORM.
 func (a *ZabbixHost) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -899,6 +966,7 @@ func (a *ZabbixHost) TableIndex() [][]string {
 	}
 }
 
+// ZabbixItem описывает запись/справочник БД loadmon, соответствующую сущности ZabbixItem.
 type ZabbixItem struct {
 	Id       int64     `form:"Id" orm:"auto"` //
 	HostId   int64     `form:"HostId"` //ссылка на ZabbixHost.Id
@@ -909,10 +977,12 @@ type ZabbixItem struct {
 	Clock    time.Time `form:"Clock"` //время значения
 }
 
+// TableName возвращает имя таблицы БД для модели ZabbixItem (используется beego ORM).
 func (a *ZabbixItem) TableName() string {
 	return "zabbix_item"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ZabbixItem в beego ORM.
 func (a *ZabbixItem) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -944,6 +1014,7 @@ unixtime - Unix time
 °C - градусы Цельсия
 */
 
+// ZabbixKey описывает запись/справочник БД loadmon, соответствующую сущности ZabbixKey.
 type ZabbixKey struct {
 	Id        int64  `form:"Id" orm:"auto"` //
 	Key       string `form:"Key"` //
@@ -952,10 +1023,12 @@ type ZabbixKey struct {
 	Units     string `form:"Units"` //единицы измерения
 }
 
+// TableName возвращает имя таблицы БД для модели ZabbixKey (используется beego ORM).
 func (a *ZabbixKey) TableName() string {
 	return "zabbix_key"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ZabbixKey в beego ORM.
 func (a *ZabbixKey) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -982,10 +1055,12 @@ type AppService struct {
 	CriticalLevel int    `form:"CriticalLevel"` //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
 }
 
+// TableName возвращает имя таблицы БД для модели AppService (используется beego ORM).
 func (a *AppService) TableName() string {
 	return "app_service"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели AppService в beego ORM.
 func (a *AppService) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1013,10 +1088,12 @@ type ServiceMember struct {
 	Privilage  int    `form:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя)
 }
 
+// TableName возвращает имя таблицы БД для модели ServiceMember (используется beego ORM).
 func (a *ServiceMember) TableName() string {
 	return "service_member"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServiceMember в beego ORM.
 func (a *ServiceMember) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1025,6 +1102,7 @@ func (a *ServiceMember) TableIndex() [][]string {
 	}
 }
 
+// MembersFG описывает запись/справочник БД loadmon, соответствующую сущности MembersFG.
 type MembersFG struct {
 	Id        int64  `form:"Id" orm:"auto"` //
 	Name      string `form:"Name"` //Наименование
@@ -1033,10 +1111,12 @@ type MembersFG struct {
 	Privilage int    `form:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привилегии пользователя)
 }
 
+// TableName возвращает имя таблицы БД для модели MembersFG (используется beego ORM).
 func (a *MembersFG) TableName() string {
 	return "members_fg"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели MembersFG в beego ORM.
 func (u *MembersFG) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1045,6 +1125,7 @@ func (u *MembersFG) TableIndex() [][]string {
 	}
 }
 
+// Counterparty описывает запись/справочник БД loadmon, соответствующую сущности Counterparty.
 type Counterparty struct {
 	Id        int64  `form:"Id" orm:"auto"` //
 	Name      string `form:"Name"` //Наименование
@@ -1053,10 +1134,12 @@ type Counterparty struct {
 	Privilage int    `form:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привилегии пользователя)
 }
 
+// TableName возвращает имя таблицы БД для модели Counterparty (используется beego ORM).
 func (a *Counterparty) TableName() string {
 	return "counterparty"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели Counterparty в beego ORM.
 func (u *Counterparty) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1065,6 +1148,7 @@ func (u *Counterparty) TableIndex() [][]string {
 	}
 }
 
+// ServerSprView описывает запись/справочник БД loadmon, соответствующую сущности ServerSprView.
 type ServerSprView struct {
 	PercentFilledField float64                `form:"PercentFilledField"` //процент заполнения полей в справочнике
 	S                  ServerSprRecords       `form:"S"` //общая информация
@@ -1079,10 +1163,12 @@ type ServerSprView struct {
 	Busines            []SprBusinesAllocation `form:"Busines"` //алокация по бизнесам
 }
 
+// TableName возвращает имя таблицы БД для модели ServerSprRecords (используется beego ORM).
 func (a *ServerSprRecords) TableName() string {
 	return "server_spr_records"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerSprRecords в beego ORM.
 func (u *ServerSprRecords) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1101,10 +1187,12 @@ func (u *ServerSprRecords) TableIndex() [][]string {
 	}
 }
 
+// TableName возвращает имя таблицы БД для модели ServerSprRecordsArch (используется beego ORM).
 func (a *ServerSprRecordsArch) TableName() string {
 	return "server_spr_records_arch"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerSprRecordsArch в beego ORM.
 func (u *ServerSprRecordsArch) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1123,6 +1211,7 @@ func (u *ServerSprRecordsArch) TableIndex() [][]string {
 	}
 }
 
+// BladeSystems описывает запись/справочник БД loadmon, соответствующую сущности BladeSystems.
 type BladeSystems struct {
 	Id              int64     `form:"Id"`
 	Name            string    `form:"Name"` //короткое наименование
@@ -1155,10 +1244,12 @@ type BladeSystems struct {
 	Time_Mfy        time.Time `form:"Time_Mfy"` //
 }
 
+// TableName возвращает имя таблицы БД для модели BladeSystems (используется beego ORM).
 func (a *BladeSystems) TableName() string {
 	return "blade_systems"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели BladeSystems в beego ORM.
 func (u *BladeSystems) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Name"},
@@ -1167,6 +1258,7 @@ func (u *BladeSystems) TableIndex() [][]string {
 	}
 }
 
+// SANSystem описывает запись/справочник БД loadmon, соответствующую сущности SANSystem.
 type SANSystem struct {
 	Id              int64     `form:"Id"`
 	ShortName       string    `form:"ShortName"` //мнемоническое имя для систем
@@ -1198,10 +1290,12 @@ type SANSystem struct {
 	Time_Mfy        time.Time `form:"Time_Mfy"` //
 }
 
+// TableName возвращает имя таблицы БД для модели SANSystem (используется beego ORM).
 func (a *SANSystem) TableName() string {
 	return "san_systems"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели SANSystem в beego ORM.
 func (u *SANSystem) TableIndex() [][]string {
 	return [][]string{
 		[]string{"BladeSystemId"},
@@ -1210,6 +1304,7 @@ func (u *SANSystem) TableIndex() [][]string {
 	}
 }
 
+// StorageSystems описывает запись/справочник БД loadmon, соответствующую сущности StorageSystems.
 type StorageSystems struct {
 	Id              int64     `form:"Id"`
 	UID             string    `form:"UID"` //уникальный идентификатор
@@ -1257,10 +1352,12 @@ type StorageSystems struct {
 	Time_Mfy        time.Time `form:"Time_Mfy"` //
 }
 
+// TableName возвращает имя таблицы БД для модели StorageSystems (используется beego ORM).
 func (a *StorageSystems) TableName() string {
 	return "storage_systems"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели StorageSystems в beego ORM.
 func (u *StorageSystems) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ShortName"},
@@ -1269,6 +1366,7 @@ func (u *StorageSystems) TableIndex() [][]string {
 	}
 }
 
+// StorageVolumes описывает запись/справочник БД loadmon, соответствующую сущности StorageVolumes.
 type StorageVolumes struct {
 	Id               int64     `form:"Id"`
 	StorageSystemsId int64     `form:"StorageSystemsId"` //ID из StorageSystems
@@ -1293,10 +1391,12 @@ type StorageVolumes struct {
 	Time_Mfy         time.Time `form:"Time_Mfy"` //
 }
 
+// TableName возвращает имя таблицы БД для модели StorageVolumes (используется beego ORM).
 func (a *StorageVolumes) TableName() string {
 	return "storage_volumes"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели StorageVolumes в beego ORM.
 func (u *StorageVolumes) TableIndex() [][]string {
 	return [][]string{
 		[]string{"StorageSystemsId"},
@@ -1307,6 +1407,7 @@ func (u *StorageVolumes) TableIndex() [][]string {
 	}
 }
 
+// Datastore описывает запись/справочник БД loadmon, соответствующую сущности Datastore.
 type Datastore struct {
 	Id               int64   `form:"Id"`
 	StorageSystemsId int64   `form:"StorageSystemsId"`
@@ -1318,10 +1419,12 @@ type Datastore struct {
 	PercentUsed      float64 `form:"PercentUsed"` //процент использования
 }
 
+// TableName возвращает имя таблицы БД для модели Datastore (используется beego ORM).
 func (a *Datastore) TableName() string {
 	return "datastore"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели Datastore в beego ORM.
 func (u *Datastore) TableIndex() [][]string {
 	return [][]string{
 		[]string{"StorageSystemsId"},
@@ -1329,6 +1432,7 @@ func (u *Datastore) TableIndex() [][]string {
 	}
 }
 
+// VMUsageDatastore описывает запись/справочник БД loadmon, соответствующую сущности VMUsageDatastore.
 type VMUsageDatastore struct {
 	Id                     int64   `form:"Id"`
 	VMSprId                int64   `form:"VMSprId"` //ссылка на VMSprRecords.Id
@@ -1344,10 +1448,12 @@ type VMUsageDatastore struct {
 	PercentAllocateStorage float64 `form:"PercentAllocateStorage"` //процент выделения места под виртуальную машину на конкретном хранилище
 }
 
+// TableName возвращает имя таблицы БД для модели VMUsageDatastore (используется beego ORM).
 func (a *VMUsageDatastore) TableName() string {
 	return "vm_usage_datastore"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMUsageDatastore в beego ORM.
 func (u *VMUsageDatastore) TableIndex() [][]string {
 	return [][]string{
 		[]string{"VMSprId"},
@@ -1357,6 +1463,7 @@ func (u *VMUsageDatastore) TableIndex() [][]string {
 	}
 }
 
+// ServerHardwareView описывает запись/справочник БД loadmon, соответствующую сущности ServerHardwareView.
 type ServerHardwareView struct {
 	H     ServerHardware             `form:"H"`
 	RAM   []ServerHardwareComponents `form:"RAM"`
@@ -1364,6 +1471,7 @@ type ServerHardwareView struct {
 	Add   []ServerHardwareComponents `form:"Add"`
 }
 
+// ServerHardware описывает запись/справочник БД loadmon, соответствующую сущности ServerHardware.
 type ServerHardware struct {
 	Id                int64     `form:"Id" csv:"%" json:"Id"`
 	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"` // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
@@ -1414,6 +1522,7 @@ type ServerHardware struct {
 // Блок описания для cmdb
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+// ServerSpr — справочная запись сервера (CMDB): базовые параметры конфигурации и принадлежности.
 type ServerSpr struct {
 	Id               int64     `form:"Id" json:"Id"` //id записи
 	Type             int       `form:"Type" json:"Type"` //0 - не указан 1 - виртуальный 2 - физический сервер
@@ -1470,10 +1579,12 @@ type ServerSpr struct {
 	Time_Mfy         time.Time `form:"Time_Mfy" json:"Time_Mfy"` //дата последних изменений
 }
 
+// TableName возвращает имя таблицы БД для модели ServerSpr (используется beego ORM).
 func (a *ServerSpr) TableName() string {
 	return "cmdb_server_spr"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerSpr в beego ORM.
 func (u *ServerSpr) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1486,6 +1597,7 @@ func (u *ServerSpr) TableIndex() [][]string {
 	}
 }
 
+// VMSpr описывает запись/справочник БД loadmon, соответствующую сущности VMSpr.
 type VMSpr struct {
 	Id                int64     `form:"Id"` //id записи
 	ServerId          int64     `form:"ServerId"` //ссылка на ServerSpr.Id
@@ -1514,10 +1626,12 @@ type VMSpr struct {
 	Time_Mfy          time.Time `form:"Time_Mfy" json:"Time_Mfy"` //дата последних изменений (изменения вносятся в автоматическом режиме)
 }
 
+// TableName возвращает имя таблицы БД для модели VMSpr (используется beego ORM).
 func (a *VMSpr) TableName() string {
 	return "cmdb_vm_spr"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели VMSpr в beego ORM.
 func (u *VMSpr) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1529,6 +1643,7 @@ func (u *VMSpr) TableIndex() [][]string {
 	}
 }
 
+// HWSpr описывает запись/справочник БД loadmon, соответствующую сущности HWSpr.
 type HWSpr struct {
 	Id                int64     `form:"Id" csv:"%" json:"Id"`
 	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"` // 0 не указано 1 включен 2 выключен (последнее состояние)
@@ -1557,10 +1672,12 @@ type HWSpr struct {
 	Time_Mfy          time.Time `form:"Time_Mfy" csv:"-" json:"Time_Mfy"` //
 }
 
+// TableName возвращает имя таблицы БД для модели HWSpr (используется beego ORM).
 func (a *HWSpr) TableName() string {
 	return "cmdb_vm_spr"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели HWSpr в beego ORM.
 func (u *HWSpr) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1572,6 +1689,7 @@ func (u *HWSpr) TableIndex() [][]string {
 	}
 }
 
+// ConfigurationUnit описывает запись/справочник БД loadmon, соответствующую сущности ConfigurationUnit.
 type ConfigurationUnit struct {
 	Id                int64     `form:"Id" csv:"-" json:"Id"`
 	StateWork         int       `form:"StateWork" csv:"Статус" json:"StateWork"` //0 не указано 1 активен 2 выведен из эксплуатации
@@ -1611,10 +1729,12 @@ ServiceContract string
 SourceUpdate string
 */
 
+// TableName возвращает имя таблицы БД для модели ConfigurationUnit (используется beego ORM).
 func (a *ConfigurationUnit) TableName() string {
 	return "cmdb_configuration_unit"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ConfigurationUnit в beego ORM.
 func (u *ConfigurationUnit) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1635,10 +1755,12 @@ type ConfigurationUnitLink struct {
 	LinkUnit  int64 `form:"LinkUnit"` //дочернее устройство
 }
 
+// TableName возвращает имя таблицы БД для модели ConfigurationUnitLink (используется beego ORM).
 func (a *ConfigurationUnitLink) TableName() string {
 	return "cmdb_configuration_unit_link"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ConfigurationUnitLink в beego ORM.
 func (u *ConfigurationUnitLink) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1656,10 +1778,12 @@ type Datacenter struct {
 	Depth int64  `form:"Depth" csv:"Глубина"`
 }
 
+// TableName возвращает имя таблицы БД для модели Datacenter (используется beego ORM).
 func (a *Datacenter) TableName() string {
 	return "cmdb_datacenter"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели Datacenter в beego ORM.
 func (u *Datacenter) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1680,10 +1804,12 @@ type Rack struct {
 	//добавить размеры включая высоту в unit
 }
 
+// TableName возвращает имя таблицы БД для модели Rack (используется beego ORM).
 func (a *Rack) TableName() string {
 	return "cmdb_rack"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели Rack в beego ORM.
 func (u *Rack) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1711,10 +1837,12 @@ type ModelEquipment struct {
 	Detail               string  `form:"Detail" csv:"Подробное описание"` //подробное описание (текстовое описание конфигурации, помимо реальной конфигурации)
 }
 
+// TableName возвращает имя таблицы БД для модели ModelEquipment (используется beego ORM).
 func (a *ModelEquipment) TableName() string {
 	return "cmdb_model_equipment"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ModelEquipment в beego ORM.
 func (u *ModelEquipment) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1724,6 +1852,7 @@ func (u *ModelEquipment) TableIndex() [][]string {
 	}
 }
 
+// ModelVendor описывает запись/справочник БД loadmon, соответствующую сущности ModelVendor.
 type ModelVendor struct {
 	Id                int64  `form:"Id" orm:"auto" csv:"%"` //
 	Code              int64  `form:"Code" csv:"Код"` //уникальный код модели
@@ -1735,10 +1864,12 @@ type ModelVendor struct {
 	SizeUnit          int64  `form:"SizeUnit" csv:"Количество юнитов" json:"SizeUnit"` //количество занимаемых unit
 }
 
+// TableName возвращает имя таблицы БД для модели ModelVendor (используется beego ORM).
 func (a *ModelVendor) TableName() string {
 	return "cmdb_model_vendor"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ModelVendor в beego ORM.
 func (u *ModelVendor) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1758,10 +1889,12 @@ type Components struct {
 	Location          string `form:"Location" csv:"Размещение"` //размещение
 }
 
+// TableName возвращает имя таблицы БД для модели Components (используется beego ORM).
 func (a *Components) TableName() string {
 	return "cmdb_components"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели Components в beego ORM.
 func (u *Components) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1782,10 +1915,12 @@ type ComponentsCPU struct {
 	ProcessorSpeedMhz  int    `form:"ProcessorSpeedMhz" csv:"Тактовая частота"` //базовая тактовая частота ядра
 }
 
+// TableName возвращает имя таблицы БД для модели ComponentsCPU (используется beego ORM).
 func (a *ComponentsCPU) TableName() string {
 	return "cmdb_components_cpu"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ComponentsCPU в beego ORM.
 func (u *ComponentsCPU) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1809,10 +1944,12 @@ type ComponentsRAM struct {
 	RankCount         int    `form:"RankCount" csv:"Ранг"` //
 }
 
+// TableName возвращает имя таблицы БД для модели ComponentsRAM (используется beego ORM).
 func (a *ComponentsRAM) TableName() string {
 	return "cmdb_components_ram"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ComponentsRAM в beego ORM.
 func (u *ComponentsRAM) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1821,16 +1958,19 @@ func (u *ComponentsRAM) TableIndex() [][]string {
 	}
 }
 
+// ComponentType описывает запись/справочник БД loadmon, соответствующую сущности ComponentType.
 type ComponentType struct {
 	Id   int64  `form:"Id" orm:"auto" csv:"#"` //
 	Code int32  `form:"Code" csv:"Код"` //код компоненты
 	Name string `form:"Name" csv:"Наименование"` //Наименование компоненты
 }
 
+// TableName возвращает имя таблицы БД для модели ComponentType (используется beego ORM).
 func (a *ComponentType) TableName() string {
 	return "cmdb_component_type"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ComponentType в beego ORM.
 func (u *ComponentType) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1847,10 +1987,12 @@ type ModelsEndLife struct {
 	ReasonEndLife    int64     `form:"ReasonEndLife" csv:"Причина вывода"` // причина вывода из эксплуатации ReasonEndLife.Code
 }
 
+// TableName возвращает имя таблицы БД для модели ModelsEndLife (используется beego ORM).
 func (a *ModelsEndLife) TableName() string {
 	return "cmdb_models_end_life"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ModelsEndLife в beego ORM.
 func (u *ModelsEndLife) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1865,10 +2007,12 @@ type ReasonEndLife struct {
 	Name string `form:"Name" csv:"Описание"` // текстовое описание причины для отображения
 }
 
+// TableName возвращает имя таблицы БД для модели ReasonEndLife (используется beego ORM).
 func (a *ReasonEndLife) TableName() string {
 	return "cmdb_reason_end_life"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ReasonEndLife в beego ORM.
 func (u *ReasonEndLife) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1884,10 +2028,12 @@ type CategoryEquipment struct {
 	LifeTime int64  `form:"LifeTime" csv:"Срок эксплуатации в годах"` //срок эксплуатации в годах время эксплуатации по правилам компании
 }
 
+// TableName возвращает имя таблицы БД для модели CategoryEquipment (используется beego ORM).
 func (a *CategoryEquipment) TableName() string {
 	return "cmdb_category_equipment"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели CategoryEquipment в beego ORM.
 func (u *CategoryEquipment) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1897,6 +2043,7 @@ func (u *CategoryEquipment) TableIndex() [][]string {
 
 // время эксплуатации по правилам компании
 /*
+// LifeTime описывает запись/справочник БД loadmon, соответствующую сущности LifeTime.
 type LifeTime struct {
 	Id   int64  `form:"Id" orm:"auto"` //
 	Code int32  `form:"Code"`          //Срок жизни в годах
@@ -1904,16 +2051,19 @@ type LifeTime struct {
 }
 */
 
+// ServerType описывает запись/справочник БД loadmon, соответствующую сущности ServerType.
 type ServerType struct {
 	Id   int64  `form:"Id" orm:"auto"` //
 	Code int64  `form:"Code"` //код типа сервера
 	Type string `form:"Type"` //Наименование типа сервера
 }
 
+// TableName возвращает имя таблицы БД для модели ServerType (используется beego ORM).
 func (a *ServerType) TableName() string {
 	return "cmdb_server_type"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerType в beego ORM.
 func (u *ServerType) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1928,10 +2078,12 @@ type OperationalSystem struct {
 	Name string `form:"Name" csv:"Наименование"` //наименование операционной системы
 }
 
+// TableName возвращает имя таблицы БД для модели OperationalSystem (используется beego ORM).
 func (a *OperationalSystem) TableName() string {
 	return "cmdb_operational_system"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели OperationalSystem в beego ORM.
 func (u *OperationalSystem) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1942,6 +2094,7 @@ func (u *OperationalSystem) TableIndex() [][]string {
 
 //---------------------------------------------------------
 
+// ServerOwnershipHistory — история изменений владельца/принадлежности сервера.
 type ServerOwnershipHistory struct {
 	Id              int64     `form:"Id" orm:"auto"` //
 	Date            time.Time `orm:"null" form:"Date"` //дата операции внутренняя
@@ -1958,10 +2111,12 @@ type ServerOwnershipHistory struct {
 	Time_Mfy        time.Time `form:"Time_Mfy"` //
 }
 
+// TableName возвращает имя таблицы БД для модели ServerOwnershipHistory (используется beego ORM).
 func (a *ServerOwnershipHistory) TableName() string {
 	return "server_ownership_history"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerOwnershipHistory в beego ORM.
 func (u *ServerOwnershipHistory) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1970,10 +2125,12 @@ func (u *ServerOwnershipHistory) TableIndex() [][]string {
 	}
 }
 
+// TableName возвращает имя таблицы БД для модели ServerHardware (используется beego ORM).
 func (a *ServerHardware) TableName() string {
 	return "server_hardware"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerHardware в beego ORM.
 func (u *ServerHardware) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -1983,6 +2140,7 @@ func (u *ServerHardware) TableIndex() [][]string {
 	}
 }
 
+// ServerHardwareComponents описывает запись/справочник БД loadmon, соответствующую сущности ServerHardwareComponents.
 type ServerHardwareComponents struct {
 	Id              int64     `form:"Id"`
 	ServerId        int64     `form:"ServerId"` //ссылка на сервер из справочника серверов (для компонент серверов)
@@ -2005,10 +2163,12 @@ type ServerHardwareComponents struct {
 	Time_Mfy        time.Time `form:"Time_Mfy"` //
 }
 
+// TableName возвращает имя таблицы БД для модели ServerHardwareComponents (используется beego ORM).
 func (a *ServerHardwareComponents) TableName() string {
 	return "server_hardware_components"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerHardwareComponents в beego ORM.
 func (u *ServerHardwareComponents) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ServerId"},
@@ -2018,6 +2178,7 @@ func (u *ServerHardwareComponents) TableIndex() [][]string {
 	}
 }
 
+// SprDiskInfo описывает запись/справочник БД loadmon, соответствующую сущности SprDiskInfo.
 type SprDiskInfo struct {
 	Id          int64   `form:"Id"`
 	ServerId    int64   `form:"ServerId"` //ссылка на сервер из справочника серверов
@@ -2027,16 +2188,19 @@ type SprDiskInfo struct {
 	PercentUsed float64 `form:"PercentUsed"`
 }
 
+// TableName возвращает имя таблицы БД для модели SprDiskInfo (используется beego ORM).
 func (a *SprDiskInfo) TableName() string {
 	return "spr_disk_info"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели SprDiskInfo в beego ORM.
 func (u *SprDiskInfo) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ServerId", "Id"},
 	}
 }
 
+// SprCFOAllocation описывает запись/справочник БД loadmon, соответствующую сущности SprCFOAllocation.
 type SprCFOAllocation struct {
 	Id            int64   `form:"Id"` //
 	ServerId      int64   `form:"ServerId"` //ссылка на сервер из справочника серверов
@@ -2048,10 +2212,12 @@ type SprCFOAllocation struct {
 	Busines       string  `form:"Busines"` //Бизнес колонна
 }
 
+// TableName возвращает имя таблицы БД для модели SprCFOAllocation (используется beego ORM).
 func (a *SprCFOAllocation) TableName() string {
 	return "spr_cfo_allocation"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели SprCFOAllocation в beego ORM.
 func (u *SprCFOAllocation) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ServerId", "Id"},
@@ -2060,6 +2226,7 @@ func (u *SprCFOAllocation) TableIndex() [][]string {
 	}
 }
 
+// SprBusinesAllocation описывает запись/справочник БД loadmon, соответствующую сущности SprBusinesAllocation.
 type SprBusinesAllocation struct {
 	Id            int64   `form:"Id"`
 	ServerId      int64   `form:"ServerId"` //ссылка на сервер из справочника серверов
@@ -2073,10 +2240,12 @@ type SprBusinesAllocation struct {
 	Center_money  string  `form:"Center_money"`
 }
 
+// TableName возвращает имя таблицы БД для модели SprBusinesAllocation (используется beego ORM).
 func (a *SprBusinesAllocation) TableName() string {
 	return "spr_busines_allocation"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели SprBusinesAllocation в beego ORM.
 func (u *SprBusinesAllocation) TableIndex() [][]string {
 	return [][]string{
 		[]string{"ServerId", "Id"},
@@ -2085,6 +2254,7 @@ func (u *SprBusinesAllocation) TableIndex() [][]string {
 	}
 }
 
+// LoadFilter описывает запись/справочник БД loadmon, соответствующую сущности LoadFilter.
 type LoadFilter struct {
 	FromTime     time.Time `form:"FromTime"`
 	ToTime       time.Time `form:"ToTime"`
@@ -2102,6 +2272,7 @@ type LoadFilter struct {
 	Map          map[string]interface{}
 }
 
+// ResourceMap описывает запись/справочник БД loadmon, соответствующую сущности ResourceMap.
 type ResourceMap struct {
 	CountServers            float64 `form:"CountServers"`
 	CPUCount                float64 `form:"CPUCount"`
@@ -2126,6 +2297,7 @@ type ResourceMap struct {
 	Count                   float64 `form:"Count"`
 }
 
+// AuthUser описывает запись/справочник БД loadmon, соответствующую сущности AuthUser.
 type AuthUser struct {
 	Id        int       `form:"id"`
 	Group     int64     `form:"Group"`
@@ -2140,6 +2312,7 @@ type AuthUser struct {
 	Podr      int       `form:"podr"`
 }
 
+// UserLog описывает запись/справочник БД loadmon, соответствующую сущности UserLog.
 type UserLog struct {
 	Id      int64     `form:"id"` // id записи
 	UserId  int64     `orm:"null" form:"userid"` // id пользователя
@@ -2149,18 +2322,22 @@ type UserLog struct {
 	Request string    `form:"request"` // текст запроса
 }
 
+// TableName возвращает имя таблицы БД для модели UserLog (используется beego ORM).
 func (a *UserLog) TableName() string {
 	return "userlog"
 }
 
+// TableName возвращает имя таблицы БД для модели AuthUser (используется beego ORM).
 func (a *AuthUser) TableName() string {
 	return "users"
 }
 
+// TableName возвращает имя таблицы БД для модели ReportServerRecord (используется beego ORM).
 func (a *ReportServerRecord) TableName() string {
 	return "report"
 }
 
+// TableName возвращает имя таблицы БД для модели VMPerfRecord (используется beego ORM).
 func (a *VMPerfRecord) TableName() string {
 	return "vm_perf"
 }
@@ -2172,6 +2349,7 @@ type LoadmonRequest struct {
 	Data interface{} `json:"Data"` //данные для запроса
 }
 
+// LoadmonResponse описывает запись/справочник БД loadmon, соответствующую сущности LoadmonResponse.
 type LoadmonResponse struct {
 	Code   int         `json:"Code"` //код запроса
 	Status int         `json:"Status"` //код ответа 1 все хорошо, иначе код ошибки 0 - нет запрошенных данных, 2-ошибка в структуре запроса, 3-недопустимый код запроса
@@ -2242,6 +2420,7 @@ type ItSystemRecord struct {
 	Timestamp                    int64   `form:"Timestamp" json:"timestamp"` //
 }
 
+// InsightVm описывает запись/справочник БД loadmon, соответствующую сущности InsightVm.
 type InsightVm struct {
 	Id                int64     `form:"Id"`
 	Time              time.Time `orm:"null" form:"Time"` //время добавления записи (можно определить новые за период)
@@ -2265,6 +2444,7 @@ type InsightVm struct {
 	WorkStation       bool      `form:"WorkStation"`
 }
 
+// InsightVmPerf описывает запись/справочник БД loadmon, соответствующую сущности InsightVmPerf.
 type InsightVmPerf struct {
 	Id              int64     `form:"Id"`
 	Time            time.Time `orm:"null" form:"Time"`
@@ -2282,10 +2462,12 @@ type InsightVmPerf struct {
 	PercentUsed     float64   `orm:"null" form:"PercentUsed"`
 }
 
+// TableName возвращает имя таблицы БД для модели InsightVm (используется beego ORM).
 func (a *InsightVm) TableName() string {
 	return "insight_vm"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели InsightVm в beego ORM.
 func (u *InsightVm) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},
@@ -2293,10 +2475,12 @@ func (u *InsightVm) TableIndex() [][]string {
 	}
 }
 
+// TableName возвращает имя таблицы БД для модели InsightVmPerf (используется beego ORM).
 func (a *InsightVmPerf) TableName() string {
 	return "insight_vm_perf"
 }
 
+// TableIndex возвращает список индексов для регистрации таблицы модели InsightVmPerf в beego ORM.
 func (u *InsightVmPerf) TableIndex() [][]string {
 	return [][]string{
 		[]string{"Id"},

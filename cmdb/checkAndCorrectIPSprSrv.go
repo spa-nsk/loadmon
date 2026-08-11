@@ -9,6 +9,9 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// CheckAndCorrectIPSprSrv проверяет и корректирует по данным DNS записи серверов в таблице
+// server_spr_records: приводит FQDN-имя к каноничному виду, обновляет IP-адреса и
+// при отсутствии сервера в DNS помечает запись как неактивную.
 func CheckAndCorrectIPSprSrv() {
 	records := make([]*models.ServerSprRecords, 0)
 	o := orm.NewOrm()

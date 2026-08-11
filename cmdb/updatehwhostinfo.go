@@ -127,7 +127,7 @@ func checkAndCorrectHost(records []*models.ServerSprRecords, host vsphere.HostIn
 		if i == idx {
 			continue
 		}
-		exclude := false                //флаг исключения
+		exclude := false                  //флаг исключения
 		for _, ex := range excludeIndex { //проверяем текущий индекс в списке исключений
 			if i == ex {
 				exclude = true
@@ -154,6 +154,9 @@ func checkAndCorrectHost(records []*models.ServerSprRecords, host vsphere.HostIn
 	return records[idx].Id
 }
 
+// UpdateHWHostInfo синхронизирует конфигурации хостов-гипервизоров ESXi из инфраструктуры
+// vSphere со справочником server_spr_records: создаёт новые записи, устраняет дубликаты
+// по имени и серийному номеру, связывает записи с данными оборудования из HP OneView.
 func UpdateHWHostInfo() {
 	fmt.Println("Обновление конфигураций хостов")
 	//	LockBase()

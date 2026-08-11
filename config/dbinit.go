@@ -58,6 +58,10 @@ func buildDataSource(driverName, userName, password, dbName, dbFile, hostName st
 	}
 }
 
+// DBInit инициализирует ORM beego: регистрирует драйверы БД (postgres, sqlite3),
+// формирует строки подключения для основной базы ("default") и дополнительной
+// ("default-add") по данным ConfigData, регистрирует все модели пакета models
+// и выполняет синхронизацию схемы (RunSyncdb) для обеих баз.
 func DBInit() {
 	if ConfigData.DriverName == "" {
 		log.Fatal("config.ConfigData.DriverName == \"\"")

@@ -81,7 +81,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 		typeMicroservice := form.TypeMicroservice // 0 = не менять
 		roleType := form.RoleType                 // 0 = не менять
 		typeWork := form.TypeWork                 // 0 = не менять
-		criticalLevel := form.CriticalLevel        // 0 = не менять
+		criticalLevel := form.CriticalLevel       // 0 = не менять
 		active := form.Active                     // 0 = не менять (значения 1/2)
 		dpcOffice := form.DPCOffice               // 0 = не менять
 		monitoring := form.Monitoring             // 0 = не менять

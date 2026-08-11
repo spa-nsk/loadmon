@@ -16,7 +16,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v5.29.3
-// source: vm.proto
+// source: protocol/vm.proto
 
 package protocol
 
@@ -1702,5 +1702,5 @@ var Loadmon_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "vm.proto",
+	Metadata: "protocol/vm.proto",
 }

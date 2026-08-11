@@ -11,6 +11,9 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// InsertHWSpr создаёт новую запись конфигурации оборудования (ServerHardware) на основании
+// данных HP OneView, переносит сведения об оперативной памяти и дисковых компонентах
+// в справочник ServerHardwareComponents. Возвращает Id созданной записи ServerHardware.
 func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, ov *oneview.OVInfrastructure) int64 {
 	if srv == nil || srvspr == nil {
 		return 0
@@ -47,7 +50,7 @@ func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, o
 	}
 
 	m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 1} //проверяем остались ли данные по памяти
-	if err := o.Read(&m, "ServerId", "Type"); err != nil {         //нет записей по памяти
+	if err := o.Read(&m, "ServerId", "Type"); err != nil {        //нет записей по памяти
 		for idx, mem := range srv.Memory.Data { //проходим в цикле по всем модулям памяти
 			ram := models.ServerHardwareComponents{ //формируем данные для записи по памяти
 				ServerId:        hw.Id,

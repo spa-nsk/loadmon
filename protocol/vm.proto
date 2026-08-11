@@ -20,6 +20,36 @@ option go_package = "loadmon/protocol";
 
 package protocol;
 
+// Настоящий файл описывает gRPC API системы мониторинга loadmon для
+// инвентаризации и сбора метрик производительности инфраструктуры vSphere
+// (виртуальные машины, кластеры, хосты, датасторы) и оборудования HPE OneView
+// (server hardware, шасси, блейд-корзины).
+//
+// Основной сервис:
+//   Loadmon — предоставляет методы получения справочной информации и метрик
+//   по vCenter/датацентрам/кластерам/хостам/ВМ, постраничную навигацию по
+//   ключам, а также вспомогательные методы очистки метрик и регистрации
+//   рабочих процессов-поставщиков данных.
+//
+// Основные группы сообщений:
+//   VMPoint          — полные данные по ВМ, включая срез метрик (Perf),
+//                       файлы ВМ (VMFiles), диски гостевой ОС (VMDisk) и
+//                       использование датастора (UsageDatastore).
+//   VMPointShort      — облегчённый вариант VMPoint без вложенных срезов
+//                       (только агрегированные метрики).
+//   VMListKey/VMKeyRec, HSListKey/HSKeyRec, CLListKey/CLKeyRec
+//                     — списки пар "имя/ключ" для постраничной выборки
+//                       ВМ, хостов и кластеров по ключу.
+//   VMPerf/HSPerf/CLPerf и их *Slice-обёртки
+//                     — точки метрик производительности (CPU/память/диск/
+//                       сеть) для ВМ, хостов и кластеров соответственно.
+//   Host/HostFull, Cluster/ClusterFull/ClusterShort, Datastore
+//                     — описания хостов, кластеров и датасторов различной
+//                       степени детализации.
+//   ServerHardware и связанные сообщения (OVServerHardware, Enclosure,
+//   LocalStorage, MemoryModule и т.д.)
+//                     — данные аппаратного обеспечения серверов из HPE
+//                       OneView.
 service Loadmon {
   //Vsphere
   rpc GetVCenters (VCReq) returns (stream VCenter){} //
@@ -494,6 +524,7 @@ message VMPoint {
   string GuestDetailedData = 72;
   string ToolsStatus = 73;
   string DomainName = 74;
+  int64 PerfCount = 75;
 }
 
 //

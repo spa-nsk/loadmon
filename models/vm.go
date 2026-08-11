@@ -4,6 +4,8 @@ import (
 	vsphere "loadmon/vspheremetrics"
 )
 
+// VmReq описывает параметры запроса списка виртуальных машин (по идентификатору
+// или по паре vCenter/Datacenter/Cluster/имя ВМ).
 type VmReq struct {
 	Id         int64
 	Vcenter    string
@@ -12,6 +14,8 @@ type VmReq struct {
 	Vm_Name    string
 }
 
+// GetVmList возвращает список ВМ (vspheremetrics.VMPoint) из глобальной инфраструктуры:
+// либо одну ВМ по идентификатору id, либо результат фильтрации по vcenter/datacenter/cluster/vmname.
 func GetVmList(id string, vcenter string, datacenter string, cluster string, vmname string) ([]vsphere.VMPoint, bool) {
 	infra := vsphere.GetGlobalVMInfrastructure()
 	if id != "" {

@@ -13,6 +13,9 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// UpdateClusterSprRecordsV2 актуализирует записи ClusterSprRecords, сверяя их с
+// данными глобальной инфраструктуры vSphere (кэш карты кластеров) и обновляя
+// идентификатор и статус кластера.
 func UpdateClusterSprRecordsV2() {
 	var records []*models.ClusterSprRecords
 
@@ -52,6 +55,8 @@ func UpdateClusterSprRecordsV2() {
 	}
 }
 
+// UpdateClusterSprRecords актуализирует записи ClusterSprRecords, запрашивая
+// текущие данные кластера через grpcclient, и обновляет идентификатор и статус кластера.
 func UpdateClusterSprRecords() {
 	var records []*models.ClusterSprRecords
 
@@ -68,7 +73,7 @@ func UpdateClusterSprRecords() {
 	for _, clSpr := range records {
 		clRec := models.ClusterSprRecords{Id: clSpr.Id}
 		err := o.Read(&clRec, "Id")
-		if err != nil {//возможно запись уже удалена
+		if err != nil { //возможно запись уже удалена
 			continue
 		}
 		cl := grpcclient.GetClusterMedium(clSpr.Vcenter, clSpr.Datacenter, clSpr.Name)
@@ -90,6 +95,10 @@ func UpdateClusterSprRecords() {
 	}
 }
 
+// UpdatePowerStateForServers обновляет состояние включения (PowerState) для всех
+// серверов из server_spr_records в зависимости от их типа: физический сервер и его
+// конфигурация опрашиваются через HP OneView, виртуальные машины сверяются с данными
+// vSphere, гипервизоры проверяются через grpcclient и HP OneView.
 func UpdatePowerStateForServers() {
 
 	var records []*models.ServerSprRecords

@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// NavisecMessage - структура для разбора XML-ответа утилиты naviseccli (CIM-формат) при опросе СХД EMC VNX
 type NavisecMessage struct {
 	XMLName    xml.Name `xml:"CIM"`
 	Text       string   `xml:",chardata"`
@@ -65,6 +66,7 @@ type NavisecMessage struct {
 	} `xml:"MESSAGE"`
 }
 
+// VNXLun - описание тома (LUN) СХД EMC VNX, полученное через naviseccli
 type VNXLun struct {
 	Id                    int64   //номер LUN
 	Name                  string  //Имя LUN
@@ -81,6 +83,7 @@ type VNXLun struct {
 	IsCompressed          bool    //
 }
 
+// VNXHBAPort - описание порта HBA хоста, подключённого к СХД EMC VNX
 type VNXHBAPort struct {
 	SPName           string //
 	SPPortID         uint64 //
@@ -93,6 +96,7 @@ type VNXHBAPort struct {
 	StorageGroupName string //
 }
 
+// VNXHBA - описание HBA-адаптера хоста, подключённого к СХД EMC VNX, со списком его портов
 type VNXHBA struct {
 	Id                   int64  //Id в справочнике
 	HBAUID               string //
@@ -104,6 +108,7 @@ type VNXHBA struct {
 	PortList             []*VNXHBAPort //
 }
 
+// VNXDisk - описание физического диска СХД EMC VNX, полученное через naviseccli
 type VNXDisk struct {
 	Id                    int64  //Id в справочнике
 	VendorId              string //Вендор
@@ -122,6 +127,7 @@ type VNXDisk struct {
 	Disk                  uint32 //диск
 }
 
+// GetHBAInfoCmd получает список HBA-адаптеров и их портов СХД EMC VNX через утилиту naviseccli (port -list -hba)
 func GetHBAInfoCmd(adress string) ([]*VNXHBA, error) {
 	var msg NavisecMessage
 	var hba []*VNXHBA
@@ -240,6 +246,7 @@ func GetHBAInfoCmd(adress string) ([]*VNXHBA, error) {
 	return hba, nil
 }
 
+// GetDisksCmd получает список физических дисков СХД EMC VNX через утилиту naviseccli (getdisk -all)
 func GetDisksCmd(adress string) ([]*VNXDisk, error) {
 	var msg NavisecMessage
 	var disks []*VNXDisk
@@ -337,6 +344,7 @@ func GetDisksCmd(adress string) ([]*VNXDisk, error) {
 	return disks, nil
 }
 
+// GetLunsCmd получает список томов (LUN) СХД EMC VNX через утилиту naviseccli (lun -list)
 func GetLunsCmd(adress string) ([]*VNXLun, error) {
 	var msg NavisecMessage
 	var luns []*VNXLun

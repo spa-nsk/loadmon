@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="row">
             {{range $cluster := .ClusterList}}
             <div class="form-group col-sm-3">
-                <input name="ch{{$cluster.Name}}" class="form-check-input" type="checkbox" value="on" {{if eq $cluster.Id 1}}checked{{end}}>
+                <input name="ch{{$cluster.Name}}" class="form-check-input" type="checkbox" value="on" {{if eq $cluster.ID 1}}checked{{end}}>
                 <label class="form-check-label" for="ch{{$cluster.Name}}">{{$cluster.Name}}</label>
             </div>
             {{end}}

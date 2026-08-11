@@ -21,6 +21,9 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// SprSrvViewV2 отображает справочник серверов/ВМ (актуальная версия страницы
+// просмотра): список с фильтрацией и постраничной навигацией, а также экспорт
+// данных в CSV/Excel в зависимости от режима Mode.
 func (this *MainController) SprSrvViewV2() {
 
 	Mode := this.Ctx.Input.Param(":mode")
@@ -368,17 +371,17 @@ func (this *MainController) SprSrvViewV2() {
 			cond = cond.AndCond(condOwner)
 		}
 		/*
-				if strings.TrimSpace(record.Allocation) != "" {
-					condAllocation := orm.NewCondition()
-					alloc := strings.Split(record.Allocation, ";")
-					for m := range alloc {
-						s := strings.TrimSpace(alloc[m])
-						if s != "" {
-							condAllocation = condAllocation.Or("allocation__icontains", s)
-						}
+			if strings.TrimSpace(record.Allocation) != "" {
+				condAllocation := orm.NewCondition()
+				alloc := strings.Split(record.Allocation, ";")
+				for m := range alloc {
+					s := strings.TrimSpace(alloc[m])
+					if s != "" {
+						condAllocation = condAllocation.Or("allocation__icontains", s)
 					}
-					cond = cond.AndCond(condAllocation)
 				}
+				cond = cond.AndCond(condAllocation)
+			}
 		*/
 		//	if strings.TrimSpace(record.Component) != "" {
 		//		cond = cond.And("component__icontains", record.Component)
@@ -851,6 +854,8 @@ APP/DB сервер  Тип сервера (ППО или БД)
 Ответственный   Владелец системы
 
 */
+// CalcPercentFilled вычисляет процент заполненности карточки сервера rec
+// (долю заполненных ключевых полей справочника) для отображения в интерфейсе.
 func CalcPercentFilled(rec *models.ServerSprView) {
 	count := 0.0
 	if strings.TrimSpace(rec.S.Allocation) != "" {

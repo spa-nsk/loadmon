@@ -1,4 +1,7 @@
-﻿package lenovostorage
+﻿// Package lenovostorage реализует клиент для сбора информации со СХД Lenovo (Storage Manager REST API,
+// /devmgr/v2/storage-systems/...): аутентификация (session.go), а также получение томов, пулов хранения,
+// хостов, групп хостов и статистики через методы Session.
+package lenovostorage
 
 // https://10.177.180.101/devmgr/v2/storage-systems/1/access-volume
 type Volume struct {
@@ -152,6 +155,7 @@ type AccessVolume struct {
 	ID                  string `json:"id"`
 }
 
+// Host - описание хоста, подключённого к СХД Lenovo (инициаторы, порты, отображения томов)
 type Host struct {
 	HostRef                                   string `json:"hostRef"`
 	ClusterRef                                string `json:"clusterRef"`
@@ -207,6 +211,7 @@ type Host struct {
 	Name string `json:"name"`
 }
 
+// StoragePool - описание пула хранения (дисковой группы) СХД Lenovo
 type StoragePool struct {
 	SequenceNum                  int    `json:"sequenceNum"`
 	Offline                      bool   `json:"offline"`
@@ -2525,54 +2530,63 @@ type MappableObject struct {
 	Reserved1       string `json:"reserved1,omitempty"`
 }
 
+// GetVolumes возвращает список томов СХД (/devmgr/v2/storage-systems/1/volumes)
 func (session *Session) GetVolumes() ([]Volume, error) {
 	resp := make([]Volume, 0)
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/volumes", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetAccessVolume возвращает служебный том доступа (/devmgr/v2/storage-systems/1/access-volume)
 func (session *Session) GetAccessVolume() (AccessVolume, error) {
 	resp := AccessVolume{}
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/access-volume", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetHosts возвращает список хостов, подключённых к СХД (/devmgr/v2/storage-systems/1/hosts)
 func (session *Session) GetHosts() ([]Host, error) {
 	resp := make([]Host, 0)
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/hosts", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetStoragePools возвращает список пулов хранения (/devmgr/v2/storage-systems/1/storage-pools)
 func (session *Session) GetStoragePools() ([]StoragePool, error) {
 	resp := make([]StoragePool, 0)
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/storage-pools", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetHostGroup возвращает список групп хостов (/devmgr/v2/storage-systems/1/host-groups)
 func (session *Session) GetHostGroup() ([]HostGroup, error) {
 	resp := make([]HostGroup, 0)
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/host-groups", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetAbout возвращает общую информацию о СХД (/devmgr/v2/storage-systems/1/about)
 func (session *Session) GetAbout() (About, error) {
 	resp := About{}
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/about", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetGraph возвращает граф топологии объектов СХД (/devmgr/v2/storage-systems/1/graph)
 func (session *Session) GetGraph() (Graph, error) {
 	resp := Graph{}
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/graph", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetSystemConfig возвращает конфигурацию системы (/devmgr/v2/storage-systems/1/system-config)
 func (session *Session) GetSystemConfig() (SystemConfig, error) {
 	resp := SystemConfig{}
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/system-config", "", "", false, nil, &resp)
 	return resp, err
 }
 
+// GetMappableObject возвращает список объектов, доступных для отображения на хосты (/devmgr/v2/storage-systems/1/mappable-objects)
 func (session *Session) GetMappableObject() ([]MappableObject, error) {
 	resp := make([]MappableObject, 0)
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/mappable-objects", "", "", false, nil, &resp)

@@ -28,6 +28,8 @@ import (
 	//"text/tabwriter"
 )
 
+// SetPerfInterval подключается к vCenter, выводит в лог доступные интервалы
+// сбора статистики производительности (PerfInterval) и включает первый из них.
 func (infra *VMInfrastructure) SetPerfInterval(ctx context.Context, vc VCenter) error {
 	c, err := vc.Connect()
 	if err != nil {
@@ -83,6 +85,10 @@ func (infra *VMInfrastructure) SetPerfInterval(ctx context.Context, vc VCenter) 
 	return nil
 }
 
+// LoadVmMetric (устаревшая версия опроса метрик ВМ, см. также LoadVmMetricV4)
+// подключается к vCenter, получает свойства и метрики производительности всех
+// включённых серверных виртуальных машин и обновляет соответствующие записи
+// VMPoint в глобальной инфраструктуре (создавая новые при необходимости).
 func (infra *VMInfrastructure) LoadVmMetric(ctx context.Context, vc VCenter) error {
 
 	if infra.IsLockGetMetric() {
@@ -130,8 +136,8 @@ func (infra *VMInfrastructure) LoadVmMetric(ctx context.Context, vc VCenter) err
 
 		// Create PerfQuerySpec
 		spec := types.PerfQuerySpec{
-			MaxSample: 2,
-			MetricId:  []types.PerfMetricId{{Instance: "*"}},
+			MaxSample:  2,
+			MetricId:   []types.PerfMetricId{{Instance: "*"}},
 			IntervalId: 20,
 		}
 

@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// AlertContent - содержимое сведений об активном алерте (alert)
 type AlertContent struct {
 	ID          string `json:"id"`
 	Severity    int    `json:"severity"`
@@ -34,6 +35,7 @@ type Alert struct {
 //The health and alert providers promote some events to be alerts, which are usually events that require attention from the system administrator. For information about alerts, see the Help topic for the alert
 //In the username attribute, is the value N/A or blank if a user did not cause the event or the account is unavailable?
 
+// NodeEnum - идентификатор storage processor'а, сгенерировавшего событие (см. константы NodeSPA/NodeSPB/...)
 type NodeEnum int
 
 const (
@@ -43,6 +45,7 @@ const (
 	NodeUncnown989 = 989
 )
 
+// SeverityEnum - уровень серьёзности события (см. константы SeverityEMERGENCY/.../SeverityOK)
 type SeverityEnum int
 
 const (
@@ -57,6 +60,7 @@ const (
 	SeverityOK
 )
 
+// EventCategoryEnum - категория события (см. константы EventUser/EventAudit/EventAuthentication)
 type EventCategoryEnum int
 
 const (
@@ -109,6 +113,7 @@ const (
 	TechVrtual      = 99 //
 )
 
+// DiskContent - содержимое сведений о физическом диске (disk)
 type DiskContent struct {
 	ID               string `json:"id"`
 	NeedsReplacement bool   `json:"needsReplacement"`
@@ -133,6 +138,7 @@ type DiskContent struct {
 	DiskTechnology   int    `json:"diskTechnology"`
 }
 
+// Disk - ответ API со списком физических дисков (disk)
 type Disk struct {
 	Base    string    `json:"@base"`
 	Updated time.Time `json:"updated"`
@@ -163,6 +169,7 @@ const (
 	HealthNONRECOVERABLE = 30 //Non Recoverable Issue.
 )
 
+// HealthInfo - сведения о состоянии здоровья ресурса СХД (общая структура, используется в разных сущностях)
 type HealthInfo struct {
 	Value          int      `json:"value"`          //Possible values for health attribute.
 	DescriptionIds []string `json:"descriptionIds"` //Description ids.
@@ -171,11 +178,13 @@ type HealthInfo struct {
 	Resolutions    []string `json:"resolutions"`    //Resolutions are URLs to get more information about this health state.
 }
 
+// ResourceRef - ссылка на связанный ресурс (тип и идентификатор)
 type ResourceRef struct {
 	ID       string `json:"id"`       //The id of the referenced instance.
 	Resource string `json:"resource"` //The class name of the referenced instance.
 }
 
+// SystemContent - содержимое сведений о системе СХД в целом (модель, серийный номер, платформа)
 type SystemContent struct {
 	ID                     string     `json:"id"`                     //Unique identifier of the storageProcessor instance.
 	Health                 HealthInfo `json:"health"`                 //Health
@@ -195,6 +204,7 @@ type SystemContent struct {
 	SupportedUpgradeModels []int      `json:"supportedUpgradeModels"` //List of all supported models for hardware upgrade.
 }
 
+// DAEContent - содержимое сведений о дисковой полке DAE
 type DAEContent struct {
 	ID                 string        `json:"id"`                 //Unique identifier of the dae instance.
 	Health             HealthInfo    `json:"health"`             //Health
@@ -222,6 +232,7 @@ type DAEContent struct {
 	ParentSystem       SystemContent `json:"parentSystem"`       //Parent system of the Disk Array Enclosure (DAE).
 }
 
+// DPEContent - содержимое сведений о базовом блоке DPE
 type DPEContent struct {
 	ID                 string        `json:"id"`                 //Unique identifier of the storageProcessor instance.
 	Health             HealthInfo    `json:"health"`             //Health
@@ -249,6 +260,7 @@ type DPEContent struct {
 	ParentSystem       SystemContent `json:"parentSystem"`       //Parent system of the Disk Processor Enclosure (DPE).
 }
 
+// StorageProcessorContent - содержимое сведений о storage processor'е СХД
 type StorageProcessorContent struct {
 	ID                   string      `json:"id"`                   //Unique identifier of the storageProcessor instance.
 	Parent               ResourceRef `json:"parent"`               //Resource type and unique identifier for the SP's parent enclosure.
@@ -271,6 +283,7 @@ type StorageProcessorContent struct {
 	ModelName            int         `json:"modelName"`            //The physical model name of storageProcessor
 }
 
+// DiskGroupContent - содержимое сведений о группе дисков (tier-группе)
 type DiskGroupContent struct {
 	ID                             string `json:"id"`                             //Unique identifier of the diskGroup instance.
 	Name                           string `json:"name"`                           //Disk group name.
@@ -295,14 +308,17 @@ type DiskGroupContent struct {
 	DisksWithEOLLess180Days        uint32 `json:"disksWithEOLLess180Days"`        //The number of drives in disk group with EOL (end of life) less than 180 days.
 }
 
+// HostId - ссылка на хост по идентификатору
 type HostId struct {
 	ID string `json:"id"`
 }
 
+// StorageResourceId - ссылка на ресурс хранения по идентификатору
 type StorageResourceId struct {
 	ID string `json:"id"`
 }
 
+// BlockHostAccess - права доступа хоста к блочному ресурсу (LUN)
 type BlockHostAccess struct {
 	Host             HostId `json:"host"`
 	AccessMask       int    `json:"accessMask"`
@@ -311,14 +327,17 @@ type BlockHostAccess struct {
 	Hlu              int    `json:"hlu"`
 }
 
+// PoolId - ссылка на пул хранения по идентификатору
 type PoolId struct {
 	ID string `json:"id"`
 }
 
+// FamilyBaseLunId - ссылка на базовый LUN семейства (клоны/снапшоты) по идентификатору
 type FamilyBaseLunId struct {
 	ID string `json:"id"`
 }
 
+// LUNContent - содержимое подробных сведений о LUN
 type LUNContent struct {
 	ID                       string            `json:"id"`                       //Unique identifier of the LUN.
 	Type                     int               `json:"type"`                     //Type of the LUN.
@@ -359,6 +378,7 @@ type LUNContent struct {
 	FamilyBaseLun            FamilyBaseLunId   `json:"familyBaseLun"`            //
 }
 
+// LUNContentShort - краткое содержимое сведений о LUN (используется во вложенных ссылках, напр. HostLUNID)
 type LUNContentShort struct {
 	ID                     string     `json:"id"`                     //Unique identifier of the LUN.
 	Health                 HealthInfo `json:"health"`                 //Health information for the LUN, as defined by the health resource type.
@@ -436,6 +456,7 @@ type TenantID struct {
 	Name string `json:"name"`
 }
 
+// HostContent - содержимое подробных сведений о хосте, подключённом к СХД
 type HostContent struct {
 	ID                  string                `json:"id"`                  //Unique identifier of the host instance.
 	Health              HealthInfo            `json:"health"`              //Health information for the host, as defined by the health resource type.
@@ -463,6 +484,7 @@ type HostContent struct {
 	VMs                 []VMID                `json:"vms"`                 //The vms associated with the host.
 }
 
+// Host - ответ API со списком хостов, подключённых к СХД (host)
 type Host struct {
 	Base    string    `json:"@base"`
 	Updated time.Time `json:"updated"`
@@ -481,6 +503,7 @@ type Host struct {
 	} `json:"entries"`
 }
 
+// DiskGroup - ответ API со списком групп дисков (diskGroup)
 type DiskGroup struct {
 	Base    string    `json:"@base"`
 	Updated time.Time `json:"updated"`
@@ -499,6 +522,7 @@ type DiskGroup struct {
 	} `json:"entries"`
 }
 
+// StorageProcessor - ответ API со списком storage processor'ов (storageProcessor)
 type StorageProcessor struct {
 	Base    string    `json:"@base"`
 	Updated time.Time `json:"updated"`
@@ -517,6 +541,7 @@ type StorageProcessor struct {
 	} `json:"entries"`
 }
 
+// DAE - ответ API со списком дисковых полок (dae)
 type DAE struct {
 	Base    string    `json:"@base"`
 	Updated time.Time `json:"updated"`
@@ -535,6 +560,7 @@ type DAE struct {
 	} `json:"entries"`
 }
 
+// DPE - ответ API со списком базовых блоков (dpe)
 type DPE struct {
 	Base    string    `json:"@base"`
 	Updated time.Time `json:"updated"`
@@ -553,6 +579,7 @@ type DPE struct {
 	} `json:"entries"`
 }
 
+// Lun - ответ API со списком LUN (lun)
 type Lun struct {
 	Base    string    `json:"@base"`
 	Updated time.Time `json:"updated"`

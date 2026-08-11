@@ -1,3 +1,6 @@
+// Package zabbix реализует интеграцию с системой мониторинга Zabbix через JSON-RPC API (api_jsonrpc.php):
+// получение списка хостов и элементов данных (items), выборку истории значений и сохранение метрик
+// (загрузка CPU, память, дисковый ввод-вывод, сетевой трафик и т.п.) в базу данных loadmon.
 package zabbix
 
 import (
@@ -7,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"loadmon/cmdb"
-	"loadmon/config"
 	"loadmon/models"
 	"loadmon/utilities"
 	"log"
@@ -21,6 +23,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Client - клиент JSON-RPC API Zabbix (хранит URL, токен авторизации и http-клиент)
 type Client struct {
 	url   string
 	token string
@@ -29,6 +32,7 @@ type Client struct {
 	id    int64
 }
 
+// NewClient создаёт клиент Zabbix API по URL и токену авторизации
 func NewClient(url, token string) *Client {
 	return &Client{
 		url:   url,
@@ -38,6 +42,7 @@ func NewClient(url, token string) *Client {
 	}
 }
 
+// rpcRequest - тело запроса JSON-RPC к Zabbix API
 type rpcRequest struct {
 	Jsonrpc string `json:"jsonrpc"`
 	Method  string `json:"method"`
@@ -46,12 +51,14 @@ type rpcRequest struct {
 	ID      int64  `json:"id"`
 }
 
+// rpcError - описание ошибки в ответе JSON-RPC Zabbix API
 type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    string `json:"data"`
 }
 
+// rpcResponse - обобщённое тело ответа JSON-RPC Zabbix API
 type rpcResponse[T any] struct {
 	Jsonrpc string    `json:"jsonrpc"`
 	Result  T         `json:"result"`
@@ -59,6 +66,7 @@ type rpcResponse[T any] struct {
 	ID      int64     `json:"id"`
 }
 
+// Call выполняет вызов произвольного метода Zabbix JSON-RPC API и распаковывает результат в out
 func (c *Client) Call(ctx context.Context, method string, params any, out any) error {
 	c.mu.Lock()
 	id := c.id
@@ -109,6 +117,7 @@ func (c *Client) Call(ctx context.Context, method string, params any, out any) e
 	return json.Unmarshal(raw.Result, out)
 }
 
+// Interface - сетевой интерфейс хоста Zabbix (тип, адрес, порт)
 type Interface struct {
 	InterfaceId string `json:"interfaceid"`
 	Type        string `json:"type"`
@@ -119,6 +128,7 @@ type Interface struct {
 	Port        string `json:"port"`
 }
 
+// Host - хост Zabbix (ответ метода host.get)
 type Host struct {
 	HostID       string      `json:"hostid"`
 	Host         string      `json:"host"`
@@ -131,10 +141,12 @@ type Host struct {
 	Interfaces   []Interface `json:"interfaces"`
 }
 
+// ItemId - идентификатор элемента данных (item) Zabbix
 type ItemId struct {
 	ItemID string `json:"itemid"` //id элемента
 }
 
+// Item - элемент данных (item) Zabbix с последним значением
 type Item struct {
 	ItemID    string `json:"itemid"`     //id элемента
 	HostID    string `json:"hostid"`     //id хоста
@@ -147,6 +159,7 @@ type Item struct {
 	Prevvalue string `json:"prevvalue"`  //предыдущее значение
 }
 
+// ItemData - элемент данных (item) Zabbix с последним значением, поля приведены к go-типам (в отличие от Item)
 type ItemData struct { //структура в формате go
 	ItemID    int64     `json:"itemid"`     //id элемента
 	HostID    int64     `json:"hostid"`     //id хоста
@@ -159,6 +172,7 @@ type ItemData struct { //структура в формате go
 	Prevvalue string    `json:"prevvalue"`  //предыдущее значение
 }
 
+// HistoryPoint - одна историческая точка значения элемента данных Zabbix (ответ метода history.get)
 type HistoryPoint struct {
 	ItemID string `json:"itemid"`
 	Clock  string `json:"clock"`
@@ -168,6 +182,7 @@ type HistoryPoint struct {
 
 /******* API *******/
 
+// GetHosts возвращает список хостов группы "физические серверы" (метод host.get)
 func (c *Client) GetHosts(ctx context.Context) ([]Host, error) {
 	params := map[string]any{
 		//"output":          []string{"hostid", "host", "name"},
@@ -186,6 +201,7 @@ func (c *Client) GetHosts(ctx context.Context) ([]Host, error) {
 	return hosts, nil
 }
 
+// GetItemsByHost возвращает все включённые элементы данных указанного хоста (метод item.get)
 func (c *Client) GetItemsByHost(ctx context.Context, hostID string) ([]Item, error) {
 	params := map[string]any{
 		"output":  []string{"itemid", "hostid", "name", "key_", "value_type", "units", "lastvalue", "lastclock"},
@@ -202,6 +218,8 @@ func (c *Client) GetItemsByHost(ctx context.Context, hostID string) ([]Item, err
 	return items, nil
 }
 
+// GetItemsFilterByHost возвращает элементы данных хоста, отфильтрованные по заранее заданному
+// набору ключей мониторинга (CPU, память, диски, сеть и т.п.)
 func (c *Client) GetItemsFilterByHost(ctx context.Context, hostID string) ([]Item, error) {
 	params := map[string]any{
 		"output":  []string{"itemid", "hostid", "name", "key_", "value_type", "units", "lastvalue", "lastclock"},
@@ -250,6 +268,8 @@ vfs.dev.latency - может быть более семантически точ
 В новых версиях Zabbix latency может быть предпочтительным ключом, но await остается корректным и часто используется.
 */
 
+// GetItemidByHost возвращает идентификаторы элементов данных хоста, отфильтрованных по набору
+// ключей мониторинга производительности (аналогично GetItemsFilterByHost, но возвращает только id)
 func (c *Client) GetItemidByHost(ctx context.Context, hostID string) ([]ItemId, error) {
 	var itemids []ItemId
 	params := map[string]any{
@@ -292,6 +312,8 @@ func (c *Client) GetItemidByHost(ctx context.Context, hostID string) ([]ItemId, 
 	return itemids, nil
 }
 
+// HistoryGetMinutes возвращает исторические точки за последние 5 минут по всем отслеживаемым
+// элементам данных хоста (метод history.get)
 func (c *Client) HistoryGetMinutes(ctx context.Context, hostID string) ([]HistoryPoint, error) {
 	since := time.Now().Local()
 	itemIDs, err := c.GetItemidByHost(ctx, hostID)
@@ -318,6 +340,7 @@ func (c *Client) HistoryGetMinutes(ctx context.Context, hostID string) ([]Histor
 	return points, nil
 }
 
+// HistoryGetItem возвращает исторические точки конкретного элемента данных за 10 минут до момента since
 func (c *Client) HistoryGetItem(ctx context.Context, hostID string, item Item, since time.Time) ([]HistoryPoint, error) {
 	itemids := make([]string, 0)
 	itemids = append(itemids, item.ItemID)
@@ -337,6 +360,8 @@ func (c *Client) HistoryGetItem(ctx context.Context, hostID string, item Item, s
 	return points, nil
 }
 
+// HistoryGet возвращает исторические точки заданных элементов данных начиная с момента since,
+// с ограничением количества записей limit (метод history.get)
 func (c *Client) HistoryGet(ctx context.Context, historyType int, itemIDs []string, since time.Time, limit int) ([]HistoryPoint, error) {
 	params := map[string]any{
 		"output":    []string{"itemid", "clock", "value"},
@@ -356,6 +381,7 @@ func (c *Client) HistoryGet(ctx context.Context, historyType int, itemIDs []stri
 
 /********* mapping/cache ********/
 
+// MetricItem - элемент данных Zabbix, сопоставленный с хостом, для кэша метрик мониторинга
 type MetricItem struct {
 	HostID    string
 	HostName  string
@@ -436,6 +462,8 @@ func trimData(str string) string {
 	return strings.TrimSpace(s)
 }
 
+// GetSubKeyItem извлекает первый параметр ключа элемента данных Zabbix (содержимое до первой запятой
+// внутри квадратных скобок), например "vfs.dev.read[sda,,avg1]" -> "sda"
 func GetSubKeyItem(key string) string {
 	start := strings.Split(key, "[")
 	if len(start) > 1 {
@@ -452,6 +480,8 @@ func GetSubKeyItem(key string) string {
 	return trimData(key)
 }
 
+// GetSubKey2Item извлекает полное содержимое параметров ключа элемента данных Zabbix
+// (всё, что находится внутри квадратных скобок)
 func GetSubKey2Item(key string) string {
 	start := strings.Split(key, "[")
 	if len(start) > 1 {
@@ -463,6 +493,7 @@ func GetSubKey2Item(key string) string {
 	return trimData(key)
 }
 
+// GetKeyItem возвращает базовую часть ключа элемента данных Zabbix (без параметров в квадратных скобках)
 func GetKeyItem(key string) string {
 	start := strings.Split(key, "[")
 	if len(start) > 0 {
@@ -471,6 +502,8 @@ func GetKeyItem(key string) string {
 	return strings.TrimSpace(key)
 }
 
+// GetKeyName возвращает последнюю часть строки после двоеточия (используется для выделения
+// краткого имени элемента данных)
 func GetKeyName(key string) string {
 	start := strings.Split(key, ":")
 	n := len(start)
@@ -480,6 +513,7 @@ func GetKeyName(key string) string {
 	return trimData(key)
 }
 
+// GetUnixTime преобразует строку unix-времени (как возвращает Zabbix API) в форматированную строку даты/времени
 func GetUnixTime(timeStr string) string {
 	clUnix, err := strconv.ParseInt(timeStr, 10, 64)
 	if err != nil {
@@ -492,6 +526,7 @@ func GetUnixTime(timeStr string) string {
 	return ""
 }
 
+// GetTime преобразует строку unix-времени (как возвращает Zabbix API) в time.Time
 func GetTime(timeStr string) time.Time {
 	clUnix, err := strconv.ParseInt(timeStr, 10, 64)
 	if err != nil {
@@ -503,6 +538,7 @@ func GetTime(timeStr string) time.Time {
 	return time.Date(1901, time.January, 1, 0, 0, 0, 0, time.Local)
 }
 
+// GetValueType преобразует строковый код типа значения элемента данных Zabbix в int
 func GetValueType(valuetype string) int {
 	vtype, err := strconv.ParseInt(valuetype, 10, 32)
 	if err != nil {
@@ -547,6 +583,8 @@ func isZeroValue(valueType, lastvalue string) bool {
 	return false
 }
 
+// SaveHistoryValue сохраняет исторические точки элемента данных в БД loadmon, при необходимости
+// создавая новый ключ метрики (models.ZabbixKey) и добавляя записи значений (models.ZabbixItem)
 func SaveHistoryValue(trn orm.TxOrmer, hostid int64, point []HistoryPoint, it Item, key string, commit *bool) error {
 
 	//itemkeydb := models.ZabbixKey{Key: GetKeyItem(it.Key)}
@@ -600,6 +638,8 @@ func SaveHistoryValue(trn orm.TxOrmer, hostid int64, point []HistoryPoint, it It
 	return nil
 }
 
+// SaveItemValue сохраняет последнее значение элемента данных в БД loadmon, при необходимости
+// создавая новый ключ метрики (models.ZabbixKey) и добавляя запись значения (models.ZabbixItem)
 func SaveItemValue(trn orm.TxOrmer, hostid int64, it Item, key string, commit *bool) error {
 	//itemkeydb := models.ZabbixKey{Key: GetKeyItem(it.Key)}
 	itemkeydb := models.ZabbixKey{Key: key}
@@ -627,11 +667,9 @@ func SaveItemValue(trn orm.TxOrmer, hostid int64, it Item, key string, commit *b
 	return nil
 }
 
-func init() {
-	config.ConfigData.LoadConfigData()
-	config.ConfigData.InitParams()
-}
-
+// Get10MinutesHistory - основная точка входа опроса Zabbix: получает список хостов, забирает их
+// элементы данных и историю значений за последние минуты и сохраняет/обновляет соответствующие
+// записи в БД loadmon (ZabbixHost, ZabbixKey, ZabbixItem, привязку к ServerSprRecords).
 func Get10MinutesHistory() {
 	url := "https://zabbixcorp.global.bcs/api_jsonrpc.php" // https://.../api_jsonrpc.php
 	token := utilities.GetKeyData("spausvc")              // API token

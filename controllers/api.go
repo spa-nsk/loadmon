@@ -11,6 +11,8 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
+// Response_1 — элемент ответа API со сведениями о сервере
+// (используется в JSON-ответах справочника серверов).
 type Response_1 struct {
 	Id       int64  `json:"Id"`
 	Name     string `json:"Name"`
@@ -18,20 +20,23 @@ type Response_1 struct {
 	Owner    string `json:"Owner"`
 }
 
+// Request_1 — тело запроса API для поиска сервера по полному имени (FQDN).
 type Request_1 struct {
 	NameFQDN string `json:"NameFQDN"`
 }
 
+// LoginAPI создаёт "техническую" сессию loadmon с параметрами по умолчанию
+// (без привязки к реальному пользователю) для доступа к API за последние 7 дней.
 func (this *MainController) LoginAPI() {
 	m := make(map[string]interface{})
 	m["first"] = ""
 	m["last"] = ""
 	m["username"] = ""
 	m["user_id"] = int64(0)
-	m["privilage"] = 0        // 0 - обычный пользователь 1 - разрешено редактировать справочник
-	m["podrazdelenie"] = 0    // 0 - не указано 1 - ДАТИ 2 - СТО
+	m["privilage"] = 0     // 0 - обычный пользователь 1 - разрешено редактировать справочник
+	m["podrazdelenie"] = 0 // 0 - не указано 1 - ДАТИ 2 - СТО
 	m["timestamp"] = time.Now()
-	m["SprSearchString"] = ""  //строка фильтра справочника
+	m["SprSearchString"] = "" //строка фильтра справочника
 	m["SprSearchField"] = "1" //тип строки для фильтра справочника
 
 	to := time.Now()
@@ -43,6 +48,9 @@ func (this *MainController) LoginAPI() {
 	this.SetSession("loadmon", f)
 }
 
+// RequestAPI обрабатывает JSON-запросы внешнего API (GET/POST) к справочнику
+// серверов: поиск по имени (Code=1), по серийному номеру (Code=2)
+// или оперативный запрос к HP OneView (Code=3).
 func (this *MainController) RequestAPI() {
 	var err error
 	/*

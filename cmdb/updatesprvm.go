@@ -55,7 +55,7 @@ func checkAndCorrectVmSpr(records []*models.VMSprRecord, vm vsphere.VMPoint) int
 		if i == idx {
 			continue
 		}
-		exclude := false                //флаг исключения
+		exclude := false                  //флаг исключения
 		for _, ex := range excludeIndex { //проверяем текущий индекс в списке исключений
 			if i == ex {
 				exclude = true
@@ -148,7 +148,7 @@ func checkAndCorrectVM(records []*models.ServerSprRecords, vm vsphere.VMPoint) i
 		if i == idx {
 			continue
 		}
-		exclude := false                //флаг исключения
+		exclude := false                  //флаг исключения
 		for _, ex := range excludeIndex { //проверяем текущий индекс в списке исключений
 			if i == ex {
 				exclude = true
@@ -169,6 +169,9 @@ func checkAndCorrectVM(records []*models.ServerSprRecords, vm vsphere.VMPoint) i
 	return records[idx].Id
 }
 
+// UpdateSprVMv2 обновляет справочник виртуальных машин (vm_spr_record) и связанные с ним
+// записи серверов, запрашивая актуальное состояние ВМ через grpcclient (IP-адрес, сеть,
+// состояние включения).
 func UpdateSprVMv2() {
 	fmt.Println("Обновление справочника виртуальных машин")
 	//LockBase()
@@ -232,6 +235,8 @@ func UpdateSprVMv2() {
 	}
 }
 
+// UpdateSprVM обновляет справочник виртуальных машин (vm_spr_record) и связанные с ним
+// записи серверов на основании данных глобальной инфраструктуры vSphere.
 func UpdateSprVM() {
 	fmt.Println("Обновление справочника виртуальных машин")
 	//LockBase()
@@ -388,6 +393,8 @@ func UpdateSprVM() {
 	}
 }
 
+// UpdateVMMove корректирует записи справочника виртуальных машин после их переноса между
+// кластерами и хостами, синхронизируя привязку к текущей инфраструктуре vSphere.
 func UpdateVMMove() {
 	fmt.Println("Корректировка данных после переносов виртуальных машин")
 	//LockBase()
@@ -471,15 +478,15 @@ func UpdateVMMove() {
 				fmt.Println(" on", s.Id, vm2.Id, s.Time_Mfy.Format("02.01.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
 				fmt.Println("off", srv.Id, vm.Id, srv.Time_Mfy.Format("02.01.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
 				srv2 := models.ServerSprRecords{Id: s.Id}
-				o.Read(&srv2, "Id")           //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *srv)   //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = srv.Id           //
-				o.Update(&srv2)               //
-				srv2.Id = srv.Id              //
-				o.Read(&srv2, "Id")           //
-				srv2.Stat = 3                 //архивная запись
-				srv2.PowerState = 2           //
-				srv2.Active = 2               //выведен из эксплуатации
+				o.Read(&srv2, "Id")         //запоминаем ссылку на архивную запись
+				RestoreSprData(&srv2, *srv) //копируем данные из архивной записи, если не заполнены
+				srv2.OldId = srv.Id         //
+				o.Update(&srv2)             //
+				srv2.Id = srv.Id            //
+				o.Read(&srv2, "Id")         //
+				srv2.Stat = 3               //архивная запись
+				srv2.PowerState = 2         //
+				srv2.Active = 2             //выведен из эксплуатации
 				srv2.TimeDeActiveState = time.Now().Local()
 				o.Update(&srv2) //
 
@@ -487,15 +494,15 @@ func UpdateVMMove() {
 				fmt.Println("on", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
 				fmt.Println("off", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
 				srv2 := models.ServerSprRecords{Id: srv.Id}
-				o.Read(&srv2, "Id")         //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *s)   //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = s.Id           //
-				o.Update(&srv2)             //
-				srv2.Id = s.Id              //
-				o.Read(&srv2, "Id")         //
-				srv2.Stat = 3               //архивная запись
-				srv2.PowerState = 2         //
-				srv2.Active = 2             //выведен из эксплуатации
+				o.Read(&srv2, "Id")       //запоминаем ссылку на архивную запись
+				RestoreSprData(&srv2, *s) //копируем данные из архивной записи, если не заполнены
+				srv2.OldId = s.Id         //
+				o.Update(&srv2)           //
+				srv2.Id = s.Id            //
+				o.Read(&srv2, "Id")       //
+				srv2.Stat = 3             //архивная запись
+				srv2.PowerState = 2       //
+				srv2.Active = 2           //выведен из эксплуатации
 				srv2.TimeDeActiveState = time.Now().Local()
 				o.Update(&srv2) //
 
@@ -532,6 +539,8 @@ func UpdateVMMove() {
 	}
 }
 
+// UpdateVMMoveRename корректирует записи справочника виртуальных машин после переноса и
+// переименования виртуальных машин, восстанавливая соответствие с данными vSphere.
 func UpdateVMMoveRename() {
 	fmt.Println("Корректировка данных после переносов и переименований виртуальных машин")
 	//LockBase()
@@ -616,15 +625,15 @@ func UpdateVMMoveRename() {
 				fmt.Println(" on", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
 				fmt.Println("off", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
 				srv2 := models.ServerSprRecords{Id: s.Id}
-				o.Read(&srv2, "Id")           //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *srv)   //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = srv.Id           //
-				o.Update(&srv2)               //
-				srv2.Id = srv.Id              //
-				o.Read(&srv2, "Id")           //
-				srv2.Stat = 3                 //архивная запись
-				srv2.PowerState = 2           //
-				srv2.Active = 2               //выведен из эксплуатации
+				o.Read(&srv2, "Id")         //запоминаем ссылку на архивную запись
+				RestoreSprData(&srv2, *srv) //копируем данные из архивной записи, если не заполнены
+				srv2.OldId = srv.Id         //
+				o.Update(&srv2)             //
+				srv2.Id = srv.Id            //
+				o.Read(&srv2, "Id")         //
+				srv2.Stat = 3               //архивная запись
+				srv2.PowerState = 2         //
+				srv2.Active = 2             //выведен из эксплуатации
 				srv2.TimeDeActiveState = time.Now().Local()
 				o.Update(&srv2) //
 
@@ -632,15 +641,15 @@ func UpdateVMMoveRename() {
 				fmt.Println(" on", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
 				fmt.Println("off", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
 				srv2 := models.ServerSprRecords{Id: srv.Id}
-				o.Read(&srv2, "Id")         //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *s)   //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = s.Id           //
-				o.Update(&srv2)             //
-				srv2.Id = s.Id              //
-				o.Read(&srv2, "Id")         //
-				srv2.Stat = 3               //архивная запись
-				srv2.PowerState = 2         //
-				srv2.Active = 2             //выведен из эксплуатации
+				o.Read(&srv2, "Id")       //запоминаем ссылку на архивную запись
+				RestoreSprData(&srv2, *s) //копируем данные из архивной записи, если не заполнены
+				srv2.OldId = s.Id         //
+				o.Update(&srv2)           //
+				srv2.Id = s.Id            //
+				o.Read(&srv2, "Id")       //
+				srv2.Stat = 3             //архивная запись
+				srv2.PowerState = 2       //
+				srv2.Active = 2           //выведен из эксплуатации
 				srv2.TimeDeActiveState = time.Now().Local()
 				o.Update(&srv2) //
 

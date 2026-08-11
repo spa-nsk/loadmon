@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"loadmon/grpcclient"
 	"loadmon/oneview"
+
 	//"loadmon/tools"
 	vsphere "loadmon/vspheremetrics"
 
@@ -24,6 +25,10 @@ var (
 // timeOutError string = "Превышено время ожидания"
 )
 
+// UpdateHostSprRecord создаёт либо обновляет в единой транзакции связанные записи
+// справочника серверов (ServerSprRecords) и справочника оборудования (ServerHardware)
+// для хоста ESXi, дополняя их данными из HP OneView при наличии соответствия по
+// серийному номеру. Возвращает Id записи ServerSprRecords.
 func UpdateHostSprRecord(hs vsphere.HostInfo, cl *vsphere.Cluster) (int64, error) {
 	if cl == nil {
 		return 0, errors.New(nilPointerError)
@@ -142,6 +147,8 @@ func UpdateHostSprRecord(hs vsphere.HostInfo, cl *vsphere.Cluster) (int64, error
 	return 0, err
 }
 
+// UpdateHostSprRecordOld — устаревшая версия UpdateHostSprRecord, обновляющая записи
+// справочников ServerSprRecords и ServerHardware без учёта данных кластера.
 func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 	srvspr := models.ServerSprRecords{}
 
@@ -251,6 +258,8 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 	}
 }
 
+// SaveVMwareCMDBData выполняет полный цикл сохранения в CMDB данных, полученных из vSphere:
+// перебирает все кластеры (кроме одиночных хостов) и для каждого вызывает SaveClusterCMDBData.
 func SaveVMwareCMDBData() {
 	fmtDate := "02.01.2006 15:04:05.000"
 	currentTime := time.Now().Local() //запоминаем текущее время
@@ -308,10 +317,15 @@ func SaveClusterCMDBData(cl *vsphere.Cluster, clusterSpr map[string]*models.Clus
 	SaveVMCMDBData(cl, clusterId, currentTime, cl.TypeWork)
 }
 
+// SaveClusterCMDBRecord предназначена для сохранения записи кластера в CMDB.
+// В текущей реализации не выполняет действий (заглушка).
 func SaveClusterCMDBRecord(cl *vsphere.Cluster, clId int64, currentTime time.Time) (int64, error) {
 	return 0, nil
 }
 
+// GetHostData ищет данные оборудования хоста в HP OneView по серийному номеру (в том числе
+// виртуальному) и возвращает найденную запись, фактический серийный номер и серийный номер
+// корзины (enclosure), если применимо.
 func GetHostData(serialNum string) (*oneview.ServerHardware, string, string) {
 	var (
 		hw *oneview.ServerHardware
@@ -345,6 +359,8 @@ func GetHostData(serialNum string) (*oneview.ServerHardware, string, string) {
 	return hw, sn, snEnc
 }
 
+// SaveHostCMDBData сохраняет в CMDB сведения обо всех хостах указанного кластера vSphere,
+// дополняя их данными аппаратной конфигурации из HP OneView.
 func SaveHostCMDBData(cl *vsphere.Cluster, clusterID int64, currentTime time.Time) {
 	o := orm.NewOrm()
 
@@ -422,7 +438,7 @@ func SaveHostCMDBData(cl *vsphere.Cluster, clusterID int64, currentTime time.Tim
 		if err := o.Read(&serverSprRecord, "Id"); err == nil {
 			//добавлено 27.02.2023
 
-			CopyHostToSprSrv(*host, &serverSprRecord) //формируем данные для обновления записи в справочнике серверов (включая, vcenter, datacenter, cluster)
+			CopyHostToSprSrv(*host, &serverSprRecord)      //формируем данные для обновления записи в справочнике серверов (включая, vcenter, datacenter, cluster)
 			serverSprRecord.SerialNumber = srvhw.SerialNum //запоминаем серийный номер
 			serverSprRecord.HWSprId = srvhw.Id
 
@@ -470,6 +486,8 @@ func SaveHostCMDBData(cl *vsphere.Cluster, clusterID int64, currentTime time.Tim
 	}
 }
 
+// SaveVMCMDBData сохраняет в CMDB сведения обо всех виртуальных машинах указанного
+// кластера vSphere.
 func SaveVMCMDBData(cl *vsphere.Cluster, clusterId int64, currentTime time.Time, production int) {
 
 	vml, err := grpcclient.GetVMListKey(cl.Vcenter, cl.Datacenter, cl.Name, "all")
@@ -567,8 +585,8 @@ func SaveVMCMDBData(cl *vsphere.Cluster, clusterId int64, currentTime time.Time,
 			Vm_Name:    vm.Name}
 		trn, _ := o.Begin()
 		err = trn.Read(&vmspr, "Vcenter", "Datacenter", "Cluster", "Vm_Name")
-		CopyVmToSprVm(vm, &vmspr) //копируем данные в структуру записи справочника VM !!! нет привязки к справочнику серверов
-		vmspr.Production = production  //наследуем из clusterspr
+		CopyVmToSprVm(vm, &vmspr)     //копируем данные в структуру записи справочника VM !!! нет привязки к справочнику серверов
+		vmspr.Production = production //наследуем из clusterspr
 
 		if err != nil {
 			VMSprId, err = trn.Insert(&vmspr) //вставляем новую запись в справочник
@@ -784,4 +802,5 @@ func SaveVMCMDBData(cl *vsphere.Cluster, clusterId int64, currentTime time.Time,
 		}
 	}
 }
+
 //

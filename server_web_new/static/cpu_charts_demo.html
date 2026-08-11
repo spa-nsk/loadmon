@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Демо: Chart.js vs ApexCharts — загрузка CPU за сутки</title>
+
+<link href="/static/5.3.8/css/bootstrap.min.css" rel="stylesheet">
+<script src="/static/js/chart.umd.min.js"></script>
+<script src="/static/js/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="/static/js/apexcharts.min.js"></script>
+
+<style>
+  body { background:#f5f6f8; padding-bottom: 60px; }
+  .card-header { font-weight:600; }
+  .stat-badge { font-size: .85rem; }
+  #chartjs-canvas-wrap { position: relative; height: 380px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+  <div class="container">
+    <span class="navbar-brand mb-0 h1">Мониторинг сервера — загрузка CPU (сутки, шаг 1 мин)</span>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="alert alert-secondary small mb-0">
+        Демонстрационная страница: один и тот же синтетический набор данных (1440 точек, интервал 1 минута,
+        последние 24 часа) отрисован двумя разными библиотеками — <strong>Chart.js</strong> и <strong>ApexCharts</strong> —
+        для визуального и функционального сравнения в интерфейсе на Bootstrap 5.
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4 g-3">
+    <div class="col-6 col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Текущая загрузка</div>
+          <div class="fs-3 fw-bold" id="stat-current">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Средняя за сутки</div>
+          <div class="fs-3 fw-bold" id="stat-avg">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Максимум</div>
+          <div class="fs-3 fw-bold text-danger" id="stat-max">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <div class="text-muted small">Минимум</div>
+          <div class="fs-3 fw-bold text-success" id="stat-min">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Chart.js — line chart (плавная линия, area-заливка)</span>
+          <span class="badge bg-primary stat-badge">chart.js v4</span>
+        </div>
+        <div class="card-body">
+          <div id="chartjs-canvas-wrap">
+            <canvas id="cpuChartJs"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>ApexCharts — area chart (градиентная заливка, встроенный zoom)</span>
+          <span class="badge bg-success stat-badge">apexcharts v3</span>
+        </div>
+        <div class="card-body">
+          <div id="cpuApexChart"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header">Заметки по сравнению</div>
+        <div class="card-body small">
+          <ul class="mb-0">
+            <li><strong>Chart.js</strong>: легче по весу, проще базовая настройка, для zoom/pan нужен отдельный плагин (chartjs-plugin-zoom).</li>
+            <li><strong>ApexCharts</strong>: zoom/pan, экспорт в PNG/SVG и toolbar работают "из коробки"; выглядит более законченным виджетом без доп. плагинов.</li>
+            <li>Обе библиотеки на 1440 точках работают плавно; для потоковых realtime-обновлений (раз в 1 мин) можно просто добавлять новую точку и убирать первую (метод <code>update()</code> / <code>updateSeries()</code>).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---------- Генерация синтетических данных: CPU load за 24ч, шаг 1 минута ----------
+function generateCpuData() {
+  const points = 1440; // 24h * 60min
+  const now = new Date();
+  now.setSeconds(0, 0);
+  const start = new Date(now.getTime() - (points - 1) * 60000);
+
+  const labels = [];
+  const values = [];
+  let base = 25; // базовая загрузка %
+
+  for (let i = 0; i < points; i++) {
+    const t = new Date(start.getTime() + i * 60000);
+    labels.push(t);
+
+    const hour = t.getHours() + t.getMinutes() / 60;
+    // суточная синусоида: ночью низкая нагрузка, днём выше, с пиками в рабочие часы
+    const daily = 20 * Math.sin(((hour - 6) / 24) * 2 * Math.PI) + 20;
+    // случайные всплески (короткие пики нагрузки)
+    const spike = Math.random() < 0.01 ? Math.random() * 40 : 0;
+    // шум
+    const noise = (Math.random() - 0.5) * 8;
+
+    let value = base + daily + spike + noise;
+    value = Math.max(2, Math.min(100, value));
+    values.push(Math.round(value * 10) / 10);
+  }
+  return { labels, values };
+}
+
+const data = generateCpuData();
+
+// ---------- Статистика ----------
+const current = data.values[data.values.length - 1];
+const avg = data.values.reduce((a, b) => a + b, 0) / data.values.length;
+const max = Math.max(...data.values);
+const min = Math.min(...data.values);
+
+document.getElementById('stat-current').textContent = current.toFixed(1) + ' %';
+document.getElementById('stat-avg').textContent = avg.toFixed(1) + ' %';
+document.getElementById('stat-max').textContent = max.toFixed(1) + ' %';
+document.getElementById('stat-min').textContent = min.toFixed(1) + ' %';
+
+// ---------- Chart.js ----------
+const ctx = document.getElementById('cpuChartJs').getContext('2d');
+const gradient = ctx.createLinearGradient(0, 0, 0, 380);
+gradient.addColorStop(0, 'rgba(13,110,253,0.35)');
+gradient.addColorStop(1, 'rgba(13,110,253,0.02)');
+
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: data.labels,
+    datasets: [{
+      label: 'CPU, %',
+      data: data.values,
+      borderColor: '#0d6efd',
+      backgroundColor: gradient,
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: true,
+      tension: 0.25
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      x: {
+        type: 'time',
+        time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
+        grid: { display: false }
+      },
+      y: {
+        min: 0,
+        max: 100,
+        ticks: { callback: v => v + '%' },
+        grid: { color: 'rgba(0,0,0,0.05)' }
+      }
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (item) => `CPU: ${item.formattedValue}%`
+        }
+      }
+    }
+  }
+});
+
+// ---------- ApexCharts ----------
+const apexSeries = data.labels.map((t, i) => [t.getTime(), data.values[i]]);
+
+const apexOptions = {
+  chart: {
+    type: 'area',
+    height: 380,
+    toolbar: { show: true, tools: { download: true, zoom: true, pan: true, reset: true } },
+    zoom: { enabled: true },
+    animations: { enabled: false }
+  },
+  series: [{ name: 'CPU, %', data: apexSeries }],
+  colors: ['#198754'],
+  fill: {
+    type: 'gradient',
+    gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 90, 100] }
+  },
+  stroke: { curve: 'smooth', width: 1.5 },
+  dataLabels: { enabled: false },
+  xaxis: {
+    type: 'datetime',
+    labels: { datetimeUTC: false, format: 'HH:mm' }
+  },
+  yaxis: {
+    min: 0,
+    max: 100,
+    labels: { formatter: v => v.toFixed(0) + '%' }
+  },
+  tooltip: {
+    x: { format: 'dd MMM HH:mm' },
+    y: { formatter: v => v.toFixed(1) + '%' }
+  },
+  grid: { borderColor: 'rgba(0,0,0,0.05)' }
+};
+
+new ApexCharts(document.querySelector('#cpuApexChart'), apexOptions).render();
+</script>
+
+</body>
+</html>

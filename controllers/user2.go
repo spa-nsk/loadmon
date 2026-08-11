@@ -27,6 +27,9 @@ var (
 	guestIDLock sync.Mutex
 )
 
+// Login отображает форму входа и обрабатывает аутентификацию пользователя
+// (в т.ч. поддерживает предварительно выставленный заголовок X-Loadmon-Auth от SSO)
+// с сохранением параметров пользователя и фильтра в сессии.
 func (this *MainController) Login() {
 
 	m := make(map[string]interface{})
@@ -93,7 +96,7 @@ func (this *MainController) Login() {
 			m["last"] = user.Last
 			m["username"] = "Просмотр"
 			m["user_id"] = int64(1000 + guestID)
-			m["privilage"] = user.Priv       // 0 - обычный пользователь 1 - разрешено редактировать справочник
+			m["privilage"] = user.Priv     // 0 - обычный пользователь 1 - разрешено редактировать справочник
 			m["podrazdelenie"] = user.Podr // 0 - не указано 1 - ДАТИ 2 - СТО
 			m["timestamp"] = time.Now()
 			m["SprSearchString"] = "" //строка фильтра справочника
@@ -151,7 +154,7 @@ func (this *MainController) Login() {
 			m["last"] = user.Last
 			m["username"] = email
 			m["user_id"] = int64(user.Id)
-			m["privilage"] = user.Priv    // 0 - обычный пользователь 1 - разрешено редактировать справочник
+			m["privilage"] = user.Priv     // 0 - обычный пользователь 1 - разрешено редактировать справочник
 			m["podrazdelenie"] = user.Podr // 0 - не указано 1 - ДАТИ  2 - СТО
 			m["timestamp"] = time.Now()
 			m["SprSearchString"] = "" //строка фильтра справочника
@@ -175,6 +178,8 @@ func (this *MainController) Login() {
 
 }
 
+// Logout завершает сеанс пользователя (удаляет сессию) и перенаправляет
+// на страницу входа.
 func (this *MainController) Logout() {
 	//this.activeContent("logout") // logout.tpl отсутствует
 	if this != nil {
@@ -192,6 +197,8 @@ type user1 struct {
 	Confirm  string `form:"password2"`
 }
 
+// Register отображает форму регистрации нового пользователя и обрабатывает
+// её отправку: создаёт учётную запись и отправляет письмо с подтверждением.
 func (this *MainController) Register() {
 	this.activeContent("user/register")
 
@@ -336,6 +343,8 @@ func sendVerification(email, u string, domainname string) error {
 	return nil
 }
 
+// Verify подтверждает регистрацию пользователя по ключу подтверждения
+// (uuid) из ссылки в письме.
 func (this *MainController) Verify() {
 	this.activeContent("user/verify")
 
@@ -360,6 +369,8 @@ type user2 struct {
 	Current string `form:"current"`
 }
 
+// Profile отображает и обрабатывает форму редактирования профиля
+// текущего пользователя (имя, фамилия, email, смена пароля).
 func (this *MainController) Profile() {
 	this.activeContent("user/profile")
 
@@ -480,6 +491,7 @@ func (this *MainController) Profile() {
 	}
 }
 
+// Remove отображает и обрабатывает удаление учётной записи текущего пользователя.
 func (this *MainController) Remove() {
 	this.activeContent("user/remove")
 
@@ -559,6 +571,8 @@ func (this *MainController) Remove() {
 	}
 }
 
+// Forgot отображает форму восстановления пароля и отправляет пользователю
+// письмо со ссылкой для сброса пароля.
 func (this *MainController) Forgot() {
 	this.activeContent("user/forgot")
 
@@ -654,6 +668,8 @@ func sendRequestReset(email, u string, domainname string) error {
 	return nil
 }
 
+// Reset отображает форму сброса пароля по ссылке из письма (uuid)
+// и обрабатывает установку нового пароля.
 func (this *MainController) Reset() {
 	this.activeContent("user/reset")
 

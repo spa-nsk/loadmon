@@ -1,3 +1,8 @@
+// Package vspheremetrics содержит доменную модель данных инфраструктуры vSphere
+// (vCenter, кластеры, хосты, виртуальные машины, хранилища, метрики
+// производительности) и функции её сбора/агрегации через govmomi. Пакет
+// используется gRPC-слоем loadmon (metrics_grpc, grpcserver/grpcclient) как
+// общее in-memory представление инфраструктуры, а также экспортирует метрики в Prometheus.
 package vspheremetrics
 
 import (
@@ -16,12 +21,16 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-var TimeOut int32
+// TimeOut — таймаут ожидания снятия блокировки (LockFlag) в тактах планировщика, атомарно изменяемый.
+var TimeOut int32 = 10000
 
+// Init сбрасывает TimeOut в значение по умолчанию (10000).
 func Init() {
 	atomic.StoreInt32(&TimeOut, 10000)
 }
 
+// LockFlag — примитив блокировки на основе атомарного флага, встраиваемый в
+// структуры пакета для защиты от конкурентного доступа без использования sync.Mutex.
 type LockFlag struct {
 	lockFlag int32
 }
@@ -31,6 +40,8 @@ var (
 	lockCountLimit string = "Истекло время ожидания блокировки"
 )
 
+// LockObject устанавливает блокировку, ожидая её освобождения (spin-wait) до
+// истечения TimeOut итераций; возвращает ошибку при nil-получателе или таймауте.
 func (obj *LockFlag) LockObject() error {
 	if obj == nil {
 		return errors.New(nilObject)
@@ -44,6 +55,7 @@ func (obj *LockFlag) LockObject() error {
 	return nil
 }
 
+// UnLockObject снимает блокировку, установленную LockObject.
 func (obj *LockFlag) UnLockObject() error {
 	if obj == nil {
 		return errors.New(nilObject)
@@ -52,6 +64,7 @@ func (obj *LockFlag) UnLockObject() error {
 	return nil
 }
 
+// IsLockObject возвращает true, если объект в данный момент заблокирован.
 func (obj *LockFlag) IsLockObject() bool {
 	if obj == nil {
 		return false
@@ -63,26 +76,30 @@ func (obj *LockFlag) IsLockObject() bool {
 	}
 }
 
+// VCenter описывает подключение к одному серверу vCenter: адрес, учётные
+// данные, состояние подключения (govmomi.Client) и параметры периодического опроса метрик.
 type VCenter struct {
 	LockFlag
-	Hostname    string `form:"Hostname"`
-	Username    string `form:"Username"`
-	Password    string `form:"Password"`
-	Connected   bool   `form:"Connected"`
-	C           *govmomi.Client
-	Ticker      *time.Ticker
+	Hostname  string `form:"Hostname"`
+	Username  string `form:"Username"`
+	Password  string `form:"Password"`
+	Connected bool   `form:"Connected"`
+	C         *govmomi.Client
+	Ticker    *time.Ticker
 	//Done      chan bool
 	DoneFl      int32 `form:"DoneFl"`
 	Wait        int   `form:"Wait"`
 	CountThread int64 `form:"CountThread"`
 }
 
+// Datacenter — датацентр vSphere в составе указанного vCenter.
 type Datacenter struct {
 	LockFlag
 	Vcenter string `form:"Vcenter"`
 	Name    string `form:"Name"`
 }
 
+// ClusterShort — краткая идентификация кластера (vCenter/датацентр/имя) без деталей загрузки.
 type ClusterShort struct {
 	LockFlag
 	Vcenter    string `form:"Vcenter"`
@@ -90,6 +107,10 @@ type ClusterShort struct {
 	Name       string `form:"Name"`
 }
 
+// VMInfrastructure — корневая структура доменной модели: глобальное потокобезопасное
+// состояние всей опрашиваемой инфраструктуры vSphere (vCenter, кластеры, хосты,
+// виртуальные машины, хранилища, LUN, теги) и счётчики фонового опроса метрик.
+// Экземпляр получается через GetGlobalVMInfrastructure.
 type VMInfrastructure struct {
 	LockFlag
 	CountThread    int64
@@ -99,19 +120,21 @@ type VMInfrastructure struct {
 	Ticker         *time.Ticker
 	Done           chan bool
 	//Initialized bool //загружена информация по кластерам, хостам, виртуальным машинам
-	VCenterMapList  cmap.ConcurrentMap[string, *VCenter]
-	ClusterMapList  cmap.ConcurrentMap[string, *Cluster]
-	VMMapList       cmap.ConcurrentMap[string, *VMPoint]
-	VMIDMapList     cmap.ConcurrentMap[string, *VMPoint]
-	VMUUIDMapList   cmap.ConcurrentMap[string, *VMPoint]
-	HostMapList     cmap.ConcurrentMap[string, *HostInfo]
-	HostBySNMapList cmap.ConcurrentMap[string, *HostInfo]
+	VCenterMapList   cmap.ConcurrentMap[string, *VCenter]
+	ClusterMapList   cmap.ConcurrentMap[string, *Cluster]
+	VMMapList        cmap.ConcurrentMap[string, *VMPoint]
+	VMIDMapList      cmap.ConcurrentMap[string, *VMPoint]
+	VMUUIDMapList    cmap.ConcurrentMap[string, *VMPoint]
+	HostMapList      cmap.ConcurrentMap[string, *HostInfo]
+	HostBySNMapList  cmap.ConcurrentMap[string, *HostInfo]
 	DataStoreMapList cmap.ConcurrentMap[string, *Datastore]
-	LUNMapListUUID  cmap.ConcurrentMap[string, *ScsiLun]
-	TagsVM          cmap.ConcurrentMap[string, []tags.AttachedTags]
-	TagsDC          cmap.ConcurrentMap[string, []tags.AttachedTags]
+	LUNMapListUUID   cmap.ConcurrentMap[string, *ScsiLun]
+	TagsVM           cmap.ConcurrentMap[string, []tags.AttachedTags]
+	TagsDC           cmap.ConcurrentMap[string, []tags.AttachedTags]
 }
 
+// Info — плоский снимок данных инфраструктуры (списки vCenter, кластеров, ВМ,
+// хостов, хранилищ, LUN), используемый для передачи/сериализации между слоями приложения.
 type Info struct {
 	VCList      []VCenter
 	ClusterList []*Cluster
@@ -121,6 +144,7 @@ type Info struct {
 	LUNListUUID map[string]*ScsiLun
 }
 
+// ScsiLun описывает SCSI LUN (диск СХД), видимый хостам ESXi в кластере.
 type ScsiLun struct {
 	UID           string `form:"UID"`           //UID/WWN Lun ("60:06:01:60:2B:40:45:00:5D:AD:03:5B:49:F9:20:1A")
 	UUID          string `form:"UUID"`          //Uuid ("0200010000600601602b4045005dad035b49f9201a565241494420")
@@ -132,32 +156,37 @@ type ScsiLun struct {
 	DisplayName   string //"DGC Fibre Channel Over Ethernet Disk (naa.600601602b4045005dad03...+11 more"
 }
 
+// Metric — пара «имя инстанса — числовое значение», используется для точечных
+// (по устройствам) показателей производительности.
 type Metric struct {
 	Instance string
 	Value    float64
 }
 
+// VMPerf — снимок метрик производительности виртуальной машины (CPU, память,
+// диск, сеть) за один интервал опроса.
 type VMPerf struct {
 	LockFlag
-	ID                     int64     `form:"ID" csv:"-"`
-	Start                  time.Time `form:"Start" csv:"Time"`
-	CPUUsage               float64   `form:"CPUUsage" csv:"CPU usage (%)" format:"%.2f"`
+	ID       int64     `form:"ID" csv:"-"`
+	Start    time.Time `form:"Start" csv:"Time"`
+	CPUUsage float64   `form:"CPUUsage" csv:"CPU usage (%)" format:"%.2f"`
 	//CPUUsageMap          []Metric  `form:"CPUUsageMap"`
-	MemUsage               float64   `form:"MemUsage" csv:"MEM usage (%)" format:"%.2f"`
-	DiskUsage              float64   `form:"DiskUsage" csv:"Disk usage (MB/s)" format:"%f"` //скорость диска kbps
+	MemUsage  float64 `form:"MemUsage" csv:"MEM usage (%)" format:"%.2f"`
+	DiskUsage float64 `form:"DiskUsage" csv:"Disk usage (MB/s)" format:"%f"` //скорость диска kbps
 	//DiskUsageMap         []Metric  `form:"DiskUsageMap"`
-	DiskTotalReadLatency   float64   `form:"DiskTotalReadLatency" csv:"Disk read latency (ms)" format:"%f"`   //Среднее время чтения с виртуального диска ms
-	DiskTotalWriteLatency  float64   `form:"DiskTotalWriteLatency" csv:"Disk write latency (ms)" format:"%f"` //Среднее время записи на виртуальный диск ms
-	DiskWrite              float64   `form:"DiskWrite" csv:"Disk write (MB/s)" format:"%f"`                   //Скорость записи данных на виртуальный диск kbps
-	DiskRead               float64   `form:"DiskRead" csv:"Disk read (MB/s)" format:"%f"`                     //Скорость чтения данных с виртуального диска kbps
-	NetUsage               float64   `form:"NetUsage" csv:"Net usage (MB/s)" format:"%f"`                     //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
-	NetReceived            float64   `form:"NetReceived" csv:"Net received (MB/s)" format:"%f"`                //Использование сети (скорость приема) в течение интервала kbps
-	NetTransmitted         float64   `form:"NetTransmitted" csv:"Net transmitted (MB/s)" format:"%f"`          //Использование сети (скорость передачи) в течение интервала kbps
+	DiskTotalReadLatency  float64 `form:"DiskTotalReadLatency" csv:"Disk read latency (ms)" format:"%f"`   //Среднее время чтения с виртуального диска ms
+	DiskTotalWriteLatency float64 `form:"DiskTotalWriteLatency" csv:"Disk write latency (ms)" format:"%f"` //Среднее время записи на виртуальный диск ms
+	DiskWrite             float64 `form:"DiskWrite" csv:"Disk write (MB/s)" format:"%f"`                   //Скорость записи данных на виртуальный диск kbps
+	DiskRead              float64 `form:"DiskRead" csv:"Disk read (MB/s)" format:"%f"`                     //Скорость чтения данных с виртуального диска kbps
+	NetUsage              float64 `form:"NetUsage" csv:"Net usage (MB/s)" format:"%f"`                     //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
+	NetReceived           float64 `form:"NetReceived" csv:"Net received (MB/s)" format:"%f"`               //Использование сети (скорость приема) в течение интервала kbps
+	NetTransmitted        float64 `form:"NetTransmitted" csv:"Net transmitted (MB/s)" format:"%f"`         //Использование сети (скорость передачи) в течение интервала kbps
 	//NetUsageMap          []Metric  `form:"NetUsageMap"`
 	//NetReceivedMap       []Metric  `form:"NetReceivedMap"`     //приём по сети kbps
 	//NetTransmittedMap    []Metric  `form:"NetTransmittedMap"` //передача по сети kbps
 }
 
+// Init подготавливает структуру VMPerf к заполнению (зарезервировано для инициализации вложенных слайсов метрик).
 func (s *VMPerf) Init() {
 	//s.CPUUsageMap = make([]Metric, 0)
 	//s.DiskUsageMap = make([]Metric, 0)
@@ -166,6 +195,7 @@ func (s *VMPerf) Init() {
 	//s.NetTransmittedMap = make([]Metric, 0)
 }
 
+// Import копирует данные из другого экземпляра VMPerf (зарезервировано для объединения детализированных метрик).
 func (s *VMPerf) Import(in *VMPerf) {
 	//for _, val := range in.CPUUsageMap {
 	//	s.CPUUsageMap = append(s.CPUUsageMap, val)
@@ -184,31 +214,33 @@ func (s *VMPerf) Import(in *VMPerf) {
 	//}
 }
 
+// HSPerf — снимок метрик производительности хоста ESXi (CPU, память, диск, сеть) за один интервал опроса.
 type HSPerf struct {
 	LockFlag
-	ID                    int64     `form:"ID"`
-	Start                 time.Time `form:"Start"`
-	CPUUsage              float64   `form:"CPUUsage"`
+	ID       int64     `form:"ID"`
+	Start    time.Time `form:"Start"`
+	CPUUsage float64   `form:"CPUUsage"`
 	//CPUUsageMap         []Metric  `form:"CPUUsageMap"`
-	CPUUtilization        float64   `form:"CPUUtilization"`
-	MemUsage              float64   `form:"MemUsage"`
-	DiskUsage             float64   `form:"DiskUsage"`             //скорость диска kbps
-	DiskTotalReadLatency  float64   `form:"DiskTotalReadLatency"`  //Среднее время чтения с виртуального диска
+	CPUUtilization       float64 `form:"CPUUtilization"`
+	MemUsage             float64 `form:"MemUsage"`
+	DiskUsage            float64 `form:"DiskUsage"`            //скорость диска kbps
+	DiskTotalReadLatency float64 `form:"DiskTotalReadLatency"` //Среднее время чтения с виртуального диска
 	//DiskTotalReadLatencyMap  []Metric `form:"DiskTotalReadLatencyMap"`  //Среднее время чтения с виртуального диска
-	DiskTotalWriteLatency float64   `form:"DiskTotalWriteLatency"` //Среднее время записи на виртуальный диск
+	DiskTotalWriteLatency float64 `form:"DiskTotalWriteLatency"` //Среднее время записи на виртуальный диск
 	//DiskTotalWriteLatencyMap []Metric `form:"DiskTotalWriteLatencyMap"` //Среднее время записи на виртуальный диск
-	DiskWrite             float64   `form:"DiskWrite"` //Скорость записи данных на виртуальный диск kbps
-	DiskRead              float64   `form:"DiskRead"`  //Скорость чтения данных с виртуального диска kbps
+	DiskWrite float64 `form:"DiskWrite"` //Скорость записи данных на виртуальный диск kbps
+	DiskRead  float64 `form:"DiskRead"`  //Скорость чтения данных с виртуального диска kbps
 	//DiskWriteMap        []Metric  `form:"DiskWriteMap"`
 	//DiskReadMap         []Metric  `form:"DiskReadMap"`
-	NetUsage              float64   `form:"NetUsage"`      //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
-	NetReceived           float64   `form:"NetReceived"`   //Использование сети (скорость приема) в течение интервала kbps
-	NetTransmitted        float64   `form:"NetTransmitted"` //Использование сети (скорость передачи) в течение интервала kbps
+	NetUsage       float64 `form:"NetUsage"`       //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
+	NetReceived    float64 `form:"NetReceived"`    //Использование сети (скорость приема) в течение интервала kbps
+	NetTransmitted float64 `form:"NetTransmitted"` //Использование сети (скорость передачи) в течение интервала kbps
 	//NetUsageMap         []Metric  `form:"NetUsageMap"`
 	//NetReceivedMap      []Metric  `form:"NetReceivedMap"`     //приём по сети kbps
 	//NetTransmittedMap   []Metric  `form:"NetTransmittedMap"` //передача по сети kbps
 }
 
+// Init подготавливает структуру HSPerf к заполнению (зарезервировано для инициализации вложенных слайсов метрик).
 func (s *HSPerf) Init() {
 	//s.CPUUsageMap = make([]Metric, 0)
 	//s.DiskTotalReadLatencyMap = make([]Metric, 0)
@@ -220,6 +252,7 @@ func (s *HSPerf) Init() {
 	//s.NetTransmittedMap = make([]Metric, 0)
 }
 
+// Import копирует данные из другого экземпляра HSPerf (зарезервировано для объединения детализированных метрик).
 func (s *HSPerf) Import(in *HSPerf) {
 	//for _, val := range in.CPUUsageMap {
 	//	s.CPUUsageMap = append(s.CPUUsageMap, val)
@@ -248,26 +281,29 @@ func (s *HSPerf) Import(in *HSPerf) {
 	//}
 }
 
+// CLPerf — снимок агрегированных метрик производительности кластера (CPU, память, диск, сеть).
 type CLPerf struct {
 	LockFlag
-	ID                     int64     `form:"ID"`
-	Start                  time.Time `form:"Start"`
-	CPUUsage               float64   `form:"CPUUsage"`
-	CPUUtilization         float64   `form:"CPUUtilization"`
-	MemUsage               float64   `form:"MemUsage"`
-	DiskUsage              float64   `form:"DiskUsage"`             //скорость диска kbps
-	DiskTotalReadLatency   float64   `form:"DiskTotalReadLatency"`  //Среднее время чтения с виртуального диска
-	DiskTotalWriteLatency  float64   `form:"DiskTotalWriteLatency"` //Среднее время записи на виртуальный диск
-	DiskWrite              float64   `form:"DiskWrite"`             //Скорость записи данных на виртуальный диск kbps
-	DiskRead               float64   `form:"DiskRead"`              //Скорость чтения данных с виртуального диска kbps
-	NetUsage               float64   `form:"NetUsage"`              //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
-	NetReceived            float64   `form:"NetReceived"`           //Использование сети (скорость приема) в течение интервала kbps
-	NetTransmitted         float64   `form:"NetTransmitted"`        //Использование сети (скорость передачи) в течение интервала kbps
+	ID                    int64     `form:"ID"`
+	Start                 time.Time `form:"Start"`
+	CPUUsage              float64   `form:"CPUUsage"`
+	CPUUtilization        float64   `form:"CPUUtilization"`
+	MemUsage              float64   `form:"MemUsage"`
+	DiskUsage             float64   `form:"DiskUsage"`             //скорость диска kbps
+	DiskTotalReadLatency  float64   `form:"DiskTotalReadLatency"`  //Среднее время чтения с виртуального диска
+	DiskTotalWriteLatency float64   `form:"DiskTotalWriteLatency"` //Среднее время записи на виртуальный диск
+	DiskWrite             float64   `form:"DiskWrite"`             //Скорость записи данных на виртуальный диск kbps
+	DiskRead              float64   `form:"DiskRead"`              //Скорость чтения данных с виртуального диска kbps
+	NetUsage              float64   `form:"NetUsage"`              //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
+	NetReceived           float64   `form:"NetReceived"`           //Использование сети (скорость приема) в течение интервала kbps
+	NetTransmitted        float64   `form:"NetTransmitted"`        //Использование сети (скорость передачи) в течение интервала kbps
 }
 
+// Init подготавливает структуру CLPerf к заполнению (в текущей реализации — заглушка).
 func (s *CLPerf) Init() {
 }
 
+// GuestDiskInfo описывает состояние диска гостевой ОС виртуальной машины (по данным VMware Tools).
 type GuestDiskInfo struct {
 	DiskPath       string  //путь диска
 	FileSystemType string  //ext4
@@ -276,6 +312,7 @@ type GuestDiskInfo struct {
 	PercentUsed    float64 //
 }
 
+// VMUsageOnDatastore описывает использование виртуальной машиной места на конкретном хранилище datastore.
 type VMUsageOnDatastore struct {
 	ID                     int64   `form:"ID"`
 	UID                    string  `form:"UID"`
@@ -290,6 +327,7 @@ type VMUsageOnDatastore struct {
 	PercentAllocateStorage float64 `form:"PercentAllocateStorage"` //процент выделения места под виртуальную машину на конкретном хранилище
 }
 
+// VMFile описывает файл виртуальной машины (конфигурация, диск, снапшот и т.п.) на datastore.
 type VMFile struct {
 	Type       string  `form:"Type"` // "config", "extendedConfig", "nvram", "snapshotList", "diskDescriptor", "diskExtent", "diskDescriptor", "diskExtent", "snapshotData", "swap", "uwswap", "log",
 	Name       string  `form:"Name"`
@@ -297,6 +335,9 @@ type VMFile struct {
 	UniqueSize float64 `form:"UniqueSize"`
 }
 
+// VMPoint — центральная структура доменной модели, описывающая одну виртуальную
+// машину: идентификация, гостевая ОС, ресурсы (CPU/память/диски/сеть),
+// агрегированные метрики производительности (min/max/avg) и историю Perf.
 type VMPoint struct {
 	LockFlag
 	ID                               int64                `form:"ID"`
@@ -311,9 +352,9 @@ type VMPoint struct {
 	Name                             string               `form:"Name"`
 	HostName                         string               `form:"HostName"`
 	DomainName                       string               `form:"DomainName"`
-	ToolsStatus                      string               `form:"ToolsStatus"` // статус установки vmware tools
-	GuestFullName                    string               `form:"GuestFullName"`      //гостевая операционная система
-	GuestDetailedData                string               `form:"GuestDetailedData"`  //подробности по гостевой система
+	ToolsStatus                      string               `form:"ToolsStatus"`       // статус установки vmware tools
+	GuestFullName                    string               `form:"GuestFullName"`     //гостевая операционная система
+	GuestDetailedData                string               `form:"GuestDetailedData"` //подробности по гостевой система
 	PathName                         string               `form:"PathName"`
 	PowerState                       bool                 `form:"PowerState"` //true - VM включена
 	UUID                             string               `form:"UUID"`
@@ -386,96 +427,102 @@ type VMPoint struct {
 	PerfCount                        int64                `form:"PerfCount"`
 }
 
+// Datastore описывает хранилище данных vSphere: тип, ёмкость, свободное место
+// и список размещённых на нём виртуальных машин.
 type Datastore struct {
 	LockFlag
-	ID          int64                          `form:"ID"`
-	Type        string                         `form:"Type"`
-	UID         string                         `form:"UID"` //уникальный идентификатор LUN
-	StorageName string                         `form:"StorageName"`
-	CapacityGb  float64                        `form:"CapacityGb"`
-	FreeSpaceGb float64                        `form:"FreeSpaceGb"`
-	PercentUsed float64                        `form:"PercentUsed"`
-	VM          []*VMPoint                     `form:"VM"`
-	VMCount     int64                          `form:"VMCount"`
+	ID          int64      `form:"ID"`
+	Type        string     `form:"Type"`
+	UID         string     `form:"UID"` //уникальный идентификатор LUN
+	StorageName string     `form:"StorageName"`
+	CapacityGb  float64    `form:"CapacityGb"`
+	FreeSpaceGb float64    `form:"FreeSpaceGb"`
+	PercentUsed float64    `form:"PercentUsed"`
+	VM          []*VMPoint `form:"VM"`
+	VMCount     int64      `form:"VMCount"`
 	vmnames     []types.ManagedObjectReference
 }
 
+// Cluster описывает кластер vSphere (или отдельный хост при HostFlag=true):
+// суммарные ресурсы (CPU/память/диски), выделение ресурсов виртуальным машинам
+// и агрегированные метрики производительности (min/max/avg).
 type Cluster struct {
 	LockFlag
-	ID                                int64        `form:"ID"`
-	Date                              time.Time    `form:"Date"`
-	Vcenter                           string       `form:"Vcenter"`
-	Datacenter                        string       `form:"Datacenter"`
-	HostFlag                          bool         `form:"HostFlag"` //признак отдельного хоста true имитация структур кластера без внесения в справочник
-	TypeWork                          int          `form:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	Name                              string       `form:"Name"`
-	ClusterID                         string       `form:"ClusterID"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	CPUMhzAvg                         int32        `form:"CPUMhzAvg"`
-	AllNumCPUPkgs                     int16        `form:"AllNumCPUPkgs"`
-	AllNumCPUCores                    int16        `form:"AllNumCPUCores"`
-	AllNumCPUThreads                  int16        `form:"AllNumCPUThreads"`
-	AllMemorySizeGB                   float64      `form:"AllMemorySizeGB"`
-	AllCapacityGb                     float64      `form:"AllCapacityGb"`
-	AllFreeSpaceGb                    float64      `form:"AllFreeSpaceGb"`
-	AllPercentUsed                    float64      `form:"AllPercentUsed"`
-	AllocatedCoreCount                int          `form:"AllocatedCoreCount"`     //выделено ядер для виртуальных машин
-	AllocatedMemorySizeGb             int          `form:"AllocatedMemorySizeGb"`  //выделено оперативной памяти для виртуальных машин
-	CoreTransferRate                  float64      `form:"CoreTransferRate"`       //коэффициент перевыдачи процессорных ресурсов
-	MemoryTransferRate                float64      `form:"MemoryTransferRate"`     //коэффициент перевыдачи процессорных ресурсов
-	CPUUsageMaximum                   float64      `form:"CPUUsageMaximum"`
-	CPUUsageMaximumTime               time.Time    `form:"CPUUsageMaximumTime"`
-	CPUUsageAverage                   float64      `form:"CPUUsageAverage"`
-	CPUUsageMinimum                   float64      `form:"CPUUsageMinimum"`
-	CPUUsageMinimumTime               time.Time    `form:"CPUUsageMinimumTime"`
-	MemUsageMaximum                   float64      `form:"MemUsageMaximum"`
-	MemUsageMaximumTime               time.Time    `form:"MemUsageMaximumTime"`
-	MemUsageAverage                   float64      `form:"MemUsageAverage"`
-	MemUsageMinimum                   float64      `form:"MemUsageMinimum"`
-	MemUsageMinimumTime               time.Time    `form:"MemUsageMinimumTime"`
-	DiskUsageMaximum                  float64      `form:"DiskUsageMaximum"`
-	DiskUsageMaximumTime              time.Time    `form:"DiskUsageMaximumTime"`
-	DiskUsageAverage                  float64      `form:"DiskUsageAverage"`
-	DiskUsageMinimum                  float64      `form:"DiskUsageMinimum"`
-	DiskUsageMinimumTime              time.Time    `form:"DiskUsageMinimumTime"`
-	DiskTotalReadLatencyMaximum       float64      `form:"DiskTotalReadLatencyMaximum"`
-	DiskTotalReadLatencyMaximumTime   time.Time    `form:"DiskTotalReadLatencyMaximumTime"`
-	DiskTotalReadLatencyAverage       float64      `form:"DiskTotalReadLatencyAverage"`
-	DiskTotalReadLatencyMinimum       float64      `form:"DiskTotalReadLatencyMinimum"`
-	DiskTotalReadLatencyMinimumTime   time.Time    `form:"DiskTotalReadLatencyMinimumTime"`
-	DiskTotalWriteLatencyMaximum      float64      `form:"DiskTotalWriteLatencyMaximum"`
-	DiskTotalWriteLatencyMaximumTime  time.Time    `form:"DiskTotalWriteLatencyMaximumTime"`
-	DiskTotalWriteLatencyAverage      float64      `form:"DiskTotalWriteLatencyAverage"`
-	DiskTotalWriteLatencyMinimum      float64      `form:"DiskTotalWriteLatencyMinimum"`
-	DiskTotalWriteLatencyMinimumTime  time.Time    `form:"DiskTotalWriteLatencyMinimumTime"`
-	DiskWriteMaximum                  float64      `form:"DiskWriteMaximum"`
-	DiskWriteMaximumTime              time.Time    `form:"DiskWriteMaximumTime"`
-	DiskWriteAverage                  float64      `form:"DiskWriteAverage"`
-	DiskWriteMinimum                  float64      `form:"DiskWriteMinimum"`
-	DiskWriteMinimumTime              time.Time    `form:"DiskWriteMinimumTime"`
-	DiskReadMaximum                   float64      `form:"DiskReadMaximum"`
-	DiskReadMaximumTime               time.Time    `form:"DiskReadMaximumTime"`
-	DiskReadAverage                   float64      `form:"DiskReadAverage"`
-	DiskReadMinimum                   float64      `form:"DiskReadMinimum"`
-	DiskReadMinimumTime               time.Time    `form:"DiskReadMinimumTime"`
-	NetUsageMaximum                   float64      `form:"NetUsageMaximum"`
-	NetUsageMaximumTime               time.Time    `form:"NetUsageMaximumTime"`
-	NetUsageAverage                   float64      `form:"NetUsageAverage"`
-	NetUsageMinimum                   float64      `form:"NetUsageMinimum"`
-	NetUsageMinimumTime               time.Time    `form:"NetUsageMinimumTime"`
-	CPUBilling                        float64      `form:"CPUBilling"`  // в мегагерц часах
-	DiskBilling                       float64      `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
-	MemBilling                        float64      `form:"MemBilling"`  // в мегабайт часах
-	NetBilling                        float64      `form:"NetBilling"`  // в мегабайт часах
-	Hosts                             []*HostInfo  `form:"Hosts"`
-	HostCount                         int64        `form:"HostCount"`
-	VM                                []*VMPoint   `form:"VM"`
-	VMCount                           int64        `form:"VMCount"`
-	Storage                           []*Datastore `form:"Storage"`
-	StorageCount                      int64        `form:"StorageCount"`
-	Perf                              []*CLPerf    `form:"Perf"`
-	PerfCount                         int64        `form:"PerfCount"`
+	ID                               int64        `form:"ID"`
+	Date                             time.Time    `form:"Date"`
+	Vcenter                          string       `form:"Vcenter"`
+	Datacenter                       string       `form:"Datacenter"`
+	HostFlag                         bool         `form:"HostFlag"` //признак отдельного хоста true имитация структур кластера без внесения в справочник
+	TypeWork                         int          `form:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
+	Name                             string       `form:"Name"`
+	ClusterID                        string       `form:"ClusterID"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	CPUMhzAvg                        int32        `form:"CPUMhzAvg"`
+	AllNumCPUPkgs                    int16        `form:"AllNumCPUPkgs"`
+	AllNumCPUCores                   int16        `form:"AllNumCPUCores"`
+	AllNumCPUThreads                 int16        `form:"AllNumCPUThreads"`
+	AllMemorySizeGB                  float64      `form:"AllMemorySizeGB"`
+	AllCapacityGb                    float64      `form:"AllCapacityGb"`
+	AllFreeSpaceGb                   float64      `form:"AllFreeSpaceGb"`
+	AllPercentUsed                   float64      `form:"AllPercentUsed"`
+	AllocatedCoreCount               int          `form:"AllocatedCoreCount"`    //выделено ядер для виртуальных машин
+	AllocatedMemorySizeGb            int          `form:"AllocatedMemorySizeGb"` //выделено оперативной памяти для виртуальных машин
+	CoreTransferRate                 float64      `form:"CoreTransferRate"`      //коэффициент перевыдачи процессорных ресурсов
+	MemoryTransferRate               float64      `form:"MemoryTransferRate"`    //коэффициент перевыдачи процессорных ресурсов
+	CPUUsageMaximum                  float64      `form:"CPUUsageMaximum"`
+	CPUUsageMaximumTime              time.Time    `form:"CPUUsageMaximumTime"`
+	CPUUsageAverage                  float64      `form:"CPUUsageAverage"`
+	CPUUsageMinimum                  float64      `form:"CPUUsageMinimum"`
+	CPUUsageMinimumTime              time.Time    `form:"CPUUsageMinimumTime"`
+	MemUsageMaximum                  float64      `form:"MemUsageMaximum"`
+	MemUsageMaximumTime              time.Time    `form:"MemUsageMaximumTime"`
+	MemUsageAverage                  float64      `form:"MemUsageAverage"`
+	MemUsageMinimum                  float64      `form:"MemUsageMinimum"`
+	MemUsageMinimumTime              time.Time    `form:"MemUsageMinimumTime"`
+	DiskUsageMaximum                 float64      `form:"DiskUsageMaximum"`
+	DiskUsageMaximumTime             time.Time    `form:"DiskUsageMaximumTime"`
+	DiskUsageAverage                 float64      `form:"DiskUsageAverage"`
+	DiskUsageMinimum                 float64      `form:"DiskUsageMinimum"`
+	DiskUsageMinimumTime             time.Time    `form:"DiskUsageMinimumTime"`
+	DiskTotalReadLatencyMaximum      float64      `form:"DiskTotalReadLatencyMaximum"`
+	DiskTotalReadLatencyMaximumTime  time.Time    `form:"DiskTotalReadLatencyMaximumTime"`
+	DiskTotalReadLatencyAverage      float64      `form:"DiskTotalReadLatencyAverage"`
+	DiskTotalReadLatencyMinimum      float64      `form:"DiskTotalReadLatencyMinimum"`
+	DiskTotalReadLatencyMinimumTime  time.Time    `form:"DiskTotalReadLatencyMinimumTime"`
+	DiskTotalWriteLatencyMaximum     float64      `form:"DiskTotalWriteLatencyMaximum"`
+	DiskTotalWriteLatencyMaximumTime time.Time    `form:"DiskTotalWriteLatencyMaximumTime"`
+	DiskTotalWriteLatencyAverage     float64      `form:"DiskTotalWriteLatencyAverage"`
+	DiskTotalWriteLatencyMinimum     float64      `form:"DiskTotalWriteLatencyMinimum"`
+	DiskTotalWriteLatencyMinimumTime time.Time    `form:"DiskTotalWriteLatencyMinimumTime"`
+	DiskWriteMaximum                 float64      `form:"DiskWriteMaximum"`
+	DiskWriteMaximumTime             time.Time    `form:"DiskWriteMaximumTime"`
+	DiskWriteAverage                 float64      `form:"DiskWriteAverage"`
+	DiskWriteMinimum                 float64      `form:"DiskWriteMinimum"`
+	DiskWriteMinimumTime             time.Time    `form:"DiskWriteMinimumTime"`
+	DiskReadMaximum                  float64      `form:"DiskReadMaximum"`
+	DiskReadMaximumTime              time.Time    `form:"DiskReadMaximumTime"`
+	DiskReadAverage                  float64      `form:"DiskReadAverage"`
+	DiskReadMinimum                  float64      `form:"DiskReadMinimum"`
+	DiskReadMinimumTime              time.Time    `form:"DiskReadMinimumTime"`
+	NetUsageMaximum                  float64      `form:"NetUsageMaximum"`
+	NetUsageMaximumTime              time.Time    `form:"NetUsageMaximumTime"`
+	NetUsageAverage                  float64      `form:"NetUsageAverage"`
+	NetUsageMinimum                  float64      `form:"NetUsageMinimum"`
+	NetUsageMinimumTime              time.Time    `form:"NetUsageMinimumTime"`
+	CPUBilling                       float64      `form:"CPUBilling"`  // в мегагерц часах
+	DiskBilling                      float64      `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
+	MemBilling                       float64      `form:"MemBilling"`  // в мегабайт часах
+	NetBilling                       float64      `form:"NetBilling"`  // в мегабайт часах
+	Hosts                            []*HostInfo  `form:"Hosts"`
+	HostCount                        int64        `form:"HostCount"`
+	VM                               []*VMPoint   `form:"VM"`
+	VMCount                          int64        `form:"VMCount"`
+	Storage                          []*Datastore `form:"Storage"`
+	StorageCount                     int64        `form:"StorageCount"`
+	Perf                             []*CLPerf    `form:"Perf"`
+	PerfCount                        int64        `form:"PerfCount"`
 }
 
+// ClusterListRecord — краткая запись кластера для формирования справочных списков.
 type ClusterListRecord struct {
 	LockFlag
 	ID         int64  `form:"ID"`
@@ -484,99 +531,107 @@ type ClusterListRecord struct {
 	Name       string `form:"Name"`
 }
 
+// HostInfo описывает хост ESXi: аппаратные характеристики (вендор, модель,
+// серийный номер, CPU/память), состояние (питание, режим обслуживания) и
+// агрегированные метрики производительности (min/max/avg).
 type HostInfo struct {
 	LockFlag
-	ID                                int64            `form:"ID"`
-	Vcenter                           string           `form:"Vcenter"`
-	Datacenter                        string           `form:"Datacenter"`
-	Cluster                           string           `form:"Cluster"`
-	ClusterID                         string           `form:"ClusterID"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	Name                              string           `form:"Name"`
-	KeyName                           string           `form:"KeyName"`
-	Vendor                            string           `form:"Vendor"` //HostSystemInfo
-	Model                             string           `form:"Model"`
-	SerialNumber                      string           `form:"SerialNumber"`
-	VirtualSerialNumber               string           `form:"VirtualSerialNumber"`
-	EnclosureSerialNumber             string           `form:"EnclosureSerialNumber"`
-	Product                           types.AboutInfo  `form:"Product"`         //подробная информация о esxi
-	ProductFullName                   string           `form:"ProductFullName"` //строка с наименование esxi с версией и редакцией
-	UUID                              string           `form:"UUID"`
-	PowerState                        bool             `form:"PowerState"` //true host включен
-	InMaintenanceMode                 bool             `form:"InMaintenanceMode"`
-	CPUModel                          string           `form:"CPUModel"`
-	CPUMhz                            int32            `form:"CPUMhz"`
-	NumCPUPkgs                        int16            `form:"NumCPUPkgs"`
-	NumCPUCores                       int16            `form:"NumCPUCores"`
-	NumCPUThreads                     int16            `form:"NumCPUThreads"`
-	NumNics                           int32            `form:"NumNics"`
-	IPAddress                         string           `form:"IPAddress"`   //IP v4 адреса через разделитель ;
-	MacAddress                        string           `form:"MacAddress"`  //Mac адреса через разделитель ;
-	NumHBAs                           int32            `form:"NumHBAs"`
-	MemorySizeGB                      float64          `form:"MemorySizeGB"`
-	HostMaxVirtualDiskCapacity        float64          `form:"HostMaxVirtualDiskCapacity"`
-	TagName                           string           `form:"TagName"`        //Имя 1 тэга для хоста (Код для справочника)
-	TagDescription                    string           `form:"TagDescription"` //Описание 1 тэга для хоста
-	CPUUsageMaximum                   float64          `form:"CPUUsageMaximum"`
-	CPUUsageMaximumTime               time.Time `form:"CPUUsageMaximumTime"`
-	CPUUsageAverage                   float64   `form:"CPUUsageAverage"`
-	CPUUsageMinimum                   float64   `form:"CPUUsageMinimum"`
-	CPUUsageMinimumTime               time.Time `form:"CPUUsageMinimumTime"`
-	MemUsageMaximum                   float64   `form:"MemUsageMaximum"`
-	MemUsageMaximumTime               time.Time `form:"MemUsageMaximumTime"`
-	MemUsageAverage                   float64   `form:"MemUsageAverage"`
-	MemUsageMinimum                   float64   `form:"MemUsageMinimum"`
-	MemUsageMinimumTime               time.Time `form:"MemUsageMinimumTime"`
-	DiskUsageMaximum                  float64   `form:"DiskUsageMaximum"`
-	DiskUsageMaximumTime              time.Time `form:"DiskUsageMaximumTime"`
-	DiskUsageAverage                  float64   `form:"DiskUsageAverage"`
-	DiskUsageMinimum                  float64   `form:"DiskUsageMinimum"`
-	DiskUsageMinimumTime              time.Time `form:"DiskUsageMinimumTime"`
-	DiskTotalReadLatencyMaximum       float64   `form:"DiskTotalReadLatencyMaximum"`
-	DiskTotalReadLatencyMaximumTime   time.Time `form:"DiskTotalReadLatencyMaximumTime"`
-	DiskTotalReadLatencyAverage       float64   `form:"DiskTotalReadLatencyAverage"`
-	DiskTotalReadLatencyMinimum       float64   `form:"DiskTotalReadLatencyMinimum"`
-	DiskTotalReadLatencyMinimumTime   time.Time `form:"DiskTotalReadLatencyMinimumTime"`
-	DiskTotalWriteLatencyMaximum      float64   `form:"DiskTotalWriteLatencyMaximum"`
-	DiskTotalWriteLatencyMaximumTime  time.Time `form:"DiskTotalWriteLatencyMaximumTime"`
-	DiskTotalWriteLatencyAverage      float64   `form:"DiskTotalWriteLatencyAverage"`
-	DiskTotalWriteLatencyMinimum      float64   `form:"DiskTotalWriteLatencyMinimum"`
-	DiskTotalWriteLatencyMinimumTime  time.Time `form:"DiskTotalWriteLatencyMinimumTime"`
-	DiskWriteMaximum                  float64   `form:"DiskWriteMaximum"`
-	DiskWriteMaximumTime              time.Time `form:"DiskWriteMaximumTime"`
-	DiskWriteAverage                  float64   `form:"DiskWriteAverage"`
-	DiskWriteMinimum                  float64   `form:"DiskWriteMinimum"`
-	DiskWriteMinimumTime              time.Time `form:"DiskWriteMinimumTime"`
-	DiskReadMaximum                   float64   `form:"DiskReadMaximum"`
-	DiskReadMaximumTime               time.Time `form:"DiskReadMaximumTime"`
-	DiskReadAverage                   float64   `form:"DiskReadAverage"`
-	DiskReadMinimum                   float64   `form:"DiskReadMinimum"`
-	DiskReadMinimumTime               time.Time `form:"DiskReadMinimumTime"`
-	NetUsageMaximum                   float64   `form:"NetUsageMaximum"`
-	NetUsageMaximumTime               time.Time `form:"NetUsageMaximumTime"`
-	NetUsageAverage                   float64   `form:"NetUsageAverage"`
-	NetUsageMinimum                   float64   `form:"NetUsageMinimum"`
-	NetUsageMinimumTime               time.Time `form:"NetUsageMinimumTime"`
-	CPUBilling                        float64   `form:"CPUBilling"`  // в мегагерц часах
-	MemBilling                        float64   `form:"MemBilling"`  // в мегабайт часах
-	DiskBilling                       float64   `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
-	NetBilling                        float64   `form:"NetBilling"`  // в мегабайт часах
-	Perf                              []*HSPerf `form:"Perf"` //14.08.2024
-	PerfCount                         int64     `form:"PerfCount"`
+	ID                               int64           `form:"ID"`
+	Vcenter                          string          `form:"Vcenter"`
+	Datacenter                       string          `form:"Datacenter"`
+	Cluster                          string          `form:"Cluster"`
+	ClusterID                        string          `form:"ClusterID"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	Name                             string          `form:"Name"`
+	KeyName                          string          `form:"KeyName"`
+	Vendor                           string          `form:"Vendor"` //HostSystemInfo
+	Model                            string          `form:"Model"`
+	SerialNumber                     string          `form:"SerialNumber"`
+	VirtualSerialNumber              string          `form:"VirtualSerialNumber"`
+	EnclosureSerialNumber            string          `form:"EnclosureSerialNumber"`
+	Product                          types.AboutInfo `form:"Product"`         //подробная информация о esxi
+	ProductFullName                  string          `form:"ProductFullName"` //строка с наименование esxi с версией и редакцией
+	UUID                             string          `form:"UUID"`
+	PowerState                       bool            `form:"PowerState"` //true host включен
+	InMaintenanceMode                bool            `form:"InMaintenanceMode"`
+	CPUModel                         string          `form:"CPUModel"`
+	CPUMhz                           int32           `form:"CPUMhz"`
+	NumCPUPkgs                       int16           `form:"NumCPUPkgs"`
+	NumCPUCores                      int16           `form:"NumCPUCores"`
+	NumCPUThreads                    int16           `form:"NumCPUThreads"`
+	NumNics                          int32           `form:"NumNics"`
+	IPAddress                        string          `form:"IPAddress"`  //IP v4 адреса через разделитель ;
+	MacAddress                       string          `form:"MacAddress"` //Mac адреса через разделитель ;
+	NumHBAs                          int32           `form:"NumHBAs"`
+	MemorySizeGB                     float64         `form:"MemorySizeGB"`
+	HostMaxVirtualDiskCapacity       float64         `form:"HostMaxVirtualDiskCapacity"`
+	TagName                          string          `form:"TagName"`        //Имя 1 тэга для хоста (Код для справочника)
+	TagDescription                   string          `form:"TagDescription"` //Описание 1 тэга для хоста
+	CPUUsageMaximum                  float64         `form:"CPUUsageMaximum"`
+	CPUUsageMaximumTime              time.Time       `form:"CPUUsageMaximumTime"`
+	CPUUsageAverage                  float64         `form:"CPUUsageAverage"`
+	CPUUsageMinimum                  float64         `form:"CPUUsageMinimum"`
+	CPUUsageMinimumTime              time.Time       `form:"CPUUsageMinimumTime"`
+	MemUsageMaximum                  float64         `form:"MemUsageMaximum"`
+	MemUsageMaximumTime              time.Time       `form:"MemUsageMaximumTime"`
+	MemUsageAverage                  float64         `form:"MemUsageAverage"`
+	MemUsageMinimum                  float64         `form:"MemUsageMinimum"`
+	MemUsageMinimumTime              time.Time       `form:"MemUsageMinimumTime"`
+	DiskUsageMaximum                 float64         `form:"DiskUsageMaximum"`
+	DiskUsageMaximumTime             time.Time       `form:"DiskUsageMaximumTime"`
+	DiskUsageAverage                 float64         `form:"DiskUsageAverage"`
+	DiskUsageMinimum                 float64         `form:"DiskUsageMinimum"`
+	DiskUsageMinimumTime             time.Time       `form:"DiskUsageMinimumTime"`
+	DiskTotalReadLatencyMaximum      float64         `form:"DiskTotalReadLatencyMaximum"`
+	DiskTotalReadLatencyMaximumTime  time.Time       `form:"DiskTotalReadLatencyMaximumTime"`
+	DiskTotalReadLatencyAverage      float64         `form:"DiskTotalReadLatencyAverage"`
+	DiskTotalReadLatencyMinimum      float64         `form:"DiskTotalReadLatencyMinimum"`
+	DiskTotalReadLatencyMinimumTime  time.Time       `form:"DiskTotalReadLatencyMinimumTime"`
+	DiskTotalWriteLatencyMaximum     float64         `form:"DiskTotalWriteLatencyMaximum"`
+	DiskTotalWriteLatencyMaximumTime time.Time       `form:"DiskTotalWriteLatencyMaximumTime"`
+	DiskTotalWriteLatencyAverage     float64         `form:"DiskTotalWriteLatencyAverage"`
+	DiskTotalWriteLatencyMinimum     float64         `form:"DiskTotalWriteLatencyMinimum"`
+	DiskTotalWriteLatencyMinimumTime time.Time       `form:"DiskTotalWriteLatencyMinimumTime"`
+	DiskWriteMaximum                 float64         `form:"DiskWriteMaximum"`
+	DiskWriteMaximumTime             time.Time       `form:"DiskWriteMaximumTime"`
+	DiskWriteAverage                 float64         `form:"DiskWriteAverage"`
+	DiskWriteMinimum                 float64         `form:"DiskWriteMinimum"`
+	DiskWriteMinimumTime             time.Time       `form:"DiskWriteMinimumTime"`
+	DiskReadMaximum                  float64         `form:"DiskReadMaximum"`
+	DiskReadMaximumTime              time.Time       `form:"DiskReadMaximumTime"`
+	DiskReadAverage                  float64         `form:"DiskReadAverage"`
+	DiskReadMinimum                  float64         `form:"DiskReadMinimum"`
+	DiskReadMinimumTime              time.Time       `form:"DiskReadMinimumTime"`
+	NetUsageMaximum                  float64         `form:"NetUsageMaximum"`
+	NetUsageMaximumTime              time.Time       `form:"NetUsageMaximumTime"`
+	NetUsageAverage                  float64         `form:"NetUsageAverage"`
+	NetUsageMinimum                  float64         `form:"NetUsageMinimum"`
+	NetUsageMinimumTime              time.Time       `form:"NetUsageMinimumTime"`
+	CPUBilling                       float64         `form:"CPUBilling"`  // в мегагерц часах
+	MemBilling                       float64         `form:"MemBilling"`  // в мегабайт часах
+	DiskBilling                      float64         `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
+	NetBilling                       float64         `form:"NetBilling"`  // в мегабайт часах
+	Perf                             []*HSPerf       `form:"Perf"`        //14.08.2024
+	PerfCount                        int64           `form:"PerfCount"`
 }
 
 // для сортировки
+
+// ByName реализует sort.Interface для сортировки mo.VirtualMachine по имени.
 type ByName []mo.VirtualMachine
 
 func (n ByName) Len() int           { return len(n) }
 func (n ByName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
 func (n ByName) Less(i, j int) bool { return n[i].Name < n[j].Name }
 
+// VMListID реализует sort.Interface для сортировки VMPoint по идентификатору ID.
 type VMListID []VMPoint
 
 func (n VMListID) Len() int           { return len(n) }
 func (n VMListID) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
 func (n VMListID) Less(i, j int) bool { return n[i].ID < n[j].ID }
 
+// VMPerfCPUorMEM реализует sort.Interface для сортировки VMPoint по убыванию
+// максимальной (а при равенстве — средней) нагрузки CPU или памяти.
 type VMPerfCPUorMEM []VMPoint
 
 func (n VMPerfCPUorMEM) Len() int      { return len(n) }
@@ -615,6 +670,7 @@ func (n VMPerfCPUorMEM) Less(i, j int) bool {
 	return iMax > jMax
 }
 
+// VMListCluster реализует sort.Interface для сортировки VMPoint по имени кластера.
 type VMListCluster []VMPoint
 
 func (n VMListCluster) Len() int      { return len(n) }
@@ -626,6 +682,7 @@ func (n VMListCluster) Less(i, j int) bool {
 	return false
 }
 
+// VMListName реализует sort.Interface для сортировки VMPoint по имени виртуальной машины.
 type VMListName []VMPoint
 
 func (n VMListName) Len() int      { return len(n) }
@@ -637,24 +694,29 @@ func (n VMListName) Less(i, j int) bool {
 	return false
 }
 
+// HSListID реализует sort.Interface для сортировки HostInfo по идентификатору ID.
 type HSListID []HostInfo
 
 func (n HSListID) Len() int           { return len(n) }
 func (n HSListID) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
 func (n HSListID) Less(i, j int) bool { return n[i].ID < n[j].ID }
 
+// HSListName реализует sort.Interface для сортировки HostInfo по имени.
 type HSListName []*HostInfo
 
 func (n HSListName) Len() int           { return len(n) }
 func (n HSListName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
 func (n HSListName) Less(i, j int) bool { return n[i].Name < n[j].Name }
 
+// ClusterName реализует sort.Interface для сортировки кластеров по имени.
 type ClusterName []*Cluster
 
 func (n ClusterName) Len() int           { return len(n) }
 func (n ClusterName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
 func (n ClusterName) Less(i, j int) bool { return n[i].Name < n[j].Name }
 
+// ClusterCPUPerf реализует sort.Interface для сортировки кластеров по убыванию
+// суммарной вычислительной мощности хостов (МГц × число ядер).
 type ClusterCPUPerf []*Cluster
 
 func (n ClusterCPUPerf) Len() int      { return len(n) }
@@ -670,6 +732,7 @@ func (n ClusterCPUPerf) Less(i, j int) bool {
 	return !(summI < summJ) //сортировка по убыванию
 }
 
+// ClusterDate реализует sort.Interface для сортировки кластеров по возрастанию даты (Date).
 type ClusterDate []*Cluster
 
 func (n ClusterDate) Len() int      { return len(n) }
@@ -678,6 +741,7 @@ func (n ClusterDate) Less(i, j int) bool {
 	return (n[i].Date.Before(n[j].Date)) //сортировка сортировка по возрастанию
 }
 
+// ClusterVcenter реализует sort.Interface для сортировки кластеров по связке Vcenter/Datacenter/Name.
 type ClusterVcenter []*Cluster
 
 func (n ClusterVcenter) Len() int      { return len(n) }

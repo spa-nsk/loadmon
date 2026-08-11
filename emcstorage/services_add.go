@@ -1,29 +1,34 @@
 package emcstorage
 
+// GetAlert возвращает список активных алертов СХД (/api/types/alert/instances)
 func (session *Session) GetAlert() (resp *Alert, err error) {
 	fields := "id,severity,description"
 	err = session.Request("GET", "/api/types/alert/instances", fields, "", false, nil, &resp)
 	return resp, err
 }
 
+// GetEvent возвращает список событий СХД с подробностями (/api/types/event/instances)
 func (session *Session) GetEvent() (resp *Event, err error) {
 	fields := "id,node,creationTime,severity,messageId,arguments,message,username,category,source"
 	err = session.Request("GET", "/api/types/event/instances", fields, "", false, nil, &resp)
 	return resp, err
 }
 
+// GetEventIDs возвращает список идентификаторов событий СХД (сокращённый набор полей)
 func (session *Session) GetEventIDs() (resp *Event, err error) {
 	fields := "id,node,creationTime,severity,messageId,category"
 	err = session.Request("GET", "/api/types/event/instances", fields, "", false, nil, &resp)
 	return resp, err
 }
 
+// GetDisks возвращает список физических дисков СХД (/api/types/disk/instances)
 func (session *Session) GetDisks() (resp *Disk, err error) {
 	fields := "id,needsReplacement,slotNumber,estimatedEOL,busId,name,manufacturer,model,version,emcPartNumber,emcSerialNumber,tierType,currentSpeed,maxSpeed,isInUse,isFastCacheInUse,size,rawSize,vendorSize,wwn,diskTechnology"
 	err = session.Request("GET", "/api/types/disk/instances", fields, "", false, nil, &resp)
 	return resp, err
 }
 
+// GetStorageProcessor возвращает информацию о storage processor'ах СХД, включая родительские DPE и систему (/api/types/storageProcessor/instances)
 func (session *Session) GetStorageProcessor() (resp *StorageProcessor, err error) {
 	//	fields := "id,parent.id,parent.resource,health.value,helth.descriptionIds,helth.descriptions,helth.resolutionIds,helth.resolutions,isRescueMode,model,
 	//slotNumber,name,emcPartNumber,emcSerialNumber,manufacturer,vendorPartNumber,vendorSerialNumber,sasExpanderVersion,biosFirmwareRevision,postFirmwareRevision,memorySize,modelName"
@@ -45,6 +50,7 @@ func (session *Session) GetStorageProcessor() (resp *StorageProcessor, err error
 	return resp, err
 }
 
+// GetDAE возвращает информацию о дисковых полках DAE (Disk Array Enclosure) СХД (/api/types/dae/instances)
 func (session *Session) GetDAE() (resp *DAE, err error) {
 
 	fields := "id,health.value,health.descriptionIds,health.descriptions,health.resolutionIds,health.resolutions,needsReplacement,parent.id,parent.resource,slotNumber," +
@@ -59,6 +65,7 @@ func (session *Session) GetDAE() (resp *DAE, err error) {
 	return resp, err
 }
 
+// GetDPE возвращает информацию о базовых блоках DPE (Disk Processor Enclosure) СХД (/api/types/dpe/instances)
 func (session *Session) GetDPE() (resp *DPE, err error) {
 
 	fields := "id,health.value,health.descriptionIds,health.descriptions,health.resolutionIds,health.resolutions,needsReplacement,parent.id,parent.resource,slotNumber," +
@@ -73,6 +80,7 @@ func (session *Session) GetDPE() (resp *DPE, err error) {
 	return resp, err
 }
 
+// GetDiskGroup возвращает информацию о группах дисков (tier-группах) СХД (/api/types/diskGroup/instances)
 func (session *Session) GetDiskGroup() (resp *DiskGroup, err error) {
 
 	fields := "id,name,emcPartNumber,tierType,diskTechnology,isFASTCacheAllowable,diskSize,advertisedSize,rpm,speed,totalDisks,minHotSpareCandidates,hotSparePolicyStatus,unconfiguredDisks," +
@@ -82,6 +90,7 @@ func (session *Session) GetDiskGroup() (resp *DiskGroup, err error) {
 	return resp, err
 }
 
+// GetHost возвращает список хостов, подключённых к СХД, с инициаторами и отображёнными LUN (/api/types/host/instances)
 func (session *Session) GetHost() (resp *Host, err error) {
 
 	fields := "id,health.value,health.descriptionIds,health.descriptions,health.resolutionIds,health.resolutions,name,description,type,osType,hostUUID,hostPushedUUID,hostPolledUUID," +
@@ -98,6 +107,7 @@ func (session *Session) GetHost() (resp *Host, err error) {
 	return resp, err
 }
 
+// GetLun возвращает список LUN СХД (/api/types/lun/instances)
 func (session *Session) GetLun() (resp *Lun, err error) {
 	/*
 		fields := "id,health.value,health.descriptionIds,health.descriptions,health.resolutionIds,health.resolutions,name,description,type,sizeTotal,sizeUsed,sizeAllocated," +
@@ -118,6 +128,7 @@ func (session *Session) GetLun() (resp *Lun, err error) {
 	return resp, err
 }
 
+// GetLunById возвращает LUN СХД по его идентификатору (/api/instances/lun/{id})
 func (session *Session) GetLunById(id string) (resp *Lun, err error) {
 	fields := "id,health.value,health.descriptionIds,health.descriptions,health.resolutionIds,health.resolutions,name,description,type,sizeTotal,sizeUsed,sizeAllocated," +
 		"sizePreallocated,sizeAllocatedTotal,dataReductionSizeSaved,dataReductionPercent,dataReductionRatio,perTierSizeUsed,isThinEnabled,isDataReductionEnabled," +
@@ -129,6 +140,7 @@ func (session *Session) GetLunById(id string) (resp *Lun, err error) {
 	return resp, err
 }
 
+// GetLunByName возвращает LUN СХД по его имени (/api/instances/lun/name:{name})
 func (session *Session) GetLunByName(name string) (resp *Lun, err error) {
 	fields := "id,health.value,health.descriptionIds,health.descriptions,health.resolutionIds,health.resolutions,name,description,type,sizeTotal,sizeUsed,sizeAllocated," +
 		"sizePreallocated,sizeAllocatedTotal,dataReductionSizeSaved,dataReductionPercent,dataReductionRatio,perTierSizeUsed,isThinEnabled,isDataReductionEnabled," +

@@ -24,45 +24,47 @@ func zabbixLogout(z *zabbix.Context) {
 	}
 }
 
+// ZabbixUpdate предназначена для синхронизации данных CMDB с сервером Zabbix.
+// В текущей реализации основная логика закомментирована и функция ничего не выполняет.
 func ZabbixUpdate() {
 
-/*
-	var z zabbix.Context
+	/*
+		var z zabbix.Context
 
-	// Get variables from environment to login to Zabbix server
-	zbxHost := "https://zabbixcorp.global.bcs/api_jsonrpc.php"
-	zbxUsername := "spausvc"
-	zbxPassword := "9SQ8Bc4ce0#U"
-	if zbxHost == "" || zbxUsername == "" || zbxPassword == "" {
-		fmt.Println("Login error: make sure environment variables 'ZABBIX_HOST', 'ZABBIX_USERNAME' and 'ZABBIX_PASSWORD' are defined")
-		return
-	}
+		// Get variables from environment to login to Zabbix server
+		zbxHost := "https://zabbixcorp.global.bcs/api_jsonrpc.php"
+		zbxUsername := "spausvc"
+		zbxPassword := "9SQ8Bc4ce0#U"
+		if zbxHost == "" || zbxUsername == "" || zbxPassword == "" {
+			fmt.Println("Login error: make sure environment variables 'ZABBIX_HOST', 'ZABBIX_USERNAME' and 'ZABBIX_PASSWORD' are defined")
+			return
+		}
 
-	// Login to Zabbix server
-	err := z.Login(zbxHost, zbxUsername, zbxPassword)
-	defer z.Logout()
+		// Login to Zabbix server
+		err := z.Login(zbxHost, zbxUsername, zbxPassword)
+		defer z.Logout()
 
-	if err != nil {
-		fmt.Println("Login error:", err)
-		return
-	}
+		if err != nil {
+			fmt.Println("Login error:", err)
+			return
+		}
 
-	// Get all hosts
-	hObjects, _, err := z.HostGet(zabbix.HostGetParams{
-		GetParameters: zabbix.GetParameters{
-			Output: zabbix.SelectExtendedOutput,
-		},
-	})
-	if err != nil {
-		fmt.Println("Hosts get error:", err)
-		return
-	}
+		// Get all hosts
+		hObjects, _, err := z.HostGet(zabbix.HostGetParams{
+			GetParameters: zabbix.GetParameters{
+				Output: zabbix.SelectExtendedOutput,
+			},
+		})
+		if err != nil {
+			fmt.Println("Hosts get error:", err)
+			return
+		}
 
-	// Print names of retrieved hosts
-	fmt.Println("Hosts list:")
-	for _, h := range hObjects {
-		fmt.Println("-", h.Host)
-	}
-*/
+		// Print names of retrieved hosts
+		fmt.Println("Hosts list:")
+		for _, h := range hObjects {
+			fmt.Println("-", h.Host)
+		}
+	*/
 
 }

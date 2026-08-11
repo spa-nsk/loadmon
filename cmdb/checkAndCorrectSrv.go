@@ -10,6 +10,10 @@ import (
 )
 
 // проверить и тестировать
+// CheckAndCorrectSrv выбирает из набора дублирующихся записей ServerSprRecords с одинаковым
+// именем сервера ту, что наиболее полно заполнена и соответствует переданному имени и
+// количеству процессоров, связывает её с конфигурацией оборудования, а остальные дубли
+// помечает как архивные. Возвращает Id выбранной записи.
 func CheckAndCorrectSrv(records []*models.ServerSprRecords, serverName string, cpuCount int) int64 {
 	//strings.EqualFold(string, string)
 	count := len(records)
@@ -50,7 +54,7 @@ func CheckAndCorrectSrv(records []*models.ServerSprRecords, serverName string, c
 		}
 		if !foundHW && records[i].SerialNumber != "" { //пытаемся найти по серийному номеру последнему или из истории первоначальному
 			h.SerialNum = records[i].SerialNumber //
-			err := o.Read(&h, "SerialNum") //ищем конфигурации по серийному номеру
+			err := o.Read(&h, "SerialNum")        //ищем конфигурации по серийному номеру
 			if err != nil {
 				fmt.Println("Ошибка поиска информации по конфигурации сервера:", records[i].Name, records[i].NameFQDN, "SerialNumber=", records[i].SerialNumber)
 			} else {
@@ -60,7 +64,7 @@ func CheckAndCorrectSrv(records []*models.ServerSprRecords, serverName string, c
 		if !foundHW {
 			alterSN := GetSNFromServerSprRecords(records[i])
 			if alterSN != "" {
-				h.SerialNum = alterSN //
+				h.SerialNum = alterSN          //
 				err := o.Read(&h, "SerialNum") //ищем конфигурации по альтернативному серийному номеру (из поля Details)
 				if err != nil {
 					fmt.Println("Ошибка поиска информации по конфигурации сервера:", records[i].Name, records[i].NameFQDN, "альтернативный SerialNumber=", alterSN)
@@ -123,7 +127,7 @@ func CheckAndCorrectSrv(records []*models.ServerSprRecords, serverName string, c
 		if i == idx {
 			continue
 		}
-		exclude := false                   //флаг исключения
+		exclude := false                  //флаг исключения
 		for _, ex := range excludeIndex { //проверяем текущий индекс в списке исключений
 			if i == ex {
 				exclude = true

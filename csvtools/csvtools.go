@@ -1,3 +1,7 @@
+// Package csvtools содержит вспомогательные функции для работы с CSV: разбор
+// значений HTML-форм в структуры по тегам, формирование заголовков и строк
+// данных CSV на основе структур через reflection, а также утилиты форматирования
+// дат и строк, используемые шаблонизатором.
 package csvtools
 
 import (
@@ -327,6 +331,8 @@ func parseFormToStruct(form url.Values, objT reflect.Type, objV reflect.Value) e
 	return nil
 }
 
+// ParseForm заполняет поля структуры, на которую указывает obj, значениями
+// из form на основе тегов "csv". obj должен быть указателем на структуру.
 func ParseForm(form url.Values, obj interface{}) error {
 	objT := reflect.TypeOf(obj)
 	objV := reflect.ValueOf(obj)
@@ -339,6 +345,8 @@ func ParseForm(form url.Values, obj interface{}) error {
 	return parseFormToStruct(form, objT, objV)
 }
 
+// GetCSVHeader возвращает список заголовков CSV, построенный по тегам "csv"
+// полей структуры, на которую указывает obj (в т.ч. рекурсивно для вложенных структур).
 func GetCSVHeader(obj interface{}) ([]string, error) {
 	var header []string
 	header = nil
@@ -395,6 +403,9 @@ func GetCSVHeader(obj interface{}) ([]string, error) {
 	return header, nil
 }
 
+// GetCSVData возвращает строку значений CSV, сформированную по полям структуры,
+// на которую указывает obj, с учётом тегов "csv" и "format" (в т.ч. рекурсивно
+// для вложенных структур).
 func GetCSVData(obj interface{}) ([]string, error) {
 	var data []string
 	data = nil

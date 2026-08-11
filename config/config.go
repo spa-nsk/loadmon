@@ -1,3 +1,7 @@
+// Package config отвечает за загрузку и хранение конфигурации приложения
+// loadmon (файл app2.json), инициализацию подключений к базам данных ORM
+// beego (см. DBInit) и запуск фонового опроса метрик vCenter/OneView по
+// параметрам, заданным в конфигурации.
 package config
 
 import (
@@ -18,6 +22,7 @@ import (
 	"loadmon/vspheremetrics"
 )
 
+// OvEndpoint описывает подключение к одному эндпоинту HPE OneView (домен, учётные данные, версия API).
 type OvEndpoint struct {
 	Domain   string
 	Login    string
@@ -26,6 +31,9 @@ type OvEndpoint struct {
 	Version  int
 }
 
+// JsonConfig — структура конфигурации приложения, загружаемая из файла app2.json:
+// параметры подключения к БД, режимы работы, адреса gRPC-серверов и клиентов,
+// список опрашиваемых vCenter и OneView.
 type JsonConfig struct {
 	AliasName      string
 	DriverName     string
@@ -56,6 +64,8 @@ type JsonConfig struct {
 	ConfigOV       []OvEndpoint
 }
 
+// EndpointRecord содержит адреса gRPC API/DB-сервера и карты соответствия
+// vCenter/OneView для одного узла в топологии переключения (Switch).
 type EndpointRecord struct {
 	GRPCSrvApiAddr string
 	GRPCSrvApiPort int64
@@ -65,39 +75,56 @@ type EndpointRecord struct {
 	OneViewMap     cmap.ConcurrentMap[string, string]
 }
 
+// ConfigSwitch хранит потокобезопасную карту эндпоинтов (EndpointRecord) для
+// маршрутизации запросов между несколькими инстансами gRPC-серверов.
 type ConfigSwitch struct {
 	Endpoint cmap.ConcurrentMap[string, *EndpointRecord]
 }
 
 var (
+	// ConfigData — глобальный экземпляр конфигурации приложения, заполняемый LoadConfigData.
 	ConfigData JsonConfig
-	Switch     ConfigSwitch
+	// Switch — глобальная таблица переключения между эндпоинтами gRPC-серверов.
+	Switch ConfigSwitch
 )
 
 func init() {
 	Switch.Endpoint = cmap.New[*EndpointRecord]()
 }
 
+// GetSrvApiAddr возвращает адрес вида "host:port" для gRPC API-сервера данной записи.
 func (r *EndpointRecord) GetSrvApiAddr() string {
 	s := fmt.Sprintf("%s:%d", r.GRPCSrvApiAddr, r.GRPCSrvApiPort)
 	return s
 }
 
+// GetSrvDBAddr возвращает адрес вида "host:port" для gRPC DB-сервера данной записи.
 func (r *EndpointRecord) GetSrvDBAddr() string {
 	s := fmt.Sprintf("%s:%d", r.GRPCSrvDBAddr, r.GRPCSrvDBPort)
 	return s
 }
 
+// confDir возвращает каталог, в котором расположен файл конфигурации app2.json.
 func confDir() string {
 	return filepath.Dir(configFilePath())
 }
 
+// configFilePath определяет путь к файлу конфигурации app2.json: переменная
+// окружения LOADMON_CONFIG имеет приоритет, иначе перебираются стандартные
+// расположения относительно исполняемого файла и текущего каталога.
 func configFilePath() string {
+	if p := os.Getenv("LOADMON_CONFIG"); p != "" {
+		return p
+	}
 	candidates := []string{
 		filepath.Join(filepath.Dir(os.Args[0]), "conf", "app2.json"),
 	}
 	if cwd, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(cwd, "conf", "app2.json"))
+		candidates = append(candidates,
+			filepath.Join(cwd, "conf", "app2.json"),
+			filepath.Join(cwd, "metrics_grpc", "conf", "app2.json"),
+			filepath.Join(cwd, "server_web_new", "conf", "app2.json"),
+		)
 	}
 	for _, path := range candidates {
 		if _, err := os.Stat(path); err == nil {
@@ -107,6 +134,7 @@ func configFilePath() string {
 	return candidates[0]
 }
 
+// LoadConfigData читает и разбирает файл конфигурации app2.json в структуру JsonConfig.
 func (s *JsonConfig) LoadConfigData() (JsonConfig, error) {
 	if s == nil {
 		s = &JsonConfig{}
@@ -120,9 +148,11 @@ func (s *JsonConfig) LoadConfigData() (JsonConfig, error) {
 	if err != nil {
 		return *s, err
 	}
+	log.Printf("config: загружен %s (WorkMode=%s, vCenters=%d)", fullPath, s.WorkMode, len(s.ConfigVCenters))
 	return *s, nil
 }
 
+// SaveConfigData сериализует конфигурацию в JSON и сохраняет её в файл app2.json.
 func (s *JsonConfig) SaveConfigData() error {
 	if s == nil {
 		return fmt.Errorf("Нет данных для сохранения")
@@ -139,17 +169,16 @@ func (s *JsonConfig) SaveConfigData() error {
 	return nil
 }
 
+// InitParams применяет загруженную конфигурацию: обновляет список опрашиваемых
+// vCenter и OneView-эндпоинтов в глобальной инфраструктуре и, если WorkMode == "api",
+// запускает фоновый поток опроса метрик (StartGetMetricThread).
 func (s *JsonConfig) InitParams() error {
 
 	if s == nil {
 		return fmt.Errorf("Нет данных для инициализации")
 	}
-	//username3 := "usr-nsk-dati-03"
-	//password3 := "3Z7rn8Z1qxvaop2t@(XzmBEMSF)NRx"
 
 	password := utilities.GetKeyData("usr-nsk-dati-02@global.bcs")
-
-	//  password2 := utilities.GetKeyData("svc-vmw-vc-ro-01@am-uralsib.ru")
 
 	if s.Password == "password" {
 		s.Password = utilities.GetKeyData("work")
@@ -188,12 +217,18 @@ func (s *JsonConfig) InitParams() error {
 
 	if infra.VCenterMapList.Count() > 0 {
 		if s.WorkMode == "api" {
+			log.Printf("InitParams: запуск опроса метрик для %d vCenter", infra.VCenterMapList.Count())
 			go StartGetMetricThread() //запускаем опрос метрик
+		} else {
+			log.Printf("InitParams: WorkMode=%q — фоновый опрос метрик не запускается (нужен \"api\")", s.WorkMode)
 		}
+	} else {
+		log.Println("InitParams: ConfigVCenters пуст — опрос метрик не запущен")
 	}
 	return nil
 }
 
+// InitOVParams регистрирует эндпоинты OneView из конфигурации в глобальной инфраструктуре OneView.
 func (s *JsonConfig) InitOVParams() {
 	password := utilities.GetKeyData("usr-nsk-dati-02@global.bcs")
 
@@ -206,26 +241,31 @@ func (s *JsonConfig) InitOVParams() {
 	}
 }
 
+// GetCliApiAddr возвращает адрес "host:port" клиента gRPC API из глобальной конфигурации.
 func GetCliApiAddr() string {
 	s := fmt.Sprintf("%s:%d", ConfigData.GRPCCliApiAddr, ConfigData.GRPCCliApiPort)
 	return s
 }
 
+// GetCliDBAddr возвращает адрес "host:port" клиента gRPC DB из глобальной конфигурации.
 func GetCliDBAddr() string {
 	s := fmt.Sprintf("%s:%d", ConfigData.GRPCCliDBAddr, ConfigData.GRPCCliDBPort)
 	return s
 }
 
+// GetSrvApiAddr возвращает адрес "host:port" сервера gRPC API из глобальной конфигурации.
 func GetSrvApiAddr() string {
 	s := fmt.Sprintf("%s:%d", ConfigData.GRPCSrvApiAddr, ConfigData.GRPCSrvApiPort)
 	return s
 }
 
+// GetSrvDBAddr возвращает адрес "host:port" сервера gRPC DB из глобальной конфигурации.
 func GetSrvDBAddr() string {
 	s := fmt.Sprintf("%s:%d", ConfigData.GRPCSrvDBAddr, ConfigData.GRPCSrvDBPort)
 	return s
 }
 
+// GetSwitchAddr возвращает адрес "host:port" сервиса переключения (Switch) из конфигурации.
 func (s *JsonConfig) GetSwitchAddr() string {
 	str := fmt.Sprintf("%s:%d", s.GRPCSwitchAddr, s.GRPCSwitchPort)
 	return str
@@ -244,6 +284,29 @@ func (s *JsonConfig) IsDomainAuth() bool {
 	return !s.IsLocalAuth()
 }
 
+func pollVCenter(vc *vspheremetrics.VCenter) {
+	infra := vspheremetrics.GetGlobalVMInfrastructure()
+	if infra.IsLockGetMetric() {
+		log.Printf("опрос метрик пропущен (блокировка): %s", vc.Hostname)
+		return
+	}
+	log.Printf("опрос метрик: %s", vc.Hostname)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := infra.UpdateListCluster(ctx, *vc); err != nil {
+		log.Printf("UpdateListCluster %s: %v", vc.Hostname, err)
+	}
+	if err := infra.LoadHostMetricN(ctx, *vc); err != nil {
+		log.Printf("LoadHostMetricN %s: %v", vc.Hostname, err)
+	}
+	if err := infra.LoadVmMetricV4(ctx, *vc); err != nil {
+		log.Printf("LoadVmMetricV4 %s: %v", vc.Hostname, err)
+	}
+}
+
+// StartGetMetricThread запускает по отдельной горутине на каждый настроенный
+// vCenter: первый опрос выполняется немедленно, далее — по таймеру с интервалом,
+// заданным для конкретного vCenter (vc.Wait), до сигнала остановки (DoneFl).
 func StartGetMetricThread() {
 	infra := vspheremetrics.GetGlobalVMInfrastructure()
 	infra.StartVcenterTimer()
@@ -253,37 +316,32 @@ func StartGetMetricThread() {
 		if !ok {
 			continue
 		}
+		vcLocal := vc
 		go func() {
 			infra2 := vspheremetrics.GetGlobalVMInfrastructure()
 			atomic.AddInt64(&infra2.CountThread, int64(1))
 			defer atomic.AddInt64(&infra2.CountThread, int64(-1))
-			log.Println("Запуск обработки запросов по: ", vc.Hostname, " с интервалом:", vc.Wait, " сек.")
+			log.Println("Запуск обработки запросов по: ", vcLocal.Hostname, " с интервалом:", vcLocal.Wait, " сек.")
 
-			atomic.StoreInt64(&vc.CountThread, int64(1)) //заглушка
+			atomic.StoreInt64(&vcLocal.CountThread, int64(1)) //заглушка
+
+			// первый опрос сразу, без ожидания Wait секунд
+			pollVCenter(vcLocal)
 
 			ticker := time.NewTicker(time.Second * time.Duration(1))
 			defer ticker.Stop()
 
 			for {
 				select {
-				case <-vc.Ticker.C:
-					infra2 = vspheremetrics.GetGlobalVMInfrastructure()
-					if !infra2.IsLockGetMetric() {
-						ctx, cancel := context.WithCancel(context.Background())
-						defer cancel()
-						infra2.UpdateListCluster(ctx, *vc)
-						infra2.LoadHostMetricN(ctx, *vc)
-						infra2.LoadVmMetricV4(ctx, *vc)
-					}
+				case <-vcLocal.Ticker.C:
+					pollVCenter(vcLocal)
 				case <-ticker.C:
-					//default:
-					if atomic.CompareAndSwapInt32(&vc.DoneFl, 1, 0) {
-						atomic.StoreInt64(&vc.CountThread, int64(0)) //заглушка
+					if atomic.CompareAndSwapInt32(&vcLocal.DoneFl, 1, 0) {
+						atomic.StoreInt64(&vcLocal.CountThread, int64(0)) //заглушка
 						atomic.AddInt32(&count, -1)
-						log.Println("Остановка запросов по: ", vc.Hostname, "осталось", atomic.LoadInt32(&count), "активных обработчиков")
+						log.Println("Остановка запросов по: ", vcLocal.Hostname, "осталось", atomic.LoadInt32(&count), "активных обработчиков")
 						return
 					}
-					//runtime.Gosched()
 				}
 			}
 		}()

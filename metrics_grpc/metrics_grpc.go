@@ -1,3 +1,11 @@
+// Package main (metrics_grpc) — исполняемый файл-демон системы мониторинга
+// loadmon. Инициализирует конфигурацию и БД, поднимает gRPC-серверы пакета
+// grpcserver (сервисы Loadmon и LoadmonDB, отдающие собранные данные), а
+// также клиента grpcclient для запросов к вышестоящим/соседним узлам,
+// запускает периодический опрос инфраструктуры (VMware vSphere через
+// vspheremetrics, оборудование через oneview, CMDB через cmdb, itsystem,
+// zabbix) и HTTP-эндпоинт с метриками Prometheus. Это точка сборки и запуска
+// всей серверной части проекта.
 package main
 
 import (
@@ -31,18 +39,23 @@ import (
 var baseLock sync.RWMutex
 var baseLocked bool = false
 
+// IsBaseLocked возвращает true, если БД в данный момент заблокирована для
+// обновления (см. LockBase/UnlockBase).
 func IsBaseLocked() bool {
 	baseLock.RLock()
 	defer baseLock.RUnlock()
 	return baseLocked
 }
 
+// LockBase устанавливает флаг блокировки БД на время обновления данных,
+// чтобы предотвратить конкурентный доступ.
 func LockBase() {
 	baseLock.Lock()
 	defer baseLock.Unlock()
 	baseLocked = true
 }
 
+// UnlockBase снимает флаг блокировки БД, установленный LockBase.
 func UnlockBase() {
 	baseLock.Lock()
 	defer baseLock.Unlock()
@@ -50,8 +63,12 @@ func UnlockBase() {
 }
 
 func init() {
-	config.ConfigData.LoadConfigData()
-	config.ConfigData.InitParams()
+	if _, err := config.ConfigData.LoadConfigData(); err != nil {
+		log.Printf("config: %v", err)
+	}
+	if err := config.ConfigData.InitParams(); err != nil {
+		log.Printf("InitParams: %v", err)
+	}
 }
 
 func main() {
