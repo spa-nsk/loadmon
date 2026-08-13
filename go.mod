@@ -14,6 +14,7 @@ require (
 	github.com/nixys/nxs-go-zabbix/v5 v5.2.0
 	github.com/orcaman/concurrent-map/v2 v2.0.1
 	github.com/prometheus/client_golang v1.24.1
+	github.com/spa-nsk/oneview2 v0.0.0-00010101000000-000000000000
 	github.com/twinj/uuid v1.0.0
 	github.com/vmware/govmomi v0.55.1
 	github.com/wcharczuk/go-chart v2.0.1+incompatible
@@ -63,3 +64,5 @@ require (
 )
 
 replace github.com/beego/beego/v2 => ./beego/v2
+
+replace github.com/spa-nsk/oneview2 => ./oneview2

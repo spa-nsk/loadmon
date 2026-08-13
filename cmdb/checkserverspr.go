@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"loadmon/grpcclient"
 	"loadmon/models"
-	"loadmon/oneview"
 
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // CheckServerSprRecordsLink обходит все записи server_spr_records и в зависимости от типа
@@ -56,7 +56,7 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 			continue
 		}
 		var (
-			hwAlter, hw  *oneview.ServerHardware
+			hwAlter, hw  *oneview.Server
 			h            models.ServerHardware
 			serialNumber string
 			name         string
@@ -70,7 +70,7 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 					ImportServerSprFromHW(&s, hwAlter)
 					name = oneview.GetHWserverName(hwAlter)
 					nameFQDN = oneview.GetHWserverNameFQDN(hwAlter)
-					if hwAlter.Base.PowerState == "On" { //проверяем включен ли сервер
+					if hwAlter.Identity.PowerState == "On" { //проверяем включен ли сервер
 						s.PowerState = 1
 						s.Active = 1
 						s.Stat = 1
@@ -80,7 +80,7 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 					}
 					s.Name = name
 					s.NameFQDN = nameFQDN
-					s.SerialNumber = string(hwAlter.Base.SerialNumber)
+					s.SerialNumber = hwAlter.Identity.SerialNumber
 				} else { //не найдет сервер в HP One View по серийному номеру
 					s.Stat = 0
 					s.Active = 2
@@ -96,7 +96,7 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 				name = oneview.GetHWserverName(hw)
 				nameFQDN = oneview.GetHWserverNameFQDN(hw)
 
-				if hw.Base.PowerState == "On" { //проверяем включен ли сервер
+				if hw.Identity.PowerState == "On" { //проверяем включен ли сервер
 					s.PowerState = 1
 					s.Active = 1
 					s.Stat = 1
@@ -105,7 +105,7 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 				}
 				s.Name = name
 				s.NameFQDN = nameFQDN
-				s.SerialNumber = hw.Base.SerialNumber.String()
+				s.SerialNumber = hw.Identity.SerialNumber
 			} else { //не найдет сервер в HP One View по серийному номеру
 				s.Stat = 0
 				s.Active = 2

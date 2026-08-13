@@ -3,18 +3,18 @@ package cmdb
 import (
 	"fmt"
 	"loadmon/models"
-	"loadmon/oneview"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // InsertHWSpr создаёт новую запись конфигурации оборудования (ServerHardware) на основании
 // данных HP OneView, переносит сведения об оперативной памяти и дисковых компонентах
 // в справочник ServerHardwareComponents. Возвращает Id созданной записи ServerHardware.
-func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, ov *oneview.OVInfrastructure) int64 {
+func InsertHWSpr(srv *oneview.Server, srvspr *models.ServerSprRecords, ov *oneview.Infrastructure) int64 {
 	if srv == nil || srvspr == nil {
 		return 0
 	}
@@ -22,7 +22,7 @@ func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, o
 
 	o := orm.NewOrm()
 
-	ImportServerSprFromHW(srvspr, srv) //перенести данные из oneview.ServerHardware в models.ServerSprRecords
+	ImportServerSprFromHW(srvspr, srv) //перенести данные из oneview2.Server в models.ServerSprRecords
 	ImportHWSprRecord(&hw, srv, ov)
 	if srvspr.Active != 0 {
 		hw.Active = srvspr.Active
@@ -35,7 +35,7 @@ func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, o
 	}
 	srvspr.HWSprId = HWSprId
 
-	hw.SerialNum = srv.Base.SerialNumber.String()
+	hw.SerialNum = srv.Identity.SerialNumber
 	var m models.ServerHardwareComponents
 	if err := o.Read(&hw, "SerialNum"); err == nil { //ищем запись в справочнике конфигураций по серийному номеру сервера
 		//запись в справочнике конфигураций найдена
@@ -51,12 +51,12 @@ func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, o
 
 	m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 1} //проверяем остались ли данные по памяти
 	if err := o.Read(&m, "ServerId", "Type"); err != nil {        //нет записей по памяти
-		for idx, mem := range srv.Memory.Data { //проходим в цикле по всем модулям памяти
+		for idx, mem := range srv.Memory { //проходим в цикле по всем модулям памяти
 			ram := models.ServerHardwareComponents{ //формируем данные для записи по памяти
 				ServerId:        hw.Id,
 				Type:            1,
 				Vendor:          mem.Manufacturer,
-				Model:           fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa(mem.OperatingSpeedMhz),
+				Model:           fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa(mem.OperatingSpeedMHz),
 				CapacityGb:      float64(mem.CapacityMiB) / 1024.0,
 				SerialNum:       hw.SerialNum + "-" + strconv.Itoa(idx),
 				Slot:            mem.Name,
@@ -90,7 +90,7 @@ func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, o
 
 	m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
 	if err := o.Read(&m, "ServerId", "Type"); err != nil { //проверяем есть ли записи по этому серверу
-		for _, storage := range srv.Storage.Data { //записей нет, записываем данные по физическим дискам
+		for _, storage := range srv.Controllers { //записей нет, записываем данные по физическим дискам
 			raid := models.ServerHardwareComponents{
 				ServerId:        hw.Id,
 				Type:            5,
@@ -107,15 +107,16 @@ func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, o
 				DateService:     hw.DateService,
 				Time_Mfy:        hw.Time_Mfy,
 				Id_User:         hw.Id_User}
-			if str := strings.TrimSpace(storage.CacheModuleSerialNumber); str != "" {
-				raid.SerialNum += " CacheModule " + str
-			}
+			// Примечание про oneview2: у StorageController нет отдельного
+			// серийного номера кэш-модуля (в отличие от старого
+			// CacheModuleSerialNumber), поэтому этот довесок к SerialNum
+			// больше не добавляется.
 			//вставить запись компонент
 			if _, err := o.Insert(&raid); err != nil {
 				fmt.Println("Ошибка записи данных о диске", err)
 			}
 
-			for _, disk := range storage.PhysicalDrives {
+			for _, disk := range storage.Drives {
 				dsk := models.ServerHardwareComponents{
 					ServerId:        hw.Id,
 					Type:            2,
@@ -146,7 +147,9 @@ func InsertHWSpr(srv *oneview.ServerHardware, srvspr *models.ServerSprRecords, o
 		}
 	}
 	//обновление записи в справочнике
-	hw.SourceUpdate = "HP OneView " + srv.Base.Description.String()
+	// Примечание про oneview2: у Server/ServerIdentity нет поля Description
+	// (в отличие от старого Base.Description) - используем Product сервера.
+	hw.SourceUpdate = "HP OneView " + srv.Product
 	if _, err := o.Update(&hw); err != nil {
 		fmt.Println("Ошибка обновления данных конфигурации серверов", err)
 	}

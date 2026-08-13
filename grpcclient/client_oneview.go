@@ -19,19 +19,23 @@ package grpcclient
 
 import (
 	"io"
-	"loadmon/oneview"
 	pb "loadmon/protocol"
 	"log"
+
+	oneview "github.com/spa-nsk/oneview2"
 )
 
-func GetServerHardwareBySN(sn string) (*oneview.ServerHardware, bool) {
+// GetServerHardwareBySN возвращает данные сервера HPE OneView по серийному
+// номеру и признак успеха. Возвращает (nil, false) при ошибке подключения
+// или если сервер не найден.
+func GetServerHardwareBySN(sn string) (*oneview.Server, bool) {
 	c, conn, ctx, cancel, err := dialAPI()
 	if err != nil {
 		return nil, false
 	}
 	defer conn.Close()
 	defer cancel()
-	out := oneview.ServerHardware{}
+	out := oneview.Server{}
 	srv, err := c.GetServerHardwareBySN(ctx, &pb.SerialNumber{SerialNumber: sn})
 	if err != nil {
 		return nil, false
@@ -44,14 +48,14 @@ func GetServerHardwareBySN(sn string) (*oneview.ServerHardware, bool) {
 // GetServerHardwareByName возвращает данные сервера HPE OneView по его
 // имени и признак успеха. Возвращает (nil, false) при ошибке подключения
 // или если сервер не найден.
-func GetServerHardwareByName(name string) (*oneview.ServerHardware, bool) {
+func GetServerHardwareByName(name string) (*oneview.Server, bool) {
 	c, conn, ctx, cancel, err := dialAPI()
 	if err != nil {
 		return nil, false
 	}
 	defer conn.Close()
 	defer cancel()
-	out := oneview.ServerHardware{}
+	out := oneview.Server{}
 	srv, err := c.GetServerHardwareByName(ctx, &pb.ServerName{Name: name})
 	if err != nil {
 		return nil, false
@@ -64,14 +68,18 @@ func GetServerHardwareByName(name string) (*oneview.ServerHardware, bool) {
 // GetServerHardwareByVirtualSN возвращает данные сервера HPE OneView по
 // виртуальному серийному номеру и признак успеха. Возвращает (nil, false)
 // при ошибке подключения или если сервер не найден.
-func GetServerHardwareByVirtualSN(sn string) (*oneview.ServerHardware, bool) {
+//
+// Примечание про oneview2: у oneview2.ServerIdentity нет поля виртуального
+// серийного номера, поэтому сервер сейчас не найдётся этим способом ни при
+// каких условиях (см. комментарий в grpcserver/handler_hardware.go).
+func GetServerHardwareByVirtualSN(sn string) (*oneview.Server, bool) {
 	c, conn, ctx, cancel, err := dialAPI()
 	if err != nil {
 		return nil, false
 	}
 	defer conn.Close()
 	defer cancel()
-	out := oneview.ServerHardware{}
+	out := oneview.Server{}
 	srv, err := c.GetServerHardwareByVirtualSN(ctx, &pb.SerialNumber{SerialNumber: sn})
 	if err != nil {
 		return nil, false
@@ -86,8 +94,12 @@ func GetServerHardwareByVirtualSN(sn string) (*oneview.ServerHardware, bool) {
 // состоянию питания (пустая строка — фильтр не применяется). При ошибке
 // подключения возвращает (пустой срез, ошибка); повреждённые записи потока
 // прерывают дальнейшее чтение.
-func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, powerState string) ([]*oneview.ServerHardware, error) {
-	out := make([]*oneview.ServerHardware, 0)
+//
+// Примечание про oneview2: фильтр maintenanceMode сейчас не применяется на
+// сервере (см. grpcserver/handler_hardware.go) - у oneview2.ServerIdentity
+// нет соответствующего поля.
+func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, powerState string) ([]*oneview.Server, error) {
+	out := make([]*oneview.Server, 0)
 	c, conn, ctx, cancel, err := dialAPI()
 	if err != nil {
 		return out, err
@@ -109,7 +121,7 @@ func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, po
 				log.Printf("GetServerHardwareList: ошибка чтения потока: %v", err)
 				break
 			}
-			s := oneview.ServerHardware{}
+			s := oneview.Server{}
 			MessageToServerHardware(srv, &s)
 			out = append(out, &s)
 		}
@@ -118,7 +130,3 @@ func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, po
 }
 
 //-------------------------------- DB interface ---------------------------------
-
-// LoadClusterSpr запрашивает у сервиса LoadmonDB справочные записи кластеров
-// (ClusterSprRecords) по заданным vcenter/datacenter/cluster и возвращает их
-// в виде карты по ключу "vcenter/datacenter/name". Возвращает ошибку при

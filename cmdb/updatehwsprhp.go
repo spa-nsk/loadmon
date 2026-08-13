@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	models "loadmon/models"
-	"loadmon/oneview"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // ExtractServerNameILO предназначена для извлечения имени сервера из адреса iLO.
@@ -18,58 +18,12 @@ func ExtractServerNameILO(ilo string) {
 
 }
 
-func insertNewSprRecord(srv *oneview.ServerHardware) (int64, error) {
+func insertNewSprRecord(srv *oneview.Server) (int64, error) {
 	srvspr := models.ServerSprRecords{}
-	serverName := ""
-	if strings.Contains(srv.Base.Name, srv.Base.SerialNumber.String()) {
-		serverName = srv.Base.ServerName
-	} else {
-		if strings.Contains(srv.Base.Name, "ILO-") {
-			temp := strings.Split(srv.Base.Name, "ILO-")
-			if len(temp) == 2 {
-				serverName = temp[1]
-			} else {
-				serverName = srv.Base.ServerName
-			}
-		} else if strings.Contains(srv.Base.Name, "ILO") {
-			temp := strings.Split(srv.Base.Name, "ILO")
-			if len(temp) == 2 {
-				serverName = temp[1]
-			} else {
-				serverName = srv.Base.ServerName
-			}
-		} else if strings.Contains(srv.Base.Name, "ilo-") {
-			temp := strings.Split(srv.Base.Name, "ilo-")
-			if len(temp) == 2 {
-				serverName = temp[1]
-			} else {
-				serverName = srv.Base.ServerName
-			}
-		} else if strings.Contains(srv.Base.Name, "ilo") {
-			temp := strings.Split(srv.Base.Name, "ilo")
-			if len(temp) == 2 {
-				serverName = temp[1]
-			} else {
-				serverName = srv.Base.ServerName
-			}
-		} else if strings.Contains(srv.Base.Name, "iLO-") {
-			temp := strings.Split(srv.Base.Name, "iLO-")
-			if len(temp) == 2 {
-				serverName = temp[1]
-			} else {
-				serverName = srv.Base.ServerName
-			}
-		} else if strings.Contains(srv.Base.Name, "iLO") {
-			temp := strings.Split(srv.Base.Name, "iLO")
-			if len(temp) == 2 {
-				serverName = temp[1]
-			} else {
-				serverName = srv.Base.ServerName
-			}
-		} else {
-			serverName = srv.Base.ServerName
-		}
-	}
+	// Примечание про oneview2: разбор служебного имени (Identity.Name) для
+	// получения "человекочитаемого" имени сервера теперь инкапсулирован в
+	// oneview.GetHWserverName - используем его вместо повторения логики.
+	serverName := oneview.GetHWserverName(srv)
 	if serverName == "" {
 		return 0, errors.New("Имя файла пустое")
 	}
@@ -77,27 +31,22 @@ func insertNewSprRecord(srv *oneview.ServerHardware) (int64, error) {
 	//o.Using("default")
 
 	shortName := strings.Split(serverName, ".")[0]
-	/*
-		if srv.Base.ServerName != "" {
-			srvspr.Name = srv.Base.ServerName
-		} else {
-			srvspr.Name = shortName
-		}
-	*/
 	srvspr.Name = shortName
 	srvspr.NameFQDN = serverName
 
 	srvspr.NameFQDN = strings.TrimSpace(srvspr.NameFQDN)
 	srvspr.Name = strings.TrimSpace(srvspr.Name)
-	if srv.OperatingSystem != "" {
-		srvspr.OS = srv.OperatingSystem
+	if srv.Identity.OperatingSystem != "" {
+		srvspr.OS = srv.Identity.OperatingSystem
 	}
 	//
-	srvspr.CPUCount = float64(srv.Base.ProcessorCount)
-	srvspr.CPULogical = float64(srv.Base.ProcessorCount) * float64(srv.Base.ProcessorCoreCount)
-	srvspr.MemSize = float64(srv.Base.MemoryMb) / 1024.0
+	srvspr.CPUCount = float64(len(srv.Processors))
+	if len(srv.Processors) > 0 {
+		srvspr.CPULogical = float64(len(srv.Processors)) * float64(srv.Processors[0].TotalCores)
+	}
+	srvspr.MemSize = float64(oneview.TotalMemoryMb(srv)) / 1024.0
 	srvspr.Stat = 1
-	srvspr.Details = srv.Base.SerialNumber.String() + " Добавлен из HP One, требуется правка"
+	srvspr.Details = srv.Identity.SerialNumber + " Добавлен из HP One, требуется правка"
 	srvspr.Time_Mfy = time.Now().Local()
 
 	if Id, err := o.Insert(&srvspr); err != nil {
@@ -185,11 +134,11 @@ func checkAndCorrect(records []*models.ServerSprRecords, serverName string, cpuC
 }
 
 // обновить справочник моделей производителя
-func UpdateModelVendor(model *models.ModelVendor, srv *oneview.ServerHardware) int64 {
+func UpdateModelVendor(model *models.ModelVendor, srv *oneview.Server) int64 {
 	if model == nil || srv == nil {
 		return 0
 	}
-	m := models.ModelVendor{Model: srv.Base.Model}
+	m := models.ModelVendor{Model: srv.Identity.Model}
 	o := orm.NewOrm()
 	err := o.Read(&m, "Model")
 	if err == nil {
@@ -207,10 +156,10 @@ func UpdateModelVendor(model *models.ModelVendor, srv *oneview.ServerHardware) i
 		model.Code = 1
 	}
 	model.CategoryEquipment = 1 //сервер
-	model.Model = srv.Base.Model
+	model.Model = srv.Identity.Model
 	model.SizeUnit = 1 //нужно указать реальные данные
 	model.Vendor = "HPE"
-	if strings.Contains(srv.Base.Name, "bay") {
+	if strings.Contains(srv.Identity.Name, "bay") {
 		model.Type = 2 //лезвие
 	} else {
 		model.Type = 1 //обычный сервер
@@ -223,16 +172,16 @@ func UpdateModelVendor(model *models.ModelVendor, srv *oneview.ServerHardware) i
 }
 
 // обновить справочник моделей-нормативов
-func UpdateModelEquipment(norma *models.ModelEquipment, srv *oneview.ServerHardware, modelVendor int64) int64 {
+func UpdateModelEquipment(norma *models.ModelEquipment, srv *oneview.Server, modelVendor int64) int64 {
 	if norma == nil || srv == nil {
 		return -1
 	}
 
 	diskMap := make(map[string]int64)
 
-	for _, storage := range srv.Storage.Data {
-		for _, disk := range storage.PhysicalDrives {
-			rec := fmt.Sprintf("%.0fGb %s", disk.CapacityMiB/1000, disk.MediaType)
+	for _, storage := range srv.Controllers {
+		for _, disk := range storage.Drives {
+			rec := fmt.Sprintf("%.0fGb %s", float64(disk.CapacityMiB)/1000, disk.MediaType)
 			count, ok := diskMap[rec]
 			if ok {
 				count++
@@ -257,16 +206,12 @@ func UpdateModelEquipment(norma *models.ModelEquipment, srv *oneview.ServerHardw
 		}
 	}
 
-	key := fmt.Sprintf("%s %s %dx%s %dMb %s %s %s", srv.Base.Model, srv.Base.PartNumber, srv.Base.ProcessorCount, srv.Base.ProcessorType, srv.Base.MemoryMb, ssd, hdd, alternative)
+	cpuModel := ""
+	if len(srv.Processors) > 0 {
+		cpuModel = srv.Processors[0].Model
+	}
+	key := fmt.Sprintf("%s %s %dx%s %dMb %s %s %s", srv.Identity.Model, srv.Identity.PartNumber, len(srv.Processors), cpuModel, oneview.TotalMemoryMb(srv), ssd, hdd, alternative)
 	key = strings.TrimSpace(key)
-
-	/*
-		for _, storage := range srv.Storage.Data {
-			for _, disk := range storage.PhysicalDrives {
-				key += fmt.Sprintf("%.0fGb %s %s", disk.CapacityMiB/1000, disk.MediaType, disk.Model)
-			}
-		}
-	*/
 
 	nm := models.ModelEquipment{Name: key}
 
@@ -288,7 +233,7 @@ func UpdateModelEquipment(norma *models.ModelEquipment, srv *oneview.ServerHardw
 	}
 	norma.ModelVendor = modelVendor
 	norma.Name = key
-	norma.PartNum = srv.Base.PartNumber
+	norma.PartNum = srv.Identity.PartNumber
 	norma.PartNumSale = ""
 	norma.Money = 0
 	norma.Currency = 0
@@ -307,11 +252,12 @@ func UpdateModelEquipment(norma *models.ModelEquipment, srv *oneview.ServerHardw
 }
 
 // обновить справочник процессоров
-func UpdateCpuModel(model *models.ComponentsCPU, srv *oneview.ServerHardware) int64 {
-	if model == nil || srv == nil {
+func UpdateCpuModel(model *models.ComponentsCPU, srv *oneview.Server) int64 {
+	if model == nil || srv == nil || len(srv.Processors) == 0 {
 		return 0
 	}
-	m := models.ComponentsCPU{ProcessorType: srv.Base.ProcessorType}
+	p := srv.Processors[0]
+	m := models.ComponentsCPU{ProcessorType: p.Model}
 	o := orm.NewOrm()
 	err := o.Read(&m, "ProcessorType")
 	if err == nil {
@@ -328,9 +274,13 @@ func UpdateCpuModel(model *models.ComponentsCPU, srv *oneview.ServerHardware) in
 	} else {
 		model.Code = 1
 	}
-	model.ProcessorType = srv.Base.ProcessorType
-	model.ProcessorCoreCount = srv.Base.ProcessorCoreCount
-	model.ProcessorSpeedMhz = srv.Base.ProcessorSpeedMhz
+	model.ProcessorType = p.Model
+	model.ProcessorCoreCount = p.TotalCores
+	speed := p.OperatingSpeedMHz
+	if speed == 0 {
+		speed = p.MaxSpeedMHz
+	}
+	model.ProcessorSpeedMhz = speed
 
 	model.Id, err = o.Insert(model)
 	if err != nil {
@@ -340,7 +290,7 @@ func UpdateCpuModel(model *models.ComponentsCPU, srv *oneview.ServerHardware) in
 }
 
 // обновить справочник Цод
-func UpdateDatacenter(dc *models.Datacenter, srv *oneview.ServerHardware) int64 {
+func UpdateDatacenter(dc *models.Datacenter, srv *oneview.Server) int64 {
 	if dc == nil || srv == nil {
 		return 0
 	}
@@ -365,7 +315,8 @@ func UpdateDatacenter(dc *models.Datacenter, srv *oneview.ServerHardware) int64 
 		dc.Code = 1
 	}
 	dc.Width = int64(srv.Datacenter.Width)
-	dc.Depth = int64(srv.Datacenter.Depth)
+	// Примечание про oneview2: DatacenterInfo не хранит Depth (в отличие от
+	// старого пакета) - оставляем как есть (нулевым), если запись новая.
 	dc.Name = srv.Datacenter.Name
 	dc.Id, err = o.Insert(dc)
 	if err != nil {
@@ -375,7 +326,7 @@ func UpdateDatacenter(dc *models.Datacenter, srv *oneview.ServerHardware) int64 
 }
 
 // обновить справочник Цод
-func UpdateRack(rk *models.Rack, srv *oneview.ServerHardware) int64 {
+func UpdateRack(rk *models.Rack, srv *oneview.Server) int64 {
 	if rk == nil || srv == nil {
 		return 0
 	}
@@ -399,9 +350,9 @@ func UpdateRack(rk *models.Rack, srv *oneview.ServerHardware) int64 {
 	} else {
 		rk.Code = 1
 	}
-	rk.Width = int64(srv.Rack.Width)
-	rk.Depth = int64(srv.Rack.Depth)
-	rk.Height = int64(srv.Rack.Height)
+	// Примечание про oneview2: RackInfo не хранит Width/Depth/Height (в
+	// отличие от старого пакета) - есть только UHeight, поэтому rk.Width/
+	// rk.Depth/rk.Height остаются нулевыми для новых записей.
 	rk.UHeight = int64(srv.Rack.UHeight)
 	rk.Name = srv.Rack.Name
 	rk.Id, err = o.Insert(rk)
@@ -414,11 +365,11 @@ func UpdateRack(rk *models.Rack, srv *oneview.ServerHardware) int64 {
 // UpdateRamModel ищет в справочнике моделей оперативной памяти (ComponentsRAM) запись,
 // соответствующую характеристикам модуля памяти mem, и при отсутствии создаёт новую с
 // очередным кодом модели. Возвращает код модели.
-func UpdateRamModel(model *models.ComponentsRAM, srv *oneview.ServerHardware, mem *oneview.MemoryModule) int64 {
+func UpdateRamModel(model *models.ComponentsRAM, srv *oneview.Server, mem *oneview.MemoryModule) int64 {
 	if model == nil || srv == nil || mem == nil {
 		return 0
 	}
-	key := fmt.Sprintf("%dGb %s %s %dMhz %s Rank Count %d", mem.CapacityMiB/1024, mem.BaseModuleType, mem.MemoryDeviceType, mem.OperatingSpeedMhz, strings.TrimSpace(mem.PartNumber), mem.RankCount)
+	key := fmt.Sprintf("%dGb %s %s %dMhz %s Rank Count %d", mem.CapacityMiB/1024, mem.BaseModuleType, mem.MemoryDeviceType, mem.OperatingSpeedMHz, strings.TrimSpace(mem.PartNumber), mem.RankCount)
 	m := models.ComponentsRAM{Model: key}
 	o := orm.NewOrm()
 	err := o.Read(&m, "Model")
@@ -441,7 +392,7 @@ func UpdateRamModel(model *models.ComponentsRAM, srv *oneview.ServerHardware, me
 	model.CapacityMiB = mem.CapacityMiB
 	model.BaseModuleType = mem.BaseModuleType
 	model.MemoryDeviceType = mem.MemoryDeviceType
-	model.OperatingSpeedMhz = mem.OperatingSpeedMhz
+	model.OperatingSpeedMhz = mem.OperatingSpeedMHz
 	model.Vendor = mem.Manufacturer
 	model.PartNumber = mem.PartNumber
 	model.PartNumberSale = ""
@@ -462,73 +413,26 @@ func UpdateCMDBHwSprHP() {
 
 	for _, srv := range ov.Servers { //проходим по списку всех серверов
 
-		serverName := ""
-		if strings.Contains(srv.Base.Name, srv.Base.SerialNumber.String()) {
-			serverName = srv.Base.ServerName
-		} else {
-			if strings.Contains(srv.Base.Name, "ILO-") {
-				temp := strings.Split(srv.Base.Name, "ILO-")
-				if len(temp) == 2 {
-					serverName = temp[1]
-				} else {
-					serverName = srv.Base.ServerName
-				}
-			} else if strings.Contains(srv.Base.Name, "ILO") {
-				temp := strings.Split(srv.Base.Name, "ILO")
-				if len(temp) == 2 {
-					serverName = temp[1]
-				} else {
-					serverName = srv.Base.ServerName
-				}
-			} else if strings.Contains(srv.Base.Name, "ilo-") {
-				temp := strings.Split(srv.Base.Name, "ilo-")
-				if len(temp) == 2 {
-					serverName = temp[1]
-				} else {
-					serverName = srv.Base.ServerName
-				}
-			} else if strings.Contains(srv.Base.Name, "ilo") {
-				temp := strings.Split(srv.Base.Name, "ilo")
-				if len(temp) == 2 {
-					serverName = temp[1]
-				} else {
-					serverName = srv.Base.ServerName
-				}
-			} else if strings.Contains(srv.Base.Name, "iLO-") {
-				temp := strings.Split(srv.Base.Name, "iLO-")
-				if len(temp) == 2 {
-					serverName = temp[1]
-				} else {
-					serverName = srv.Base.ServerName
-				}
-			} else if strings.Contains(srv.Base.Name, "iLO") {
-				temp := strings.Split(srv.Base.Name, "iLO")
-				if len(temp) == 2 {
-					serverName = temp[1]
-				} else {
-					serverName = srv.Base.ServerName
-				}
-			} else {
-				serverName = srv.Base.ServerName
-			}
-		}
+		// Примечание про oneview2: разбор служебного имени вынесен в
+		// oneview.GetHWserverName (см. также insertNewSprRecord выше).
+		serverName := oneview.GetHWserverName(srv)
 
 		norm := models.ModelEquipment{}
 		model := models.ModelVendor{}
 		dc := models.Datacenter{}
 		rk := models.Rack{}
 
-		cu := models.ConfigurationUnit{SerialNum: srv.Base.SerialNumber.String()}
+		cu := models.ConfigurationUnit{SerialNum: srv.Identity.SerialNumber}
 		//обновление и поиски модели производителя
 		modelCode := UpdateModelVendor(&model, srv) //
 		if modelCode < 0 {
-			fmt.Println("Ошибка добавления модели оборудования: ", srv.Base.Model, "-", srv.Base.PartNumber)
+			fmt.Println("Ошибка добавления модели оборудования: ", srv.Identity.Model, "-", srv.Identity.PartNumber)
 			continue
 		}
 		//обновление и поиск модели-норматива
 		modelEqCode := UpdateModelEquipment(&norm, srv, modelCode)
 		if modelEqCode < 0 {
-			fmt.Println("Ошибка добавления нормативной модели : ", srv.Base.Model, "-", srv.Base.PartNumber)
+			fmt.Println("Ошибка добавления нормативной модели : ", srv.Identity.Model, "-", srv.Identity.PartNumber)
 			continue
 		}
 
@@ -564,7 +468,7 @@ func UpdateCMDBHwSprHP() {
 			cu.ModelEquipment = modelEqCode
 			id_me, err = o.Insert(&cu)
 			if err != nil {
-				fmt.Println("Ошибка добавления конфигурационной единицы: ", srv.Base.Model, "=", srv.Base.PartNumber)
+				fmt.Println("Ошибка добавления конфигурационной единицы: ", srv.Identity.Model, "=", srv.Identity.PartNumber)
 			}
 		}
 		cpu := models.ComponentsCPU{}         //
@@ -574,11 +478,11 @@ func UpdateCMDBHwSprHP() {
 			CategoryEquipment: 1,        //серверное
 			Type:              1,        //процессор
 			Component:         cpu_code} //модель процессора
-		for i := 0; i < srv.Base.ProcessorCount; i++ {
+		for i := 0; i < len(srv.Processors); i++ {
 			o.Insert(&comp_cpu) //записываем компоненты процессооры
 		}
 
-		for _, mem := range srv.Memory.Data { //проходим в цикле по всем модулям памяти
+		for _, mem := range srv.Memory { //проходим в цикле по всем модулям памяти
 			ram := models.ComponentsRAM{}
 
 			ram_code := UpdateRamModel(&ram, srv, &mem) //ищем модуль памяти в справочнике
@@ -606,205 +510,32 @@ func UpdateCMDBHwSprHP() {
 
 // UpdateHwSprHPBladeSystem синхронизирует справочник блейд-корзин (BladeSystems) и их
 // компонентов с данными корзин, полученными из HP OneView.
-func UpdateHwSprHPBladeSystem(ov *oneview.OVInfrastructure) {
-	o := orm.NewOrm()
-	for _, enc := range ov.AllEnclosureBySN { //проходим по списку всех корзин
-		bls := models.BladeSystems{SerialNum: strings.TrimSpace(enc.SerialNumber)}
-
-		if err := o.Read(&bls, "SerialNum"); err != nil { //ищем корзину в справочнике по серийному номеру
-			//добавляем запись в справочник корзин, если она не нашлась
-			bls.Name = enc.Name
-			bls.RackNum = enc.RackName
-			bls.SerialNum = enc.SerialNumber
-			bls.PartNum = enc.PartNumber
-			bls.Model = enc.EnclosureModel
-			bls.Type = enc.EnclosureType
-			bls.Size = enc.DeviceBayCount
-			bls.Description = enc.Description.String()
-			bls.Used = 0
-			for _, bay := range enc.DeviceBays {
-				if bay.DevicePresence == "Present" {
-					bls.Used++
-				}
-			}
-			bls.Time_Mfy = time.Now().Local()
-			bls.Anotation = "Данные добавлены из HP One"
-			if _, err := o.Insert(&bls); err != nil {
-				fmt.Println("Ошибка записи данных в справочник корзин.", err)
-			}
-
-		} else { //корзина уже есть в справочнике
-			//обновление записи в справочнике корзин
-			bls.Name = enc.Name
-			bls.RackNum = enc.RackName
-			bls.SerialNum = enc.SerialNumber
-			bls.PartNum = enc.PartNumber
-			bls.Model = enc.EnclosureModel
-			bls.Type = enc.EnclosureType
-			bls.Size = enc.DeviceBayCount
-			bls.Description = enc.Description.String()
-			bls.Used = 0
-			for _, bay := range enc.DeviceBays {
-				if bay.DevicePresence == "Present" {
-					bls.Used++
-				}
-			}
-
-			if _, err := o.Update(&bls); err != nil {
-				fmt.Println("Ошибка обновление данных конфигурации корзины", err)
-			}
-		}
-
-		bls = models.BladeSystems{SerialNum: enc.SerialNumber}
-		if err := o.Read(&bls, "SerialNum"); err == nil { //читаем запись о корзине по серийному номеру
-			m := models.ServerHardwareComponents{BladeSystemId: bls.Id}
-			if nDel, err := o.Delete(&m, "BladeSystemId"); err != nil { //удаляем записи о компонентах корзины из базы (для последующего обновления данных )
-				fmt.Println("Ошибка удаления записей о компонентах корзины: ", bls.Name, err)
-				_ = nDel
-			}
-		}
-
-		//видимо ошибка в алгоритме компоненты уже удалены, а мы пытаемся искать interconnect похоже на дублирование на случай если удаление не прошло
-		m := models.ServerHardwareComponents{BladeSystemId: bls.Id, Type: 6} //тип компонент 1 память, 2 диск, 3 сетевой контроллер, 4 FC контроллер, 5 RAID контроллер, 6 interconnect
-		if err := o.Read(&m, "BladeSystemId", "Type"); err != nil {          //ничего не нашлось
-			for _, inter := range enc.InterconnectBays { //проходим по всем interconnect в корзине
-				if inter.InterconnectUri == "" { //пропускаем записи где нет ссылки на interconnect
-					continue
-				}
-				/*
-					if inter.InterconnectURI == "" {
-						continue
-					}
-				*/
-				iConnect := models.ServerHardwareComponents{ //формируем запись для вставки в базу
-					BladeSystemId:   bls.Id,
-					Type:            6, //interconnect
-					Vendor:          bls.Vendor,
-					Model:           inter.InterconnectModel,
-					CapacityGb:      0,
-					SerialNum:       inter.SerialNumber,
-					Slot:            fmt.Sprintf("%d", inter.BayNumber),
-					ContractDoc:     bls.ContractDoc,
-					DateContractDoc: bls.DateContractDoc,
-					Invoice:         bls.Invoice,
-					DateInvoice:     bls.DateInvoice,
-					ServiceContract: bls.ServiceContract,
-					DateService:     bls.DateService,
-					Time_Mfy:        time.Now().Local(),
-					Id_User:         bls.Id_User}
-				//вставить запись компонент
-				if _, err := o.Insert(&iConnect); err != nil { //вставляем запись с информацией о interconnect
-					fmt.Println("Ошибка записи данных интерконнекта", err)
-				}
-			}
-		} else {
-			//добавить обработку при наличие записей по компонентам корзины(если записи не удалились ранее)
-		}
-
-		m = models.ServerHardwareComponents{BladeSystemId: bls.Id, Type: 7}
-		if err := o.Read(&m, "BladeSystemId", "Type"); err != nil { //пытаемся найти managment card blade
-			for _, manager := range enc.ManagerBays {
-				if manager.DevicePresence != "Present" {
-					continue
-				}
-				iManager := models.ServerHardwareComponents{ //формируем запись managment card blade для вставки в базу
-					BladeSystemId: bls.Id,
-					Type:          7,
-					Vendor:        bls.Vendor,
-					//					Model:           fmt.Sprintf("Name: %-20s IP: %-20s Fw v%s %s", manager.FqdnHostName, manager.IPAddr
-					Model:           fmt.Sprintf("Name: %-20s IP: %-20s Fw v%s %s", manager.Model, manager.IpAddress, manager.FwVersion, manager.FwBuildDate),
-					CapacityGb:      0,
-					SerialNum:       "",
-					Slot:            fmt.Sprintf("%d", manager.BayNumber),
-					ContractDoc:     bls.ContractDoc,
-					DateContractDoc: bls.DateContractDoc,
-					Invoice:         bls.Invoice,
-					DateInvoice:     bls.DateInvoice,
-					ServiceContract: bls.ServiceContract,
-					DateService:     bls.DateService,
-					Time_Mfy:        time.Now().Local(),
-					Id_User:         bls.Id_User}
-				//вставить запись компонент
-				if _, err := o.Insert(&iManager); err != nil {
-					fmt.Println("Ошибка записи данных о плате управления", err)
-				}
-			}
-		} else {
-			//добавить обработку при наличие записей по компонентам корзины
-		}
-
-		m = models.ServerHardwareComponents{BladeSystemId: bls.Id, Type: 8} //power supply
-		if err := o.Read(&m, "BladeSystemId", "Type"); err != nil {
-			for _, powerBay := range enc.PowerSupplyBays {
-				if powerBay.DevicePresence != "Present" {
-					continue
-				}
-				power := models.ServerHardwareComponents{ //формируем запись по блокам питания
-					BladeSystemId:   bls.Id,
-					Type:            8,
-					Vendor:          bls.Vendor,
-					Model:           powerBay.Model + " (" + powerBay.PartNumber + ") " + " " + powerBay.SparePartNumber + " " + powerBay.Status,
-					CapacityGb:      0,
-					SerialNum:       powerBay.SerialNumber,
-					Slot:            fmt.Sprintf("%d", powerBay.BayNumber),
-					ContractDoc:     bls.ContractDoc,
-					DateContractDoc: bls.DateContractDoc,
-					Invoice:         bls.Invoice,
-					DateInvoice:     bls.DateInvoice,
-					ServiceContract: bls.ServiceContract,
-					DateService:     bls.DateService,
-					Time_Mfy:        time.Now().Local(),
-					Id_User:         bls.Id_User}
-				//вставить запись компонент
-				if _, err := o.Insert(&power); err != nil {
-					fmt.Println("Ошибка записи данных о плате управления", err)
-				}
-			}
-		} else {
-			//добавить обработку при наличие записей по компонентам корзины
-		}
-
-		m = models.ServerHardwareComponents{BladeSystemId: bls.Id, Type: 9}
-		if err := o.Read(&m, "BladeSystemId", "Type"); err != nil {
-			for _, fanBay := range enc.FanBays {
-				if fanBay.DevicePresence != "Present" {
-					continue
-				}
-				fan := models.ServerHardwareComponents{
-					BladeSystemId:   bls.Id,
-					Type:            9,
-					Vendor:          bls.Vendor,
-					Model:           fanBay.Model + " (" + fanBay.PartNumber + ")" + " " + fanBay.SparePartNumber + " " + fanBay.Status,
-					CapacityGb:      0,
-					SerialNum:       "",
-					Slot:            fmt.Sprintf("%d", fanBay.BayNumber),
-					ContractDoc:     bls.ContractDoc,
-					DateContractDoc: bls.DateContractDoc,
-					Invoice:         bls.Invoice,
-					DateInvoice:     bls.DateInvoice,
-					ServiceContract: bls.ServiceContract,
-					DateService:     bls.DateService,
-					Time_Mfy:        time.Now().Local(),
-					Id_User:         bls.Id_User}
-				//вставить запись компонент
-				if _, err := o.Insert(&fan); err != nil {
-					fmt.Println("Ошибка записи данных о плате управления", err)
-				}
-			}
-		} else {
-			//добавить обработку при наличие записей по компонентам корзины
-		}
-	}
+//
+// Примечание про oneview2: старая версия строила этот справочник по глобальному
+// списку ov.AllEnclosureBySN, где каждая корзина (Enclosure) содержала типизированные
+// списки DeviceBays/InterconnectBays/ManagerBays/PowerSupplyBays/FanBays с детальными
+// полями (модель, серийный номер, прошивка и т.д.). В oneview2 такого глобального
+// индекса корзин нет вовсе (см. loadmon/oneview2/global.go - Infrastructure хранит
+// только серверы), а низкоуровневый клиентский API (loadmon/oneview2/resources.go,
+// Client.ListEnclosures) возвращает Enclosure, в котором эти списки - это
+// []map[string]any (сырой JSON), без типизированных полей вроде InterconnectUri/
+// FqdnHostName/BayNumber. Восстановление этой функциональности потребовало бы
+// самостоятельного разбора сырого JSON по каждому типу отсека - отдельная задача,
+// выходящая за рамки миграции на новые типы. Пока функция ничего не делает; данные
+// по компонентам блейд-корзин (interconnect/менеджмент/питание/охлаждение) в CMDB
+// не обновляются.
+func UpdateHwSprHPBladeSystem(ov *oneview.Infrastructure) {
+	_ = ov
 }
 
 // UpdateHwSprHPServers синхронизирует справочники конфигураций оборудования
 // (ServerHardware) и серверов (ServerSprRecords) с данными всех серверов, полученными
 // из HP OneView.
-func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
+func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 	o := orm.NewOrm()
 	for _, srv := range ov.Servers { //проходим по списку всех серверов
 
-		hw := models.ServerHardware{SerialNum: string(srv.Base.SerialNumber)}
+		hw := models.ServerHardware{SerialNum: srv.Identity.SerialNumber}
 		srvspr := models.ServerSprRecords{}
 		foundHwBySN := false
 		foundSrvSpr := false
@@ -915,12 +646,12 @@ func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
 
 		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 1} //проверяем остались ли данные по памяти
 		if err := trn.Read(&m, "ServerId", "Type"); err != nil {      //нет записей по памяти
-			for idx, mem := range srv.Memory.Data { //проходим в цикле по всем модулям памяти
+			for idx, mem := range srv.Memory { //проходим в цикле по всем модулям памяти
 				ram := models.ServerHardwareComponents{ //формируем данные для записи по памяти
 					ServerId:        hw.Id,
 					Type:            1,
 					Vendor:          mem.Manufacturer,
-					Model:           fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa(mem.OperatingSpeedMhz),
+					Model:           fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa(mem.OperatingSpeedMHz),
 					CapacityGb:      float64(mem.CapacityMiB) / 1024.0,
 					SerialNum:       hw.SerialNum + "-" + strconv.Itoa(idx),
 					Slot:            mem.Name,
@@ -954,7 +685,7 @@ func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
 
 		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
 		if err := trn.Read(&m, "ServerId", "Type"); err != nil { //проверяем есть ли записи по этому серверу
-			for _, storage := range srv.Storage.Data { //записей нет, записываем данные по физическим дискам
+			for _, storage := range srv.Controllers { //записей нет, записываем данные по физическим дискам
 				raid := models.ServerHardwareComponents{
 					ServerId:        hw.Id,
 					Type:            5,
@@ -971,15 +702,15 @@ func UpdateHwSprHPServers(ov *oneview.OVInfrastructure) {
 					DateService:     hw.DateService,
 					Time_Mfy:        hw.Time_Mfy,
 					Id_User:         hw.Id_User}
-				if str := strings.TrimSpace(storage.CacheModuleSerialNumber); str != "" {
-					raid.SerialNum += " CacheModule " + str
-				}
+				// Примечание про oneview2: у StorageController нет отдельного
+				// серийного номера кэш-модуля (в отличие от старого
+				// CacheModuleSerialNumber).
 				//вставить запись компонент
 				if _, err := trn.Insert(&raid); err != nil {
 					fmt.Println("Ошибка записи данных о диске", err)
 				}
 
-				for _, disk := range storage.PhysicalDrives {
+				for _, disk := range storage.Drives {
 					dsk := models.ServerHardwareComponents{
 						ServerId:        hw.Id,
 						Type:            2,

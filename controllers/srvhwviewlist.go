@@ -6,13 +6,13 @@ import (
 	"loadmon/csvtools"
 	"loadmon/grpcclient"
 	"loadmon/models"
-	"loadmon/oneview"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	beego "github.com/beego/beego/v2/server/web"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // HWViewFilter — фильтр страницы списка конфигураций серверов OneView.
@@ -97,7 +97,7 @@ func (this *MainController) SprHwViewList() {
 	}
 }
 
-func ExportViewCSV(this *MainController, flash *beego.FlashData, recordsView []*oneview.ServerHardware) {
+func ExportViewCSV(this *MainController, flash *beego.FlashData, recordsView []*oneview.Server) {
 
 	crt := time.Now().Local()
 	short_name := fmt.Sprintf("hw%02d_%02d_%04d_%02d_%02d_%02d_%d.csv", crt.Day(), crt.Month(), crt.Year(), crt.Hour(), crt.Minute(), crt.Second(), crt.UnixNano())

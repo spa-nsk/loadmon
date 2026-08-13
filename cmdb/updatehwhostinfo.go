@@ -3,13 +3,13 @@ package cmdb
 import (
 	"fmt"
 	models "loadmon/models"
-	"loadmon/oneview"
 	_ "loadmon/routers"
 	vsphere "loadmon/vspheremetrics"
 	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 func insertNewHostSprRecord(hs vsphere.HostInfo) (int64, error) {
@@ -35,8 +35,8 @@ func insertNewHostSprRecord(hs vsphere.HostInfo) (int64, error) {
 	hw, ok := ov.ServerByVirtualSN[hs.SerialNumber]
 
 	if ok {
-		if hw.Base.Hostname == hs.Name {
-			srvspr.Details = hw.Base.SerialNumber.String() + " Host Добавлен из Vsphere, требуется правка"
+		if hw.Identity.MpHostName == hs.Name {
+			srvspr.Details = hw.Identity.SerialNumber + " Host Добавлен из Vsphere, требуется правка"
 		}
 	} else {
 		srvspr.Details = "Virtual SN: " + hs.SerialNumber + " Host Добавлен из Vsphere, требуется правка"
@@ -51,9 +51,9 @@ func insertNewHostSprRecord(hs vsphere.HostInfo) (int64, error) {
 	srvspr.Cluster = hs.Cluster
 
 	if srvspr.SerialNumber != "" {
-		srvspr.SerialNumber = string(hw.Base.SerialNumber)
+		srvspr.SerialNumber = hw.Identity.SerialNumber
 
-		hw2 := models.ServerHardware{SerialNum: string(hw.Base.SerialNumber)}
+		hw2 := models.ServerHardware{SerialNum: hw.Identity.SerialNumber}
 		err := o.Read(&hw2, "SerialNum")
 		if err == nil {
 			srvspr.HWSprId = hw2.Id
@@ -175,7 +175,7 @@ func UpdateHWHostInfo() {
 		sn := ""
 		hw, ok := ov.ServerByVirtualSN[hs.SerialNumber] //переделать на другой тип хэш таблицы
 		if ok {
-			sn = hw.Base.SerialNumber.String()
+			sn = hw.Identity.SerialNumber
 		} else {
 			sn = hs.SerialNumber
 		}
@@ -234,7 +234,7 @@ func UpdateHWHostInfo() {
 			var errh error
 			hwsrv, ok := ov.ServerByVirtualSN[hs.SerialNumber]
 			if ok {
-				serialNum = hwsrv.Base.SerialNumber.String()
+				serialNum = hwsrv.Identity.SerialNumber
 			} else {
 				serialNum = hs.SerialNumber
 			}

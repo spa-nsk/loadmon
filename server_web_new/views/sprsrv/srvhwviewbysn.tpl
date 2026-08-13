@@ -41,29 +41,27 @@
         <div class="hw-card">
             <h6>Общие сведения</h6>
             <table class="table table-sm table-borderless hw-kv">
-                <tr><td>Имя сервера</td><td>{{.HW.Base.ServerName}}</td></tr>
-                <tr><td>Hostname</td><td>{{.HW.Base.Hostname}}</td></tr>
-                <tr><td>Модель</td><td>{{.HW.Base.Model}}{{if ne .HW.Base.ShortModel ""}} ({{.HW.Base.ShortModel}}){{end}}</td></tr>
-                <tr><td>Форм-фактор</td><td>{{.HW.Base.FormFactor}}</td></tr>
-                <tr><td>Серийный номер</td><td>{{.HW.Base.SerialNumber}}</td></tr>
-                <tr><td>Виртуальный серийный номер</td><td>{{.HW.Base.VirtualSerialNumber}}</td></tr>
-                <tr><td>UUID</td><td>{{.HW.Base.UUID}}</td></tr>
-                <tr><td>Партномер</td><td>{{.HW.Base.PartNumber}}</td></tr>
+                <tr><td>Имя сервера</td><td>{{.HW.Identity.ServerName}}</td></tr>
+                <tr><td>Hostname</td><td>{{.HW.Identity.MpHostName}}</td></tr>
+                <tr><td>Модель</td><td>{{.HW.Identity.Model}}{{if ne .HW.Identity.ShortModel ""}} ({{.HW.Identity.ShortModel}}){{end}}</td></tr>
+                <tr><td>Форм-фактор</td><td>{{.HW.Identity.FormFactor}}</td></tr>
+                <tr><td>Серийный номер</td><td>{{.HW.Identity.SerialNumber}}</td></tr>
+                <tr><td>UUID</td><td>{{.HW.Identity.UUID}}</td></tr>
+                <tr><td>Партномер</td><td>{{.HW.Identity.PartNumber}}</td></tr>
                 <tr>
                     <td>Состояние эксплуатации</td>
                     <td>
-                        <span class="badge {{if eq .HW.Base.Status "OK"}}text-bg-success{{else if eq .HW.Base.Status "Warning"}}text-bg-warning{{else if eq .HW.Base.Status "Critical"}}text-bg-danger{{else}}text-bg-secondary{{end}}">{{.HW.Base.Status}}</span>
+                        <span class="badge {{if eq .HW.Identity.Status "OK"}}text-bg-success{{else if eq .HW.Identity.Status "Warning"}}text-bg-warning{{else if eq .HW.Identity.Status "Critical"}}text-bg-danger{{else}}text-bg-secondary{{end}}">{{.HW.Identity.Status}}</span>
                     </td>
                 </tr>
                 <tr>
                     <td>Питание</td>
                     <td>
-                        <span class="badge {{if eq .HW.Base.PowerState "On"}}text-bg-success{{else if eq .HW.Base.PowerState "Off"}}text-bg-secondary{{else}}text-bg-warning{{end}}">{{.HW.Base.PowerState}}</span>
+                        <span class="badge {{if eq .HW.Identity.PowerState "On"}}text-bg-success{{else if eq .HW.Identity.PowerState "Off"}}text-bg-secondary{{else}}text-bg-warning{{end}}">{{.HW.Identity.PowerState}}</span>
                     </td>
                 </tr>
-                <tr><td>Режим обслуживания</td><td>{{if .HW.Base.MaintenanceMode}}<span class="badge text-bg-warning">Да</span>{{else}}Нет{{end}}</td></tr>
-                <tr><td>Позиция в стойке</td><td>{{.HW.Base.Position}}</td></tr>
-                <tr><td>ОС</td><td>{{.HW.OperatingSystem}}</td></tr>
+                <tr><td>Позиция в стойке</td><td>{{.HW.Identity.Position}}</td></tr>
+                <tr><td>ОС</td><td>{{.HW.Identity.OperatingSystem}}</td></tr>
             </table>
         </div>
     </div>
@@ -72,12 +70,15 @@
         <div class="hw-card">
             <h6>Процессоры и память</h6>
             <table class="table table-sm table-borderless hw-kv">
-                <tr><td>Тип процессора</td><td>{{.HW.Base.ProcessorType}}</td></tr>
-                <tr><td>Частота, МГц</td><td>{{.HW.Base.ProcessorSpeedMhz}}</td></tr>
-                <tr><td>Количество процессоров</td><td>{{.HW.Base.ProcessorCount}}</td></tr>
-                <tr><td>Ядер на процессор</td><td>{{.HW.Base.ProcessorCoreCount}}</td></tr>
-                <tr><td>Память, МБ</td><td>{{.HW.Base.MemoryMb}}</td></tr>
-                <tr><td>Модулей памяти</td><td>{{.HW.Memory.Count}}</td></tr>
+                {{if .HW.Processors}}
+                {{with index .HW.Processors 0}}
+                <tr><td>Тип процессора</td><td>{{.Model}}</td></tr>
+                <tr><td>Частота, МГц</td><td>{{.OperatingSpeedMHz}}</td></tr>
+                {{end}}
+                {{end}}
+                <tr><td>Количество процессоров</td><td>{{len .HW.Processors}}</td></tr>
+                <tr><td>Память, МБ</td><td>{{.TotalMemoryMb}}</td></tr>
+                <tr><td>Модулей памяти</td><td>{{len .HW.Memory}}</td></tr>
             </table>
         </div>
 
@@ -92,10 +93,10 @@
         </div>
     </div>
 
-    {{if .HW.Memory.Data}}
+    {{if .HW.Memory}}
     <div class="col-12">
         <div class="hw-card">
-            <h6>Модули памяти ({{.HW.Memory.Count}})</h6>
+            <h6>Модули памяти ({{len .HW.Memory}})</h6>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered table-striped align-middle">
                     <thead>
@@ -111,16 +112,16 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {{range $m := .HW.Memory.Data}}
+                        {{range $m := .HW.Memory}}
                         <tr>
                             <td>{{$m.DeviceLocator}}</td>
                             <td>{{$m.Name}}</td>
                             <td>{{$m.MemoryDeviceType}} ({{$m.BaseModuleType}})</td>
                             <td class="text-end">{{$m.CapacityMiB}}</td>
-                            <td class="text-end">{{$m.OperatingSpeedMhz}}</td>
+                            <td class="text-end">{{$m.OperatingSpeedMHz}}</td>
                             <td>{{$m.Manufacturer}}</td>
                             <td>{{$m.PartNumber}}</td>
-                            <td>{{$m.Status.Health}}</td>
+                            <td>{{$m.Health}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -130,42 +131,40 @@
     </div>
     {{end}}
 
-    {{if .HW.Storage.Data}}
+    {{if .HW.Controllers}}
     <div class="col-12">
         <div class="hw-card">
-            <h6>Локальные RAID-контроллеры ({{.HW.Storage.Count}})</h6>
-            {{range $s := .HW.Storage.Data}}
+            <h6>Локальные RAID-контроллеры ({{len .HW.Controllers}})</h6>
+            {{range $s := .HW.Controllers}}
             <div class="mb-3">
-                <div class="fw-semibold">{{$s.Name}} — {{$s.Model}} ({{$s.Location}}), серийный № {{$s.SerialNumber}}, состояние: {{$s.Status.Health}}</div>
-                {{if $s.LogicalDrives}}
+                <div class="fw-semibold">{{$s.Name}} — {{$s.Model}} ({{$s.Location}}), серийный № {{$s.SerialNumber}}, состояние: {{$s.Health}}</div>
+                {{if $s.Volumes}}
                 <div class="table-responsive mt-2">
                     <table class="table table-sm table-bordered table-striped align-middle">
                         <thead>
                             <tr>
                                 <th class="text-center">№</th>
                                 <th>RAID</th>
-                                <th>Тип</th>
+                                <th>Тип носителя</th>
                                 <th class="text-end">Ёмкость, МБ</th>
-                                <th>Шифрование</th>
                                 <th>Состояние</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {{range $ld := $s.LogicalDrives}}
+                            {{range $ld := $s.Volumes}}
                             <tr>
-                                <td class="text-center">{{$ld.LogicalDriveNumber}}</td>
-                                <td>{{$ld.Raid}}</td>
-                                <td>{{$ld.LogicalDriveType}}</td>
-                                <td class="text-end">{{printf "%.0f" $ld.CapacityMiB}}</td>
-                                <td>{{if $ld.LogicalDriveEncryption}}Да{{else}}Нет{{end}}</td>
-                                <td>{{$ld.Status.Health}}</td>
+                                <td class="text-center">{{$ld.Number}}</td>
+                                <td>{{$ld.RAID}}</td>
+                                <td>{{$ld.MediaType}}</td>
+                                <td class="text-end">{{$ld.CapacityMiB}}</td>
+                                <td>{{$ld.Health}}</td>
                             </tr>
                             {{end}}
                         </tbody>
                     </table>
                 </div>
                 {{end}}
-                {{if $s.PhysicalDrives}}
+                {{if $s.Drives}}
                 <div class="table-responsive mt-2">
                     <table class="table table-sm table-bordered table-striped align-middle">
                         <thead>
@@ -179,13 +178,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {{range $pd := $s.PhysicalDrives}}
+                            {{range $pd := $s.Drives}}
                             <tr>
                                 <td>{{$pd.Location}}</td>
                                 <td>{{$pd.Model}}</td>
                                 <td>{{$pd.SerialNumber}}</td>
                                 <td>{{$pd.MediaType}}</td>
-                                <td class="text-end">{{printf "%.0f" $pd.CapacityMiB}}</td>
+                                <td class="text-end">{{$pd.CapacityMiB}}</td>
                                 <td>{{$pd.DiskDriveUse}}</td>
                             </tr>
                             {{end}}

@@ -4,6 +4,7 @@ import (
 	"loadmon/grpcclient"
 
 	beego "github.com/beego/beego/v2/server/web"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // SrvHwViewBySn отображает подробную карточку сервера HPE OneView по его
@@ -39,4 +40,7 @@ func (this *MainController) SrvHwViewBySn() {
 	}
 
 	this.Data["HW"] = hw
+	// oneview2.Server не хранит готовый итоговый объём памяти (в отличие от
+	// старого Base.MemoryMb) - считаем его по установленным модулям памяти.
+	this.Data["TotalMemoryMb"] = oneview.TotalMemoryMb(hw)
 }

@@ -15,12 +15,11 @@ import (
 	"fmt"
 	"io"
 	"loadmon/config"
-	"loadmon/oneview"
 	pb "loadmon/protocol"
 	"log"
-	"strconv"
 	"time"
 
+	oneview "github.com/spa-nsk/oneview2"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -60,6 +59,10 @@ func (p *server) GetServerHardwareBySN(_ context.Context, in *pb.SerialNumber) (
 }
 
 // GetServerHardwareByName возвращает данные об аппаратном сервере (HPE OneView) по его имени.
+//
+// Примечание про oneview2: индекс по имени (ServerByName) строится в
+// oneview.Infrastructure.LoadServerHardwareList() из oneview2.GetHWserverName(),
+// как и раньше.
 func (p *server) GetServerHardwareByName(_ context.Context, in *pb.ServerName) (*pb.ServerHardware, error) {
 	if config.Switch.Endpoint.Count() > 0 {
 		for _, key := range config.Switch.Endpoint.Keys() {
@@ -95,6 +98,13 @@ func (p *server) GetServerHardwareByName(_ context.Context, in *pb.ServerName) (
 }
 
 // GetServerHardwareByVirtualSN возвращает данные об аппаратном сервере (HPE OneView) по виртуальному серийному номеру.
+//
+// Примечание про oneview2: у oneview2.ServerIdentity нет поля виртуального
+// серийного номера (в отличие от старого oneview.ServerHardware.Base.
+// VirtualSerialNumber) - индекс ServerByVirtualSN в oneview2.Infrastructure
+// сейчас всегда пуст, поэтому этот метод всегда возвращает "не найдено" в
+// локальном режиме (без Switch.Endpoint). Если виртуальный серийный номер
+// снова понадобится, поле нужно будет добавить в oneview2.ServerIdentity.
 func (p *server) GetServerHardwareByVirtualSN(_ context.Context, in *pb.SerialNumber) (*pb.ServerHardware, error) {
 	if config.Switch.Endpoint.Count() > 0 {
 		for _, key := range config.Switch.Endpoint.Keys() {
@@ -173,18 +183,16 @@ func (s *server) GetServerHardwareList(in *pb.HWReq, stream grpc.ServerStreaming
 			if in.RackName != "all" && in.RackName != hw.Rack.Name {
 				continue
 			}
-			if in.PowerState != "all" && in.PowerState != hw.Base.PowerState {
+			if in.PowerState != "all" && in.PowerState != hw.Identity.PowerState {
 				continue
 			}
-			if in.Status != "all" && in.Status != hw.Base.Status {
+			if in.Status != "all" && in.Status != hw.Identity.Status {
 				continue
 			}
-			if in.MaintenanceMode != "all" {
-				b, err := strconv.ParseBool(in.MaintenanceMode)
-				if err == nil && b != hw.Base.MaintenanceMode {
-					continue
-				}
-			}
+			// Примечание про oneview2: у oneview2.ServerIdentity нет признака
+			// режима обслуживания (в отличие от старого oneview.ServerHardware.
+			// Base.MaintenanceMode) - фильтр по MaintenanceMode сейчас
+			// применить нельзя, он молча игнорируется (кроме значения "all").
 			pbhw := pb.ServerHardware{}
 			ServerHardwareToMessage(hw, &pbhw)
 			if err := stream.Send(&pbhw); err != nil {

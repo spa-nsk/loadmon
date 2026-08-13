@@ -3,10 +3,10 @@ package cmdb
 import (
 	"fmt"
 	"loadmon/models"
-	"loadmon/oneview"
 	"strings"
 
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // проверить и тестировать

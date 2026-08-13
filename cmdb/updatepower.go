@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"loadmon/grpcclient"
 	models "loadmon/models"
-	"loadmon/oneview"
 	_ "loadmon/routers"
 	vsphere "loadmon/vspheremetrics"
 	"log"
 	"strings"
 
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // UpdateClusterSprRecordsV2 актуализирует записи ClusterSprRecords, сверяя их с
@@ -140,7 +140,7 @@ func UpdatePowerStateForServers() {
 			if err == nil {
 				hwsn, err := ov.FindServerHardwareSN(hw.SerialNum) //делаем запрос в HP OneView по серийному номеру сервера
 				if err == nil {
-					if hwsn.Base.PowerState == "On" { //сервер включен
+					if hwsn.Identity.PowerState == "On" { //сервер включен
 						serverSpr.PowerState = 1
 						hw.PowerState = 1
 					} else {
@@ -222,7 +222,7 @@ func UpdatePowerStateForServers() {
 			if powerState == false {
 				hwsn, err := ov.FindServerHardwareSN(srv.SerialNumber) //поиск в HP OneView
 				if err == nil {                                        //найден среди серверов в HP OneView
-					if hwsn.Base.PowerState == "On" {
+					if hwsn.Identity.PowerState == "On" {
 						powerState = true
 					}
 				}

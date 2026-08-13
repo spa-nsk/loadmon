@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"loadmon/utilities"
 )
 
 var it_system_spr map[string]*models.ItSystemRecord
@@ -239,7 +240,7 @@ func GetAllItSystem() ([]models.ItSystemRecord, error) {
 	errExit = nil
 
 	endPoint := "https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId=21&includeAttributes=true&page=%d"
-	token := "NzQ4ODU5NTExNjU1OgSo6DUdlpFFJ80jx465xJuWLZD"
+	token := utilities.GetKeyData("jira")
 
 	for page := 1; ; page++ {
 		var sysPage ItSystem
@@ -447,7 +448,7 @@ func GetITSystemObjectAttributes(objectKey string) ([]ObjAttr, error) {
 	errExit = nil
 
 	endPoint := "https://jira.bcs.ru/rest/assets/latest/object/%s/attributes"
-	token := "NzQ0ODU5NTExNju1OgOso6DUdlpFFJ8Ojx465xJUwLZD"
+	token := utilities.GetKeyData("jira")
 
 	urlJira := fmt.Sprintf(endPoint, objectKey)
 	req, err := http.NewRequest("GET", urlJira, nil)

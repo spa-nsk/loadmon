@@ -89,15 +89,15 @@
                 {{range $ind, $hw := .HWList}}
                 <tr>
                     <td>
-                        <span class="badge {{if eq $hw.Base.Status "OK"}}text-bg-success{{else if eq $hw.Base.Status "Warning"}}text-bg-warning{{else if eq $hw.Base.Status "Critical"}}text-bg-danger{{else}}text-bg-secondary{{end}}">{{$hw.Base.Status}}</span>
+                        <span class="badge {{if eq $hw.Identity.Status "OK"}}text-bg-success{{else if eq $hw.Identity.Status "Warning"}}text-bg-warning{{else if eq $hw.Identity.Status "Critical"}}text-bg-danger{{else}}text-bg-secondary{{end}}">{{$hw.Identity.Status}}</span>
                     </td>
                     <td>
-                        <svg class="bi power-led {{if eq $hw.Base.PowerState "On"}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{$hw.Base.PowerState}}"><use href="#power"></use></svg>
-                        <a href="/sprsrv/srvhwviewbysn/{{$hw.Base.SerialNumber}}" target="_blank" title="Подробнее">{{$hw.Base.SerialNumber}}</a>
+                        <svg class="bi power-led {{if eq $hw.Identity.PowerState "On"}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{$hw.Identity.PowerState}}"><use href="#power"></use></svg>
+                        <a href="/sprsrv/srvhwviewbysn/{{$hw.Identity.SerialNumber}}" target="_blank" title="Подробнее">{{$hw.Identity.SerialNumber}}</a>
                     </td>
-                    <td>{{$hw.Base.ServerName}}</td>
+                    <td>{{$hw.Identity.ServerName}}</td>
                     <td>
-                        <div style="max-width:340px; word-wrap:break-word;">{{$hw.Base.Model}} {{if ne $hw.Base.PartNumber ""}}({{$hw.Base.PartNumber}}){{end}}</div>
+                        <div style="max-width:340px; word-wrap:break-word;">{{$hw.Identity.Model}} {{if ne $hw.Identity.PartNumber ""}}({{$hw.Identity.PartNumber}}){{end}}</div>
                     </td>
                     <td>{{if ne $hw.Datacenter.Name ""}}{{$hw.Datacenter.Name}}{{end}}{{if ne $hw.Rack.Name ""}} ({{$hw.Rack.Name}}){{end}}</td>
                 </tr>
