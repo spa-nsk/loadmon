@@ -15,7 +15,6 @@ import (
 	"loadmon/grpcclient"
 	"loadmon/grpcserver"
 	"loadmon/itsystem"
-	"loadmon/oneview"
 	_ "loadmon/routers"
 	"loadmon/vspheremetrics"
 	"loadmon/zabbix"
@@ -28,6 +27,8 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+
+	oneview "github.com/spa-nsk/oneview2"
 	"time"
 
 	_ "github.com/lib/pq"

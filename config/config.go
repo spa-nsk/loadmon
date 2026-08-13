@@ -18,8 +18,9 @@ import (
 
 	"loadmon/utilities"
 
-	"loadmon/oneview"
 	"loadmon/vspheremetrics"
+
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // OvEndpoint описывает подключение к одному эндпоинту HPE OneView (домен, учётные данные, версия API).

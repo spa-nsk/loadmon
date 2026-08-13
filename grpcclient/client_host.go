@@ -137,9 +137,17 @@ func LoadHostMetrics(key string) []*vsphere.HSPerf {
 // LinkVMToCluster связывает список VM со списком кластеров по составному
 // ключу vcenter/datacenter/cluster, заполняя cl[i].VM и cl[i].VMCount.
 // Чисто локальная операция, gRPC не использует.
+//
+// cl[i].VMCount на входе уже может быть заполнен сервером (см.
+// grpcserver.ClusterToMessageFull/MessageToClusterFull - VMCount берётся из
+// инфраструктуры независимо от среза VM). Здесь счётчик пересчитывается с
+// нуля по фактически связанным записям VM, а не увеличивается поверх уже
+// установленного значения - иначе он задваивался бы.
 func LinkVMToCluster(vm []*vsphere.VMPoint, cl []*vsphere.Cluster) {
 	mapcl := make(map[string]*vsphere.Cluster)
 	for _, clp := range cl {
+		clp.VM = clp.VM[:0]
+		clp.VMCount = 0
 		mapcl[clp.Vcenter+"/"+clp.Datacenter+"/"+clp.Name] = clp
 	}
 	for _, vmp := range vm {
@@ -154,3 +162,22 @@ func LinkVMToCluster(vm []*vsphere.VMPoint, cl []*vsphere.Cluster) {
 // LinkHostToCluster связывает список хостов со списком кластеров по
 // составному ключу vcenter/datacenter/cluster, заполняя cl[i].Hosts и
 // cl[i].HostCount. Чисто локальная операция, gRPC не использует.
+//
+// Аналогично LinkVMToCluster: cl[i].HostCount на входе уже может быть
+// заполнен сервером, поэтому счётчик и срез Hosts здесь пересчитываются с
+// нуля, а не дополняются поверх существующего значения.
+func LinkHostToCluster(hs []*vsphere.HostInfo, cl []*vsphere.Cluster) {
+	mapcl := make(map[string]*vsphere.Cluster)
+	for _, clp := range cl {
+		clp.Hosts = clp.Hosts[:0]
+		clp.HostCount = 0
+		mapcl[clp.Vcenter+"/"+clp.Datacenter+"/"+clp.Name] = clp
+	}
+	for _, hsp := range hs {
+		clp, ok := mapcl[hsp.Vcenter+"/"+hsp.Datacenter+"/"+hsp.Cluster]
+		if ok {
+			clp.Hosts = append(clp.Hosts, hsp)
+			clp.HostCount++
+		}
+	}
+}

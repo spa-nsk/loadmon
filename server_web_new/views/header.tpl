@@ -353,17 +353,6 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Загрузка кластеров и хостов с
                 00:00</a>
             </li>
-            <li>
-              <a href="/sprsrv/clusterperiod/all/all/all"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Загрузка кластеров и хостов с
-                {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month
-                $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day
-                $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}</a>
-            </li>
-            <li>
-              <a href="/sprsrv/viewsrvinfo/all/0"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Загрузка серверов</a>
-            </li>
           </ul>
         </div>
       </li>
@@ -395,82 +384,12 @@
         <div class="collapse hide" id="spr-collapse">
           <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
             <li>
-              <a href="/sprsrv/viewmembersfg" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Юр
-                лица</a>
-            </li>
-            <li>
-              <a href="/sprsrv/viewul"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Контрагенты</a>
-            </li>
-            <li>
-              <a href="/sprsrv/viewservices"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Сервисы</a>
-            </li>
-            <li>
-              <a href="/sprsrv/storagesystems"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Хранилища (СХД)</a>
-            </li>
-            <li>
-              <a href="/sprsrv/storagevolumes"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Томы</a>
-            </li>
-            <li>
-              <a href="/sprsrv/bladesystems"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Blade шасси</a>
-            </li>
-            <li>
               <a href="/sprsrv/view2/all/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник серверов</a>
             </li>
             <li>
               <a href="/sprsrv/hwconflist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Конфигурации серверов</a>
-            </li>
-          </ul>
-        </div>
-      </li>
-{{end}}
-{{if .InSession}}
-      <li class="border-top my-3"></li>
-      <li class="mb-1">
-        <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
-          data-bs-toggle="collapse" data-bs-target="#hardware-collapse" aria-expanded="false">
-          Оборудование
-        </button>
-        <div class="collapse hide" id="hardware-collapse">
-          <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-            <li>
-              <a href="/cmdb/listcpuspr" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Процессоры</a>
-            </li>
-            <li>
-              <a href="/cmdb/listramspr" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Оперативная память</a>
-            </li>
-            <li>
-              <a href="/cmdb/listdiskspr" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Диски</a>
-            </li>
-            <li>
-              <a href="/cmdb/listmodelvendorspr" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Модели от производителя</a>
-            </li>
-            <li>
-              <a href="/cmdb/listmodelspr" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Модели нормативы</a>
-            </li>
-            <li>
-              <a href="/cmdb/listconfunit" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Конфигурационные единицы серверов</a>
-            </li>
-          </ul>
-        </div>
-      </li>
-
-      <li class="border-top my-3"></li>
-      <li class="mb-1">
-        <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
-          data-bs-toggle="collapse" data-bs-target="#role-collapse" aria-expanded="false">
-          Роли и стандарты
-        </button>
-        <div class="collapse hide" id="role-collapse">
-          <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-            <li>
-              <a href="/role/list" class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Список ролей и оборудования</a>
             </li>
           </ul>
         </div>

@@ -14,7 +14,6 @@ import (
 
 	// "loadmon/filefunction"
 	models "loadmon/models"
-	"loadmon/oneview"
 	_ "loadmon/routers"
 	vsphere "loadmon/vspheremetrics"
 	"strconv"
@@ -22,6 +21,7 @@ import (
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 // CheckHypervisorOS определяет, является ли операционная система сервера гипервизором ESXi.
@@ -869,27 +869,29 @@ func RestoreSprData(to *models.ServerSprRecords, from models.ServerSprRecords) {
 }
 
 // ImportHWSprRecord переносит аппаратные характеристики сервера, полученные из HP OneView
-// (oneview.ServerHardware), в запись справочника конфигураций оборудования ServerHardware,
+// (oneview2.Server), в запись справочника конфигураций оборудования ServerHardware,
 // включая определение блейд-корзины (BladeSystems) и её местоположения в стойке.
-func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.ServerHardware, ov *oneview.OVInfrastructure) {
+//
+// Примечание про oneview2: в отличие от старого пакета loadmon/oneview, здесь не
+// нужно отдельно запрашивать корзину через ov.GetEnclosureByURI/ov.GetDeviceBayInfo -
+// oneview2.CollectServers уже разрешает размещение (датацентр/стойка/корзина/bay)
+// на каждый Server (см. loadmon/oneview2/location.go), поэтому используется
+// srv.EnclosureInfo/srv.BayInfo напрямую. Параметр ov сохранён в сигнатуре для
+// совместимости вызывающего кода, хотя сейчас не используется.
+func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.Server, ov *oneview.Infrastructure) {
 	if h == nil || srv == nil || ov == nil {
 		return
 	}
 
-	//ov := oneview.GetGlobalOVInfrastructure()
 	o := orm.NewOrm()
 
-	server := srv.Base
-	h.SerialNum = srv.Base.SerialNumber.String()
-	vsn := srv.Base.VirtualSerialNumber.String()
+	identity := srv.Identity
+	h.SerialNum = identity.SerialNumber
+	// oneview2.ServerIdentity не хранит виртуальный серийный номер (в отличие
+	// от старого oneview.ServerHardware.Base.VirtualSerialNumber).
+	h.VirtualSerialNum = ""
 
-	if vsn == "null" || vsn == "" {
-		h.VirtualSerialNum = ""
-	} else {
-		h.VirtualSerialNum = vsn
-	}
-
-	if srv.Base.PowerState == "on" || srv.Base.PowerState == "On" {
+	if identity.PowerState == "on" || identity.PowerState == "On" {
 		h.PowerState = 1
 	} else {
 		h.PowerState = 2
@@ -900,23 +902,15 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.ServerHardware, ov
 	h.RackName = srv.Rack.Name
 
 	h.Vendor = "HPE"
-	h.Model = server.Model
+	h.Model = identity.Model
 	h.FormFactor = 1
 
-	if server.Position > 0 {
+	if identity.Position > 0 {
 		h.FormFactor = 2
-		h.BladeNum = server.Position
+		h.BladeNum = identity.Position
 
-		BladeSystem := ""
-		enc, ok := ov.GetEnclosureByURI(server.LocationURI.String())
+		BladeSystem := srv.EnclosureInfo.Name
 
-		if ok {
-			BladeSystem = enc.Name
-		}
-
-		if devbay, ok := ov.GetDeviceBayInfo(server.URI.String()); ok {
-			fmt.Println(devbay.BayNumber, server.Position)
-		}
 		s := strings.Split(BladeSystem, "-")
 		if len(s) == 2 {
 			num, _ := strconv.Atoi(s[1])
@@ -932,55 +926,62 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.ServerHardware, ov
 				h.RackNum = bls.RackNum
 			}
 			h.StartUnit = bls.StartUnit
-		} else { //добавить запись в справочник корзин
-			if ok {
-				bls.SerialNum = enc.SerialNumber
-				bls.PartNum = enc.PartNumber
-				bls.Model = enc.EnclosureModel
-				bls.Size = enc.DeviceBayCount
-				bls.Used = 0
-				for _, bay := range enc.DeviceBays {
-					if bay.DevicePresence == "Present" {
-						bls.Used++
-					}
-				}
-				bls.Time_Mfy = time.Now().Local()
-				bls.Anotation = fmt.Sprintf("%s%s", enc.SerialNumber, " Данные добавлены из HP One View")
-				if _, err := o.Insert(&bls); err != nil {
-					fmt.Println("Ошибка записи данных в справочник корзин.", err)
-				}
+		} else if BladeSystem != "" { //добавить запись в справочник корзин
+			bls.SerialNum = srv.EnclosureInfo.SerialNumber
+			bls.PartNum = srv.EnclosureInfo.PartNumber
+			bls.Model = srv.EnclosureInfo.Model
+			bls.Size = srv.EnclosureInfo.DeviceBayCount
+			// Примечание про oneview2: EnclosureInfo на уровне отдельного
+			// Server хранит только общее количество отсеков (DeviceBayCount),
+			// а не список занятых/свободных отсеков, как старый
+			// ov.Enclosure.DeviceBays - поэтому bls.Used посчитать сейчас
+			// нельзя и он остаётся нулевым.
+			bls.Used = 0
+			bls.Time_Mfy = time.Now().Local()
+			bls.Anotation = fmt.Sprintf("%s%s", srv.EnclosureInfo.SerialNumber, " Данные добавлены из HP One View")
+			if _, err := o.Insert(&bls); err != nil {
+				fmt.Println("Ошибка записи данных в справочник корзин.", err)
 			}
 		}
 	}
-	h.CPUModel = server.ProcessorType
-	h.CPUCount = server.ProcessorCount
-	h.CorePerCPU = server.ProcessorCoreCount
-	h.CoreMHz = server.ProcessorSpeedMhz
-	h.MemoryMb = server.MemoryMb //размер памяти в мб
-	h.PartNum = server.PartNumber
+	if len(srv.Processors) > 0 {
+		p := srv.Processors[0]
+		h.CPUModel = p.Model
+		h.CorePerCPU = p.TotalCores
+		speed := p.OperatingSpeedMHz
+		if speed == 0 {
+			speed = p.MaxSpeedMHz
+		}
+		h.CoreMHz = speed
+	}
+	h.CPUCount = len(srv.Processors)
+	h.MemoryMb = oneview.TotalMemoryMb(srv) //размер памяти в мб
+	h.PartNum = identity.PartNumber
 	h.Time_Mfy = time.Now().Local()
 }
 
 // ImportServerSprFromHW переносит данные о процессорах, памяти, дисковой ёмкости,
-// состоянии питания и операционной системе из данных HP OneView (oneview.ServerHardware)
+// состоянии питания и операционной системе из данных HP OneView (oneview2.Server)
 // в запись справочника серверов ServerSprRecords.
-func ImportServerSprFromHW(srvspr *models.ServerSprRecords, srv *oneview.ServerHardware) {
+func ImportServerSprFromHW(srvspr *models.ServerSprRecords, srv *oneview.Server) {
 	if srvspr == nil || srv == nil {
 		return
 	}
-	srvspr.CPUCount = float64(srv.Base.ProcessorCount)
-	srvspr.CPULogical = float64(srv.Base.ProcessorCount) * float64(srv.Base.ProcessorCoreCount)
-	srvspr.MemSize = float64(srv.Base.MemoryMb) / 1024.0
+	srvspr.CPUCount = float64(len(srv.Processors))
+	if len(srv.Processors) > 0 {
+		srvspr.CPULogical = float64(len(srv.Processors)) * float64(srv.Processors[0].TotalCores)
+	}
+	srvspr.MemSize = float64(oneview.TotalMemoryMb(srv)) / 1024.0
 	if srvspr.Type == 0 { //физический сервер
 		srvspr.DiskSize = 0.0
-		srvspr.SerialNumber = string(srv.Base.SerialNumber)
-		for _, storage := range srv.Storage.Data {
-			for _, logical := range storage.LogicalDrives {
-				srvspr.DiskSize += logical.CapacityMiB / 1024 //добавляем емкость всех Raid
+		srvspr.SerialNumber = srv.Identity.SerialNumber
+		for _, storage := range srv.Controllers {
+			for _, logical := range storage.Volumes {
+				srvspr.DiskSize += float64(logical.CapacityMiB) / 1024 //добавляем емкость всех Raid
 			}
 		}
 	}
-	if srv.Base.PowerState == "on" || srv.Base.PowerState == "On" {
+	if srv.Identity.PowerState == "on" || srv.Identity.PowerState == "On" {
 		srvspr.PowerState = 1
 	} else {
 		srvspr.PowerState = 2
@@ -994,10 +995,10 @@ func ImportServerSprFromHW(srvspr *models.ServerSprRecords, srv *oneview.ServerH
 	if strings.Contains(up, "ESXI") || srvspr.Type == 2 {
 		//это гипервизор и обновление будет в другом месте
 	} else {
-		if srv.OperatingSystem == "" || srv.OperatingSystem == "Unknown" {
+		if srv.Identity.OperatingSystem == "" || srv.Identity.OperatingSystem == "Unknown" {
 			//srvspr.OS = "" не трогаем данные введенные руками
 		} else {
-			srvspr.OS = srv.OperatingSystem
+			srvspr.OS = srv.Identity.OperatingSystem
 		}
 	}
 	srvspr.Time_Mfy = time.Now().Local()

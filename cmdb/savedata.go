@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"loadmon/grpcclient"
-	"loadmon/oneview"
 
 	//"loadmon/tools"
 	vsphere "loadmon/vspheremetrics"
@@ -15,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/HewlettPackard/oneview-golang/utils"
 	"github.com/beego/beego/v2/client/orm"
+	oneview "github.com/spa-nsk/oneview2"
 )
 
 var (
@@ -193,8 +192,8 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 	if !foundSrvSpr { //не нашлось в справочнике - нужно создать
 		srvspr.Stat = 1
 		if hw != nil {
-			if hw.Base.Hostname == hs.Name {
-				srvspr.Details = hw.Base.SerialNumber.String() + " Добавлен из Vsphere + hp One View, пребуется правка"
+			if hw.Identity.MpHostName == hs.Name {
+				srvspr.Details = hw.Identity.SerialNumber + " Добавлен из Vsphere + hp One View, пребуется правка"
 			}
 		} else {
 			srvspr.Details = hs.SerialNumber + " Добавлен из Vsphere, требуется правка "
@@ -202,7 +201,7 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 	} else {
 		srvspr.Stat = 1
 		if hw != nil {
-			if hw.Base.Hostname == hs.Name {
+			if hw.Identity.MpHostName == hs.Name {
 				srvspr.SerialNumber = sn
 			}
 		} else {
@@ -326,9 +325,9 @@ func SaveClusterCMDBRecord(cl *vsphere.Cluster, clId int64, currentTime time.Tim
 // GetHostData ищет данные оборудования хоста в HP OneView по серийному номеру (в том числе
 // виртуальному) и возвращает найденную запись, фактический серийный номер и серийный номер
 // корзины (enclosure), если применимо.
-func GetHostData(serialNum string) (*oneview.ServerHardware, string, string) {
+func GetHostData(serialNum string) (*oneview.Server, string, string) {
 	var (
-		hw *oneview.ServerHardware
+		hw *oneview.Server
 		ok bool
 	)
 
@@ -341,21 +340,15 @@ func GetHostData(serialNum string) (*oneview.ServerHardware, string, string) {
 		hw, ok = grpcclient.GetServerHardwareBySN(serialNum)
 	}
 	if ok {
-		sn = hw.Base.SerialNumber.String()
+		sn = hw.Identity.SerialNumber
 		s := strings.TrimSpace(hw.EnclosureInfo.SerialNumber) //если корзина реально есть
 		if s != "" {
 			snEnc = s
 		}
 	}
-	if hw != nil {
-		vsn := hw.Base.VirtualSerialNumber
-		vsns := vsn.String()
-		if vsns == "null" || vsns == "" {
-			hw.Base.VirtualSerialNumber = utils.Nstring("")
-		} else {
-			hw.Base.VirtualSerialNumber = vsn
-		}
-	}
+	// Примечание про oneview2: ServerIdentity не хранит виртуальный серийный
+	// номер (в отличие от старого Base.VirtualSerialNumber), поэтому блок
+	// реконсиляции виртуального серийного номера здесь больше не нужен.
 	return hw, sn, snEnc
 }
 
