@@ -24,6 +24,9 @@
 	"GRPCCliApiPort": 50063,
 	"GRPCSwitchAddr": "",
 	"GRPCSwitchPort": 0,
+	"OneViewOperationTimeoutSec": 90,
+	"OneViewCollectTimeoutSec": 300,
+	"GrpcHardwareTimeoutSec": 120,
 	"ConfigVCenters": [
 		{"Hostname":"vc.example.local","Username":"user@example.local","Password":"change-me","Wait":60}
 	],

@@ -71,6 +71,9 @@ type ServerIdentity struct {
 	ServerHardwareTypeName string `json:"serverHardwareTypeName,omitempty"`
 	ApplianceLocation      string `json:"applianceLocation,omitempty"`
 	ApplianceName          string `json:"applianceName,omitempty"`
+	VirtualSerialNumber    string `json:"virtualSerialNumber,omitempty"`
+	MaintenanceMode        bool   `json:"maintenanceMode,omitempty"`
+	HostOsType             string `json:"hostOsType,omitempty"`
 }
 
 // ProcessorInventory is CPU summary plus per-socket details when OneView has them.

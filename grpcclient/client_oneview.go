@@ -29,7 +29,7 @@ import (
 // номеру и признак успеха. Возвращает (nil, false) при ошибке подключения
 // или если сервер не найден.
 func GetServerHardwareBySN(sn string) (*oneview.Server, bool) {
-	c, conn, ctx, cancel, err := dialAPI()
+	c, conn, ctx, cancel, err := dialAPIHardware()
 	if err != nil {
 		return nil, false
 	}
@@ -49,7 +49,7 @@ func GetServerHardwareBySN(sn string) (*oneview.Server, bool) {
 // имени и признак успеха. Возвращает (nil, false) при ошибке подключения
 // или если сервер не найден.
 func GetServerHardwareByName(name string) (*oneview.Server, bool) {
-	c, conn, ctx, cancel, err := dialAPI()
+	c, conn, ctx, cancel, err := dialAPIHardware()
 	if err != nil {
 		return nil, false
 	}
@@ -66,14 +66,9 @@ func GetServerHardwareByName(name string) (*oneview.Server, bool) {
 }
 
 // GetServerHardwareByVirtualSN возвращает данные сервера HPE OneView по
-// виртуальному серийному номеру и признак успеха. Возвращает (nil, false)
-// при ошибке подключения или если сервер не найден.
-//
-// Примечание про oneview2: у oneview2.ServerIdentity нет поля виртуального
-// серийного номера, поэтому сервер сейчас не найдётся этим способом ни при
-// каких условиях (см. комментарий в grpcserver/handler_hardware.go).
+// виртуальному серийному номеру и признак успеха.
 func GetServerHardwareByVirtualSN(sn string) (*oneview.Server, bool) {
-	c, conn, ctx, cancel, err := dialAPI()
+	c, conn, ctx, cancel, err := dialAPIHardware()
 	if err != nil {
 		return nil, false
 	}
@@ -91,16 +86,10 @@ func GetServerHardwareByVirtualSN(sn string) (*oneview.Server, bool) {
 
 // GetServerHardwareList возвращает список серверов HPE OneView,
 // отфильтрованных по датацентру, стойке, статусу, режиму обслуживания и
-// состоянию питания (пустая строка — фильтр не применяется). При ошибке
-// подключения возвращает (пустой срез, ошибка); повреждённые записи потока
-// прерывают дальнейшее чтение.
-//
-// Примечание про oneview2: фильтр maintenanceMode сейчас не применяется на
-// сервере (см. grpcserver/handler_hardware.go) - у oneview2.ServerIdentity
-// нет соответствующего поля.
+// состоянию питания (пустая строка — фильтр не применяется).
 func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, powerState string) ([]*oneview.Server, error) {
 	out := make([]*oneview.Server, 0)
-	c, conn, ctx, cancel, err := dialAPI()
+	c, conn, ctx, cancel, err := dialAPIHardware()
 	if err != nil {
 		return out, err
 	}

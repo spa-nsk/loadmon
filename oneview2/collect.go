@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // Server is a version-agnostic inventory of one physical machine collected from
@@ -55,8 +54,6 @@ func CollectServers(ctx context.Context, configs []Config) ([]Server, error) {
 		if err := ctx.Err(); err != nil {
 			return out, errors.Join(append(errs, err)...)
 		}
-		cfg.InsecureTLS = false
-		cfg.Timeout = 90* time.Second
 		servers, err := collectFromConfig(ctx, cfg)
 		if err != nil {
 			label := cfg.Endpoint
@@ -226,6 +223,9 @@ func mergeIdentity(dst *ServerIdentity, src ServerIdentity) {
 	dst.ServerHardwareTypeName = first(dst.ServerHardwareTypeName, src.ServerHardwareTypeName)
 	dst.ApplianceLocation = first(dst.ApplianceLocation, src.ApplianceLocation)
 	dst.ApplianceName = first(dst.ApplianceName, src.ApplianceName)
+	dst.VirtualSerialNumber = first(dst.VirtualSerialNumber, src.VirtualSerialNumber)
+	dst.HostOsType = first(dst.HostOsType, src.HostOsType)
+	dst.MaintenanceMode = dst.MaintenanceMode || src.MaintenanceMode
 }
 
 func preferSlice[T any](dst, src []T, richer func([]T) bool) []T {

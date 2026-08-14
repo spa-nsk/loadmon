@@ -343,6 +343,9 @@ func identityFrom(hw *ServerHardware) ServerIdentity {
 		ServerHardwareTypeName: hw.ServerHardwareTypeName,
 		ApplianceLocation:      hw.ApplianceLocation,
 		ApplianceName:          hw.ApplianceName,
+		VirtualSerialNumber:    hw.VirtualSerialNumber,
+		MaintenanceMode:        hw.MaintenanceMode.Bool(),
+		HostOsType:             hw.HostOsType.String(),
 	}
 }
 

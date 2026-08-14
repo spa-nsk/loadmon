@@ -871,6 +871,12 @@ message ServerHardware {
   Racks Rack = 5;
   Enclosure EnclosureInfo = 6;
   DeviceBayInfo BayInfo = 7;
+  // Расширение под oneview2.Server (полная инвентаризация).
+  repeated OVProcessorInfo Processors = 8;
+  repeated OVNetworkPort NetworkPorts = 9;
+  repeated OVPCIDevice Devices = 10;
+  repeated OVFirmwareComponent Firmware = 11;
+  OVServerMetadata Metadata = 12;
 }
 
 //
@@ -896,6 +902,23 @@ message OVServerHardware {
   string OperatingSystem=19;
   string VirtualSerialNumber=20;
   string FormFactor=21;
+  // Поля oneview2.ServerIdentity, отсутствовавшие в ранней схеме.
+  string State=22;
+  string AssetTag=23;
+  string URI=24;
+  string RomVersion=25;
+  string MpModel=26;
+  string MpFirmwareVersion=27;
+  string MpIpAddress=28;
+  string MpHostName=29;
+  string LocationURI=30;
+  string ServerProfileURI=31;
+  string ServerHardwareTypeURI=32;
+  string ServerHardwareTypeName=33;
+  string ApplianceLocation=34;
+  string ApplianceName=35;
+  string HostOsTypeName=36;
+  string Platform=37;
 }
 
 //
@@ -946,6 +969,13 @@ message MemoryModule {
   string PartNumber=10;
   int32 RankCount=11;
   MemoryStatus Status=12; //MemoryStatus - состояние модуля памяти Health в значении "OK", State в значении "Enabled"
+  string SerialNumber=13;
+  string MemoryType=14;
+  string ErrorCorrection=15;
+  int32 Socket=16;
+  int32 Channel=17;
+  int32 Slot=18;
+  repeated string Attributes=19;
 }
 
 //
@@ -1218,4 +1248,66 @@ message Enclosure {
   string                          VcmURL=38;
   int32                           OaBays=39;
   string                          MigrationState=40;
+}
+
+// --- oneview2 extended inventory ---
+
+message OVProcessorInfo {
+  string ID = 1;
+  string Socket = 2;
+  string Model = 3;
+  string Manufacturer = 4;
+  int32 TotalCores = 5;
+  int32 TotalThreads = 6;
+  int32 MaxSpeedMHz = 7;
+  int32 OperatingSpeedMHz = 8;
+  string Health = 9;
+  string State = 10;
+}
+
+message OVNetworkPort {
+  string DeviceName = 1;
+  string DeviceSlot = 2;
+  int32 PortNumber = 3;
+  string Type = 4;
+  string MAC = 5;
+  string WWN = 6;
+  repeated string VirtualMACs = 7;
+  string InterconnectURI = 8;
+}
+
+message OVPCIDevice {
+  string ID = 1;
+  string Name = 2;
+  string DeviceType = 3;
+  string Location = 4;
+  string Manufacturer = 5;
+  string PartNumber = 6;
+  string ProductPartNumber = 7;
+  string SerialNumber = 8;
+  string FirmwareVersion = 9;
+  string Health = 10;
+  string State = 11;
+}
+
+message OVFirmwareComponent {
+  string Name = 1;
+  string Version = 2;
+  string Location = 3;
+  string State = 4;
+  string Status = 5;
+}
+
+message OVServerSource {
+  string Endpoint = 1;
+  int32 APIVersion = 2;
+  string Product = 3;
+}
+
+message OVServerMetadata {
+  int32 APIVersion = 1;
+  string Product = 2;
+  string Endpoint = 3;
+  repeated string Warnings = 4;
+  repeated OVServerSource Sources = 5;
 }
