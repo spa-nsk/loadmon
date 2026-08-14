@@ -155,6 +155,39 @@ func TestExportServerFromSubresources(t *testing.T) {
 	}
 }
 
+// TestDecodeSubDataDataWrapperNotSwallowed guards against a regression where
+// decodeSubData mistook a {"data": [...]} / {"members": [...]} wrapper object
+// for a single embedded record (via JSONList's object-as-one-item fallback),
+// silently returning a 1-item list of mostly empty fields instead of the real
+// array. This produced processor counts of 1 (real count 2) on live subresource
+// fetches (appliance API 3800-8800, reproduced on 7400) and on Global
+// Dashboard's Redfish-style {"members": [...]} shape (API 300).
+func TestDecodeSubDataDataWrapperNotSwallowed(t *testing.T) {
+	dataWrapped := json.RawMessage(`{"data":[{"Id":"1","Model":"Intel Xeon","TotalCores":16},{"Id":"2","Model":"Intel Xeon","TotalCores":16}]}`)
+	got := decodeSubData[rawProcessor](dataWrapped, nil, "processors")
+	if len(got) != 2 {
+		t.Fatalf("data-wrapped: want 2 processors, got %d: %+v", len(got), got)
+	}
+
+	membersWrapped := json.RawMessage(`{"members":[{"Id":"1","Model":"Intel Xeon","TotalCores":16},{"Id":"2","Model":"Intel Xeon","TotalCores":16}]}`)
+	got = decodeSubData[rawProcessor](membersWrapped, nil, "processors")
+	if len(got) != 2 {
+		t.Fatalf("members-wrapped: want 2 processors, got %d: %+v", len(got), got)
+	}
+
+	bareArray := json.RawMessage(`[{"Id":"1","Model":"Intel Xeon","TotalCores":16}]`)
+	got = decodeSubData[rawProcessor](bareArray, nil, "processors")
+	if len(got) != 1 {
+		t.Fatalf("bare array: want 1 processor, got %d: %+v", len(got), got)
+	}
+
+	bareObject := json.RawMessage(`{"Id":"1","Model":"Intel Xeon","TotalCores":16}`)
+	got = decodeSubData[rawProcessor](bareObject, nil, "processors")
+	if len(got) != 1 || got[0].Model != "Intel Xeon" {
+		t.Fatalf("bare object fallback: got %+v", got)
+	}
+}
+
 func TestFindServerHardwareByName(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

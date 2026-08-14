@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Server is a version-agnostic inventory of one physical machine collected from
@@ -54,6 +55,8 @@ func CollectServers(ctx context.Context, configs []Config) ([]Server, error) {
 		if err := ctx.Err(); err != nil {
 			return out, errors.Join(append(errs, err)...)
 		}
+		cfg.InsecureTLS = false
+		cfg.Timeout = 90* time.Second
 		servers, err := collectFromConfig(ctx, cfg)
 		if err != nil {
 			label := cfg.Endpoint

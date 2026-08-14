@@ -396,6 +396,25 @@ func processorList(hw *ServerHardware, socks []rawProcessor) []ProcessorInfo {
 		out = append(out, p)
 	}
 	if len(out) > 0 {
+		// Подресурс processors на некоторых версиях API отдаёт меньше
+		// сокетов, чем указано в ProcessorCount базового server-hardware
+		// (наблюдалось до исправления decodeSubData выше, но оставляем
+		// подстраховку и на будущее) - дозаполняем недостающие сокеты по
+		// данным базового ресурса, чтобы количество процессоров не
+		// занижалось.
+		if hw != nil {
+			if want := hw.ProcessorCount.Int(); want > len(out) {
+				for i := len(out); i < want; i++ {
+					out = append(out, ProcessorInfo{
+						Socket:            fmt.Sprintf("%d", i+1),
+						Model:             hw.ProcessorType,
+						TotalCores:        hw.ProcessorCoreCount.Int(),
+						MaxSpeedMHz:       hw.ProcessorSpeedMhz.Int(),
+						OperatingSpeedMHz: hw.ProcessorSpeedMhz.Int(),
+					})
+				}
+			}
+		}
 		return out
 	}
 	if hw == nil {
@@ -442,12 +461,33 @@ func parseEmbeddedSubresources(hw *ServerHardware, exp *ServerExport) {
 }
 
 func decodeSubData[T any](raw json.RawMessage, exp *ServerExport, name string) []T {
+	raw = json.RawMessage(bytesTrim(raw))
 	if len(raw) == 0 {
 		return nil
 	}
-	var list JSONList[T]
-	if err := DecodeJSON(raw, &list); err == nil && len(list) > 0 {
-		return list
+	// Бывший порядок попыток декодирования содержал баг: appliance API
+	// (3800-8800, воспроизводится на 7400) и Global Dashboard (API 300)
+	// оборачивают массив в объект - {"data": [...]} у appliance,
+	// {"members": [...]} у GD (Redfish-стиль). Раньше код сначала пытался
+	// декодировать raw НАПРЯМУЮ как JSONList[T]; JSONList.UnmarshalJSON для
+	// значения, начинающегося с '{', не считает это ошибкой - он трактует
+	// весь объект-обёртку как единственный элемент T (так исторически
+	// сделано для PhysicalDrives/LogicalDrives, которые иногда приходят как
+	// один объект без обёртки). Из-за этого объект {"data":[proc1,proc2]}
+	// декодировался в T{} с пустыми полями и возвращался как список длиной
+	// 1 (данные обёртки "data" в поля T не попадают) - именно поэтому
+	// количество процессоров показывалось как 1 при реальных двух, а данные
+	// по памяти для API 7400 приходили пустыми/некорректными. Теперь массив
+	// декодируется напрямую, только если raw - это JSON-массив; для объекта
+	// сначала пробуем развернуть {"data": [...]} / {"members": [...]}, и
+	// лишь если там ничего не нашлось - разрешаем трактовать raw как один
+	// embedded-объект (для эндпоинтов, которые действительно возвращают
+	// одиночный объект без обёртки).
+	if raw[0] == '[' {
+		var list JSONList[T]
+		if err := DecodeJSON(raw, &list); err == nil && len(list) > 0 {
+			return list
+		}
 	}
 	var wrap struct {
 		Data    JSONList[T] `json:"data"`
@@ -460,6 +500,10 @@ func decodeSubData[T any](raw json.RawMessage, exp *ServerExport, name string) [
 		if len(wrap.Members) > 0 {
 			return wrap.Members
 		}
+	}
+	var list JSONList[T]
+	if err := DecodeJSON(raw, &list); err == nil && len(list) > 0 {
+		return list
 	}
 	if exp != nil && len(raw) > 2 {
 		exp.warn("%s: unexpected payload shape", name)
