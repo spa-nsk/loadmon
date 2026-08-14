@@ -346,9 +346,6 @@ func GetHostData(serialNum string) (*oneview.Server, string, string) {
 			snEnc = s
 		}
 	}
-	// Примечание про oneview2: ServerIdentity не хранит виртуальный серийный
-	// номер (в отличие от старого Base.VirtualSerialNumber), поэтому блок
-	// реконсиляции виртуального серийного номера здесь больше не нужен.
 	return hw, sn, snEnc
 }
 
