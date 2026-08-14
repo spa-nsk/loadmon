@@ -24,10 +24,14 @@
 	"GRPCCliApiPort": 50063,
 	"GRPCSwitchAddr": "",
 	"GRPCSwitchPort": 0,
+	"OneViewOperationTimeoutSec": 90,
+	"OneViewCollectTimeoutSec": 300,
+	"GrpcHardwareTimeoutSec": 120,
 	"ConfigVCenters": [
 		{"Hostname":"vc.example.local","Username":"user@example.local","Password":"change-me","Wait":60}
 	],
 	"ConfigOV": [
-		{"Domain":"example.local","Login":"user","Password":"change-me","Endpoint":"https://oneview.example.local","Version":3800}
+		{"Domain":"example.local","Login":"user","Password":"change-me","Endpoint":"https://oneview.example.local","Version":3800},
+		{"Domain":"example.local","Login":"user","Password":"change-me","Endpoint":"https://oneview-slow.example.local","Version":7400,"OperationTimeoutSec":120}
 	]
 }

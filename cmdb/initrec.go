@@ -887,9 +887,7 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.Server, ov *onevie
 
 	identity := srv.Identity
 	h.SerialNum = identity.SerialNumber
-	// oneview2.ServerIdentity не хранит виртуальный серийный номер (в отличие
-	// от старого oneview.ServerHardware.Base.VirtualSerialNumber).
-	h.VirtualSerialNum = ""
+	h.VirtualSerialNum = identity.VirtualSerialNumber
 
 	if identity.PowerState == "on" || identity.PowerState == "On" {
 		h.PowerState = 1

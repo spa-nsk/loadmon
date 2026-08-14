@@ -24,6 +24,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+func hardwareGrpcTimeout() time.Duration {
+	return config.GetGrpcHardwareTimeout()
+}
+
 func (p *server) GetServerHardwareBySN(_ context.Context, in *pb.SerialNumber) (*pb.ServerHardware, error) {
 	if config.Switch.Endpoint.Count() > 0 {
 		for _, key := range config.Switch.Endpoint.Keys() {
@@ -39,7 +43,7 @@ func (p *server) GetServerHardwareBySN(_ context.Context, in *pb.SerialNumber) (
 			defer conn.Close()
 
 			c := pb.NewLoadmonClient(conn)
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
 			defer cancel()
 			hw, err := c.GetServerHardwareBySN(ctx, in)
 			if err == nil { //как только получаем правильный ответ, пересылаем его
@@ -78,7 +82,7 @@ func (p *server) GetServerHardwareByName(_ context.Context, in *pb.ServerName) (
 			defer conn.Close()
 
 			c := pb.NewLoadmonClient(conn)
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
 			defer cancel()
 			hw, err := c.GetServerHardwareByName(ctx, in)
 			if err == nil { //как только получаем правильный ответ, пересылаем его
@@ -98,13 +102,6 @@ func (p *server) GetServerHardwareByName(_ context.Context, in *pb.ServerName) (
 }
 
 // GetServerHardwareByVirtualSN возвращает данные об аппаратном сервере (HPE OneView) по виртуальному серийному номеру.
-//
-// Примечание про oneview2: у oneview2.ServerIdentity нет поля виртуального
-// серийного номера (в отличие от старого oneview.ServerHardware.Base.
-// VirtualSerialNumber) - индекс ServerByVirtualSN в oneview2.Infrastructure
-// сейчас всегда пуст, поэтому этот метод всегда возвращает "не найдено" в
-// локальном режиме (без Switch.Endpoint). Если виртуальный серийный номер
-// снова понадобится, поле нужно будет добавить в oneview2.ServerIdentity.
 func (p *server) GetServerHardwareByVirtualSN(_ context.Context, in *pb.SerialNumber) (*pb.ServerHardware, error) {
 	if config.Switch.Endpoint.Count() > 0 {
 		for _, key := range config.Switch.Endpoint.Keys() {
@@ -120,7 +117,7 @@ func (p *server) GetServerHardwareByVirtualSN(_ context.Context, in *pb.SerialNu
 			defer conn.Close()
 
 			c := pb.NewLoadmonClient(conn)
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
 			defer cancel()
 			hw, err := c.GetServerHardwareByVirtualSN(ctx, in)
 			if err == nil { //как только получаем правильный ответ, пересылаем его
@@ -155,7 +152,7 @@ func (s *server) GetServerHardwareList(in *pb.HWReq, stream grpc.ServerStreaming
 			defer conn.Close()
 
 			c := pb.NewLoadmonClient(conn)
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
 			defer cancel()
 			streamhw, err := c.GetServerHardwareList(ctx, in)
 			if err == nil {
@@ -189,10 +186,12 @@ func (s *server) GetServerHardwareList(in *pb.HWReq, stream grpc.ServerStreaming
 			if in.Status != "all" && in.Status != hw.Identity.Status {
 				continue
 			}
-			// Примечание про oneview2: у oneview2.ServerIdentity нет признака
-			// режима обслуживания (в отличие от старого oneview.ServerHardware.
-			// Base.MaintenanceMode) - фильтр по MaintenanceMode сейчас
-			// применить нельзя, он молча игнорируется (кроме значения "all").
+			if in.MaintenanceMode != "all" {
+				want := in.MaintenanceMode == "true"
+				if hw.Identity.MaintenanceMode != want {
+					continue
+				}
+			}
 			pbhw := pb.ServerHardware{}
 			ServerHardwareToMessage(hw, &pbhw)
 			if err := stream.Send(&pbhw); err != nil {

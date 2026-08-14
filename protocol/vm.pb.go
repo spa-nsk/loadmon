@@ -6290,6 +6290,12 @@ type ServerHardware struct {
 	Rack          *Racks                      `protobuf:"bytes,5,opt,name=Rack,proto3" json:"Rack,omitempty"`
 	EnclosureInfo *Enclosure                  `protobuf:"bytes,6,opt,name=EnclosureInfo,proto3" json:"EnclosureInfo,omitempty"`
 	BayInfo       *DeviceBayInfo              `protobuf:"bytes,7,opt,name=BayInfo,proto3" json:"BayInfo,omitempty"`
+	// Расширение под oneview2.Server (полная инвентаризация).
+	Processors    []*OVProcessorInfo     `protobuf:"bytes,8,rep,name=Processors,proto3" json:"Processors,omitempty"`
+	NetworkPorts  []*OVNetworkPort       `protobuf:"bytes,9,rep,name=NetworkPorts,proto3" json:"NetworkPorts,omitempty"`
+	Devices       []*OVPCIDevice         `protobuf:"bytes,10,rep,name=Devices,proto3" json:"Devices,omitempty"`
+	Firmware      []*OVFirmwareComponent `protobuf:"bytes,11,rep,name=Firmware,proto3" json:"Firmware,omitempty"`
+	Metadata      *OVServerMetadata      `protobuf:"bytes,12,opt,name=Metadata,proto3" json:"Metadata,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6373,6 +6379,41 @@ func (x *ServerHardware) GetBayInfo() *DeviceBayInfo {
 	return nil
 }
 
+func (x *ServerHardware) GetProcessors() []*OVProcessorInfo {
+	if x != nil {
+		return x.Processors
+	}
+	return nil
+}
+
+func (x *ServerHardware) GetNetworkPorts() []*OVNetworkPort {
+	if x != nil {
+		return x.NetworkPorts
+	}
+	return nil
+}
+
+func (x *ServerHardware) GetDevices() []*OVPCIDevice {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+func (x *ServerHardware) GetFirmware() []*OVFirmwareComponent {
+	if x != nil {
+		return x.Firmware
+	}
+	return nil
+}
+
+func (x *ServerHardware) GetMetadata() *OVServerMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 type OVServerHardware struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Hostname            string                 `protobuf:"bytes,1,opt,name=Hostname,proto3" json:"Hostname,omitempty"`
@@ -6396,8 +6437,25 @@ type OVServerHardware struct {
 	OperatingSystem     string                 `protobuf:"bytes,19,opt,name=OperatingSystem,proto3" json:"OperatingSystem,omitempty"`
 	VirtualSerialNumber string                 `protobuf:"bytes,20,opt,name=VirtualSerialNumber,proto3" json:"VirtualSerialNumber,omitempty"`
 	FormFactor          string                 `protobuf:"bytes,21,opt,name=FormFactor,proto3" json:"FormFactor,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Поля oneview2.ServerIdentity, отсутствовавшие в ранней схеме.
+	State                  string `protobuf:"bytes,22,opt,name=State,proto3" json:"State,omitempty"`
+	AssetTag               string `protobuf:"bytes,23,opt,name=AssetTag,proto3" json:"AssetTag,omitempty"`
+	URI                    string `protobuf:"bytes,24,opt,name=URI,proto3" json:"URI,omitempty"`
+	RomVersion             string `protobuf:"bytes,25,opt,name=RomVersion,proto3" json:"RomVersion,omitempty"`
+	MpModel                string `protobuf:"bytes,26,opt,name=MpModel,proto3" json:"MpModel,omitempty"`
+	MpFirmwareVersion      string `protobuf:"bytes,27,opt,name=MpFirmwareVersion,proto3" json:"MpFirmwareVersion,omitempty"`
+	MpIpAddress            string `protobuf:"bytes,28,opt,name=MpIpAddress,proto3" json:"MpIpAddress,omitempty"`
+	MpHostName             string `protobuf:"bytes,29,opt,name=MpHostName,proto3" json:"MpHostName,omitempty"`
+	LocationURI            string `protobuf:"bytes,30,opt,name=LocationURI,proto3" json:"LocationURI,omitempty"`
+	ServerProfileURI       string `protobuf:"bytes,31,opt,name=ServerProfileURI,proto3" json:"ServerProfileURI,omitempty"`
+	ServerHardwareTypeURI  string `protobuf:"bytes,32,opt,name=ServerHardwareTypeURI,proto3" json:"ServerHardwareTypeURI,omitempty"`
+	ServerHardwareTypeName string `protobuf:"bytes,33,opt,name=ServerHardwareTypeName,proto3" json:"ServerHardwareTypeName,omitempty"`
+	ApplianceLocation      string `protobuf:"bytes,34,opt,name=ApplianceLocation,proto3" json:"ApplianceLocation,omitempty"`
+	ApplianceName          string `protobuf:"bytes,35,opt,name=ApplianceName,proto3" json:"ApplianceName,omitempty"`
+	HostOsTypeName         string `protobuf:"bytes,36,opt,name=HostOsTypeName,proto3" json:"HostOsTypeName,omitempty"`
+	Platform               string `protobuf:"bytes,37,opt,name=Platform,proto3" json:"Platform,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *OVServerHardware) Reset() {
@@ -6573,6 +6631,118 @@ func (x *OVServerHardware) GetVirtualSerialNumber() string {
 func (x *OVServerHardware) GetFormFactor() string {
 	if x != nil {
 		return x.FormFactor
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetAssetTag() string {
+	if x != nil {
+		return x.AssetTag
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetURI() string {
+	if x != nil {
+		return x.URI
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetRomVersion() string {
+	if x != nil {
+		return x.RomVersion
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetMpModel() string {
+	if x != nil {
+		return x.MpModel
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetMpFirmwareVersion() string {
+	if x != nil {
+		return x.MpFirmwareVersion
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetMpIpAddress() string {
+	if x != nil {
+		return x.MpIpAddress
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetMpHostName() string {
+	if x != nil {
+		return x.MpHostName
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetLocationURI() string {
+	if x != nil {
+		return x.LocationURI
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetServerProfileURI() string {
+	if x != nil {
+		return x.ServerProfileURI
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetServerHardwareTypeURI() string {
+	if x != nil {
+		return x.ServerHardwareTypeURI
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetServerHardwareTypeName() string {
+	if x != nil {
+		return x.ServerHardwareTypeName
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetApplianceLocation() string {
+	if x != nil {
+		return x.ApplianceLocation
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetApplianceName() string {
+	if x != nil {
+		return x.ApplianceName
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetHostOsTypeName() string {
+	if x != nil {
+		return x.HostOsTypeName
+	}
+	return ""
+}
+
+func (x *OVServerHardware) GetPlatform() string {
+	if x != nil {
+		return x.Platform
 	}
 	return ""
 }
@@ -6887,6 +7057,13 @@ type MemoryModule struct {
 	PartNumber        string                 `protobuf:"bytes,10,opt,name=PartNumber,proto3" json:"PartNumber,omitempty"`
 	RankCount         int32                  `protobuf:"varint,11,opt,name=RankCount,proto3" json:"RankCount,omitempty"`
 	Status            *MemoryStatus          `protobuf:"bytes,12,opt,name=Status,proto3" json:"Status,omitempty"` //MemoryStatus - состояние модуля памяти Health в значении "OK", State в значении "Enabled"
+	SerialNumber      string                 `protobuf:"bytes,13,opt,name=SerialNumber,proto3" json:"SerialNumber,omitempty"`
+	MemoryType        string                 `protobuf:"bytes,14,opt,name=MemoryType,proto3" json:"MemoryType,omitempty"`
+	ErrorCorrection   string                 `protobuf:"bytes,15,opt,name=ErrorCorrection,proto3" json:"ErrorCorrection,omitempty"`
+	Socket            int32                  `protobuf:"varint,16,opt,name=Socket,proto3" json:"Socket,omitempty"`
+	Channel           int32                  `protobuf:"varint,17,opt,name=Channel,proto3" json:"Channel,omitempty"`
+	Slot              int32                  `protobuf:"varint,18,opt,name=Slot,proto3" json:"Slot,omitempty"`
+	Attributes        []string               `protobuf:"bytes,19,rep,name=Attributes,proto3" json:"Attributes,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -7001,6 +7178,55 @@ func (x *MemoryModule) GetRankCount() int32 {
 func (x *MemoryModule) GetStatus() *MemoryStatus {
 	if x != nil {
 		return x.Status
+	}
+	return nil
+}
+
+func (x *MemoryModule) GetSerialNumber() string {
+	if x != nil {
+		return x.SerialNumber
+	}
+	return ""
+}
+
+func (x *MemoryModule) GetMemoryType() string {
+	if x != nil {
+		return x.MemoryType
+	}
+	return ""
+}
+
+func (x *MemoryModule) GetErrorCorrection() string {
+	if x != nil {
+		return x.ErrorCorrection
+	}
+	return ""
+}
+
+func (x *MemoryModule) GetSocket() int32 {
+	if x != nil {
+		return x.Socket
+	}
+	return 0
+}
+
+func (x *MemoryModule) GetChannel() int32 {
+	if x != nil {
+		return x.Channel
+	}
+	return 0
+}
+
+func (x *MemoryModule) GetSlot() int32 {
+	if x != nil {
+		return x.Slot
+	}
+	return 0
+}
+
+func (x *MemoryModule) GetAttributes() []string {
+	if x != nil {
+		return x.Attributes
 	}
 	return nil
 }
@@ -9272,6 +9498,558 @@ func (x *Enclosure) GetMigrationState() string {
 	return ""
 }
 
+type OVProcessorInfo struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ID                string                 `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Socket            string                 `protobuf:"bytes,2,opt,name=Socket,proto3" json:"Socket,omitempty"`
+	Model             string                 `protobuf:"bytes,3,opt,name=Model,proto3" json:"Model,omitempty"`
+	Manufacturer      string                 `protobuf:"bytes,4,opt,name=Manufacturer,proto3" json:"Manufacturer,omitempty"`
+	TotalCores        int32                  `protobuf:"varint,5,opt,name=TotalCores,proto3" json:"TotalCores,omitempty"`
+	TotalThreads      int32                  `protobuf:"varint,6,opt,name=TotalThreads,proto3" json:"TotalThreads,omitempty"`
+	MaxSpeedMHz       int32                  `protobuf:"varint,7,opt,name=MaxSpeedMHz,proto3" json:"MaxSpeedMHz,omitempty"`
+	OperatingSpeedMHz int32                  `protobuf:"varint,8,opt,name=OperatingSpeedMHz,proto3" json:"OperatingSpeedMHz,omitempty"`
+	Health            string                 `protobuf:"bytes,9,opt,name=Health,proto3" json:"Health,omitempty"`
+	State             string                 `protobuf:"bytes,10,opt,name=State,proto3" json:"State,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *OVProcessorInfo) Reset() {
+	*x = OVProcessorInfo{}
+	mi := &file_vm_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OVProcessorInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OVProcessorInfo) ProtoMessage() {}
+
+func (x *OVProcessorInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OVProcessorInfo.ProtoReflect.Descriptor instead.
+func (*OVProcessorInfo) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *OVProcessorInfo) GetID() string {
+	if x != nil {
+		return x.ID
+	}
+	return ""
+}
+
+func (x *OVProcessorInfo) GetSocket() string {
+	if x != nil {
+		return x.Socket
+	}
+	return ""
+}
+
+func (x *OVProcessorInfo) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *OVProcessorInfo) GetManufacturer() string {
+	if x != nil {
+		return x.Manufacturer
+	}
+	return ""
+}
+
+func (x *OVProcessorInfo) GetTotalCores() int32 {
+	if x != nil {
+		return x.TotalCores
+	}
+	return 0
+}
+
+func (x *OVProcessorInfo) GetTotalThreads() int32 {
+	if x != nil {
+		return x.TotalThreads
+	}
+	return 0
+}
+
+func (x *OVProcessorInfo) GetMaxSpeedMHz() int32 {
+	if x != nil {
+		return x.MaxSpeedMHz
+	}
+	return 0
+}
+
+func (x *OVProcessorInfo) GetOperatingSpeedMHz() int32 {
+	if x != nil {
+		return x.OperatingSpeedMHz
+	}
+	return 0
+}
+
+func (x *OVProcessorInfo) GetHealth() string {
+	if x != nil {
+		return x.Health
+	}
+	return ""
+}
+
+func (x *OVProcessorInfo) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+type OVNetworkPort struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	DeviceName      string                 `protobuf:"bytes,1,opt,name=DeviceName,proto3" json:"DeviceName,omitempty"`
+	DeviceSlot      string                 `protobuf:"bytes,2,opt,name=DeviceSlot,proto3" json:"DeviceSlot,omitempty"`
+	PortNumber      int32                  `protobuf:"varint,3,opt,name=PortNumber,proto3" json:"PortNumber,omitempty"`
+	Type            string                 `protobuf:"bytes,4,opt,name=Type,proto3" json:"Type,omitempty"`
+	MAC             string                 `protobuf:"bytes,5,opt,name=MAC,proto3" json:"MAC,omitempty"`
+	WWN             string                 `protobuf:"bytes,6,opt,name=WWN,proto3" json:"WWN,omitempty"`
+	VirtualMACs     []string               `protobuf:"bytes,7,rep,name=VirtualMACs,proto3" json:"VirtualMACs,omitempty"`
+	InterconnectURI string                 `protobuf:"bytes,8,opt,name=InterconnectURI,proto3" json:"InterconnectURI,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *OVNetworkPort) Reset() {
+	*x = OVNetworkPort{}
+	mi := &file_vm_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OVNetworkPort) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OVNetworkPort) ProtoMessage() {}
+
+func (x *OVNetworkPort) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OVNetworkPort.ProtoReflect.Descriptor instead.
+func (*OVNetworkPort) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *OVNetworkPort) GetDeviceName() string {
+	if x != nil {
+		return x.DeviceName
+	}
+	return ""
+}
+
+func (x *OVNetworkPort) GetDeviceSlot() string {
+	if x != nil {
+		return x.DeviceSlot
+	}
+	return ""
+}
+
+func (x *OVNetworkPort) GetPortNumber() int32 {
+	if x != nil {
+		return x.PortNumber
+	}
+	return 0
+}
+
+func (x *OVNetworkPort) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *OVNetworkPort) GetMAC() string {
+	if x != nil {
+		return x.MAC
+	}
+	return ""
+}
+
+func (x *OVNetworkPort) GetWWN() string {
+	if x != nil {
+		return x.WWN
+	}
+	return ""
+}
+
+func (x *OVNetworkPort) GetVirtualMACs() []string {
+	if x != nil {
+		return x.VirtualMACs
+	}
+	return nil
+}
+
+func (x *OVNetworkPort) GetInterconnectURI() string {
+	if x != nil {
+		return x.InterconnectURI
+	}
+	return ""
+}
+
+type OVPCIDevice struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ID                string                 `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=Name,proto3" json:"Name,omitempty"`
+	DeviceType        string                 `protobuf:"bytes,3,opt,name=DeviceType,proto3" json:"DeviceType,omitempty"`
+	Location          string                 `protobuf:"bytes,4,opt,name=Location,proto3" json:"Location,omitempty"`
+	Manufacturer      string                 `protobuf:"bytes,5,opt,name=Manufacturer,proto3" json:"Manufacturer,omitempty"`
+	PartNumber        string                 `protobuf:"bytes,6,opt,name=PartNumber,proto3" json:"PartNumber,omitempty"`
+	ProductPartNumber string                 `protobuf:"bytes,7,opt,name=ProductPartNumber,proto3" json:"ProductPartNumber,omitempty"`
+	SerialNumber      string                 `protobuf:"bytes,8,opt,name=SerialNumber,proto3" json:"SerialNumber,omitempty"`
+	FirmwareVersion   string                 `protobuf:"bytes,9,opt,name=FirmwareVersion,proto3" json:"FirmwareVersion,omitempty"`
+	Health            string                 `protobuf:"bytes,10,opt,name=Health,proto3" json:"Health,omitempty"`
+	State             string                 `protobuf:"bytes,11,opt,name=State,proto3" json:"State,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *OVPCIDevice) Reset() {
+	*x = OVPCIDevice{}
+	mi := &file_vm_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OVPCIDevice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OVPCIDevice) ProtoMessage() {}
+
+func (x *OVPCIDevice) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OVPCIDevice.ProtoReflect.Descriptor instead.
+func (*OVPCIDevice) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *OVPCIDevice) GetID() string {
+	if x != nil {
+		return x.ID
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetDeviceType() string {
+	if x != nil {
+		return x.DeviceType
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetManufacturer() string {
+	if x != nil {
+		return x.Manufacturer
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetPartNumber() string {
+	if x != nil {
+		return x.PartNumber
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetProductPartNumber() string {
+	if x != nil {
+		return x.ProductPartNumber
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetSerialNumber() string {
+	if x != nil {
+		return x.SerialNumber
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetFirmwareVersion() string {
+	if x != nil {
+		return x.FirmwareVersion
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetHealth() string {
+	if x != nil {
+		return x.Health
+	}
+	return ""
+}
+
+func (x *OVPCIDevice) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+type OVFirmwareComponent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=Name,proto3" json:"Name,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=Version,proto3" json:"Version,omitempty"`
+	Location      string                 `protobuf:"bytes,3,opt,name=Location,proto3" json:"Location,omitempty"`
+	State         string                 `protobuf:"bytes,4,opt,name=State,proto3" json:"State,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=Status,proto3" json:"Status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OVFirmwareComponent) Reset() {
+	*x = OVFirmwareComponent{}
+	mi := &file_vm_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OVFirmwareComponent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OVFirmwareComponent) ProtoMessage() {}
+
+func (x *OVFirmwareComponent) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OVFirmwareComponent.ProtoReflect.Descriptor instead.
+func (*OVFirmwareComponent) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *OVFirmwareComponent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *OVFirmwareComponent) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *OVFirmwareComponent) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *OVFirmwareComponent) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *OVFirmwareComponent) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type OVServerSource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Endpoint      string                 `protobuf:"bytes,1,opt,name=Endpoint,proto3" json:"Endpoint,omitempty"`
+	APIVersion    int32                  `protobuf:"varint,2,opt,name=APIVersion,proto3" json:"APIVersion,omitempty"`
+	Product       string                 `protobuf:"bytes,3,opt,name=Product,proto3" json:"Product,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OVServerSource) Reset() {
+	*x = OVServerSource{}
+	mi := &file_vm_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OVServerSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OVServerSource) ProtoMessage() {}
+
+func (x *OVServerSource) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OVServerSource.ProtoReflect.Descriptor instead.
+func (*OVServerSource) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *OVServerSource) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *OVServerSource) GetAPIVersion() int32 {
+	if x != nil {
+		return x.APIVersion
+	}
+	return 0
+}
+
+func (x *OVServerSource) GetProduct() string {
+	if x != nil {
+		return x.Product
+	}
+	return ""
+}
+
+type OVServerMetadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	APIVersion    int32                  `protobuf:"varint,1,opt,name=APIVersion,proto3" json:"APIVersion,omitempty"`
+	Product       string                 `protobuf:"bytes,2,opt,name=Product,proto3" json:"Product,omitempty"`
+	Endpoint      string                 `protobuf:"bytes,3,opt,name=Endpoint,proto3" json:"Endpoint,omitempty"`
+	Warnings      []string               `protobuf:"bytes,4,rep,name=Warnings,proto3" json:"Warnings,omitempty"`
+	Sources       []*OVServerSource      `protobuf:"bytes,5,rep,name=Sources,proto3" json:"Sources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OVServerMetadata) Reset() {
+	*x = OVServerMetadata{}
+	mi := &file_vm_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OVServerMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OVServerMetadata) ProtoMessage() {}
+
+func (x *OVServerMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OVServerMetadata.ProtoReflect.Descriptor instead.
+func (*OVServerMetadata) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *OVServerMetadata) GetAPIVersion() int32 {
+	if x != nil {
+		return x.APIVersion
+	}
+	return 0
+}
+
+func (x *OVServerMetadata) GetProduct() string {
+	if x != nil {
+		return x.Product
+	}
+	return ""
+}
+
+func (x *OVServerMetadata) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *OVServerMetadata) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+func (x *OVServerMetadata) GetSources() []*OVServerSource {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
 var File_vm_proto protoreflect.FileDescriptor
 
 const file_vm_proto_rawDesc = "" +
@@ -9950,7 +10728,7 @@ const file_vm_proto_rawDesc = "" +
 	"\fSerialNumber\x18\x01 \x01(\tR\fSerialNumber\" \n" +
 	"\n" +
 	"ServerName\x12\x12\n" +
-	"\x04Name\x18\x01 \x01(\tR\x04Name\"\x85\x03\n" +
+	"\x04Name\x18\x01 \x01(\tR\x04Name\"\xa1\x05\n" +
 	"\x0eServerHardware\x12.\n" +
 	"\x04Base\x18\x01 \x01(\v2\x1a.protocol.OVServerHardwareR\x04Base\x126\n" +
 	"\x06Memory\x18\x02 \x01(\v2\x1e.protocol.ServerHardwareMemoryR\x06Memory\x12>\n" +
@@ -9960,7 +10738,16 @@ const file_vm_proto_rawDesc = "" +
 	"Datacenter\x12#\n" +
 	"\x04Rack\x18\x05 \x01(\v2\x0f.protocol.RacksR\x04Rack\x129\n" +
 	"\rEnclosureInfo\x18\x06 \x01(\v2\x13.protocol.EnclosureR\rEnclosureInfo\x121\n" +
-	"\aBayInfo\x18\a \x01(\v2\x17.protocol.DeviceBayInfoR\aBayInfo\"\xd2\x05\n" +
+	"\aBayInfo\x18\a \x01(\v2\x17.protocol.DeviceBayInfoR\aBayInfo\x129\n" +
+	"\n" +
+	"Processors\x18\b \x03(\v2\x19.protocol.OVProcessorInfoR\n" +
+	"Processors\x12;\n" +
+	"\fNetworkPorts\x18\t \x03(\v2\x17.protocol.OVNetworkPortR\fNetworkPorts\x12/\n" +
+	"\aDevices\x18\n" +
+	" \x03(\v2\x15.protocol.OVPCIDeviceR\aDevices\x129\n" +
+	"\bFirmware\x18\v \x03(\v2\x1d.protocol.OVFirmwareComponentR\bFirmware\x126\n" +
+	"\bMetadata\x18\f \x01(\v2\x1a.protocol.OVServerMetadataR\bMetadata\"\x94\n" +
+	"\n" +
 	"\x10OVServerHardware\x12\x1a\n" +
 	"\bHostname\x18\x01 \x01(\tR\bHostname\x12\x1e\n" +
 	"\n" +
@@ -9995,7 +10782,27 @@ const file_vm_proto_rawDesc = "" +
 	"\x13VirtualSerialNumber\x18\x14 \x01(\tR\x13VirtualSerialNumber\x12\x1e\n" +
 	"\n" +
 	"FormFactor\x18\x15 \x01(\tR\n" +
-	"FormFactor\"\xf4\x01\n" +
+	"FormFactor\x12\x14\n" +
+	"\x05State\x18\x16 \x01(\tR\x05State\x12\x1a\n" +
+	"\bAssetTag\x18\x17 \x01(\tR\bAssetTag\x12\x10\n" +
+	"\x03URI\x18\x18 \x01(\tR\x03URI\x12\x1e\n" +
+	"\n" +
+	"RomVersion\x18\x19 \x01(\tR\n" +
+	"RomVersion\x12\x18\n" +
+	"\aMpModel\x18\x1a \x01(\tR\aMpModel\x12,\n" +
+	"\x11MpFirmwareVersion\x18\x1b \x01(\tR\x11MpFirmwareVersion\x12 \n" +
+	"\vMpIpAddress\x18\x1c \x01(\tR\vMpIpAddress\x12\x1e\n" +
+	"\n" +
+	"MpHostName\x18\x1d \x01(\tR\n" +
+	"MpHostName\x12 \n" +
+	"\vLocationURI\x18\x1e \x01(\tR\vLocationURI\x12*\n" +
+	"\x10ServerProfileURI\x18\x1f \x01(\tR\x10ServerProfileURI\x124\n" +
+	"\x15ServerHardwareTypeURI\x18  \x01(\tR\x15ServerHardwareTypeURI\x126\n" +
+	"\x16ServerHardwareTypeName\x18! \x01(\tR\x16ServerHardwareTypeName\x12,\n" +
+	"\x11ApplianceLocation\x18\" \x01(\tR\x11ApplianceLocation\x12$\n" +
+	"\rApplianceName\x18# \x01(\tR\rApplianceName\x12&\n" +
+	"\x0eHostOsTypeName\x18$ \x01(\tR\x0eHostOsTypeName\x12\x1a\n" +
+	"\bPlatform\x18% \x01(\tR\bPlatform\"\xf4\x01\n" +
 	"\x14ServerHardwareMemory\x12\x10\n" +
 	"\x03URI\x18\x01 \x01(\tR\x03URI\x12(\n" +
 	"\x0fCollectionState\x18\x02 \x01(\tR\x0fCollectionState\x126\n" +
@@ -10016,7 +10823,7 @@ const file_vm_proto_rawDesc = "" +
 	"DIMMStatus\x126\n" +
 	"\x16MinimumVoltageVoltsX10\x18\x02 \x01(\x05R\x16MinimumVoltageVoltsX10\",\n" +
 	"\tOemMemory\x12\x1f\n" +
-	"\x03Hpe\x18\x01 \x01(\v2\r.protocol.HpeR\x03Hpe\"\xe7\x03\n" +
+	"\x03Hpe\x18\x01 \x01(\v2\r.protocol.HpeR\x03Hpe\"\xbb\x05\n" +
 	"\fMemoryModule\x12&\n" +
 	"\x0eBaseModuleType\x18\x01 \x01(\tR\x0eBaseModuleType\x12 \n" +
 	"\vCapacityMiB\x18\x02 \x01(\x05R\vCapacityMiB\x12$\n" +
@@ -10032,7 +10839,18 @@ const file_vm_proto_rawDesc = "" +
 	" \x01(\tR\n" +
 	"PartNumber\x12\x1c\n" +
 	"\tRankCount\x18\v \x01(\x05R\tRankCount\x12.\n" +
-	"\x06Status\x18\f \x01(\v2\x16.protocol.MemoryStatusR\x06Status\"\xfa\x01\n" +
+	"\x06Status\x18\f \x01(\v2\x16.protocol.MemoryStatusR\x06Status\x12\"\n" +
+	"\fSerialNumber\x18\r \x01(\tR\fSerialNumber\x12\x1e\n" +
+	"\n" +
+	"MemoryType\x18\x0e \x01(\tR\n" +
+	"MemoryType\x12(\n" +
+	"\x0fErrorCorrection\x18\x0f \x01(\tR\x0fErrorCorrection\x12\x16\n" +
+	"\x06Socket\x18\x10 \x01(\x05R\x06Socket\x12\x18\n" +
+	"\aChannel\x18\x11 \x01(\x05R\aChannel\x12\x12\n" +
+	"\x04Slot\x18\x12 \x01(\x05R\x04Slot\x12\x1e\n" +
+	"\n" +
+	"Attributes\x18\x13 \x03(\tR\n" +
+	"Attributes\"\xfa\x01\n" +
 	"\x1aServerHardwareLocalStorage\x12\x10\n" +
 	"\x03URI\x18\x01 \x01(\tR\x03URI\x12(\n" +
 	"\x0fCollectionState\x18\x02 \x01(\tR\x0fCollectionState\x126\n" +
@@ -10265,7 +11083,73 @@ const file_vm_proto_rawDesc = "" +
 	"\aVcmMode\x18% \x01(\tR\aVcmMode\x12\x16\n" +
 	"\x06VcmURL\x18& \x01(\tR\x06VcmURL\x12\x16\n" +
 	"\x06OaBays\x18' \x01(\x05R\x06OaBays\x12&\n" +
-	"\x0eMigrationState\x18( \x01(\tR\x0eMigrationState2\x93\x15\n" +
+	"\x0eMigrationState\x18( \x01(\tR\x0eMigrationState\"\xb5\x02\n" +
+	"\x0fOVProcessorInfo\x12\x0e\n" +
+	"\x02ID\x18\x01 \x01(\tR\x02ID\x12\x16\n" +
+	"\x06Socket\x18\x02 \x01(\tR\x06Socket\x12\x14\n" +
+	"\x05Model\x18\x03 \x01(\tR\x05Model\x12\"\n" +
+	"\fManufacturer\x18\x04 \x01(\tR\fManufacturer\x12\x1e\n" +
+	"\n" +
+	"TotalCores\x18\x05 \x01(\x05R\n" +
+	"TotalCores\x12\"\n" +
+	"\fTotalThreads\x18\x06 \x01(\x05R\fTotalThreads\x12 \n" +
+	"\vMaxSpeedMHz\x18\a \x01(\x05R\vMaxSpeedMHz\x12,\n" +
+	"\x11OperatingSpeedMHz\x18\b \x01(\x05R\x11OperatingSpeedMHz\x12\x16\n" +
+	"\x06Health\x18\t \x01(\tR\x06Health\x12\x14\n" +
+	"\x05State\x18\n" +
+	" \x01(\tR\x05State\"\xf3\x01\n" +
+	"\rOVNetworkPort\x12\x1e\n" +
+	"\n" +
+	"DeviceName\x18\x01 \x01(\tR\n" +
+	"DeviceName\x12\x1e\n" +
+	"\n" +
+	"DeviceSlot\x18\x02 \x01(\tR\n" +
+	"DeviceSlot\x12\x1e\n" +
+	"\n" +
+	"PortNumber\x18\x03 \x01(\x05R\n" +
+	"PortNumber\x12\x12\n" +
+	"\x04Type\x18\x04 \x01(\tR\x04Type\x12\x10\n" +
+	"\x03MAC\x18\x05 \x01(\tR\x03MAC\x12\x10\n" +
+	"\x03WWN\x18\x06 \x01(\tR\x03WWN\x12 \n" +
+	"\vVirtualMACs\x18\a \x03(\tR\vVirtualMACs\x12(\n" +
+	"\x0fInterconnectURI\x18\b \x01(\tR\x0fInterconnectURI\"\xdb\x02\n" +
+	"\vOVPCIDevice\x12\x0e\n" +
+	"\x02ID\x18\x01 \x01(\tR\x02ID\x12\x12\n" +
+	"\x04Name\x18\x02 \x01(\tR\x04Name\x12\x1e\n" +
+	"\n" +
+	"DeviceType\x18\x03 \x01(\tR\n" +
+	"DeviceType\x12\x1a\n" +
+	"\bLocation\x18\x04 \x01(\tR\bLocation\x12\"\n" +
+	"\fManufacturer\x18\x05 \x01(\tR\fManufacturer\x12\x1e\n" +
+	"\n" +
+	"PartNumber\x18\x06 \x01(\tR\n" +
+	"PartNumber\x12,\n" +
+	"\x11ProductPartNumber\x18\a \x01(\tR\x11ProductPartNumber\x12\"\n" +
+	"\fSerialNumber\x18\b \x01(\tR\fSerialNumber\x12(\n" +
+	"\x0fFirmwareVersion\x18\t \x01(\tR\x0fFirmwareVersion\x12\x16\n" +
+	"\x06Health\x18\n" +
+	" \x01(\tR\x06Health\x12\x14\n" +
+	"\x05State\x18\v \x01(\tR\x05State\"\x8d\x01\n" +
+	"\x13OVFirmwareComponent\x12\x12\n" +
+	"\x04Name\x18\x01 \x01(\tR\x04Name\x12\x18\n" +
+	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1a\n" +
+	"\bLocation\x18\x03 \x01(\tR\bLocation\x12\x14\n" +
+	"\x05State\x18\x04 \x01(\tR\x05State\x12\x16\n" +
+	"\x06Status\x18\x05 \x01(\tR\x06Status\"f\n" +
+	"\x0eOVServerSource\x12\x1a\n" +
+	"\bEndpoint\x18\x01 \x01(\tR\bEndpoint\x12\x1e\n" +
+	"\n" +
+	"APIVersion\x18\x02 \x01(\x05R\n" +
+	"APIVersion\x12\x18\n" +
+	"\aProduct\x18\x03 \x01(\tR\aProduct\"\xb8\x01\n" +
+	"\x10OVServerMetadata\x12\x1e\n" +
+	"\n" +
+	"APIVersion\x18\x01 \x01(\x05R\n" +
+	"APIVersion\x12\x18\n" +
+	"\aProduct\x18\x02 \x01(\tR\aProduct\x12\x1a\n" +
+	"\bEndpoint\x18\x03 \x01(\tR\bEndpoint\x12\x1a\n" +
+	"\bWarnings\x18\x04 \x03(\tR\bWarnings\x122\n" +
+	"\aSources\x18\x05 \x03(\v2\x18.protocol.OVServerSourceR\aSources2\x93\x15\n" +
 	"\aLoadmon\x125\n" +
 	"\vGetVCenters\x12\x0f.protocol.VCReq\x1a\x11.protocol.VCenter\"\x000\x01\x12:\n" +
 	"\rGetDatacenter\x12\x0f.protocol.DCReq\x1a\x14.protocol.Datacenter\"\x000\x01\x129\n" +
@@ -10324,7 +11208,7 @@ func file_vm_proto_rawDescGZIP() []byte {
 	return file_vm_proto_rawDescData
 }
 
-var file_vm_proto_msgTypes = make([]protoimpl.MessageInfo, 86)
+var file_vm_proto_msgTypes = make([]protoimpl.MessageInfo, 92)
 var file_vm_proto_goTypes = []any{
 	(*EndpointReq)(nil),                // 0: protocol.EndpointReq
 	(*RegisterEndpoint)(nil),           // 1: protocol.RegisterEndpoint
@@ -10412,21 +11296,27 @@ var file_vm_proto_goTypes = []any{
 	(*PowerSupplyBayInfo)(nil),         // 83: protocol.PowerSupplyBayInfo
 	(*ManagerBayInfo)(nil),             // 84: protocol.ManagerBayInfo
 	(*Enclosure)(nil),                  // 85: protocol.Enclosure
-	(*timestamppb.Timestamp)(nil),      // 86: google.protobuf.Timestamp
+	(*OVProcessorInfo)(nil),            // 86: protocol.OVProcessorInfo
+	(*OVNetworkPort)(nil),              // 87: protocol.OVNetworkPort
+	(*OVPCIDevice)(nil),                // 88: protocol.OVPCIDevice
+	(*OVFirmwareComponent)(nil),        // 89: protocol.OVFirmwareComponent
+	(*OVServerSource)(nil),             // 90: protocol.OVServerSource
+	(*OVServerMetadata)(nil),           // 91: protocol.OVServerMetadata
+	(*timestamppb.Timestamp)(nil),      // 92: google.protobuf.Timestamp
 }
 var file_vm_proto_depIdxs = []int32{
 	8,   // 0: protocol.RegisterEndpoint.VCenter:type_name -> protocol.VCenter
 	9,   // 1: protocol.RegisterEndpoint.OneView:type_name -> protocol.OV
-	86,  // 2: protocol.ClearMetricKey.Start:type_name -> google.protobuf.Timestamp
-	86,  // 3: protocol.ClearMetricKey.End:type_name -> google.protobuf.Timestamp
-	86,  // 4: protocol.Duration.Start:type_name -> google.protobuf.Timestamp
-	86,  // 5: protocol.Duration.End:type_name -> google.protobuf.Timestamp
+	92,  // 2: protocol.ClearMetricKey.Start:type_name -> google.protobuf.Timestamp
+	92,  // 3: protocol.ClearMetricKey.End:type_name -> google.protobuf.Timestamp
+	92,  // 4: protocol.Duration.Start:type_name -> google.protobuf.Timestamp
+	92,  // 5: protocol.Duration.End:type_name -> google.protobuf.Timestamp
 	24,  // 6: protocol.VMListKey.KeyRecs:type_name -> protocol.VMKeyRec
 	25,  // 7: protocol.HSListKey.KeyRecs:type_name -> protocol.HSKeyRec
 	26,  // 8: protocol.CLListKey.KeyRecs:type_name -> protocol.CLKeyRec
-	86,  // 9: protocol.VMPerf.Start:type_name -> google.protobuf.Timestamp
-	86,  // 10: protocol.HSPerf.Start:type_name -> google.protobuf.Timestamp
-	86,  // 11: protocol.CLPerf.Start:type_name -> google.protobuf.Timestamp
+	92,  // 9: protocol.VMPerf.Start:type_name -> google.protobuf.Timestamp
+	92,  // 10: protocol.HSPerf.Start:type_name -> google.protobuf.Timestamp
+	92,  // 11: protocol.CLPerf.Start:type_name -> google.protobuf.Timestamp
 	30,  // 12: protocol.VMPerfSlice.Perf:type_name -> protocol.VMPerf
 	31,  // 13: protocol.HSPerfSlice.Perf:type_name -> protocol.HSPerf
 	32,  // 14: protocol.CLPerfSlice.Perf:type_name -> protocol.CLPerf
@@ -10436,86 +11326,86 @@ var file_vm_proto_depIdxs = []int32{
 	27,  // 18: protocol.Datastore.VmKeys:type_name -> protocol.VMListKey
 	42,  // 19: protocol.DatastoreSlice.Datastores:type_name -> protocol.Datastore
 	44,  // 20: protocol.ScsiLunSlice.ScsiLuns:type_name -> protocol.ScsiLun
-	86,  // 21: protocol.VMPoint.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 22: protocol.VMPoint.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 23: protocol.VMPoint.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 24: protocol.VMPoint.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 25: protocol.VMPoint.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 26: protocol.VMPoint.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 27: protocol.VMPoint.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 28: protocol.VMPoint.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 29: protocol.VMPoint.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 30: protocol.VMPoint.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 31: protocol.VMPoint.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 32: protocol.VMPoint.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 21: protocol.VMPoint.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 22: protocol.VMPoint.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 23: protocol.VMPoint.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 24: protocol.VMPoint.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 25: protocol.VMPoint.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 26: protocol.VMPoint.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 27: protocol.VMPoint.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 28: protocol.VMPoint.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 29: protocol.VMPoint.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 30: protocol.VMPoint.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 31: protocol.VMPoint.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 32: protocol.VMPoint.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
 	30,  // 33: protocol.VMPoint.Perf:type_name -> protocol.VMPerf
 	40,  // 34: protocol.VMPoint.VMFiles:type_name -> protocol.VMFile
 	36,  // 35: protocol.VMPoint.VMDisk:type_name -> protocol.GuestDiskInfo
 	38,  // 36: protocol.VMPoint.UsageDatastore:type_name -> protocol.VMUsageOnDatastore
-	86,  // 37: protocol.VMPointShort.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 38: protocol.VMPointShort.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 39: protocol.VMPointShort.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 40: protocol.VMPointShort.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 41: protocol.VMPointShort.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 42: protocol.VMPointShort.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 43: protocol.VMPointShort.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 44: protocol.VMPointShort.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 45: protocol.VMPointShort.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 46: protocol.VMPointShort.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 47: protocol.VMPointShort.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 48: protocol.VMPointShort.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 37: protocol.VMPointShort.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 38: protocol.VMPointShort.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 39: protocol.VMPointShort.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 40: protocol.VMPointShort.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 41: protocol.VMPointShort.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 42: protocol.VMPointShort.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 43: protocol.VMPointShort.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 44: protocol.VMPointShort.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 45: protocol.VMPointShort.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 46: protocol.VMPointShort.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 47: protocol.VMPointShort.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 48: protocol.VMPointShort.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
 	47,  // 49: protocol.VMPointSlice.VMPoints:type_name -> protocol.VMPoint
-	86,  // 50: protocol.Host.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 51: protocol.Host.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 52: protocol.Host.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 53: protocol.Host.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 54: protocol.Host.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 55: protocol.Host.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 56: protocol.Host.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 57: protocol.Host.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 58: protocol.Host.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 59: protocol.Host.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 60: protocol.Host.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 61: protocol.Host.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 62: protocol.HostFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 63: protocol.HostFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 64: protocol.HostFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 65: protocol.HostFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 66: protocol.HostFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 67: protocol.HostFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 68: protocol.HostFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 69: protocol.HostFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 70: protocol.HostFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 71: protocol.HostFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 72: protocol.HostFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 73: protocol.HostFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 50: protocol.Host.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 51: protocol.Host.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 52: protocol.Host.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 53: protocol.Host.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 54: protocol.Host.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 55: protocol.Host.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 56: protocol.Host.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 57: protocol.Host.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 58: protocol.Host.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 59: protocol.Host.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 60: protocol.Host.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 61: protocol.Host.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 62: protocol.HostFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 63: protocol.HostFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 64: protocol.HostFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 65: protocol.HostFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 66: protocol.HostFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 67: protocol.HostFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 68: protocol.HostFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 69: protocol.HostFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 70: protocol.HostFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 71: protocol.HostFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 72: protocol.HostFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 73: protocol.HostFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
 	31,  // 74: protocol.HostFull.Perf:type_name -> protocol.HSPerf
-	86,  // 75: protocol.Cluster.Date:type_name -> google.protobuf.Timestamp
-	86,  // 76: protocol.Cluster.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 77: protocol.Cluster.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 78: protocol.Cluster.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 79: protocol.Cluster.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 80: protocol.Cluster.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 81: protocol.Cluster.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 82: protocol.Cluster.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 83: protocol.Cluster.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 84: protocol.Cluster.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 85: protocol.Cluster.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 86: protocol.Cluster.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 87: protocol.Cluster.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 88: protocol.ClusterFull.Date:type_name -> google.protobuf.Timestamp
-	86,  // 89: protocol.ClusterFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 90: protocol.ClusterFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 91: protocol.ClusterFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 92: protocol.ClusterFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 93: protocol.ClusterFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 94: protocol.ClusterFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 95: protocol.ClusterFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 96: protocol.ClusterFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 97: protocol.ClusterFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 98: protocol.ClusterFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	86,  // 99: protocol.ClusterFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	86,  // 100: protocol.ClusterFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 75: protocol.Cluster.Date:type_name -> google.protobuf.Timestamp
+	92,  // 76: protocol.Cluster.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 77: protocol.Cluster.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 78: protocol.Cluster.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 79: protocol.Cluster.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 80: protocol.Cluster.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 81: protocol.Cluster.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 82: protocol.Cluster.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 83: protocol.Cluster.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 84: protocol.Cluster.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 85: protocol.Cluster.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 86: protocol.Cluster.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 87: protocol.Cluster.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 88: protocol.ClusterFull.Date:type_name -> google.protobuf.Timestamp
+	92,  // 89: protocol.ClusterFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 90: protocol.ClusterFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 91: protocol.ClusterFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 92: protocol.ClusterFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 93: protocol.ClusterFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 94: protocol.ClusterFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 95: protocol.ClusterFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 96: protocol.ClusterFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 97: protocol.ClusterFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 98: protocol.ClusterFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	92,  // 99: protocol.ClusterFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	92,  // 100: protocol.ClusterFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
 	32,  // 101: protocol.ClusterFull.Perf:type_name -> protocol.CLPerf
 	42,  // 102: protocol.ClusterFull.Storages:type_name -> protocol.Datastore
 	58,  // 103: protocol.ServerHardware.Base:type_name -> protocol.OVServerHardware
@@ -10525,130 +11415,136 @@ var file_vm_proto_depIdxs = []int32{
 	79,  // 107: protocol.ServerHardware.Rack:type_name -> protocol.Racks
 	85,  // 108: protocol.ServerHardware.EnclosureInfo:type_name -> protocol.Enclosure
 	80,  // 109: protocol.ServerHardware.BayInfo:type_name -> protocol.DeviceBayInfo
-	86,  // 110: protocol.ServerHardwareMemory.Modified:type_name -> google.protobuf.Timestamp
-	64,  // 111: protocol.ServerHardwareMemory.Data:type_name -> protocol.MemoryModule
-	62,  // 112: protocol.OemMemory.Hpe:type_name -> protocol.Hpe
-	61,  // 113: protocol.MemoryModule.MemoryLocation:type_name -> protocol.MemoryLocation
-	63,  // 114: protocol.MemoryModule.Oem:type_name -> protocol.OemMemory
-	60,  // 115: protocol.MemoryModule.Status:type_name -> protocol.MemoryStatus
-	86,  // 116: protocol.ServerHardwareLocalStorage.Modified:type_name -> google.protobuf.Timestamp
-	67,  // 117: protocol.ServerHardwareLocalStorage.Data:type_name -> protocol.LocalStorage
-	68,  // 118: protocol.LocalStorage.CacheModuleStatus:type_name -> protocol.CacheModuleStatus
-	69,  // 119: protocol.LocalStorage.ControllerBoard:type_name -> protocol.ControllerBoard
-	72,  // 120: protocol.LocalStorage.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	74,  // 121: protocol.LocalStorage.LogicalDrives:type_name -> protocol.LocalLogicalDrive
-	75,  // 122: protocol.LocalStorage.PhysicalDrives:type_name -> protocol.LocalPhysicalDrive
-	66,  // 123: protocol.LocalStorage.Status:type_name -> protocol.Status
-	76,  // 124: protocol.LocalStorage.StorageEnclosures:type_name -> protocol.LocalStorageEnclosure
-	70,  // 125: protocol.ControllerBoard.Status:type_name -> protocol.ControllerSatus
-	71,  // 126: protocol.FirmwareVersion.Current:type_name -> protocol.Version
-	72,  // 127: protocol.LogicalDataDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	66,  // 128: protocol.LogicalDataDrive.Status:type_name -> protocol.Status
-	73,  // 129: protocol.LocalLogicalDrive.DataDrives:type_name -> protocol.LogicalDataDrive
-	66,  // 130: protocol.LocalLogicalDrive.Status:type_name -> protocol.Status
-	72,  // 131: protocol.LocalPhysicalDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	66,  // 132: protocol.LocalPhysicalDrive.Status:type_name -> protocol.Status
-	72,  // 133: protocol.LocalStorageEnclosure.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	66,  // 134: protocol.LocalStorageEnclosure.Status:type_name -> protocol.Status
-	77,  // 135: protocol.DatacenterInfo.Contents:type_name -> protocol.Contents
-	86,  // 136: protocol.DatacenterInfo.Created:type_name -> google.protobuf.Timestamp
-	86,  // 137: protocol.DatacenterInfo.Modified:type_name -> google.protobuf.Timestamp
-	86,  // 138: protocol.Racks.Created:type_name -> google.protobuf.Timestamp
-	86,  // 139: protocol.Racks.Modified:type_name -> google.protobuf.Timestamp
-	86,  // 140: protocol.Enclosure.Created:type_name -> google.protobuf.Timestamp
-	86,  // 141: protocol.Enclosure.Modified:type_name -> google.protobuf.Timestamp
-	80,  // 142: protocol.Enclosure.DeviceBays:type_name -> protocol.DeviceBayInfo
-	81,  // 143: protocol.Enclosure.InterconnectBays:type_name -> protocol.InterconnectBayInfo
-	82,  // 144: protocol.Enclosure.FanBays:type_name -> protocol.FanBayInfo
-	83,  // 145: protocol.Enclosure.PowerSupplyBays:type_name -> protocol.PowerSupplyBayInfo
-	84,  // 146: protocol.Enclosure.ManagerBays:type_name -> protocol.ManagerBayInfo
-	7,   // 147: protocol.Loadmon.GetVCenters:input_type -> protocol.VCReq
-	10,  // 148: protocol.Loadmon.GetDatacenter:input_type -> protocol.DCReq
-	12,  // 149: protocol.Loadmon.GetCluster:input_type -> protocol.CLReq
-	12,  // 150: protocol.Loadmon.GetClusterMedium:input_type -> protocol.CLReq
-	12,  // 151: protocol.Loadmon.GetClusterMetrics:input_type -> protocol.CLReq
-	12,  // 152: protocol.Loadmon.GetClusterFull:input_type -> protocol.CLReq
-	12,  // 153: protocol.Loadmon.GetClusterStorages:input_type -> protocol.CLReq
-	12,  // 154: protocol.Loadmon.GetClusterHost:input_type -> protocol.CLReq
-	13,  // 155: protocol.Loadmon.GetHostFull:input_type -> protocol.HSReq
-	14,  // 156: protocol.Loadmon.GetVMByKey:input_type -> protocol.VMReqKey
-	27,  // 157: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
-	27,  // 158: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
-	14,  // 159: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
-	17,  // 160: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
-	18,  // 161: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
-	19,  // 162: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
-	20,  // 163: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
-	23,  // 164: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
-	21,  // 165: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
-	22,  // 166: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
-	14,  // 167: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
-	14,  // 168: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
-	14,  // 169: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
-	14,  // 170: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
-	15,  // 171: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
-	15,  // 172: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
-	16,  // 173: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
-	15,  // 174: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
-	55,  // 175: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
-	16,  // 176: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
-	6,   // 177: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
-	6,   // 178: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
-	4,   // 179: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
-	3,   // 180: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
-	3,   // 181: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
-	55,  // 182: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
-	56,  // 183: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
-	55,  // 184: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
-	2,   // 185: protocol.Loadmon.GetServerHardwareList:input_type -> protocol.HWReq
-	1,   // 186: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
-	0,   // 187: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
-	8,   // 188: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
-	11,  // 189: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
-	54,  // 190: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
-	52,  // 191: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
-	32,  // 192: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
-	53,  // 193: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
-	42,  // 194: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
-	50,  // 195: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
-	51,  // 196: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
-	47,  // 197: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
-	49,  // 198: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
-	47,  // 199: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
-	48,  // 200: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
-	27,  // 201: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
-	28,  // 202: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
-	29,  // 203: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
-	27,  // 204: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
-	27,  // 205: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
-	27,  // 206: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
-	27,  // 207: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
-	33,  // 208: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
-	41,  // 209: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
-	37,  // 210: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
-	39,  // 211: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
-	31,  // 212: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
-	34,  // 213: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
-	35,  // 214: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
-	50,  // 215: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
-	50,  // 216: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
-	52,  // 217: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
-	42,  // 218: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
-	42,  // 219: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
-	5,   // 220: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
-	5,   // 221: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
-	5,   // 222: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
-	57,  // 223: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
-	57,  // 224: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
-	57,  // 225: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
-	57,  // 226: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
-	5,   // 227: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
-	1,   // 228: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
-	188, // [188:229] is the sub-list for method output_type
-	147, // [147:188] is the sub-list for method input_type
-	147, // [147:147] is the sub-list for extension type_name
-	147, // [147:147] is the sub-list for extension extendee
-	0,   // [0:147] is the sub-list for field type_name
+	86,  // 110: protocol.ServerHardware.Processors:type_name -> protocol.OVProcessorInfo
+	87,  // 111: protocol.ServerHardware.NetworkPorts:type_name -> protocol.OVNetworkPort
+	88,  // 112: protocol.ServerHardware.Devices:type_name -> protocol.OVPCIDevice
+	89,  // 113: protocol.ServerHardware.Firmware:type_name -> protocol.OVFirmwareComponent
+	91,  // 114: protocol.ServerHardware.Metadata:type_name -> protocol.OVServerMetadata
+	92,  // 115: protocol.ServerHardwareMemory.Modified:type_name -> google.protobuf.Timestamp
+	64,  // 116: protocol.ServerHardwareMemory.Data:type_name -> protocol.MemoryModule
+	62,  // 117: protocol.OemMemory.Hpe:type_name -> protocol.Hpe
+	61,  // 118: protocol.MemoryModule.MemoryLocation:type_name -> protocol.MemoryLocation
+	63,  // 119: protocol.MemoryModule.Oem:type_name -> protocol.OemMemory
+	60,  // 120: protocol.MemoryModule.Status:type_name -> protocol.MemoryStatus
+	92,  // 121: protocol.ServerHardwareLocalStorage.Modified:type_name -> google.protobuf.Timestamp
+	67,  // 122: protocol.ServerHardwareLocalStorage.Data:type_name -> protocol.LocalStorage
+	68,  // 123: protocol.LocalStorage.CacheModuleStatus:type_name -> protocol.CacheModuleStatus
+	69,  // 124: protocol.LocalStorage.ControllerBoard:type_name -> protocol.ControllerBoard
+	72,  // 125: protocol.LocalStorage.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	74,  // 126: protocol.LocalStorage.LogicalDrives:type_name -> protocol.LocalLogicalDrive
+	75,  // 127: protocol.LocalStorage.PhysicalDrives:type_name -> protocol.LocalPhysicalDrive
+	66,  // 128: protocol.LocalStorage.Status:type_name -> protocol.Status
+	76,  // 129: protocol.LocalStorage.StorageEnclosures:type_name -> protocol.LocalStorageEnclosure
+	70,  // 130: protocol.ControllerBoard.Status:type_name -> protocol.ControllerSatus
+	71,  // 131: protocol.FirmwareVersion.Current:type_name -> protocol.Version
+	72,  // 132: protocol.LogicalDataDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	66,  // 133: protocol.LogicalDataDrive.Status:type_name -> protocol.Status
+	73,  // 134: protocol.LocalLogicalDrive.DataDrives:type_name -> protocol.LogicalDataDrive
+	66,  // 135: protocol.LocalLogicalDrive.Status:type_name -> protocol.Status
+	72,  // 136: protocol.LocalPhysicalDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	66,  // 137: protocol.LocalPhysicalDrive.Status:type_name -> protocol.Status
+	72,  // 138: protocol.LocalStorageEnclosure.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	66,  // 139: protocol.LocalStorageEnclosure.Status:type_name -> protocol.Status
+	77,  // 140: protocol.DatacenterInfo.Contents:type_name -> protocol.Contents
+	92,  // 141: protocol.DatacenterInfo.Created:type_name -> google.protobuf.Timestamp
+	92,  // 142: protocol.DatacenterInfo.Modified:type_name -> google.protobuf.Timestamp
+	92,  // 143: protocol.Racks.Created:type_name -> google.protobuf.Timestamp
+	92,  // 144: protocol.Racks.Modified:type_name -> google.protobuf.Timestamp
+	92,  // 145: protocol.Enclosure.Created:type_name -> google.protobuf.Timestamp
+	92,  // 146: protocol.Enclosure.Modified:type_name -> google.protobuf.Timestamp
+	80,  // 147: protocol.Enclosure.DeviceBays:type_name -> protocol.DeviceBayInfo
+	81,  // 148: protocol.Enclosure.InterconnectBays:type_name -> protocol.InterconnectBayInfo
+	82,  // 149: protocol.Enclosure.FanBays:type_name -> protocol.FanBayInfo
+	83,  // 150: protocol.Enclosure.PowerSupplyBays:type_name -> protocol.PowerSupplyBayInfo
+	84,  // 151: protocol.Enclosure.ManagerBays:type_name -> protocol.ManagerBayInfo
+	90,  // 152: protocol.OVServerMetadata.Sources:type_name -> protocol.OVServerSource
+	7,   // 153: protocol.Loadmon.GetVCenters:input_type -> protocol.VCReq
+	10,  // 154: protocol.Loadmon.GetDatacenter:input_type -> protocol.DCReq
+	12,  // 155: protocol.Loadmon.GetCluster:input_type -> protocol.CLReq
+	12,  // 156: protocol.Loadmon.GetClusterMedium:input_type -> protocol.CLReq
+	12,  // 157: protocol.Loadmon.GetClusterMetrics:input_type -> protocol.CLReq
+	12,  // 158: protocol.Loadmon.GetClusterFull:input_type -> protocol.CLReq
+	12,  // 159: protocol.Loadmon.GetClusterStorages:input_type -> protocol.CLReq
+	12,  // 160: protocol.Loadmon.GetClusterHost:input_type -> protocol.CLReq
+	13,  // 161: protocol.Loadmon.GetHostFull:input_type -> protocol.HSReq
+	14,  // 162: protocol.Loadmon.GetVMByKey:input_type -> protocol.VMReqKey
+	27,  // 163: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
+	27,  // 164: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
+	14,  // 165: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
+	17,  // 166: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
+	18,  // 167: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
+	19,  // 168: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
+	20,  // 169: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
+	23,  // 170: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
+	21,  // 171: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
+	22,  // 172: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
+	14,  // 173: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
+	14,  // 174: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
+	14,  // 175: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
+	14,  // 176: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
+	15,  // 177: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
+	15,  // 178: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
+	16,  // 179: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
+	15,  // 180: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
+	55,  // 181: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
+	16,  // 182: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
+	6,   // 183: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
+	6,   // 184: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
+	4,   // 185: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
+	3,   // 186: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
+	3,   // 187: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
+	55,  // 188: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
+	56,  // 189: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
+	55,  // 190: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
+	2,   // 191: protocol.Loadmon.GetServerHardwareList:input_type -> protocol.HWReq
+	1,   // 192: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
+	0,   // 193: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
+	8,   // 194: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
+	11,  // 195: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
+	54,  // 196: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
+	52,  // 197: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
+	32,  // 198: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
+	53,  // 199: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
+	42,  // 200: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
+	50,  // 201: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
+	51,  // 202: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
+	47,  // 203: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
+	49,  // 204: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
+	47,  // 205: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
+	48,  // 206: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
+	27,  // 207: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
+	28,  // 208: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
+	29,  // 209: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
+	27,  // 210: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
+	27,  // 211: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
+	27,  // 212: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
+	27,  // 213: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
+	33,  // 214: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
+	41,  // 215: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
+	37,  // 216: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
+	39,  // 217: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
+	31,  // 218: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
+	34,  // 219: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
+	35,  // 220: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
+	50,  // 221: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
+	50,  // 222: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
+	52,  // 223: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
+	42,  // 224: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
+	42,  // 225: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
+	5,   // 226: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
+	5,   // 227: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
+	5,   // 228: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
+	57,  // 229: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
+	57,  // 230: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
+	57,  // 231: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
+	57,  // 232: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
+	5,   // 233: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
+	1,   // 234: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
+	194, // [194:235] is the sub-list for method output_type
+	153, // [153:194] is the sub-list for method input_type
+	153, // [153:153] is the sub-list for extension type_name
+	153, // [153:153] is the sub-list for extension extendee
+	0,   // [0:153] is the sub-list for field type_name
 }
 
 func init() { file_vm_proto_init() }
@@ -10662,7 +11558,7 @@ func file_vm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vm_proto_rawDesc), len(file_vm_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   86,
+			NumMessages:   92,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

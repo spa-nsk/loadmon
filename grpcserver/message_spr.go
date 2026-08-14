@@ -116,8 +116,8 @@ func VMSprRecodToMessage(in *models.VMSprRecord, out *pb.VMSprRecord) {
 	out.NetUsageMaximum = in.Net_usage_maximum
 }
 
-// ServerHardwareToMessage конвертирует доменную модель оборудования oneview.ServerHardware в gRPC-сообщение pb.ServerHardware.
-// Принимает in и out; при in == nil или out == nil ничего не делает. Заполняет вложенные структуры (Base, ProcessorInfo, MemoryInfo и т.д.).
+// ClusterSprRecordsToMessage конвертирует запись справочника кластеров models.ClusterSprRecords в gRPC-сообщение pb.ClusterSprRecord.
+// Принимает in и out; при in == nil или out == nil ничего не делает.
 func ClusterSprRecordsToMessage(in *models.ClusterSprRecords, out *pb.ClusterSprRecord) {
 	if in == nil || out == nil {
 		return

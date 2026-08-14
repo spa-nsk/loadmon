@@ -25,11 +25,12 @@ import (
 
 // OvEndpoint описывает подключение к одному эндпоинту HPE OneView (домен, учётные данные, версия API).
 type OvEndpoint struct {
-	Domain   string
-	Login    string
-	Password string
-	Endpoint string
-	Version  int
+	Domain              string
+	Login               string
+	Password            string
+	Endpoint            string
+	Version             int
+	OperationTimeoutSec int // таймаут одной HTTP-операции к appliance; 0 — OneViewOperationTimeoutSec
 }
 
 // JsonConfig — структура конфигурации приложения, загружаемая из файла app2.json:
@@ -63,6 +64,12 @@ type JsonConfig struct {
 	GRPCSwitchPort int64
 	ConfigVCenters []vspheremetrics.VCenter
 	ConfigOV       []OvEndpoint
+	// OneViewOperationTimeoutSec — таймаут одной HTTP-операции к HPE OneView (сек).
+	OneViewOperationTimeoutSec int
+	// OneViewCollectTimeoutSec — общий таймаут на групповой сбор инвентаризации OneView (сек).
+	OneViewCollectTimeoutSec int
+	// GrpcHardwareTimeoutSec — таймаут gRPC-запросов к инвентарю оборудования OneView (сек).
+	GrpcHardwareTimeoutSec int
 }
 
 // EndpointRecord содержит адреса gRPC API/DB-сервера и карты соответствия
@@ -209,10 +216,11 @@ func (s *JsonConfig) InitParams() error {
 		infra.AddVCenter(vc.Hostname, vc.Username, utilities.GetKeyData(vc.Username), vc.Wait) //добавляем запись с указанием времени опроса и заменой пароля
 	}
 	ov := oneview.GlobalInitOVInfrastructure() //пересоздаем структуру по оборудованию
+	ov.SetCollectTimeout(s.OneViewCollectTimeout())
 	for _, ovi := range s.ConfigOV {
 		switch ovi.Password {
 		case "password":
-			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version)
+			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
 		}
 	}
 
@@ -234,10 +242,11 @@ func (s *JsonConfig) InitOVParams() {
 	password := utilities.GetKeyData("usr-nsk-dati-02@global.bcs")
 
 	ov := oneview.GlobalInitOVInfrastructure()
+	ov.SetCollectTimeout(s.OneViewCollectTimeout())
 	for _, ovi := range s.ConfigOV {
 		switch ovi.Password {
 		case "password":
-			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version)
+			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
 		}
 	}
 }
@@ -270,6 +279,47 @@ func GetSrvDBAddr() string {
 func (s *JsonConfig) GetSwitchAddr() string {
 	str := fmt.Sprintf("%s:%d", s.GRPCSwitchAddr, s.GRPCSwitchPort)
 	return str
+}
+
+const (
+	defaultOneViewOperationTimeoutSec = 90
+	defaultOneViewCollectTimeoutSec   = 300
+	defaultGrpcHardwareTimeoutSec     = 120
+)
+
+// OneViewOperationTimeout возвращает таймаут одной HTTP-операции к OneView.
+func (s *JsonConfig) OneViewOperationTimeout() time.Duration {
+	sec := s.OneViewOperationTimeoutSec
+	if sec <= 0 {
+		sec = defaultOneViewOperationTimeoutSec
+	}
+	return time.Duration(sec) * time.Second
+}
+
+// OneViewOperationTimeoutFor возвращает таймаут операции для конкретного endpoint (с учётом переопределения).
+func (s *JsonConfig) OneViewOperationTimeoutFor(ovi *OvEndpoint) time.Duration {
+	if ovi != nil && ovi.OperationTimeoutSec > 0 {
+		return time.Duration(ovi.OperationTimeoutSec) * time.Second
+	}
+	return s.OneViewOperationTimeout()
+}
+
+// OneViewCollectTimeout возвращает общий таймаут на групповой сбор инвентаризации OneView.
+func (s *JsonConfig) OneViewCollectTimeout() time.Duration {
+	sec := s.OneViewCollectTimeoutSec
+	if sec <= 0 {
+		sec = defaultOneViewCollectTimeoutSec
+	}
+	return time.Duration(sec) * time.Second
+}
+
+// GetGrpcHardwareTimeout возвращает таймаут gRPC-запросов к инвентарю оборудования.
+func GetGrpcHardwareTimeout() time.Duration {
+	sec := ConfigData.GrpcHardwareTimeoutSec
+	if sec <= 0 {
+		sec = defaultGrpcHardwareTimeoutSec
+	}
+	return time.Duration(sec) * time.Second
 }
 
 // IsLocalAuth возвращает true, если в конфигурации явно указан режим локальной авторизации

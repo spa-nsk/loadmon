@@ -28,6 +28,9 @@ type Infrastructure struct {
 
 	Endpoints []Config
 
+	// CollectTimeout — общий таймаут на групповой сбор инвентаризации (LoadServerHardwareList).
+	CollectTimeout time.Duration
+
 	Servers      []*Server
 	ServersCount int
 
@@ -69,9 +72,11 @@ func (infra *Infrastructure) CheckLockGetData() int32 {
 }
 
 // AddEndpoint регистрирует точку подключения HPE OneView/Global Dashboard.
-// version соответствует X-API-Version (0 - использовать текущую версию
-// appliance, как определит клиент при логине).
-func (infra *Infrastructure) AddEndpoint(endpoint string, domain string, login string, password string, version int) {
+// operationTimeout — таймаут одной HTTP-операции к appliance (0 — 60 с по умолчанию).
+func (infra *Infrastructure) AddEndpoint(endpoint string, domain string, login string, password string, version int, operationTimeout time.Duration) {
+	if operationTimeout <= 0 {
+		operationTimeout = 60 * time.Second
+	}
 	infra.Endpoints = append(infra.Endpoints, Config{
 		Endpoint:    endpoint,
 		Username:    login,
@@ -79,7 +84,13 @@ func (infra *Infrastructure) AddEndpoint(endpoint string, domain string, login s
 		Domain:      domain,
 		APIVersion:  version,
 		InsecureTLS: true,
+		Timeout:     operationTimeout,
 	})
+}
+
+// SetCollectTimeout задаёт общий таймаут на групповой сбор инвентаризации.
+func (infra *Infrastructure) SetCollectTimeout(d time.Duration) {
+	infra.CollectTimeout = d
 }
 
 func (infra *Infrastructure) Init() {
@@ -136,16 +147,15 @@ func DestroyGlobalOVInfrastructureObj() {
 
 // LoadServerHardwareList опрашивает все зарегистрированные точки подключения
 // (CollectServers) и перестраивает индексы по серийному номеру, виртуальному
-// серийному номеру, URI и имени. Ошибки отдельных endpoint'ов не прерывают
-// сбор с остальных (см. CollectServers) - они складываются в LastError, а
-// уже собранные до сбоя серверы остаются в индексе.
-//
-// Таймаут на весь опрос - 2 минуты; при большом количестве точек подключения
-// или медленной appliance его может понадобиться увеличить.
+// серийному номеру, URI и имени.
 func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 	infra.WaitUnLockGetData()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	collectTimeout := infra.CollectTimeout
+	if collectTimeout <= 0 {
+		collectTimeout = 5 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), collectTimeout)
 	defer cancel()
 
 	servers, err := CollectServers(ctx, infra.Endpoints)
@@ -165,6 +175,9 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 		list = append(list, s)
 		if sn := strings.TrimSpace(s.Identity.SerialNumber); sn != "" {
 			bySN[sn] = s
+		}
+		if vsn := strings.TrimSpace(s.Identity.VirtualSerialNumber); vsn != "" {
+			byVSN[vsn] = s
 		}
 		if uri := strings.TrimSpace(s.Identity.URI); uri != "" {
 			byURI[uri] = s

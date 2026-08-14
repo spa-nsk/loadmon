@@ -40,6 +40,21 @@ type StatusWork struct {
 	Details string
 }
 
+// dialAPIHardware — как dialAPI, но с таймаутом GrpcHardwareTimeoutSec из app2.json.
+func dialAPIHardware() (pb.LoadmonClient, *grpc.ClientConn, context.Context, context.CancelFunc, error) {
+	return dialAPIAddrWithTimeout(config.GetCliApiAddr(), config.GetGrpcHardwareTimeout())
+}
+
+func dialAPIAddrWithTimeout(addr string, timeout time.Duration) (pb.LoadmonClient, *grpc.ClientConn, context.Context, context.CancelFunc, error) {
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("did not connect: %v", err)
+		return nil, nil, nil, nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	return pb.NewLoadmonClient(conn), conn, ctx, cancel, nil
+}
+
 // dialAPIAddr устанавливает соединение с gRPC-сервисом Loadmon (API метрик
 // vSphere/OneView) по произвольному адресу addr и возвращает готового
 // клиента, соединение, контекст с таймаутом dialTimeout и функцию его
@@ -48,13 +63,7 @@ type StatusWork struct {
 // При ошибке подключения причина логируется и возвращается в err; conn,
 // ctx и cancel в этом случае равны нулевым значениям и использовать их нельзя.
 func dialAPIAddr(addr string) (pb.LoadmonClient, *grpc.ClientConn, context.Context, context.CancelFunc, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Printf("did not connect: %v", err)
-		return nil, nil, nil, nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
-	return pb.NewLoadmonClient(conn), conn, ctx, cancel, nil
+	return dialAPIAddrWithTimeout(addr, dialTimeout)
 }
 
 // dialAPI — сокращённая форма dialAPIAddr для адреса основного API-сервера
