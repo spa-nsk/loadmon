@@ -205,3 +205,43 @@ oneview.ListOptions{
 ```
 
 На Global Dashboard можно ограничить список `GroupURIs`.
+
+## HTTP-симулятор OneView (для разработки и тестов)
+
+Пакет `simulator` и команда `cmd/oneview-simulator` поднимают **два независимых** HTTP-сервера:
+
+| Инстанс | API | Порт по умолчанию | Серверов |
+|---------|-----|-------------------|----------|
+| Global Dashboard | 300 (swagger 300.json) | `127.0.0.1:8300` | 300 |
+| Appliance | 7400 | `127.0.0.1:8740` | 300 |
+
+**Итого 600 серверов** HPE ProLiant / BladeSystem / Synergy с разным числом DIMM и дисков, размещением в датацентрах, комнатах, стойках и U-позициях.
+
+Запуск:
+
+```bash
+cd oneview2
+go run ./cmd/oneview-simulator -config simulator/simconfig.example.json
+```
+
+Конфигурация (`simulator/simconfig.example.json`):
+
+```json
+{
+  "instances": [
+    {"name":"oneview-global-dashboard-300","listen":"127.0.0.1:8300","apiVersion":300,"serverCount":300,"username":"Administrator","password":"admin"},
+    {"name":"oneview-appliance-7400","listen":"127.0.0.1:8740","apiVersion":7400,"serverCount":300,"username":"Administrator","password":"admin"}
+  ]
+}
+```
+
+Пример `ConfigOV` в loadmon `app2.json`:
+
+```json
+"ConfigOV": [
+  {"Domain":"local","Login":"Administrator","Password":"admin","Endpoint":"http://127.0.0.1:8300","Version":300},
+  {"Domain":"Local","Login":"Administrator","Password":"admin","Endpoint":"http://127.0.0.1:8740","Version":7400}
+]
+```
+
+Поддерживаемые REST-пути: `/rest/version`, `/rest/login-sessions`, `/rest/server-hardware` (+ subresources), `/rest/enclosures`, `/rest/racks`, `/rest/datacenters`, `/rest/server-firmware` (API 300).
