@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"loadmon/itsystem"
 	"loadmon/models"
 	"strconv"
@@ -17,6 +18,41 @@ import (
 // Active, DPCOffice, Monitoring, Backuped) берутся из комментариев к полям
 // структуры в models/models_add.go.
 //
+// SprSrvUpdateBaseByVMName находит запись справочника серверов
+// (models.ServerSprRecords) по имени виртуальной машины (Name, Type=1) и
+// переходит на её форму общих данных /sprsrv/updatebase/all/:id - аналог
+// SprHwConfigEditByName для гипервизоров/физических серверов, но для ВМ,
+// у которых нет собственной записи в models.ServerHardware, поэтому
+// переход идёт сразу на её собственную ServerSprRecords.Id, а не на
+// связанную запись оборудования.
+//
+// Если запись с таким именем не найдена, пользователь перенаправляется на
+// общий список /sprsrv/view2/all/0 с сообщением в flash.
+//
+// Маршрут: /sprsrv/vmeditbyname/:Name
+func (this *MainController) SprSrvUpdateBaseByVMName() {
+	name := this.Ctx.Input.Param(":Name")
+
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Redirect("/user/login/sprsrv_vmeditbyname_"+name, 302)
+		return
+	}
+
+	flash := beego.NewFlash()
+
+	o := orm.NewOrm()
+	var rec models.ServerSprRecords
+	if err := o.QueryTable("server_spr_records").Filter("Name", name).Filter("Type", 1).One(&rec); err != nil {
+		flash.Notice("Виртуальная машина с именем \"%s\" не найдена в справочнике серверов.", name)
+		flash.Store(&this.Controller)
+		this.Redirect("/sprsrv/view2/all/0", 302)
+		return
+	}
+
+	this.Redirect(fmt.Sprintf("/sprsrv/updatebase/all/%d", rec.Id), 302)
+}
+
 // Маршрут: /sprsrv/updatebase/:backmode/:id([0-9]+)
 // :backmode - зарезервирован, текущее значение всегда "all"
 // :id - models.ServerSprRecords.Id редактируемой записи

@@ -38,6 +38,7 @@ func init() {
 	beego.Router("/sprsrv/view2/:mode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvViewV2")
 	beego.Router("/sprsrv/addserver/:backmode/:name", &controllers.MainController{}, "get,post:SprAddServer")
 	beego.Router("/sprsrv/updatebase/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateBase")
+	beego.Router("/sprsrv/vmeditbyname/:Name", &controllers.MainController{}, "get:SprSrvUpdateBaseByVMName") // находит запись models.ServerSprRecords по имени виртуальной машины (Type=1) и переходит на её /sprsrv/updatebase/all/:id
 	beego.Router("/sprsrv/updateselectedbase/:selected", &controllers.MainController{}, "get,post:SprSrvUpdateSelectedBase")
 	//beego.Router("/sprsrv/updatecfo/:backmode/:mode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateCFO") // метод SprSrvUpdateCFO не реализован в controllers
 	//beego.Router("/sprsrv/viewserverhw/:server", &controllers.MainController{}, "get,post:ViewServerHW") // метод ViewServerHW не реализован в controllers
@@ -46,6 +47,8 @@ func init() {
 	//beego.Router("/sprsrv/updatevmcluster/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateVMCluster") // метод SprSrvUpdateVMCluster не реализован в controllers
 	beego.Router("/sprsrv/hwconflist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfig")     // список записей models.ServerHardware (справочник конфигураций серверов) с фильтром и пагинацией
 	beego.Router("/sprsrv/hwconfedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfigEdit") // просмотр/редактирование одной записи models.ServerHardware по Id
+	beego.Router("/sprsrv/hwconfeditbysn/:SN", &controllers.MainController{}, "get:SprHwConfigEditBySN")      // находит запись models.ServerHardware по серийному номеру и переходит на её /sprsrv/hwconfedit/:id (используется пунктом меню "Конфигурация сервера" на /sprsrv/view2)
+	beego.Router("/sprsrv/hwconfeditbyname/:Name", &controllers.MainController{}, "get:SprHwConfigEditByName") // находит запись models.ServerSprRecords по имени (физический сервер/гипервизор) и переходит на связанную models.ServerHardware через HWSprId (используется хостами на /sprsrv/cluster/... без известного серийного номера)
 	beego.Router("/sprsrv/hwconfbulkedit", &controllers.MainController{}, "get,post:SprHwConfigBulkEdit")     // групповое редактирование статуса/размещения выбранных записей models.ServerHardware
 	//beego.Router("/sprsrv/hwconfadd", &controllers.MainController{}, "get,post:SprAddHWServerConfig") // метод SprAddHWServerConfig не реализован в controllers
 	beego.Router("/sprsrv/srvhwviewbysn/:SN", &controllers.MainController{}, "get,post:SrvHwViewBySn") // подробная карточка сервера HPE OneView по серийному номеру (ссылка из /sprsrv/hwviewlist)

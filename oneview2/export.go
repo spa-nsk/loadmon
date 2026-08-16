@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,6 +66,7 @@ func (c *Client) ExportServers(ctx context.Context, listOpts ListOptions, opts E
 	}
 	out := make([]*ServerExport, 0, len(col.Members))
 	for i := range col.Members {
+		log.Printf("Exporting server: %d/%d %s (%s)", i+1, len(col.Members), col.Members[i].Name, col.Members[i].SerialNumber)
 		exp, err := c.exportHardware(ctx, &col.Members[i], opts)
 		if err != nil {
 			return out, fmt.Errorf("oneview: export %s: %w", col.Members[i].Name, err)

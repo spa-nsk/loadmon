@@ -72,6 +72,8 @@ const (
 	Loadmon_GetServerHardwareByName_FullMethodName      = "/protocol.Loadmon/GetServerHardwareByName"
 	Loadmon_GetServerHardwareByVirtualSN_FullMethodName = "/protocol.Loadmon/GetServerHardwareByVirtualSN"
 	Loadmon_GetServerHardwareList_FullMethodName        = "/protocol.Loadmon/GetServerHardwareList"
+	Loadmon_GetHWDatacenterNames_FullMethodName         = "/protocol.Loadmon/GetHWDatacenterNames"
+	Loadmon_GetHWRackNames_FullMethodName               = "/protocol.Loadmon/GetHWRackNames"
 	Loadmon_RegisterWorkProcess_FullMethodName          = "/protocol.Loadmon/RegisterWorkProcess"
 	Loadmon_GetClusterSprRecords_FullMethodName         = "/protocol.Loadmon/GetClusterSprRecords"
 )
@@ -154,7 +156,14 @@ type LoadmonClient interface {
 	GetServerHardwareByName(ctx context.Context, in *ServerName, opts ...grpc.CallOption) (*ServerHardware, error)
 	GetServerHardwareByVirtualSN(ctx context.Context, in *SerialNumber, opts ...grpc.CallOption) (*ServerHardware, error)
 	GetServerHardwareList(ctx context.Context, in *HWReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServerHardware], error)
-	// rpc GetDatacenter(HWReq) returns (stream ) {} //TODO
+	// Списки различных значений Datacenter.Name/Rack.Name, накопленные
+	// oneview2.Infrastructure по ВСЕМ собранным серверам (см.
+	// oneview2/global.go, Infrastructure.DatacenterNames/RackNames) - в
+	// отличие от перебора текущего отфильтрованного результата
+	// GetServerHardwareList, не зависят от остальных полей фильтра. Нужны
+	// для выпадающих списков фильтра "Датацентр"/"Шкаф" на /sprsrv/hwviewlist.
+	GetHWDatacenterNames(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameList, error)
+	GetHWRackNames(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameList, error)
 	// all service
 	RegisterWorkProcess(ctx context.Context, in *RegisterEndpoint, opts ...grpc.CallOption) (*StatusWork, error)
 	GetClusterSprRecords(ctx context.Context, in *EndpointReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RegisterEndpoint], error)
@@ -675,6 +684,26 @@ func (c *loadmonClient) GetServerHardwareList(ctx context.Context, in *HWReq, op
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Loadmon_GetServerHardwareListClient = grpc.ServerStreamingClient[ServerHardware]
 
+func (c *loadmonClient) GetHWDatacenterNames(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NameList)
+	err := c.cc.Invoke(ctx, Loadmon_GetHWDatacenterNames_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *loadmonClient) GetHWRackNames(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NameList)
+	err := c.cc.Invoke(ctx, Loadmon_GetHWRackNames_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *loadmonClient) RegisterWorkProcess(ctx context.Context, in *RegisterEndpoint, opts ...grpc.CallOption) (*StatusWork, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StatusWork)
@@ -782,7 +811,14 @@ type LoadmonServer interface {
 	GetServerHardwareByName(context.Context, *ServerName) (*ServerHardware, error)
 	GetServerHardwareByVirtualSN(context.Context, *SerialNumber) (*ServerHardware, error)
 	GetServerHardwareList(*HWReq, grpc.ServerStreamingServer[ServerHardware]) error
-	// rpc GetDatacenter(HWReq) returns (stream ) {} //TODO
+	// Списки различных значений Datacenter.Name/Rack.Name, накопленные
+	// oneview2.Infrastructure по ВСЕМ собранным серверам (см.
+	// oneview2/global.go, Infrastructure.DatacenterNames/RackNames) - в
+	// отличие от перебора текущего отфильтрованного результата
+	// GetServerHardwareList, не зависят от остальных полей фильтра. Нужны
+	// для выпадающих списков фильтра "Датацентр"/"Шкаф" на /sprsrv/hwviewlist.
+	GetHWDatacenterNames(context.Context, *Empty) (*NameList, error)
+	GetHWRackNames(context.Context, *Empty) (*NameList, error)
 	// all service
 	RegisterWorkProcess(context.Context, *RegisterEndpoint) (*StatusWork, error)
 	GetClusterSprRecords(*EndpointReq, grpc.ServerStreamingServer[RegisterEndpoint]) error
@@ -912,6 +948,12 @@ func (UnimplementedLoadmonServer) GetServerHardwareByVirtualSN(context.Context, 
 }
 func (UnimplementedLoadmonServer) GetServerHardwareList(*HWReq, grpc.ServerStreamingServer[ServerHardware]) error {
 	return status.Error(codes.Unimplemented, "method GetServerHardwareList not implemented")
+}
+func (UnimplementedLoadmonServer) GetHWDatacenterNames(context.Context, *Empty) (*NameList, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHWDatacenterNames not implemented")
+}
+func (UnimplementedLoadmonServer) GetHWRackNames(context.Context, *Empty) (*NameList, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHWRackNames not implemented")
 }
 func (UnimplementedLoadmonServer) RegisterWorkProcess(context.Context, *RegisterEndpoint) (*StatusWork, error) {
 	return nil, status.Error(codes.Unimplemented, "method RegisterWorkProcess not implemented")
@@ -1551,6 +1593,42 @@ func _Loadmon_GetServerHardwareList_Handler(srv interface{}, stream grpc.ServerS
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Loadmon_GetServerHardwareListServer = grpc.ServerStreamingServer[ServerHardware]
 
+func _Loadmon_GetHWDatacenterNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonServer).GetHWDatacenterNames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Loadmon_GetHWDatacenterNames_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonServer).GetHWDatacenterNames(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Loadmon_GetHWRackNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonServer).GetHWRackNames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Loadmon_GetHWRackNames_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonServer).GetHWRackNames(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Loadmon_RegisterWorkProcess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RegisterEndpoint)
 	if err := dec(in); err != nil {
@@ -1690,6 +1768,14 @@ var Loadmon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetServerHardwareByVirtualSN",
 			Handler:    _Loadmon_GetServerHardwareByVirtualSN_Handler,
+		},
+		{
+			MethodName: "GetHWDatacenterNames",
+			Handler:    _Loadmon_GetHWDatacenterNames_Handler,
+		},
+		{
+			MethodName: "GetHWRackNames",
+			Handler:    _Loadmon_GetHWRackNames_Handler,
 		},
 		{
 			MethodName: "RegisterWorkProcess",

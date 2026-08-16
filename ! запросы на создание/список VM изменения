@@ -1,0 +1,5 @@
+переделай сервис отображения списка виртуальных машин через запрос в функции в controllers для пункта меню /sprsrv/vm/:vcenter/:datacenter/:cluster/:vm
+сделай наборы отображаемой информации как в шаблоне C:\work\loadmon\server_web_new\views\sprsrv\vm.tpl
+наполнение данных как в C:\work\loadmon\controllers\sprsrvvmold.go
+цветовую гамму и стиль по аналогии с /sprsrv/view2/:mode/:id([0-9]+)
+при необходимости добавь методы для загрузки части данных, а не всего списка VM в C:\work\loadmon\protocol\  и в функции  grpcserver и grpcclient

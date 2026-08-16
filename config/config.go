@@ -156,7 +156,7 @@ func (s *JsonConfig) LoadConfigData() (JsonConfig, error) {
 	if err != nil {
 		return *s, err
 	}
-	log.Printf("config: загружен %s (WorkMode=%s, vCenters=%d)", fullPath, s.WorkMode, len(s.ConfigVCenters))
+	log.Printf("config: загружен %s (WorkMode=%s, vCenters=%d Oneview=%d)", fullPath, s.WorkMode, len(s.ConfigVCenters), len(s.ConfigOV))
 	return *s, nil
 }
 
@@ -221,6 +221,8 @@ func (s *JsonConfig) InitParams() error {
 		switch ovi.Password {
 		case "password":
 			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
+		default:
+			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, ovi.Password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
 		}
 	}
 

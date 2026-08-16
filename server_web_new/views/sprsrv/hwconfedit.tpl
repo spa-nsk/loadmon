@@ -16,7 +16,7 @@
 {{if .HW}}
 <form role="form" id="hwEditForm" method="POST">
     <div class="row g-3 align-items-start">
-        <div class="col-12 col-lg-6 col-xl-4">
+        <div class="col-12">
             <div class="hw-card">
                 <h6>Общие сведения</h6>
                 <div class="row g-3">
@@ -57,11 +57,11 @@
                             <option value="3" {{if eq .HW.Active 3}}selected{{end}}>Списан</option>
                         </select>
                     </div>
-                    <div class="col-12">
+                    <div class="col-6">
                         <label for="SerialNum" class="form-label">Серийный номер</label>
                         <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.HW.SerialNum}}">
                     </div>
-                    <div class="col-12">
+                    <div class="col-6">
                         <label for="VirtualSerialNum" class="form-label">Виртуальный серийный номер</label>
                         <input type="text" id="VirtualSerialNum" name="VirtualSerialNum" class="form-control" value="{{.HW.VirtualSerialNum}}">
                     </div>
@@ -69,13 +69,17 @@
             </div>
         </div>
 
-        <div class="col-12 col-lg-6 col-xl-4">
+        <div class="col-12">
             <div class="hw-card">
                 <h6>Процессор и память</h6>
                 <div class="row g-3">
-                    <div class="col-12">
+                    <div class="col-6">
                         <label for="CPUModel" class="form-label">Модель процессора</label>
                         <input type="text" id="CPUModel" name="CPUModel" class="form-control" value="{{.HW.CPUModel}}">
+                    </div>
+                    <div class="col-6">
+                        <label for="MemoryMb" class="form-label">Память, МБ</label>
+                        <input type="number" id="MemoryMb" name="MemoryMb" class="form-control" value="{{.HW.MemoryMb}}">
                     </div>
                     <div class="col-4">
                         <label for="CPUCount" class="form-label">Кол-во процессоров</label>
@@ -88,10 +92,6 @@
                     <div class="col-4">
                         <label for="CoreMHz" class="form-label">Частота, МГц</label>
                         <input type="number" id="CoreMHz" name="CoreMHz" class="form-control" value="{{.HW.CoreMHz}}">
-                    </div>
-                    <div class="col-12">
-                        <label for="MemoryMb" class="form-label">Память, МБ</label>
-                        <input type="number" id="MemoryMb" name="MemoryMb" class="form-control" value="{{.HW.MemoryMb}}">
                     </div>
                 </div>
 
@@ -127,7 +127,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-xl-4">
+        <div class="col-12">
             <div class="hw-card">
                 <h6>Учёт и договор</h6>
                 <div class="row g-3">

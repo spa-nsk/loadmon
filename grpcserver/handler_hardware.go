@@ -17,6 +17,7 @@ import (
 	"loadmon/config"
 	pb "loadmon/protocol"
 	"log"
+	"sort"
 	"time"
 
 	oneview "github.com/spa-nsk/oneview2"
@@ -28,8 +29,34 @@ func hardwareGrpcTimeout() time.Duration {
 	return config.GetGrpcHardwareTimeout()
 }
 
+// hwHasPlacement сообщает, содержит ли ответ данные о размещении сервера
+// (датацентр или стойка). Используется при опросе нескольких зарегистрированных
+// в Switch воркеров: один и тот же физический сервер может быть виден сразу
+// нескольким воркерам (например, если он присутствует и в Global Dashboard, и
+// на конкретной appliance) — и не у всех такой ответ будет одинаково полным
+// (GD, в частности, не отдаёт /rest/racks и /rest/datacenters, поэтому
+// размещение остаётся пустым при опросе через GD). Раньше функции
+// GetServerHardwareBySN/ByName/ByVirtualSN возвращали ответ ПЕРВОГО
+// откликнувшегося воркера, даже если он был неполным - из-за этого
+// размещение на /sprsrv/srvhwviewbysn/ иногда пропадало, хотя на
+// /sprsrv/hwviewlist (который агрегирует данные со всех воркеров через
+// потоковый GetServerHardwareList) оно отображалось.
+func hwHasPlacement(hw *pb.ServerHardware) bool {
+	if hw == nil {
+		return false
+	}
+	if hw.Datacenter != nil && hw.Datacenter.Name != "" {
+		return true
+	}
+	if hw.Rack != nil && hw.Rack.Name != "" {
+		return true
+	}
+	return false
+}
+
 func (p *server) GetServerHardwareBySN(_ context.Context, in *pb.SerialNumber) (*pb.ServerHardware, error) {
 	if config.Switch.Endpoint.Count() > 0 {
+		var best *pb.ServerHardware
 		for _, key := range config.Switch.Endpoint.Keys() {
 			endpoint, ok := config.Switch.Endpoint.Get(key)
 			if !ok {
@@ -38,23 +65,39 @@ func (p *server) GetServerHardwareBySN(_ context.Context, in *pb.SerialNumber) (
 			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Printf("did not connect: %v\n", err)
-				return &pb.ServerHardware{}, err
+				continue
 			}
-			defer conn.Close()
-
 			c := pb.NewLoadmonClient(conn)
 			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
-			defer cancel()
 			hw, err := c.GetServerHardwareBySN(ctx, in)
-			if err == nil { //как только получаем правильный ответ, пересылаем его
-				return hw, nil
+			cancel()
+			conn.Close()
+			if err != nil {
+				continue
 			}
+			if best == nil {
+				best = hw
+			}
+			if hwHasPlacement(hw) { //нашли воркера с полными данными о размещении - дальше не ищем
+				best = hw
+				break
+			}
+		}
+		if best != nil {
+			return best, nil
 		}
 		return &pb.ServerHardware{}, fmt.Errorf(errSrvNotFound, in.SerialNumber) //ничего не найдено
 	}
 	ov := oneview.GetGlobalOVInfrastructure()
-	hw, ok := ov.ServerBySN[in.SerialNumber]
-	if ok {
+	// Примечание: раньше здесь читали ov.ServerBySN[in.SerialNumber] напрямую,
+	// без блокировки - в момент, когда фоновое обновление данных
+	// (Infrastructure.LoadServerHardwareList, тикер раз в 6 часов и при
+	// старте) перестраивает и переприсваивает эту карту под
+	// LockGetData/UnLockGetData, конкурентное чтение могло попасть на
+	// частично обновлённое состояние. FindServerHardwareSN дожидается снятия
+	// блокировки перед чтением (как и было задумано в oneview2/global.go).
+	hw, err := ov.FindServerHardwareSN(in.SerialNumber)
+	if err == nil {
 		pbhw := pb.ServerHardware{}
 		ServerHardwareToMessage(hw, &pbhw)
 		return &pbhw, nil
@@ -69,6 +112,7 @@ func (p *server) GetServerHardwareBySN(_ context.Context, in *pb.SerialNumber) (
 // как и раньше.
 func (p *server) GetServerHardwareByName(_ context.Context, in *pb.ServerName) (*pb.ServerHardware, error) {
 	if config.Switch.Endpoint.Count() > 0 {
+		var best *pb.ServerHardware
 		for _, key := range config.Switch.Endpoint.Keys() {
 			endpoint, ok := config.Switch.Endpoint.Get(key)
 			if !ok {
@@ -77,17 +121,26 @@ func (p *server) GetServerHardwareByName(_ context.Context, in *pb.ServerName) (
 			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Printf("did not connect: %v\n", err)
-				return &pb.ServerHardware{}, err
+				continue
 			}
-			defer conn.Close()
-
 			c := pb.NewLoadmonClient(conn)
 			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
-			defer cancel()
 			hw, err := c.GetServerHardwareByName(ctx, in)
-			if err == nil { //как только получаем правильный ответ, пересылаем его
-				return hw, nil
+			cancel()
+			conn.Close()
+			if err != nil {
+				continue
 			}
+			if best == nil {
+				best = hw
+			}
+			if hwHasPlacement(hw) {
+				best = hw
+				break
+			}
+		}
+		if best != nil {
+			return best, nil
 		}
 		return &pb.ServerHardware{}, fmt.Errorf(errSrvNotFound, in.Name) //ничего не найдено
 	}
@@ -104,6 +157,7 @@ func (p *server) GetServerHardwareByName(_ context.Context, in *pb.ServerName) (
 // GetServerHardwareByVirtualSN возвращает данные об аппаратном сервере (HPE OneView) по виртуальному серийному номеру.
 func (p *server) GetServerHardwareByVirtualSN(_ context.Context, in *pb.SerialNumber) (*pb.ServerHardware, error) {
 	if config.Switch.Endpoint.Count() > 0 {
+		var best *pb.ServerHardware
 		for _, key := range config.Switch.Endpoint.Keys() {
 			endpoint, ok := config.Switch.Endpoint.Get(key)
 			if !ok {
@@ -112,21 +166,31 @@ func (p *server) GetServerHardwareByVirtualSN(_ context.Context, in *pb.SerialNu
 			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Printf("did not connect: %v\n", err)
-				return &pb.ServerHardware{}, err
+				continue
 			}
-			defer conn.Close()
-
 			c := pb.NewLoadmonClient(conn)
 			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
-			defer cancel()
 			hw, err := c.GetServerHardwareByVirtualSN(ctx, in)
-			if err == nil { //как только получаем правильный ответ, пересылаем его
-				return hw, nil
+			cancel()
+			conn.Close()
+			if err != nil {
+				continue
 			}
+			if best == nil {
+				best = hw
+			}
+			if hwHasPlacement(hw) {
+				best = hw
+				break
+			}
+		}
+		if best != nil {
+			return best, nil
 		}
 		return &pb.ServerHardware{}, fmt.Errorf(errSrvVirtualNotFound, in.SerialNumber) //ничего не найдено
 	}
 	ov := oneview.GetGlobalOVInfrastructure()
+	ov.WaitUnLockGetData() // см. комментарий в GetServerHardwareBySN про гонку с LoadServerHardwareList
 	hw, ok := ov.ServerByVirtualSN[in.SerialNumber]
 	if ok {
 		pbhw := pb.ServerHardware{}
@@ -170,6 +234,7 @@ func (s *server) GetServerHardwareList(in *pb.HWReq, stream grpc.ServerStreaming
 		return nil
 	}
 	ov := oneview.GetGlobalOVInfrastructure()
+	ov.WaitUnLockGetData() // см. комментарий в GetServerHardwareBySN про гонку с LoadServerHardwareList
 
 	for key := range ov.ServerBySN {
 		hw, ok := ov.ServerBySN[key]
@@ -200,6 +265,74 @@ func (s *server) GetServerHardwareList(in *pb.HWReq, stream grpc.ServerStreaming
 		}
 	}
 	return nil
+}
+
+// GetHWDatacenterNames отдаёт клиенту список всех различных значений
+// Datacenter.Name, накопленных oneview2.Infrastructure по всем собранным
+// серверам (см. oneview2/global.go, DatacenterNameList) - в отличие от
+// GetServerHardwareList, не зависит от текущего фильтра. В режиме Switch
+// (несколько зарегистрированных воркеров) списки со всех воркеров
+// объединяются, чтобы не потерять значения, известные только части
+// воркеров (например, разным appliance/Global Dashboard).
+func (s *server) GetHWDatacenterNames(ctx context.Context, in *pb.Empty) (*pb.NameList, error) {
+	if config.Switch.Endpoint.Count() > 0 {
+		return mergedHWNameList(ctx, func(c pb.LoadmonClient, ctx context.Context) (*pb.NameList, error) {
+			return c.GetHWDatacenterNames(ctx, in)
+		})
+	}
+	ov := oneview.GetGlobalOVInfrastructure()
+	return &pb.NameList{Names: ov.DatacenterNameList()}, nil
+}
+
+// GetHWRackNames отдаёт клиенту список всех различных значений Rack.Name,
+// накопленных oneview2.Infrastructure по всем собранным серверам - см.
+// GetHWDatacenterNames.
+func (s *server) GetHWRackNames(ctx context.Context, in *pb.Empty) (*pb.NameList, error) {
+	if config.Switch.Endpoint.Count() > 0 {
+		return mergedHWNameList(ctx, func(c pb.LoadmonClient, ctx context.Context) (*pb.NameList, error) {
+			return c.GetHWRackNames(ctx, in)
+		})
+	}
+	ov := oneview.GetGlobalOVInfrastructure()
+	return &pb.NameList{Names: ov.RackNameList()}, nil
+}
+
+// mergedHWNameList опрашивает всех зарегистрированных в Switch воркеров вызовом
+// call и объединяет полученные списки имён в один отсортированный список без
+// повторов - используется GetHWDatacenterNames/GetHWRackNames в режиме
+// нескольких воркеров.
+func mergedHWNameList(_ context.Context, call func(c pb.LoadmonClient, ctx context.Context) (*pb.NameList, error)) (*pb.NameList, error) {
+	seen := make(map[string]struct{})
+	for _, key := range config.Switch.Endpoint.Keys() {
+		endpoint, ok := config.Switch.Endpoint.Get(key)
+		if !ok {
+			continue
+		}
+		conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("did not connect: %v\n", err)
+			continue
+		}
+		c := pb.NewLoadmonClient(conn)
+		ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
+		resp, err := call(c, ctx)
+		cancel()
+		conn.Close()
+		if err != nil {
+			continue
+		}
+		for _, name := range resp.Names {
+			if name != "" {
+				seen[name] = struct{}{}
+			}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return &pb.NameList{Names: out}, nil
 }
 
 //------------------- DB interface -------------------

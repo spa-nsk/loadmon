@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -51,6 +52,7 @@ func CollectServers(ctx context.Context, configs []Config) ([]Server, error) {
 	var errs []error
 
 	for i, cfg := range configs {
+		log.Println("Загрузка данных из конфигурации: ", cfg.Endpoint)
 		if err := ctx.Err(); err != nil {
 			return out, errors.Join(append(errs, err)...)
 		}

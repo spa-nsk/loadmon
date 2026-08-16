@@ -521,12 +521,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td id="rowMenu{{$record.S.Id}}" class="d-none">
                     <div class="ctx-menu-heading">Подробнее</div>
                     <a class="ctx-menu-item" href="/sprsrv/updatebase/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Общие данные</a>
-                    <a class="ctx-menu-item" href="/sprsrv/updatecfo/{{$.backmode}}/edit/{{$record.S.Id}}" target="_blank">Аллокация</a>
-                    {{if or (eq $record.S.Type 0) (eq $record.S.Type 2) }}<a class="ctx-menu-item" href="/sprsrv/updatehw/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Конфигурация сервера</a>{{end}}
+                    {{if and (or (eq $record.S.Type 0) (eq $record.S.Type 2)) (ne $record.S.SerialNumber "") }}<a class="ctx-menu-item" href="/sprsrv/hwconfeditbysn/{{$record.S.SerialNumber}}" target="_blank">Конфигурация сервера</a>{{end}}
                     {{if eq $record.S.Type 1}}
                     <a class="ctx-menu-item" href="/sprsrv/updatevm/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Детали по виртуальной машине</a>
                     <a class="ctx-menu-item" href="/sprsrv/updatevmcluster/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Размещение виртуальной машины</a>
                     {{end}}
+                    {{if ne $record.S.Type 0}}
                     <hr class="ctx-menu-divider">
                     <div class="ctx-menu-heading">Загрузка</div>
                     {{if eq $record.S.Type 1}}
@@ -546,6 +546,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     {{end}}
                     {{if gt $record.S.ZabbixHostId 0}}
                     <a class="ctx-menu-item" href="/sprsrv/zabbixperfperiod/{{$record.S.ZabbixHostId}}" target="_blank">График загрузки по данным Zabbix за период из фильтра с {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}</a>
+                    {{end}}
                     {{end}}
                 </td>
                 <td>

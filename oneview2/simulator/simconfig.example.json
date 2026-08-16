@@ -1,0 +1,20 @@
+{
+  "instances": [
+    {
+      "name": "oneview-global-dashboard-300",
+      "listen": "127.0.0.1:8300",
+      "apiVersion": 300,
+      "serverCount": 300,
+      "username": "Administrator",
+      "password": "admin"
+    },
+    {
+      "name": "oneview-appliance-7400",
+      "listen": "127.0.0.1:8740",
+      "apiVersion": 7400,
+      "serverCount": 300,
+      "username": "Administrator",
+      "password": "admin"
+    }
+  ]
+}

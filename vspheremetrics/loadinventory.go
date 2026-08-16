@@ -98,24 +98,45 @@ func (infra *VMInfrastructure) UpdateClusterInfo(ctx context.Context, vc VCenter
 				lun.vmnames = append(lun.vmnames, vmdNew)
 			}
 			ref := ds.Reference()
+			// lun2/ok - актуальное значение lun.datastore в ГЛОБАЛЬНОЙ карте
+			// infra.DataStoreMapList (один и тот же datastore может быть
+			// смонтирован хостам сразу нескольких кластеров - карта общая для
+			// всех кластеров, а не только для текущего cl). Раньше ok==true
+			// трактовалось как "datastore уже известен ЭТОМУ кластеру" -
+			// из-за этого в cl.AllCapacityGb/AllFreeSpaceGb суммировалась
+			// ёмкость shared-datastore для КАЖДОГО кластера, куда он
+			// примонтирован, даже если в собственном cl.Storage этого
+			// кластера записи о нём ещё не было (foundInCluster ниже отличает
+			// эти два случая).
 			lun2, ok := infra.DataStoreMapList.Get(cl.Vcenter + "/" + ref.Value)
+			foundInCluster := false
 			if ok {
 				for ind, lunTmp := range cl.Storage {
 					if lunTmp.UID == lun.UID {
 						cl.Storage[ind] = &lun
+						foundInCluster = true
 					}
 				}
-				infra.DataStoreMapList.Set(cl.Vcenter+"/"+ref.Value, &lun)
+			}
+			infra.DataStoreMapList.Set(cl.Vcenter+"/"+ref.Value, &lun)
+			if foundInCluster {
 				cl.AllCapacityGb = cl.AllCapacityGb - lun2.CapacityGb + lun.CapacityGb
-				cl.AllFreeSpaceGb = cl.AllFreeSpaceGb - lun2.FreeSpaceGb + lun2.FreeSpaceGb
-				//cl.Storage = append(cl.Storage, &lun) найти и заменить иначе будет утечка памяти
+				// было lun2.FreeSpaceGb (то же старое значение ещё раз) -
+				// разница всегда давала 0, и AllFreeSpaceGb переставал
+				// обновляться после первого обнаружения datastore.
+				cl.AllFreeSpaceGb = cl.AllFreeSpaceGb - lun2.FreeSpaceGb + lun.FreeSpaceGb
 			} else {
 				cl.Storage = append(cl.Storage, &lun)
-				infra.DataStoreMapList.Set(cl.Vcenter+"/"+ref.Value, &lun)
 				cl.StorageCount++
 				ids++
 				cl.AllCapacityGb = cl.AllCapacityGb + lun.CapacityGb
 				cl.AllFreeSpaceGb = cl.AllFreeSpaceGb + lun.FreeSpaceGb
+			}
+			// AllPercentUsed раньше нигде не вычислялся (только копировался
+			// между сообщениями) и всегда оставался нулевым - пересчитываем
+			// его от актуальных суммарных значений при каждом обновлении.
+			if cl.AllCapacityGb > 0 {
+				cl.AllPercentUsed = 100.0 * (cl.AllCapacityGb - cl.AllFreeSpaceGb) / cl.AllCapacityGb
 			}
 		}
 	}
