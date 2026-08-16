@@ -209,7 +209,7 @@
         <div class="card-header fw-semibold">Общие данные</div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-6 col-md-6">
                     <label for="Type" class="form-label">Тип сервера</label>
                     <select name="Type" id="Type" class="form-select">
                         <option value="0" {{if eq .record.Type 0}}selected{{end}}>Физический сервер</option>
@@ -217,19 +217,19 @@
                         <option value="2" {{if eq .record.Type 2}}selected{{end}}>Гипервизор VMware</option>
                     </select>
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-6 col-md-6">
                     <label for="SerialNumber" class="form-label">Серийный номер</label>
                     <input name="SerialNumber" id="SerialNumber" class="form-control" type="text" value="{{.record.SerialNumber}}" title="Заполняется для физического сервера и гипервизора" />
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-6 col-md-4">
                     <label for="Vcenter" class="form-label">vCenter</label>
                     <input name="Vcenter" id="Vcenter" class="form-control" type="text" value="{{.record.Vcenter}}" title="Заполняется для виртуальной машины и гипервизора" />
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-6 col-md-4">
                     <label for="Datacenter" class="form-label">Датацентр</label>
                     <input name="Datacenter" id="Datacenter" class="form-control" type="text" value="{{.record.Datacenter}}" />
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-6 col-md-4">
                     <label for="Cluster" class="form-label">Кластер</label>
                     <input name="Cluster" id="Cluster" class="form-control" type="text" value="{{.record.Cluster}}" />
                 </div>
@@ -282,6 +282,26 @@
                     <select name="Active" id="Active" class="form-select">
                         <option value="1" {{if eq .record.Active 1}}selected{{end}}>Активен</option>
                         <option value="2" {{if eq .record.Active 2}}selected{{end}}>Выведен из эксплуатации</option>
+                    </select>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <label for="Monitoring" class="form-label">Мониторинг</label>
+                    <select name="Monitoring" id="Monitoring" class="form-select">
+                        <option value="0" {{if eq .record.Monitoring 0}}selected{{end}}>не указано</option>
+                        <option value="1" {{if eq .record.Monitoring 1}}selected{{end}}>включен</option>
+                        <option value="2" {{if eq .record.Monitoring 2}}selected{{end}}>отключен</option>
+                    </select>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <label for="MonitoringSZ" class="form-label">Основание постановки на мониторинг</label>
+                    <input name="MonitoringSZ" id="MonitoringSZ" class="form-control" type="text" value="{{.record.MonitoringSZ}}" />
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <label for="Backuped" class="form-label">Резервное копирование</label>
+                    <select name="Backuped" id="Backuped" class="form-select">
+                        <option value="0" {{if eq .record.Backuped 0}}selected{{end}}>не указано</option>
+                        <option value="1" {{if eq .record.Backuped 1}}selected{{end}}>включено</option>
+                        <option value="2" {{if eq .record.Backuped 2}}selected{{end}}>отключено</option>
                     </select>
                 </div>
             </div>
@@ -365,7 +385,7 @@
                     <div class="row g-2">
                         <div class="col-md-4">
                             <input type="text" name="ITSystemKey" id="ITSystemKey" class="form-control"
-                                value="{{.record.ITSystemKey}}" placeholder="Код, например ITS-000123" autocomplete="off">
+                                value="{{.record.ITSystemKey}}" placeholder="CMDB-" autocomplete="off">
                             <div id="ITSystemKeyHint" class="form-text"></div>
                         </div>
                         <div class="col-md-8 position-relative">
@@ -453,26 +473,6 @@
                 <div class="col-sm-4 col-md-6">
                     <label for="SZHistory" class="form-label">Номера СЗ</label>
                     <input name="SZHistory" id="SZHistory" class="form-control" type="text" value="{{.record.SZHistory}}" title="Через пробел, в хронологическом порядке" />
-                </div>
-                <div class="col-sm-6 col-md-3">
-                    <label for="Monitoring" class="form-label">Мониторинг</label>
-                    <select name="Monitoring" id="Monitoring" class="form-select">
-                        <option value="0" {{if eq .record.Monitoring 0}}selected{{end}}>не указано</option>
-                        <option value="1" {{if eq .record.Monitoring 1}}selected{{end}}>включен</option>
-                        <option value="2" {{if eq .record.Monitoring 2}}selected{{end}}>отключен</option>
-                    </select>
-                </div>
-                <div class="col-sm-6 col-md-3">
-                    <label for="Backuped" class="form-label">Резервное копирование</label>
-                    <select name="Backuped" id="Backuped" class="form-select">
-                        <option value="0" {{if eq .record.Backuped 0}}selected{{end}}>не указано</option>
-                        <option value="1" {{if eq .record.Backuped 1}}selected{{end}}>включено</option>
-                        <option value="2" {{if eq .record.Backuped 2}}selected{{end}}>отключено</option>
-                    </select>
-                </div>
-                <div class="col-sm-12 col-md-6">
-                    <label for="MonitoringSZ" class="form-label">Основание постановки на мониторинг</label>
-                    <input name="MonitoringSZ" id="MonitoringSZ" class="form-control" type="text" value="{{.record.MonitoringSZ}}" />
                 </div>
             </div>
         </div>

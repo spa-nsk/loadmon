@@ -3,7 +3,9 @@ package oneview
 import (
 	"context"
 	"errors"
+	"log"
 	"runtime"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -42,6 +44,18 @@ type Infrastructure struct {
 	// ServerByName - потокобезопасная карта (как и в старом пакете), можно
 	// читать без явной блокировки.
 	ServerByName cmap.ConcurrentMap[string, *Server]
+
+	// DatacenterNames/RackNames - множество различных значений
+	// Server.Datacenter.Name/Server.Rack.Name, накопленное по ВСЕМ
+	// собранным серверам (а не только по подмножеству, вернувшемуся из
+	// какого-то одного фильтрованного запроса). Нужно для того, чтобы
+	// выпадающие списки фильтра "Датацентр"/"Шкаф" на /sprsrv/hwviewlist
+	// показывали полный перечень значений независимо от того, что сейчас
+	// выбрано в остальных полях фильтра. Доступ - только под
+	// LockGetData/WaitUnLockGetData, как и остальные обычные map этой
+	// структуры.
+	DatacenterNames map[string]struct{}
+	RackNames       map[string]struct{}
 
 	LastError    error
 	LastRefresh  time.Time
@@ -104,6 +118,8 @@ func (infra *Infrastructure) Init() {
 	infra.ServerByVirtualSN = make(map[string]*Server)
 	infra.ServerByURI = make(map[string]*Server)
 	infra.ServerByName = cmap.New[*Server]()
+	infra.DatacenterNames = make(map[string]struct{})
+	infra.RackNames = make(map[string]struct{})
 }
 
 func (infra *Infrastructure) Destroy() {
@@ -116,6 +132,8 @@ func (infra *Infrastructure) Destroy() {
 	infra.ServerByVirtualSN = make(map[string]*Server)
 	infra.ServerByURI = make(map[string]*Server)
 	infra.ServerByName.Clear()
+	infra.DatacenterNames = make(map[string]struct{})
+	infra.RackNames = make(map[string]struct{})
 }
 
 var infrastructureGlobal *Infrastructure
@@ -153,11 +171,11 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 
 	collectTimeout := infra.CollectTimeout
 	if collectTimeout <= 0 {
-		collectTimeout = 5 * time.Minute
+		collectTimeout = 120 * time.Minute
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), collectTimeout)
 	defer cancel()
-
+	log.Println("количество конфигураций: ", len(infra.Endpoints), infra.Endpoints)
 	servers, err := CollectServers(ctx, infra.Endpoints)
 
 	infra.LockGetData()
@@ -169,6 +187,19 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 	byURI := make(map[string]*Server, len(servers))
 	byName := cmap.New[*Server]()
 	var warnings []string
+
+	// DatacenterNames/RackNames накапливаются, а не перестраиваются заново -
+	// если очередной цикл сбора инвентаризации (LoadServerHardwareList
+	// запускается по тикеру раз в 6 часов) по какой-то причине не увидел
+	// сервер из ранее известного датацентра/шкафа (временная недоступность
+	// appliance, фильтр в конфигурации endpoint'ов и т.п.), значение не
+	// пропадает из списка фильтра - оно всё ещё актуально для CMDB.
+	if infra.DatacenterNames == nil {
+		infra.DatacenterNames = make(map[string]struct{})
+	}
+	if infra.RackNames == nil {
+		infra.RackNames = make(map[string]struct{})
+	}
 
 	for i := range servers {
 		s := &servers[i]
@@ -185,6 +216,12 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 		if name := GetHWserverName(s); name != "" {
 			byName.Set(name, s)
 		}
+		if dc := strings.TrimSpace(s.Datacenter.Name); dc != "" {
+			infra.DatacenterNames[dc] = struct{}{}
+		}
+		if rk := strings.TrimSpace(s.Rack.Name); rk != "" {
+			infra.RackNames[rk] = struct{}{}
+		}
 		warnings = append(warnings, s.Warnings...)
 	}
 
@@ -199,6 +236,34 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 	infra.LastWarnings = warnings
 
 	return infra.Servers, err
+}
+
+// DatacenterNameList возвращает отсортированный список всех различных
+// значений Datacenter.Name, накопленных по всем циклам сбора инвентаризации
+// (см. комментарий в LoadServerHardwareList) - в отличие от перебора
+// текущего отфильтрованного среза серверов, этот список не зависит от
+// значений остальных полей фильтра.
+func (infra *Infrastructure) DatacenterNameList() []string {
+	infra.WaitUnLockGetData()
+	out := make([]string, 0, len(infra.DatacenterNames))
+	for name := range infra.DatacenterNames {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// RackNameList возвращает отсортированный список всех различных значений
+// Rack.Name, накопленных по всем циклам сбора инвентаризации - см.
+// DatacenterNameList.
+func (infra *Infrastructure) RackNameList() []string {
+	infra.WaitUnLockGetData()
+	out := make([]string, 0, len(infra.RackNames))
+	for name := range infra.RackNames {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // FindServerHardwareSN ищет сервер по серийному номеру. Сигнатура (значение,

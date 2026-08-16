@@ -78,14 +78,17 @@
             </div>
         </div>
         <div class="row mt-2">
-            <div class="col-12">
+            <div class="col-12 d-flex flex-wrap align-items-center gap-3">
                 <span class="text-muted small">Найдено записей: {{.HWConfigCount}}</span>
+                <div class="form-check form-switch ms-auto mb-0">
+                    <input class="form-check-input" type="checkbox" id="hwFilterStickyToggle" onchange="hwToggleFilterSticky(this.checked)">
+                    <label class="form-check-label small text-muted" for="hwFilterStickyToggle">Закреплять фильтр вверху экрана</label>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
+    <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
             <thead>
                 <tr>
                     <th class="text-center"><input type="checkbox" id="hwSelectAll" onchange="hwToggleSelectAll(this)"></th>
@@ -143,7 +146,6 @@
                 {{end}}
             </tbody>
         </table>
-    </div>
 
     <div class="pager-bar pager-bar-sticky d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
         <div class="text-muted small">
@@ -180,13 +182,18 @@
         box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
     }
 
+    .hw-filter-bar.hw-filter-bar-unpinned {
+        position: static;
+        box-shadow: none;
+    }
+
     .spr-classic-table {
         --bs-table-border-color: var(--bs-border-color);
     }
 
     .spr-classic-table thead th {
         position: sticky;
-        top: 0;
+        top: var(--hwc-thead-top, 0px);
         z-index: 3;
         background-color: var(--bs-tertiary-bg);
         color: var(--bs-emphasis-color);
@@ -294,6 +301,51 @@
 </style>
 
 <script>
+    // Закрепление панели фильтра вверху экрана можно отключить чекбоксом
+    // "Закреплять фильтр вверху экрана" - панель с большим количеством полей
+    // (10 фильтров) занимает много места на маленьких экранах при
+    // прокрутке списка. Выбор пользователя запоминается в localStorage
+    // (ключ hwconflist.filterSticky) и переживает перезагрузку страницы.
+    //
+    // Заголовок таблицы закреплён всегда ("в постоянном режиме"), но его
+    // отступ сверху (top) подстраивается под текущее состояние панели
+    // фильтра: если фильтр закреплён - заголовок прилипает сразу под ним
+    // (на высоту панели), если фильтр не закреплён (прокручивается вместе
+    // со страницей) - заголовок прилипает к самому верху экрана. Приём
+    // идентичен /sprsrv/hwviewlist.
+    (function () {
+        var STORAGE_KEY = 'hwconflist.filterSticky';
+        var bar = document.querySelector('.hw-filter-bar');
+        var toggle = document.getElementById('hwFilterStickyToggle');
+        if (!bar || !toggle) return;
+
+        function updateTheadOffset() {
+            var offset = 0;
+            if (!bar.classList.contains('hw-filter-bar-unpinned')) {
+                offset = bar.offsetHeight;
+            }
+            document.documentElement.style.setProperty('--hwc-thead-top', offset + 'px');
+        }
+
+        function applySticky(sticky) {
+            bar.classList.toggle('hw-filter-bar-unpinned', !sticky);
+            toggle.checked = sticky;
+            updateTheadOffset();
+        }
+
+        var stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applySticky(stored === null ? true : stored === '1');
+
+        window.hwToggleFilterSticky = function (sticky) {
+            applySticky(sticky);
+            try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
+        };
+
+        window.addEventListener('resize', updateTheadOffset);
+        window.addEventListener('load', updateTheadOffset);
+    })();
+
     // Переход по странице без потери значений фильтра - номер страницы
     // пишется в скрытое поле формы, после чего форма отправляется тем же
     // POST-ом, что и обычный "Найти" (приём идентичен /sprsrv/view2).

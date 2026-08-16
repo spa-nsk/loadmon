@@ -248,6 +248,89 @@ func (x *HWReq) GetMaintenanceMode() string {
 	return ""
 }
 
+// Empty — запрос без параметров (GetHWDatacenterNames/GetHWRackNames).
+type Empty struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Empty) Reset() {
+	*x = Empty{}
+	mi := &file_vm_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Empty) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Empty) ProtoMessage() {}
+
+func (x *Empty) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Empty.ProtoReflect.Descriptor instead.
+func (*Empty) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{3}
+}
+
+// NameList — список строковых значений (используется для отдачи
+// накопленных oneview2.Infrastructure.DatacenterNames/RackNames клиенту).
+type NameList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Names         []string               `protobuf:"bytes,1,rep,name=Names,proto3" json:"Names,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NameList) Reset() {
+	*x = NameList{}
+	mi := &file_vm_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NameList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NameList) ProtoMessage() {}
+
+func (x *NameList) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NameList.ProtoReflect.Descriptor instead.
+func (*NameList) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *NameList) GetNames() []string {
+	if x != nil {
+		return x.Names
+	}
+	return nil
+}
+
 type ClearMetricKey struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Vcenter       string                 `protobuf:"bytes,1,opt,name=Vcenter,proto3" json:"Vcenter,omitempty"`
@@ -262,7 +345,7 @@ type ClearMetricKey struct {
 
 func (x *ClearMetricKey) Reset() {
 	*x = ClearMetricKey{}
-	mi := &file_vm_proto_msgTypes[3]
+	mi := &file_vm_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -274,7 +357,7 @@ func (x *ClearMetricKey) String() string {
 func (*ClearMetricKey) ProtoMessage() {}
 
 func (x *ClearMetricKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[3]
+	mi := &file_vm_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -287,7 +370,7 @@ func (x *ClearMetricKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearMetricKey.ProtoReflect.Descriptor instead.
 func (*ClearMetricKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{3}
+	return file_vm_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClearMetricKey) GetVcenter() string {
@@ -343,7 +426,7 @@ type Duration struct {
 
 func (x *Duration) Reset() {
 	*x = Duration{}
-	mi := &file_vm_proto_msgTypes[4]
+	mi := &file_vm_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +438,7 @@ func (x *Duration) String() string {
 func (*Duration) ProtoMessage() {}
 
 func (x *Duration) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[4]
+	mi := &file_vm_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +451,7 @@ func (x *Duration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Duration.ProtoReflect.Descriptor instead.
 func (*Duration) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{4}
+	return file_vm_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Duration) GetStart() *timestamppb.Timestamp {
@@ -402,7 +485,7 @@ type StatusWork struct {
 
 func (x *StatusWork) Reset() {
 	*x = StatusWork{}
-	mi := &file_vm_proto_msgTypes[5]
+	mi := &file_vm_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -414,7 +497,7 @@ func (x *StatusWork) String() string {
 func (*StatusWork) ProtoMessage() {}
 
 func (x *StatusWork) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[5]
+	mi := &file_vm_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -427,7 +510,7 @@ func (x *StatusWork) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusWork.ProtoReflect.Descriptor instead.
 func (*StatusWork) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{5}
+	return file_vm_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StatusWork) GetState() int64 {
@@ -453,7 +536,7 @@ type KeyString struct {
 
 func (x *KeyString) Reset() {
 	*x = KeyString{}
-	mi := &file_vm_proto_msgTypes[6]
+	mi := &file_vm_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +548,7 @@ func (x *KeyString) String() string {
 func (*KeyString) ProtoMessage() {}
 
 func (x *KeyString) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[6]
+	mi := &file_vm_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +561,7 @@ func (x *KeyString) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeyString.ProtoReflect.Descriptor instead.
 func (*KeyString) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{6}
+	return file_vm_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *KeyString) GetKey() string {
@@ -497,7 +580,7 @@ type VCReq struct {
 
 func (x *VCReq) Reset() {
 	*x = VCReq{}
-	mi := &file_vm_proto_msgTypes[7]
+	mi := &file_vm_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -509,7 +592,7 @@ func (x *VCReq) String() string {
 func (*VCReq) ProtoMessage() {}
 
 func (x *VCReq) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[7]
+	mi := &file_vm_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -522,7 +605,7 @@ func (x *VCReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VCReq.ProtoReflect.Descriptor instead.
 func (*VCReq) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{7}
+	return file_vm_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *VCReq) GetFilter() string {
@@ -542,7 +625,7 @@ type VCenter struct {
 
 func (x *VCenter) Reset() {
 	*x = VCenter{}
-	mi := &file_vm_proto_msgTypes[8]
+	mi := &file_vm_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -554,7 +637,7 @@ func (x *VCenter) String() string {
 func (*VCenter) ProtoMessage() {}
 
 func (x *VCenter) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[8]
+	mi := &file_vm_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -567,7 +650,7 @@ func (x *VCenter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VCenter.ProtoReflect.Descriptor instead.
 func (*VCenter) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{8}
+	return file_vm_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *VCenter) GetHostname() string {
@@ -593,7 +676,7 @@ type OV struct {
 
 func (x *OV) Reset() {
 	*x = OV{}
-	mi := &file_vm_proto_msgTypes[9]
+	mi := &file_vm_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -605,7 +688,7 @@ func (x *OV) String() string {
 func (*OV) ProtoMessage() {}
 
 func (x *OV) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[9]
+	mi := &file_vm_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -618,7 +701,7 @@ func (x *OV) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OV.ProtoReflect.Descriptor instead.
 func (*OV) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{9}
+	return file_vm_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *OV) GetEndpoint() string {
@@ -637,7 +720,7 @@ type DCReq struct {
 
 func (x *DCReq) Reset() {
 	*x = DCReq{}
-	mi := &file_vm_proto_msgTypes[10]
+	mi := &file_vm_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -649,7 +732,7 @@ func (x *DCReq) String() string {
 func (*DCReq) ProtoMessage() {}
 
 func (x *DCReq) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[10]
+	mi := &file_vm_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -662,7 +745,7 @@ func (x *DCReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DCReq.ProtoReflect.Descriptor instead.
 func (*DCReq) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{10}
+	return file_vm_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DCReq) GetVcenter() string {
@@ -682,7 +765,7 @@ type Datacenter struct {
 
 func (x *Datacenter) Reset() {
 	*x = Datacenter{}
-	mi := &file_vm_proto_msgTypes[11]
+	mi := &file_vm_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -694,7 +777,7 @@ func (x *Datacenter) String() string {
 func (*Datacenter) ProtoMessage() {}
 
 func (x *Datacenter) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[11]
+	mi := &file_vm_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -707,7 +790,7 @@ func (x *Datacenter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Datacenter.ProtoReflect.Descriptor instead.
 func (*Datacenter) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{11}
+	return file_vm_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Datacenter) GetVCenter() string {
@@ -735,7 +818,7 @@ type CLReq struct {
 
 func (x *CLReq) Reset() {
 	*x = CLReq{}
-	mi := &file_vm_proto_msgTypes[12]
+	mi := &file_vm_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -747,7 +830,7 @@ func (x *CLReq) String() string {
 func (*CLReq) ProtoMessage() {}
 
 func (x *CLReq) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[12]
+	mi := &file_vm_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -760,7 +843,7 @@ func (x *CLReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CLReq.ProtoReflect.Descriptor instead.
 func (*CLReq) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{12}
+	return file_vm_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CLReq) GetVcenter() string {
@@ -796,7 +879,7 @@ type HSReq struct {
 
 func (x *HSReq) Reset() {
 	*x = HSReq{}
-	mi := &file_vm_proto_msgTypes[13]
+	mi := &file_vm_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +891,7 @@ func (x *HSReq) String() string {
 func (*HSReq) ProtoMessage() {}
 
 func (x *HSReq) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[13]
+	mi := &file_vm_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +904,7 @@ func (x *HSReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HSReq.ProtoReflect.Descriptor instead.
 func (*HSReq) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{13}
+	return file_vm_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *HSReq) GetVcenter() string {
@@ -861,7 +944,7 @@ type VMReqKey struct {
 
 func (x *VMReqKey) Reset() {
 	*x = VMReqKey{}
-	mi := &file_vm_proto_msgTypes[14]
+	mi := &file_vm_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -873,7 +956,7 @@ func (x *VMReqKey) String() string {
 func (*VMReqKey) ProtoMessage() {}
 
 func (x *VMReqKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[14]
+	mi := &file_vm_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,7 +969,7 @@ func (x *VMReqKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMReqKey.ProtoReflect.Descriptor instead.
 func (*VMReqKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{14}
+	return file_vm_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *VMReqKey) GetKey() string {
@@ -905,7 +988,7 @@ type HSReqKey struct {
 
 func (x *HSReqKey) Reset() {
 	*x = HSReqKey{}
-	mi := &file_vm_proto_msgTypes[15]
+	mi := &file_vm_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1000,7 @@ func (x *HSReqKey) String() string {
 func (*HSReqKey) ProtoMessage() {}
 
 func (x *HSReqKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[15]
+	mi := &file_vm_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1013,7 @@ func (x *HSReqKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HSReqKey.ProtoReflect.Descriptor instead.
 func (*HSReqKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{15}
+	return file_vm_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *HSReqKey) GetKey() string {
@@ -949,7 +1032,7 @@ type CLReqKey struct {
 
 func (x *CLReqKey) Reset() {
 	*x = CLReqKey{}
-	mi := &file_vm_proto_msgTypes[16]
+	mi := &file_vm_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -961,7 +1044,7 @@ func (x *CLReqKey) String() string {
 func (*CLReqKey) ProtoMessage() {}
 
 func (x *CLReqKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[16]
+	mi := &file_vm_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1057,7 @@ func (x *CLReqKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CLReqKey.ProtoReflect.Descriptor instead.
 func (*CLReqKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{16}
+	return file_vm_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CLReqKey) GetKey() string {
@@ -996,7 +1079,7 @@ type VMReqListKey struct {
 
 func (x *VMReqListKey) Reset() {
 	*x = VMReqListKey{}
-	mi := &file_vm_proto_msgTypes[17]
+	mi := &file_vm_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1008,7 +1091,7 @@ func (x *VMReqListKey) String() string {
 func (*VMReqListKey) ProtoMessage() {}
 
 func (x *VMReqListKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[17]
+	mi := &file_vm_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1021,7 +1104,7 @@ func (x *VMReqListKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMReqListKey.ProtoReflect.Descriptor instead.
 func (*VMReqListKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{17}
+	return file_vm_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *VMReqListKey) GetVcenter() string {
@@ -1064,7 +1147,7 @@ type HSReqListKey struct {
 
 func (x *HSReqListKey) Reset() {
 	*x = HSReqListKey{}
-	mi := &file_vm_proto_msgTypes[18]
+	mi := &file_vm_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1076,7 +1159,7 @@ func (x *HSReqListKey) String() string {
 func (*HSReqListKey) ProtoMessage() {}
 
 func (x *HSReqListKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[18]
+	mi := &file_vm_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1089,7 +1172,7 @@ func (x *HSReqListKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HSReqListKey.ProtoReflect.Descriptor instead.
 func (*HSReqListKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{18}
+	return file_vm_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *HSReqListKey) GetVcenter() string {
@@ -1131,7 +1214,7 @@ type CLReqListKey struct {
 
 func (x *CLReqListKey) Reset() {
 	*x = CLReqListKey{}
-	mi := &file_vm_proto_msgTypes[19]
+	mi := &file_vm_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1143,7 +1226,7 @@ func (x *CLReqListKey) String() string {
 func (*CLReqListKey) ProtoMessage() {}
 
 func (x *CLReqListKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[19]
+	mi := &file_vm_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1156,7 +1239,7 @@ func (x *CLReqListKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CLReqListKey.ProtoReflect.Descriptor instead.
 func (*CLReqListKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{19}
+	return file_vm_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CLReqListKey) GetVcenter() string {
@@ -1189,7 +1272,7 @@ type VMReqVMName struct {
 
 func (x *VMReqVMName) Reset() {
 	*x = VMReqVMName{}
-	mi := &file_vm_proto_msgTypes[20]
+	mi := &file_vm_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1201,7 +1284,7 @@ func (x *VMReqVMName) String() string {
 func (*VMReqVMName) ProtoMessage() {}
 
 func (x *VMReqVMName) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[20]
+	mi := &file_vm_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1214,7 +1297,7 @@ func (x *VMReqVMName) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMReqVMName.ProtoReflect.Descriptor instead.
 func (*VMReqVMName) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{20}
+	return file_vm_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *VMReqVMName) GetVMName() string {
@@ -1233,7 +1316,7 @@ type VMReqVcenter struct {
 
 func (x *VMReqVcenter) Reset() {
 	*x = VMReqVcenter{}
-	mi := &file_vm_proto_msgTypes[21]
+	mi := &file_vm_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1328,7 @@ func (x *VMReqVcenter) String() string {
 func (*VMReqVcenter) ProtoMessage() {}
 
 func (x *VMReqVcenter) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[21]
+	mi := &file_vm_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1341,7 @@ func (x *VMReqVcenter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMReqVcenter.ProtoReflect.Descriptor instead.
 func (*VMReqVcenter) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{21}
+	return file_vm_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *VMReqVcenter) GetVcenter() string {
@@ -1277,7 +1360,7 @@ type VMReqDatacenter struct {
 
 func (x *VMReqDatacenter) Reset() {
 	*x = VMReqDatacenter{}
-	mi := &file_vm_proto_msgTypes[22]
+	mi := &file_vm_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1372,7 @@ func (x *VMReqDatacenter) String() string {
 func (*VMReqDatacenter) ProtoMessage() {}
 
 func (x *VMReqDatacenter) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[22]
+	mi := &file_vm_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1385,7 @@ func (x *VMReqDatacenter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMReqDatacenter.ProtoReflect.Descriptor instead.
 func (*VMReqDatacenter) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{22}
+	return file_vm_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *VMReqDatacenter) GetDatacenter() string {
@@ -1321,7 +1404,7 @@ type VMReqCluster struct {
 
 func (x *VMReqCluster) Reset() {
 	*x = VMReqCluster{}
-	mi := &file_vm_proto_msgTypes[23]
+	mi := &file_vm_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1333,7 +1416,7 @@ func (x *VMReqCluster) String() string {
 func (*VMReqCluster) ProtoMessage() {}
 
 func (x *VMReqCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[23]
+	mi := &file_vm_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1346,7 +1429,7 @@ func (x *VMReqCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMReqCluster.ProtoReflect.Descriptor instead.
 func (*VMReqCluster) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{23}
+	return file_vm_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *VMReqCluster) GetCluster() string {
@@ -1366,7 +1449,7 @@ type VMKeyRec struct {
 
 func (x *VMKeyRec) Reset() {
 	*x = VMKeyRec{}
-	mi := &file_vm_proto_msgTypes[24]
+	mi := &file_vm_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1378,7 +1461,7 @@ func (x *VMKeyRec) String() string {
 func (*VMKeyRec) ProtoMessage() {}
 
 func (x *VMKeyRec) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[24]
+	mi := &file_vm_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1391,7 +1474,7 @@ func (x *VMKeyRec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMKeyRec.ProtoReflect.Descriptor instead.
 func (*VMKeyRec) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{24}
+	return file_vm_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *VMKeyRec) GetVMName() string {
@@ -1418,7 +1501,7 @@ type HSKeyRec struct {
 
 func (x *HSKeyRec) Reset() {
 	*x = HSKeyRec{}
-	mi := &file_vm_proto_msgTypes[25]
+	mi := &file_vm_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1430,7 +1513,7 @@ func (x *HSKeyRec) String() string {
 func (*HSKeyRec) ProtoMessage() {}
 
 func (x *HSKeyRec) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[25]
+	mi := &file_vm_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1443,7 +1526,7 @@ func (x *HSKeyRec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HSKeyRec.ProtoReflect.Descriptor instead.
 func (*HSKeyRec) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{25}
+	return file_vm_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *HSKeyRec) GetHSName() string {
@@ -1470,7 +1553,7 @@ type CLKeyRec struct {
 
 func (x *CLKeyRec) Reset() {
 	*x = CLKeyRec{}
-	mi := &file_vm_proto_msgTypes[26]
+	mi := &file_vm_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1482,7 +1565,7 @@ func (x *CLKeyRec) String() string {
 func (*CLKeyRec) ProtoMessage() {}
 
 func (x *CLKeyRec) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[26]
+	mi := &file_vm_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1495,7 +1578,7 @@ func (x *CLKeyRec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CLKeyRec.ProtoReflect.Descriptor instead.
 func (*CLKeyRec) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{26}
+	return file_vm_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CLKeyRec) GetCLName() string {
@@ -1522,7 +1605,7 @@ type VMListKey struct {
 
 func (x *VMListKey) Reset() {
 	*x = VMListKey{}
-	mi := &file_vm_proto_msgTypes[27]
+	mi := &file_vm_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1534,7 +1617,7 @@ func (x *VMListKey) String() string {
 func (*VMListKey) ProtoMessage() {}
 
 func (x *VMListKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[27]
+	mi := &file_vm_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1547,7 +1630,7 @@ func (x *VMListKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMListKey.ProtoReflect.Descriptor instead.
 func (*VMListKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{27}
+	return file_vm_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *VMListKey) GetCount() int64 {
@@ -1574,7 +1657,7 @@ type HSListKey struct {
 
 func (x *HSListKey) Reset() {
 	*x = HSListKey{}
-	mi := &file_vm_proto_msgTypes[28]
+	mi := &file_vm_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1586,7 +1669,7 @@ func (x *HSListKey) String() string {
 func (*HSListKey) ProtoMessage() {}
 
 func (x *HSListKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[28]
+	mi := &file_vm_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1599,7 +1682,7 @@ func (x *HSListKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HSListKey.ProtoReflect.Descriptor instead.
 func (*HSListKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{28}
+	return file_vm_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *HSListKey) GetCount() int64 {
@@ -1626,7 +1709,7 @@ type CLListKey struct {
 
 func (x *CLListKey) Reset() {
 	*x = CLListKey{}
-	mi := &file_vm_proto_msgTypes[29]
+	mi := &file_vm_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1638,7 +1721,7 @@ func (x *CLListKey) String() string {
 func (*CLListKey) ProtoMessage() {}
 
 func (x *CLListKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[29]
+	mi := &file_vm_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1651,7 +1734,7 @@ func (x *CLListKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CLListKey.ProtoReflect.Descriptor instead.
 func (*CLListKey) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{29}
+	return file_vm_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *CLListKey) GetCount() int64 {
@@ -1688,7 +1771,7 @@ type VMPerf struct {
 
 func (x *VMPerf) Reset() {
 	*x = VMPerf{}
-	mi := &file_vm_proto_msgTypes[30]
+	mi := &file_vm_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1700,7 +1783,7 @@ func (x *VMPerf) String() string {
 func (*VMPerf) ProtoMessage() {}
 
 func (x *VMPerf) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[30]
+	mi := &file_vm_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1713,7 +1796,7 @@ func (x *VMPerf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMPerf.ProtoReflect.Descriptor instead.
 func (*VMPerf) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{30}
+	return file_vm_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *VMPerf) GetId() int64 {
@@ -1821,7 +1904,7 @@ type HSPerf struct {
 
 func (x *HSPerf) Reset() {
 	*x = HSPerf{}
-	mi := &file_vm_proto_msgTypes[31]
+	mi := &file_vm_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1833,7 +1916,7 @@ func (x *HSPerf) String() string {
 func (*HSPerf) ProtoMessage() {}
 
 func (x *HSPerf) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[31]
+	mi := &file_vm_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1846,7 +1929,7 @@ func (x *HSPerf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HSPerf.ProtoReflect.Descriptor instead.
 func (*HSPerf) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{31}
+	return file_vm_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *HSPerf) GetId() int64 {
@@ -1959,7 +2042,7 @@ type CLPerf struct {
 
 func (x *CLPerf) Reset() {
 	*x = CLPerf{}
-	mi := &file_vm_proto_msgTypes[32]
+	mi := &file_vm_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1971,7 +2054,7 @@ func (x *CLPerf) String() string {
 func (*CLPerf) ProtoMessage() {}
 
 func (x *CLPerf) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[32]
+	mi := &file_vm_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1984,7 +2067,7 @@ func (x *CLPerf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CLPerf.ProtoReflect.Descriptor instead.
 func (*CLPerf) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{32}
+	return file_vm_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CLPerf) GetId() int64 {
@@ -2074,7 +2157,7 @@ type VMPerfSlice struct {
 
 func (x *VMPerfSlice) Reset() {
 	*x = VMPerfSlice{}
-	mi := &file_vm_proto_msgTypes[33]
+	mi := &file_vm_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2086,7 +2169,7 @@ func (x *VMPerfSlice) String() string {
 func (*VMPerfSlice) ProtoMessage() {}
 
 func (x *VMPerfSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[33]
+	mi := &file_vm_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2099,7 +2182,7 @@ func (x *VMPerfSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMPerfSlice.ProtoReflect.Descriptor instead.
 func (*VMPerfSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{33}
+	return file_vm_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *VMPerfSlice) GetCount() int64 {
@@ -2126,7 +2209,7 @@ type HSPerfSlice struct {
 
 func (x *HSPerfSlice) Reset() {
 	*x = HSPerfSlice{}
-	mi := &file_vm_proto_msgTypes[34]
+	mi := &file_vm_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2138,7 +2221,7 @@ func (x *HSPerfSlice) String() string {
 func (*HSPerfSlice) ProtoMessage() {}
 
 func (x *HSPerfSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[34]
+	mi := &file_vm_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2151,7 +2234,7 @@ func (x *HSPerfSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HSPerfSlice.ProtoReflect.Descriptor instead.
 func (*HSPerfSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{34}
+	return file_vm_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *HSPerfSlice) GetCount() int64 {
@@ -2178,7 +2261,7 @@ type CLPerfSlice struct {
 
 func (x *CLPerfSlice) Reset() {
 	*x = CLPerfSlice{}
-	mi := &file_vm_proto_msgTypes[35]
+	mi := &file_vm_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2190,7 +2273,7 @@ func (x *CLPerfSlice) String() string {
 func (*CLPerfSlice) ProtoMessage() {}
 
 func (x *CLPerfSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[35]
+	mi := &file_vm_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2203,7 +2286,7 @@ func (x *CLPerfSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CLPerfSlice.ProtoReflect.Descriptor instead.
 func (*CLPerfSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{35}
+	return file_vm_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *CLPerfSlice) GetCount() int64 {
@@ -2232,7 +2315,7 @@ type GuestDiskInfo struct {
 
 func (x *GuestDiskInfo) Reset() {
 	*x = GuestDiskInfo{}
-	mi := &file_vm_proto_msgTypes[36]
+	mi := &file_vm_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2244,7 +2327,7 @@ func (x *GuestDiskInfo) String() string {
 func (*GuestDiskInfo) ProtoMessage() {}
 
 func (x *GuestDiskInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[36]
+	mi := &file_vm_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2257,7 +2340,7 @@ func (x *GuestDiskInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GuestDiskInfo.ProtoReflect.Descriptor instead.
 func (*GuestDiskInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{36}
+	return file_vm_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GuestDiskInfo) GetDiskPath() string {
@@ -2298,7 +2381,7 @@ type GuestDiskSlice struct {
 
 func (x *GuestDiskSlice) Reset() {
 	*x = GuestDiskSlice{}
-	mi := &file_vm_proto_msgTypes[37]
+	mi := &file_vm_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2310,7 +2393,7 @@ func (x *GuestDiskSlice) String() string {
 func (*GuestDiskSlice) ProtoMessage() {}
 
 func (x *GuestDiskSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[37]
+	mi := &file_vm_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2323,7 +2406,7 @@ func (x *GuestDiskSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GuestDiskSlice.ProtoReflect.Descriptor instead.
 func (*GuestDiskSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{37}
+	return file_vm_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GuestDiskSlice) GetCount() int64 {
@@ -2359,7 +2442,7 @@ type VMUsageOnDatastore struct {
 
 func (x *VMUsageOnDatastore) Reset() {
 	*x = VMUsageOnDatastore{}
-	mi := &file_vm_proto_msgTypes[38]
+	mi := &file_vm_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2371,7 +2454,7 @@ func (x *VMUsageOnDatastore) String() string {
 func (*VMUsageOnDatastore) ProtoMessage() {}
 
 func (x *VMUsageOnDatastore) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[38]
+	mi := &file_vm_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2384,7 +2467,7 @@ func (x *VMUsageOnDatastore) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMUsageOnDatastore.ProtoReflect.Descriptor instead.
 func (*VMUsageOnDatastore) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{38}
+	return file_vm_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *VMUsageOnDatastore) GetId() int64 {
@@ -2474,7 +2557,7 @@ type VMUsageOnDatastoreSlice struct {
 
 func (x *VMUsageOnDatastoreSlice) Reset() {
 	*x = VMUsageOnDatastoreSlice{}
-	mi := &file_vm_proto_msgTypes[39]
+	mi := &file_vm_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2486,7 +2569,7 @@ func (x *VMUsageOnDatastoreSlice) String() string {
 func (*VMUsageOnDatastoreSlice) ProtoMessage() {}
 
 func (x *VMUsageOnDatastoreSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[39]
+	mi := &file_vm_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2499,7 +2582,7 @@ func (x *VMUsageOnDatastoreSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMUsageOnDatastoreSlice.ProtoReflect.Descriptor instead.
 func (*VMUsageOnDatastoreSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{39}
+	return file_vm_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *VMUsageOnDatastoreSlice) GetCount() int64 {
@@ -2528,7 +2611,7 @@ type VMFile struct {
 
 func (x *VMFile) Reset() {
 	*x = VMFile{}
-	mi := &file_vm_proto_msgTypes[40]
+	mi := &file_vm_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2540,7 +2623,7 @@ func (x *VMFile) String() string {
 func (*VMFile) ProtoMessage() {}
 
 func (x *VMFile) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[40]
+	mi := &file_vm_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2553,7 +2636,7 @@ func (x *VMFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMFile.ProtoReflect.Descriptor instead.
 func (*VMFile) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{40}
+	return file_vm_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *VMFile) GetType() string {
@@ -2594,7 +2677,7 @@ type VMFileSlice struct {
 
 func (x *VMFileSlice) Reset() {
 	*x = VMFileSlice{}
-	mi := &file_vm_proto_msgTypes[41]
+	mi := &file_vm_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2606,7 +2689,7 @@ func (x *VMFileSlice) String() string {
 func (*VMFileSlice) ProtoMessage() {}
 
 func (x *VMFileSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[41]
+	mi := &file_vm_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2619,7 +2702,7 @@ func (x *VMFileSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMFileSlice.ProtoReflect.Descriptor instead.
 func (*VMFileSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{41}
+	return file_vm_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *VMFileSlice) GetCount() int64 {
@@ -2651,7 +2734,7 @@ type Datastore struct {
 
 func (x *Datastore) Reset() {
 	*x = Datastore{}
-	mi := &file_vm_proto_msgTypes[42]
+	mi := &file_vm_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2663,7 +2746,7 @@ func (x *Datastore) String() string {
 func (*Datastore) ProtoMessage() {}
 
 func (x *Datastore) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[42]
+	mi := &file_vm_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2676,7 +2759,7 @@ func (x *Datastore) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Datastore.ProtoReflect.Descriptor instead.
 func (*Datastore) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{42}
+	return file_vm_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Datastore) GetId() int64 {
@@ -2738,7 +2821,7 @@ type DatastoreSlice struct {
 
 func (x *DatastoreSlice) Reset() {
 	*x = DatastoreSlice{}
-	mi := &file_vm_proto_msgTypes[43]
+	mi := &file_vm_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2750,7 +2833,7 @@ func (x *DatastoreSlice) String() string {
 func (*DatastoreSlice) ProtoMessage() {}
 
 func (x *DatastoreSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[43]
+	mi := &file_vm_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2763,7 +2846,7 @@ func (x *DatastoreSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatastoreSlice.ProtoReflect.Descriptor instead.
 func (*DatastoreSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{43}
+	return file_vm_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *DatastoreSlice) GetCount() int64 {
@@ -2796,7 +2879,7 @@ type ScsiLun struct {
 
 func (x *ScsiLun) Reset() {
 	*x = ScsiLun{}
-	mi := &file_vm_proto_msgTypes[44]
+	mi := &file_vm_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2808,7 +2891,7 @@ func (x *ScsiLun) String() string {
 func (*ScsiLun) ProtoMessage() {}
 
 func (x *ScsiLun) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[44]
+	mi := &file_vm_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2821,7 +2904,7 @@ func (x *ScsiLun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScsiLun.ProtoReflect.Descriptor instead.
 func (*ScsiLun) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{44}
+	return file_vm_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ScsiLun) GetUID() string {
@@ -2890,7 +2973,7 @@ type ScsiLunSlice struct {
 
 func (x *ScsiLunSlice) Reset() {
 	*x = ScsiLunSlice{}
-	mi := &file_vm_proto_msgTypes[45]
+	mi := &file_vm_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2902,7 +2985,7 @@ func (x *ScsiLunSlice) String() string {
 func (*ScsiLunSlice) ProtoMessage() {}
 
 func (x *ScsiLunSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[45]
+	mi := &file_vm_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2915,7 +2998,7 @@ func (x *ScsiLunSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScsiLunSlice.ProtoReflect.Descriptor instead.
 func (*ScsiLunSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{45}
+	return file_vm_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ScsiLunSlice) GetCount() int64 {
@@ -2942,7 +3025,7 @@ type Metric struct {
 
 func (x *Metric) Reset() {
 	*x = Metric{}
-	mi := &file_vm_proto_msgTypes[46]
+	mi := &file_vm_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2954,7 +3037,7 @@ func (x *Metric) String() string {
 func (*Metric) ProtoMessage() {}
 
 func (x *Metric) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[46]
+	mi := &file_vm_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2967,7 +3050,7 @@ func (x *Metric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Metric.ProtoReflect.Descriptor instead.
 func (*Metric) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{46}
+	return file_vm_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *Metric) GetInstance() string {
@@ -3067,7 +3150,7 @@ type VMPoint struct {
 
 func (x *VMPoint) Reset() {
 	*x = VMPoint{}
-	mi := &file_vm_proto_msgTypes[47]
+	mi := &file_vm_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3079,7 +3162,7 @@ func (x *VMPoint) String() string {
 func (*VMPoint) ProtoMessage() {}
 
 func (x *VMPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[47]
+	mi := &file_vm_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3092,7 +3175,7 @@ func (x *VMPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMPoint.ProtoReflect.Descriptor instead.
 func (*VMPoint) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{47}
+	return file_vm_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *VMPoint) GetId() int64 {
@@ -3684,7 +3767,7 @@ type VMPointShort struct {
 
 func (x *VMPointShort) Reset() {
 	*x = VMPointShort{}
-	mi := &file_vm_proto_msgTypes[48]
+	mi := &file_vm_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3696,7 +3779,7 @@ func (x *VMPointShort) String() string {
 func (*VMPointShort) ProtoMessage() {}
 
 func (x *VMPointShort) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[48]
+	mi := &file_vm_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3709,7 +3792,7 @@ func (x *VMPointShort) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMPointShort.ProtoReflect.Descriptor instead.
 func (*VMPointShort) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{48}
+	return file_vm_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *VMPointShort) GetId() int64 {
@@ -4114,7 +4197,7 @@ type VMPointSlice struct {
 
 func (x *VMPointSlice) Reset() {
 	*x = VMPointSlice{}
-	mi := &file_vm_proto_msgTypes[49]
+	mi := &file_vm_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4126,7 +4209,7 @@ func (x *VMPointSlice) String() string {
 func (*VMPointSlice) ProtoMessage() {}
 
 func (x *VMPointSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[49]
+	mi := &file_vm_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4139,7 +4222,7 @@ func (x *VMPointSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMPointSlice.ProtoReflect.Descriptor instead.
 func (*VMPointSlice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{49}
+	return file_vm_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *VMPointSlice) GetCount() int64 {
@@ -4224,7 +4307,7 @@ type Host struct {
 
 func (x *Host) Reset() {
 	*x = Host{}
-	mi := &file_vm_proto_msgTypes[50]
+	mi := &file_vm_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4236,7 +4319,7 @@ func (x *Host) String() string {
 func (*Host) ProtoMessage() {}
 
 func (x *Host) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[50]
+	mi := &file_vm_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4249,7 +4332,7 @@ func (x *Host) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Host.ProtoReflect.Descriptor instead.
 func (*Host) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{50}
+	return file_vm_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *Host) GetId() int64 {
@@ -4741,7 +4824,7 @@ type HostFull struct {
 
 func (x *HostFull) Reset() {
 	*x = HostFull{}
-	mi := &file_vm_proto_msgTypes[51]
+	mi := &file_vm_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4753,7 +4836,7 @@ func (x *HostFull) String() string {
 func (*HostFull) ProtoMessage() {}
 
 func (x *HostFull) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[51]
+	mi := &file_vm_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4766,7 +4849,7 @@ func (x *HostFull) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostFull.ProtoReflect.Descriptor instead.
 func (*HostFull) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{51}
+	return file_vm_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *HostFull) GetId() int64 {
@@ -5257,7 +5340,7 @@ type Cluster struct {
 
 func (x *Cluster) Reset() {
 	*x = Cluster{}
-	mi := &file_vm_proto_msgTypes[52]
+	mi := &file_vm_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5269,7 +5352,7 @@ func (x *Cluster) String() string {
 func (*Cluster) ProtoMessage() {}
 
 func (x *Cluster) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[52]
+	mi := &file_vm_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5282,7 +5365,7 @@ func (x *Cluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cluster.ProtoReflect.Descriptor instead.
 func (*Cluster) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{52}
+	return file_vm_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *Cluster) GetId() int64 {
@@ -5719,7 +5802,7 @@ type ClusterFull struct {
 
 func (x *ClusterFull) Reset() {
 	*x = ClusterFull{}
-	mi := &file_vm_proto_msgTypes[53]
+	mi := &file_vm_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5731,7 +5814,7 @@ func (x *ClusterFull) String() string {
 func (*ClusterFull) ProtoMessage() {}
 
 func (x *ClusterFull) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[53]
+	mi := &file_vm_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5744,7 +5827,7 @@ func (x *ClusterFull) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterFull.ProtoReflect.Descriptor instead.
 func (*ClusterFull) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{53}
+	return file_vm_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ClusterFull) GetId() int64 {
@@ -6143,7 +6226,7 @@ type ClusterShort struct {
 
 func (x *ClusterShort) Reset() {
 	*x = ClusterShort{}
-	mi := &file_vm_proto_msgTypes[54]
+	mi := &file_vm_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6155,7 +6238,7 @@ func (x *ClusterShort) String() string {
 func (*ClusterShort) ProtoMessage() {}
 
 func (x *ClusterShort) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[54]
+	mi := &file_vm_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6168,7 +6251,7 @@ func (x *ClusterShort) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterShort.ProtoReflect.Descriptor instead.
 func (*ClusterShort) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{54}
+	return file_vm_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ClusterShort) GetVcenter() string {
@@ -6202,7 +6285,7 @@ type SerialNumber struct {
 
 func (x *SerialNumber) Reset() {
 	*x = SerialNumber{}
-	mi := &file_vm_proto_msgTypes[55]
+	mi := &file_vm_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6214,7 +6297,7 @@ func (x *SerialNumber) String() string {
 func (*SerialNumber) ProtoMessage() {}
 
 func (x *SerialNumber) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[55]
+	mi := &file_vm_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6227,7 +6310,7 @@ func (x *SerialNumber) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SerialNumber.ProtoReflect.Descriptor instead.
 func (*SerialNumber) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{55}
+	return file_vm_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *SerialNumber) GetSerialNumber() string {
@@ -6246,7 +6329,7 @@ type ServerName struct {
 
 func (x *ServerName) Reset() {
 	*x = ServerName{}
-	mi := &file_vm_proto_msgTypes[56]
+	mi := &file_vm_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6258,7 +6341,7 @@ func (x *ServerName) String() string {
 func (*ServerName) ProtoMessage() {}
 
 func (x *ServerName) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[56]
+	mi := &file_vm_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6271,7 +6354,7 @@ func (x *ServerName) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerName.ProtoReflect.Descriptor instead.
 func (*ServerName) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{56}
+	return file_vm_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ServerName) GetName() string {
@@ -6302,7 +6385,7 @@ type ServerHardware struct {
 
 func (x *ServerHardware) Reset() {
 	*x = ServerHardware{}
-	mi := &file_vm_proto_msgTypes[57]
+	mi := &file_vm_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6314,7 +6397,7 @@ func (x *ServerHardware) String() string {
 func (*ServerHardware) ProtoMessage() {}
 
 func (x *ServerHardware) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[57]
+	mi := &file_vm_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6327,7 +6410,7 @@ func (x *ServerHardware) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerHardware.ProtoReflect.Descriptor instead.
 func (*ServerHardware) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{57}
+	return file_vm_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ServerHardware) GetBase() *OVServerHardware {
@@ -6460,7 +6543,7 @@ type OVServerHardware struct {
 
 func (x *OVServerHardware) Reset() {
 	*x = OVServerHardware{}
-	mi := &file_vm_proto_msgTypes[58]
+	mi := &file_vm_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6472,7 +6555,7 @@ func (x *OVServerHardware) String() string {
 func (*OVServerHardware) ProtoMessage() {}
 
 func (x *OVServerHardware) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[58]
+	mi := &file_vm_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6485,7 +6568,7 @@ func (x *OVServerHardware) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OVServerHardware.ProtoReflect.Descriptor instead.
 func (*OVServerHardware) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{58}
+	return file_vm_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *OVServerHardware) GetHostname() string {
@@ -6762,7 +6845,7 @@ type ServerHardwareMemory struct {
 
 func (x *ServerHardwareMemory) Reset() {
 	*x = ServerHardwareMemory{}
-	mi := &file_vm_proto_msgTypes[59]
+	mi := &file_vm_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6774,7 +6857,7 @@ func (x *ServerHardwareMemory) String() string {
 func (*ServerHardwareMemory) ProtoMessage() {}
 
 func (x *ServerHardwareMemory) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[59]
+	mi := &file_vm_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6787,7 +6870,7 @@ func (x *ServerHardwareMemory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerHardwareMemory.ProtoReflect.Descriptor instead.
 func (*ServerHardwareMemory) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{59}
+	return file_vm_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ServerHardwareMemory) GetURI() string {
@@ -6850,7 +6933,7 @@ type MemoryStatus struct {
 
 func (x *MemoryStatus) Reset() {
 	*x = MemoryStatus{}
-	mi := &file_vm_proto_msgTypes[60]
+	mi := &file_vm_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6862,7 +6945,7 @@ func (x *MemoryStatus) String() string {
 func (*MemoryStatus) ProtoMessage() {}
 
 func (x *MemoryStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[60]
+	mi := &file_vm_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6875,7 +6958,7 @@ func (x *MemoryStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryStatus.ProtoReflect.Descriptor instead.
 func (*MemoryStatus) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{60}
+	return file_vm_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *MemoryStatus) GetHealt() string {
@@ -6903,7 +6986,7 @@ type MemoryLocation struct {
 
 func (x *MemoryLocation) Reset() {
 	*x = MemoryLocation{}
-	mi := &file_vm_proto_msgTypes[61]
+	mi := &file_vm_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6915,7 +6998,7 @@ func (x *MemoryLocation) String() string {
 func (*MemoryLocation) ProtoMessage() {}
 
 func (x *MemoryLocation) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[61]
+	mi := &file_vm_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6928,7 +7011,7 @@ func (x *MemoryLocation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryLocation.ProtoReflect.Descriptor instead.
 func (*MemoryLocation) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{61}
+	return file_vm_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *MemoryLocation) GetSlot() int32 {
@@ -6956,7 +7039,7 @@ type Hpe struct {
 
 func (x *Hpe) Reset() {
 	*x = Hpe{}
-	mi := &file_vm_proto_msgTypes[62]
+	mi := &file_vm_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6968,7 +7051,7 @@ func (x *Hpe) String() string {
 func (*Hpe) ProtoMessage() {}
 
 func (x *Hpe) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[62]
+	mi := &file_vm_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6981,7 +7064,7 @@ func (x *Hpe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Hpe.ProtoReflect.Descriptor instead.
 func (*Hpe) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{62}
+	return file_vm_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *Hpe) GetDIMMStatus() string {
@@ -7008,7 +7091,7 @@ type OemMemory struct {
 
 func (x *OemMemory) Reset() {
 	*x = OemMemory{}
-	mi := &file_vm_proto_msgTypes[63]
+	mi := &file_vm_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7020,7 +7103,7 @@ func (x *OemMemory) String() string {
 func (*OemMemory) ProtoMessage() {}
 
 func (x *OemMemory) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[63]
+	mi := &file_vm_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7033,7 +7116,7 @@ func (x *OemMemory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OemMemory.ProtoReflect.Descriptor instead.
 func (*OemMemory) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{63}
+	return file_vm_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *OemMemory) GetHpe() *Hpe {
@@ -7070,7 +7153,7 @@ type MemoryModule struct {
 
 func (x *MemoryModule) Reset() {
 	*x = MemoryModule{}
-	mi := &file_vm_proto_msgTypes[64]
+	mi := &file_vm_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7082,7 +7165,7 @@ func (x *MemoryModule) String() string {
 func (*MemoryModule) ProtoMessage() {}
 
 func (x *MemoryModule) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[64]
+	mi := &file_vm_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7095,7 +7178,7 @@ func (x *MemoryModule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryModule.ProtoReflect.Descriptor instead.
 func (*MemoryModule) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{64}
+	return file_vm_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *MemoryModule) GetBaseModuleType() string {
@@ -7246,7 +7329,7 @@ type ServerHardwareLocalStorage struct {
 
 func (x *ServerHardwareLocalStorage) Reset() {
 	*x = ServerHardwareLocalStorage{}
-	mi := &file_vm_proto_msgTypes[65]
+	mi := &file_vm_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7258,7 +7341,7 @@ func (x *ServerHardwareLocalStorage) String() string {
 func (*ServerHardwareLocalStorage) ProtoMessage() {}
 
 func (x *ServerHardwareLocalStorage) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[65]
+	mi := &file_vm_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7271,7 +7354,7 @@ func (x *ServerHardwareLocalStorage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerHardwareLocalStorage.ProtoReflect.Descriptor instead.
 func (*ServerHardwareLocalStorage) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{65}
+	return file_vm_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *ServerHardwareLocalStorage) GetURI() string {
@@ -7334,7 +7417,7 @@ type Status struct {
 
 func (x *Status) Reset() {
 	*x = Status{}
-	mi := &file_vm_proto_msgTypes[66]
+	mi := &file_vm_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7346,7 +7429,7 @@ func (x *Status) String() string {
 func (*Status) ProtoMessage() {}
 
 func (x *Status) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[66]
+	mi := &file_vm_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7359,7 +7442,7 @@ func (x *Status) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Status.ProtoReflect.Descriptor instead.
 func (*Status) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{66}
+	return file_vm_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *Status) GetHealth() string {
@@ -7401,7 +7484,7 @@ type LocalStorage struct {
 
 func (x *LocalStorage) Reset() {
 	*x = LocalStorage{}
-	mi := &file_vm_proto_msgTypes[67]
+	mi := &file_vm_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7413,7 +7496,7 @@ func (x *LocalStorage) String() string {
 func (*LocalStorage) ProtoMessage() {}
 
 func (x *LocalStorage) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[67]
+	mi := &file_vm_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7426,7 +7509,7 @@ func (x *LocalStorage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocalStorage.ProtoReflect.Descriptor instead.
 func (*LocalStorage) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{67}
+	return file_vm_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *LocalStorage) GetAdapterType() string {
@@ -7557,7 +7640,7 @@ type CacheModuleStatus struct {
 
 func (x *CacheModuleStatus) Reset() {
 	*x = CacheModuleStatus{}
-	mi := &file_vm_proto_msgTypes[68]
+	mi := &file_vm_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7569,7 +7652,7 @@ func (x *CacheModuleStatus) String() string {
 func (*CacheModuleStatus) ProtoMessage() {}
 
 func (x *CacheModuleStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[68]
+	mi := &file_vm_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7582,7 +7665,7 @@ func (x *CacheModuleStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheModuleStatus.ProtoReflect.Descriptor instead.
 func (*CacheModuleStatus) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{68}
+	return file_vm_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *CacheModuleStatus) GetHealth() string {
@@ -7601,7 +7684,7 @@ type ControllerBoard struct {
 
 func (x *ControllerBoard) Reset() {
 	*x = ControllerBoard{}
-	mi := &file_vm_proto_msgTypes[69]
+	mi := &file_vm_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7613,7 +7696,7 @@ func (x *ControllerBoard) String() string {
 func (*ControllerBoard) ProtoMessage() {}
 
 func (x *ControllerBoard) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[69]
+	mi := &file_vm_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7626,7 +7709,7 @@ func (x *ControllerBoard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControllerBoard.ProtoReflect.Descriptor instead.
 func (*ControllerBoard) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{69}
+	return file_vm_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ControllerBoard) GetStatus() *ControllerSatus {
@@ -7646,7 +7729,7 @@ type ControllerSatus struct {
 
 func (x *ControllerSatus) Reset() {
 	*x = ControllerSatus{}
-	mi := &file_vm_proto_msgTypes[70]
+	mi := &file_vm_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7658,7 +7741,7 @@ func (x *ControllerSatus) String() string {
 func (*ControllerSatus) ProtoMessage() {}
 
 func (x *ControllerSatus) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[70]
+	mi := &file_vm_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7671,7 +7754,7 @@ func (x *ControllerSatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControllerSatus.ProtoReflect.Descriptor instead.
 func (*ControllerSatus) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{70}
+	return file_vm_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *ControllerSatus) GetHealth() string {
@@ -7698,7 +7781,7 @@ type Version struct {
 
 func (x *Version) Reset() {
 	*x = Version{}
-	mi := &file_vm_proto_msgTypes[71]
+	mi := &file_vm_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7710,7 +7793,7 @@ func (x *Version) String() string {
 func (*Version) ProtoMessage() {}
 
 func (x *Version) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[71]
+	mi := &file_vm_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7723,7 +7806,7 @@ func (x *Version) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Version.ProtoReflect.Descriptor instead.
 func (*Version) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{71}
+	return file_vm_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *Version) GetVersionString() string {
@@ -7743,7 +7826,7 @@ type FirmwareVersion struct {
 
 func (x *FirmwareVersion) Reset() {
 	*x = FirmwareVersion{}
-	mi := &file_vm_proto_msgTypes[72]
+	mi := &file_vm_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7755,7 +7838,7 @@ func (x *FirmwareVersion) String() string {
 func (*FirmwareVersion) ProtoMessage() {}
 
 func (x *FirmwareVersion) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[72]
+	mi := &file_vm_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7768,7 +7851,7 @@ func (x *FirmwareVersion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FirmwareVersion.ProtoReflect.Descriptor instead.
 func (*FirmwareVersion) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{72}
+	return file_vm_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *FirmwareVersion) GetCurrent() *Version {
@@ -7798,7 +7881,7 @@ type LogicalDataDrive struct {
 
 func (x *LogicalDataDrive) Reset() {
 	*x = LogicalDataDrive{}
-	mi := &file_vm_proto_msgTypes[73]
+	mi := &file_vm_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7810,7 +7893,7 @@ func (x *LogicalDataDrive) String() string {
 func (*LogicalDataDrive) ProtoMessage() {}
 
 func (x *LogicalDataDrive) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[73]
+	mi := &file_vm_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7823,7 +7906,7 @@ func (x *LogicalDataDrive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogicalDataDrive.ProtoReflect.Descriptor instead.
 func (*LogicalDataDrive) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{73}
+	return file_vm_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *LogicalDataDrive) GetCapacityMiB() float64 {
@@ -7919,7 +8002,7 @@ type LocalLogicalDrive struct {
 
 func (x *LocalLogicalDrive) Reset() {
 	*x = LocalLogicalDrive{}
-	mi := &file_vm_proto_msgTypes[74]
+	mi := &file_vm_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7931,7 +8014,7 @@ func (x *LocalLogicalDrive) String() string {
 func (*LocalLogicalDrive) ProtoMessage() {}
 
 func (x *LocalLogicalDrive) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[74]
+	mi := &file_vm_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7944,7 +8027,7 @@ func (x *LocalLogicalDrive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocalLogicalDrive.ProtoReflect.Descriptor instead.
 func (*LocalLogicalDrive) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{74}
+	return file_vm_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *LocalLogicalDrive) GetCapacityMiB() float64 {
@@ -8016,7 +8099,7 @@ type LocalPhysicalDrive struct {
 
 func (x *LocalPhysicalDrive) Reset() {
 	*x = LocalPhysicalDrive{}
-	mi := &file_vm_proto_msgTypes[75]
+	mi := &file_vm_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8028,7 +8111,7 @@ func (x *LocalPhysicalDrive) String() string {
 func (*LocalPhysicalDrive) ProtoMessage() {}
 
 func (x *LocalPhysicalDrive) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[75]
+	mi := &file_vm_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8041,7 +8124,7 @@ func (x *LocalPhysicalDrive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocalPhysicalDrive.ProtoReflect.Descriptor instead.
 func (*LocalPhysicalDrive) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{75}
+	return file_vm_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *LocalPhysicalDrive) GetCapacityMiB() float64 {
@@ -8135,7 +8218,7 @@ type LocalStorageEnclosure struct {
 
 func (x *LocalStorageEnclosure) Reset() {
 	*x = LocalStorageEnclosure{}
-	mi := &file_vm_proto_msgTypes[76]
+	mi := &file_vm_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8147,7 +8230,7 @@ func (x *LocalStorageEnclosure) String() string {
 func (*LocalStorageEnclosure) ProtoMessage() {}
 
 func (x *LocalStorageEnclosure) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[76]
+	mi := &file_vm_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8160,7 +8243,7 @@ func (x *LocalStorageEnclosure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocalStorageEnclosure.ProtoReflect.Descriptor instead.
 func (*LocalStorageEnclosure) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{76}
+	return file_vm_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *LocalStorageEnclosure) GetDriveBayCount() int32 {
@@ -8209,7 +8292,7 @@ type Contents struct {
 
 func (x *Contents) Reset() {
 	*x = Contents{}
-	mi := &file_vm_proto_msgTypes[77]
+	mi := &file_vm_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8221,7 +8304,7 @@ func (x *Contents) String() string {
 func (*Contents) ProtoMessage() {}
 
 func (x *Contents) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[77]
+	mi := &file_vm_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8234,7 +8317,7 @@ func (x *Contents) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Contents.ProtoReflect.Descriptor instead.
 func (*Contents) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{77}
+	return file_vm_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *Contents) GetX() float64 {
@@ -8282,7 +8365,7 @@ type DatacenterInfo struct {
 
 func (x *DatacenterInfo) Reset() {
 	*x = DatacenterInfo{}
-	mi := &file_vm_proto_msgTypes[78]
+	mi := &file_vm_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8294,7 +8377,7 @@ func (x *DatacenterInfo) String() string {
 func (*DatacenterInfo) ProtoMessage() {}
 
 func (x *DatacenterInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[78]
+	mi := &file_vm_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8307,7 +8390,7 @@ func (x *DatacenterInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatacenterInfo.ProtoReflect.Descriptor instead.
 func (*DatacenterInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{78}
+	return file_vm_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *DatacenterInfo) GetWidth() int32 {
@@ -8423,26 +8506,32 @@ func (x *DatacenterInfo) GetStatus() string {
 }
 
 type Racks struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UHeight       int32                  `protobuf:"varint,1,opt,name=UHeight,proto3" json:"UHeight,omitempty"`
-	Width         int32                  `protobuf:"varint,2,opt,name=Width,proto3" json:"Width,omitempty"`
-	Height        int32                  `protobuf:"varint,3,opt,name=Height,proto3" json:"Height,omitempty"`
-	Depth         int32                  `protobuf:"varint,4,opt,name=Depth,proto3" json:"Depth,omitempty"`
-	SerialNumber  string                 `protobuf:"bytes,5,opt,name=SerialNumber,proto3" json:"SerialNumber,omitempty"`
-	Created       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=Created,proto3" json:"Created,omitempty"`
-	Modified      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=Modified,proto3" json:"Modified,omitempty"`
-	ID            string                 `protobuf:"bytes,8,opt,name=ID,proto3" json:"ID,omitempty"`
-	UUID          string                 `protobuf:"bytes,9,opt,name=UUID,proto3" json:"UUID,omitempty"`
-	Name          string                 `protobuf:"bytes,10,opt,name=Name,proto3" json:"Name,omitempty"`
-	State         string                 `protobuf:"bytes,11,opt,name=State,proto3" json:"State,omitempty"`
-	Status        string                 `protobuf:"bytes,12,opt,name=Status,proto3" json:"Status,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	UHeight      int32                  `protobuf:"varint,1,opt,name=UHeight,proto3" json:"UHeight,omitempty"`
+	Width        int32                  `protobuf:"varint,2,opt,name=Width,proto3" json:"Width,omitempty"`
+	Height       int32                  `protobuf:"varint,3,opt,name=Height,proto3" json:"Height,omitempty"`
+	Depth        int32                  `protobuf:"varint,4,opt,name=Depth,proto3" json:"Depth,omitempty"`
+	SerialNumber string                 `protobuf:"bytes,5,opt,name=SerialNumber,proto3" json:"SerialNumber,omitempty"`
+	Created      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=Created,proto3" json:"Created,omitempty"`
+	Modified     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=Modified,proto3" json:"Modified,omitempty"`
+	ID           string                 `protobuf:"bytes,8,opt,name=ID,proto3" json:"ID,omitempty"`
+	UUID         string                 `protobuf:"bytes,9,opt,name=UUID,proto3" json:"UUID,omitempty"`
+	Name         string                 `protobuf:"bytes,10,opt,name=Name,proto3" json:"Name,omitempty"`
+	State        string                 `protobuf:"bytes,11,opt,name=State,proto3" json:"State,omitempty"`
+	Status       string                 `protobuf:"bytes,12,opt,name=Status,proto3" json:"Status,omitempty"`
+	// Расположение конкретного сервера внутри стойки (oneview2.RackInfo.TopUSlot/
+	// MountUHeight/MountLocation) - верхний юнит крепления, высота крепления в
+	// юнитах и текстовое расположение, если OneView отдаёт его вместо номера юнита.
+	TopUSlot      int32  `protobuf:"varint,13,opt,name=TopUSlot,proto3" json:"TopUSlot,omitempty"`
+	MountUHeight  int32  `protobuf:"varint,14,opt,name=MountUHeight,proto3" json:"MountUHeight,omitempty"`
+	MountLocation string `protobuf:"bytes,15,opt,name=MountLocation,proto3" json:"MountLocation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Racks) Reset() {
 	*x = Racks{}
-	mi := &file_vm_proto_msgTypes[79]
+	mi := &file_vm_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8454,7 +8543,7 @@ func (x *Racks) String() string {
 func (*Racks) ProtoMessage() {}
 
 func (x *Racks) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[79]
+	mi := &file_vm_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8467,7 +8556,7 @@ func (x *Racks) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Racks.ProtoReflect.Descriptor instead.
 func (*Racks) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{79}
+	return file_vm_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *Racks) GetUHeight() int32 {
@@ -8554,6 +8643,27 @@ func (x *Racks) GetStatus() string {
 	return ""
 }
 
+func (x *Racks) GetTopUSlot() int32 {
+	if x != nil {
+		return x.TopUSlot
+	}
+	return 0
+}
+
+func (x *Racks) GetMountUHeight() int32 {
+	if x != nil {
+		return x.MountUHeight
+	}
+	return 0
+}
+
+func (x *Racks) GetMountLocation() string {
+	if x != nil {
+		return x.MountLocation
+	}
+	return ""
+}
+
 type DeviceBayInfo struct {
 	state                                   protoimpl.MessageState `protogen:"open.v1"`
 	Type                                    string                 `protobuf:"bytes,1,opt,name=Type,proto3" json:"Type,omitempty"`
@@ -8576,7 +8686,7 @@ type DeviceBayInfo struct {
 
 func (x *DeviceBayInfo) Reset() {
 	*x = DeviceBayInfo{}
-	mi := &file_vm_proto_msgTypes[80]
+	mi := &file_vm_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8588,7 +8698,7 @@ func (x *DeviceBayInfo) String() string {
 func (*DeviceBayInfo) ProtoMessage() {}
 
 func (x *DeviceBayInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[80]
+	mi := &file_vm_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8601,7 +8711,7 @@ func (x *DeviceBayInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceBayInfo.ProtoReflect.Descriptor instead.
 func (*DeviceBayInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{80}
+	return file_vm_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *DeviceBayInfo) GetType() string {
@@ -8716,7 +8826,7 @@ type InterconnectBayInfo struct {
 
 func (x *InterconnectBayInfo) Reset() {
 	*x = InterconnectBayInfo{}
-	mi := &file_vm_proto_msgTypes[81]
+	mi := &file_vm_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8728,7 +8838,7 @@ func (x *InterconnectBayInfo) String() string {
 func (*InterconnectBayInfo) ProtoMessage() {}
 
 func (x *InterconnectBayInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[81]
+	mi := &file_vm_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8741,7 +8851,7 @@ func (x *InterconnectBayInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InterconnectBayInfo.ProtoReflect.Descriptor instead.
 func (*InterconnectBayInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{81}
+	return file_vm_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *InterconnectBayInfo) GetBayNumber() int32 {
@@ -8804,7 +8914,7 @@ type FanBayInfo struct {
 
 func (x *FanBayInfo) Reset() {
 	*x = FanBayInfo{}
-	mi := &file_vm_proto_msgTypes[82]
+	mi := &file_vm_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8816,7 +8926,7 @@ func (x *FanBayInfo) String() string {
 func (*FanBayInfo) ProtoMessage() {}
 
 func (x *FanBayInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[82]
+	mi := &file_vm_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8829,7 +8939,7 @@ func (x *FanBayInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FanBayInfo.ProtoReflect.Descriptor instead.
 func (*FanBayInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{82}
+	return file_vm_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *FanBayInfo) GetBayNumber() int32 {
@@ -8919,7 +9029,7 @@ type PowerSupplyBayInfo struct {
 
 func (x *PowerSupplyBayInfo) Reset() {
 	*x = PowerSupplyBayInfo{}
-	mi := &file_vm_proto_msgTypes[83]
+	mi := &file_vm_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8931,7 +9041,7 @@ func (x *PowerSupplyBayInfo) String() string {
 func (*PowerSupplyBayInfo) ProtoMessage() {}
 
 func (x *PowerSupplyBayInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[83]
+	mi := &file_vm_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8944,7 +9054,7 @@ func (x *PowerSupplyBayInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PowerSupplyBayInfo.ProtoReflect.Descriptor instead.
 func (*PowerSupplyBayInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{83}
+	return file_vm_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *PowerSupplyBayInfo) GetBayNumber() int32 {
@@ -9030,7 +9140,7 @@ type ManagerBayInfo struct {
 
 func (x *ManagerBayInfo) Reset() {
 	*x = ManagerBayInfo{}
-	mi := &file_vm_proto_msgTypes[84]
+	mi := &file_vm_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9042,7 +9152,7 @@ func (x *ManagerBayInfo) String() string {
 func (*ManagerBayInfo) ProtoMessage() {}
 
 func (x *ManagerBayInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[84]
+	mi := &file_vm_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9055,7 +9165,7 @@ func (x *ManagerBayInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagerBayInfo.ProtoReflect.Descriptor instead.
 func (*ManagerBayInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{84}
+	return file_vm_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *ManagerBayInfo) GetBayNumber() int32 {
@@ -9190,7 +9300,7 @@ type Enclosure struct {
 
 func (x *Enclosure) Reset() {
 	*x = Enclosure{}
-	mi := &file_vm_proto_msgTypes[85]
+	mi := &file_vm_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9202,7 +9312,7 @@ func (x *Enclosure) String() string {
 func (*Enclosure) ProtoMessage() {}
 
 func (x *Enclosure) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[85]
+	mi := &file_vm_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9215,7 +9325,7 @@ func (x *Enclosure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Enclosure.ProtoReflect.Descriptor instead.
 func (*Enclosure) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{85}
+	return file_vm_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *Enclosure) GetType() string {
@@ -9516,7 +9626,7 @@ type OVProcessorInfo struct {
 
 func (x *OVProcessorInfo) Reset() {
 	*x = OVProcessorInfo{}
-	mi := &file_vm_proto_msgTypes[86]
+	mi := &file_vm_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9528,7 +9638,7 @@ func (x *OVProcessorInfo) String() string {
 func (*OVProcessorInfo) ProtoMessage() {}
 
 func (x *OVProcessorInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[86]
+	mi := &file_vm_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9541,7 +9651,7 @@ func (x *OVProcessorInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OVProcessorInfo.ProtoReflect.Descriptor instead.
 func (*OVProcessorInfo) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{86}
+	return file_vm_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *OVProcessorInfo) GetID() string {
@@ -9630,7 +9740,7 @@ type OVNetworkPort struct {
 
 func (x *OVNetworkPort) Reset() {
 	*x = OVNetworkPort{}
-	mi := &file_vm_proto_msgTypes[87]
+	mi := &file_vm_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9642,7 +9752,7 @@ func (x *OVNetworkPort) String() string {
 func (*OVNetworkPort) ProtoMessage() {}
 
 func (x *OVNetworkPort) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[87]
+	mi := &file_vm_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9655,7 +9765,7 @@ func (x *OVNetworkPort) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OVNetworkPort.ProtoReflect.Descriptor instead.
 func (*OVNetworkPort) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{87}
+	return file_vm_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *OVNetworkPort) GetDeviceName() string {
@@ -9733,7 +9843,7 @@ type OVPCIDevice struct {
 
 func (x *OVPCIDevice) Reset() {
 	*x = OVPCIDevice{}
-	mi := &file_vm_proto_msgTypes[88]
+	mi := &file_vm_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9745,7 +9855,7 @@ func (x *OVPCIDevice) String() string {
 func (*OVPCIDevice) ProtoMessage() {}
 
 func (x *OVPCIDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[88]
+	mi := &file_vm_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9758,7 +9868,7 @@ func (x *OVPCIDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OVPCIDevice.ProtoReflect.Descriptor instead.
 func (*OVPCIDevice) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{88}
+	return file_vm_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *OVPCIDevice) GetID() string {
@@ -9851,7 +9961,7 @@ type OVFirmwareComponent struct {
 
 func (x *OVFirmwareComponent) Reset() {
 	*x = OVFirmwareComponent{}
-	mi := &file_vm_proto_msgTypes[89]
+	mi := &file_vm_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9863,7 +9973,7 @@ func (x *OVFirmwareComponent) String() string {
 func (*OVFirmwareComponent) ProtoMessage() {}
 
 func (x *OVFirmwareComponent) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[89]
+	mi := &file_vm_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9876,7 +9986,7 @@ func (x *OVFirmwareComponent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OVFirmwareComponent.ProtoReflect.Descriptor instead.
 func (*OVFirmwareComponent) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{89}
+	return file_vm_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *OVFirmwareComponent) GetName() string {
@@ -9925,7 +10035,7 @@ type OVServerSource struct {
 
 func (x *OVServerSource) Reset() {
 	*x = OVServerSource{}
-	mi := &file_vm_proto_msgTypes[90]
+	mi := &file_vm_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9937,7 +10047,7 @@ func (x *OVServerSource) String() string {
 func (*OVServerSource) ProtoMessage() {}
 
 func (x *OVServerSource) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[90]
+	mi := &file_vm_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9950,7 +10060,7 @@ func (x *OVServerSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OVServerSource.ProtoReflect.Descriptor instead.
 func (*OVServerSource) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{90}
+	return file_vm_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *OVServerSource) GetEndpoint() string {
@@ -9987,7 +10097,7 @@ type OVServerMetadata struct {
 
 func (x *OVServerMetadata) Reset() {
 	*x = OVServerMetadata{}
-	mi := &file_vm_proto_msgTypes[91]
+	mi := &file_vm_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9999,7 +10109,7 @@ func (x *OVServerMetadata) String() string {
 func (*OVServerMetadata) ProtoMessage() {}
 
 func (x *OVServerMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_vm_proto_msgTypes[91]
+	mi := &file_vm_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10012,7 +10122,7 @@ func (x *OVServerMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OVServerMetadata.ProtoReflect.Descriptor instead.
 func (*OVServerMetadata) Descriptor() ([]byte, []int) {
-	return file_vm_proto_rawDescGZIP(), []int{91}
+	return file_vm_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *OVServerMetadata) GetAPIVersion() int32 {
@@ -10072,7 +10182,10 @@ const file_vm_proto_rawDesc = "" +
 	"PowerState\x18\x03 \x01(\tR\n" +
 	"PowerState\x12\x16\n" +
 	"\x06Status\x18\x04 \x01(\tR\x06Status\x12(\n" +
-	"\x0fMaintenanceMode\x18\x05 \x01(\tR\x0fMaintenanceMode\"\xdc\x01\n" +
+	"\x0fMaintenanceMode\x18\x05 \x01(\tR\x0fMaintenanceMode\"\a\n" +
+	"\x05Empty\" \n" +
+	"\bNameList\x12\x14\n" +
+	"\x05Names\x18\x01 \x03(\tR\x05Names\"\xdc\x01\n" +
 	"\x0eClearMetricKey\x12\x18\n" +
 	"\aVcenter\x18\x01 \x01(\tR\aVcenter\x12\x1e\n" +
 	"\n" +
@@ -10955,7 +11068,7 @@ const file_vm_proto_rawDesc = "" +
 	"\x17DefaultPowerLineVoltage\x18\r \x01(\x05R\x17DefaultPowerLineVoltage\x12\x12\n" +
 	"\x04Name\x18\x0e \x01(\tR\x04Name\x12\x14\n" +
 	"\x05State\x18\x0f \x01(\tR\x05State\x12\x16\n" +
-	"\x06Status\x18\x10 \x01(\tR\x06Status\"\xdd\x02\n" +
+	"\x06Status\x18\x10 \x01(\tR\x06Status\"\xc3\x03\n" +
 	"\x05Racks\x12\x18\n" +
 	"\aUHeight\x18\x01 \x01(\x05R\aUHeight\x12\x14\n" +
 	"\x05Width\x18\x02 \x01(\x05R\x05Width\x12\x16\n" +
@@ -10969,7 +11082,10 @@ const file_vm_proto_rawDesc = "" +
 	"\x04Name\x18\n" +
 	" \x01(\tR\x04Name\x12\x14\n" +
 	"\x05State\x18\v \x01(\tR\x05State\x12\x16\n" +
-	"\x06Status\x18\f \x01(\tR\x06Status\"\x9b\x05\n" +
+	"\x06Status\x18\f \x01(\tR\x06Status\x12\x1a\n" +
+	"\bTopUSlot\x18\r \x01(\x05R\bTopUSlot\x12\"\n" +
+	"\fMountUHeight\x18\x0e \x01(\x05R\fMountUHeight\x12$\n" +
+	"\rMountLocation\x18\x0f \x01(\tR\rMountLocation\"\x9b\x05\n" +
 	"\rDeviceBayInfo\x12\x12\n" +
 	"\x04Type\x18\x01 \x01(\tR\x04Type\x12\x1c\n" +
 	"\tBayNumber\x18\x02 \x01(\x05R\tBayNumber\x12&\n" +
@@ -11149,7 +11265,7 @@ const file_vm_proto_rawDesc = "" +
 	"\aProduct\x18\x02 \x01(\tR\aProduct\x12\x1a\n" +
 	"\bEndpoint\x18\x03 \x01(\tR\bEndpoint\x12\x1a\n" +
 	"\bWarnings\x18\x04 \x03(\tR\bWarnings\x122\n" +
-	"\aSources\x18\x05 \x03(\v2\x18.protocol.OVServerSourceR\aSources2\x93\x15\n" +
+	"\aSources\x18\x05 \x03(\v2\x18.protocol.OVServerSourceR\aSources2\x8b\x16\n" +
 	"\aLoadmon\x125\n" +
 	"\vGetVCenters\x12\x0f.protocol.VCReq\x1a\x11.protocol.VCenter\"\x000\x01\x12:\n" +
 	"\rGetDatacenter\x12\x0f.protocol.DCReq\x1a\x14.protocol.Datacenter\"\x000\x01\x129\n" +
@@ -11192,7 +11308,9 @@ const file_vm_proto_rawDesc = "" +
 	"\x15GetServerHardwareBySN\x12\x16.protocol.SerialNumber\x1a\x18.protocol.ServerHardware\"\x00\x12K\n" +
 	"\x17GetServerHardwareByName\x12\x14.protocol.ServerName\x1a\x18.protocol.ServerHardware\"\x00\x12R\n" +
 	"\x1cGetServerHardwareByVirtualSN\x12\x16.protocol.SerialNumber\x1a\x18.protocol.ServerHardware\"\x00\x12F\n" +
-	"\x15GetServerHardwareList\x12\x0f.protocol.HWReq\x1a\x18.protocol.ServerHardware\"\x000\x01\x12I\n" +
+	"\x15GetServerHardwareList\x12\x0f.protocol.HWReq\x1a\x18.protocol.ServerHardware\"\x000\x01\x12=\n" +
+	"\x14GetHWDatacenterNames\x12\x0f.protocol.Empty\x1a\x12.protocol.NameList\"\x00\x127\n" +
+	"\x0eGetHWRackNames\x12\x0f.protocol.Empty\x1a\x12.protocol.NameList\"\x00\x12I\n" +
 	"\x13RegisterWorkProcess\x12\x1a.protocol.RegisterEndpoint\x1a\x14.protocol.StatusWork\"\x00\x12M\n" +
 	"\x14GetClusterSprRecords\x12\x15.protocol.EndpointReq\x1a\x1a.protocol.RegisterEndpoint\"\x000\x01B\x12Z\x10loadmon/protocolb\x06proto3"
 
@@ -11208,340 +11326,346 @@ func file_vm_proto_rawDescGZIP() []byte {
 	return file_vm_proto_rawDescData
 }
 
-var file_vm_proto_msgTypes = make([]protoimpl.MessageInfo, 92)
+var file_vm_proto_msgTypes = make([]protoimpl.MessageInfo, 94)
 var file_vm_proto_goTypes = []any{
 	(*EndpointReq)(nil),                // 0: protocol.EndpointReq
 	(*RegisterEndpoint)(nil),           // 1: protocol.RegisterEndpoint
 	(*HWReq)(nil),                      // 2: protocol.HWReq
-	(*ClearMetricKey)(nil),             // 3: protocol.ClearMetricKey
-	(*Duration)(nil),                   // 4: protocol.Duration
-	(*StatusWork)(nil),                 // 5: protocol.StatusWork
-	(*KeyString)(nil),                  // 6: protocol.KeyString
-	(*VCReq)(nil),                      // 7: protocol.VCReq
-	(*VCenter)(nil),                    // 8: protocol.VCenter
-	(*OV)(nil),                         // 9: protocol.OV
-	(*DCReq)(nil),                      // 10: protocol.DCReq
-	(*Datacenter)(nil),                 // 11: protocol.Datacenter
-	(*CLReq)(nil),                      // 12: protocol.CLReq
-	(*HSReq)(nil),                      // 13: protocol.HSReq
-	(*VMReqKey)(nil),                   // 14: protocol.VMReqKey
-	(*HSReqKey)(nil),                   // 15: protocol.HSReqKey
-	(*CLReqKey)(nil),                   // 16: protocol.CLReqKey
-	(*VMReqListKey)(nil),               // 17: protocol.VMReqListKey
-	(*HSReqListKey)(nil),               // 18: protocol.HSReqListKey
-	(*CLReqListKey)(nil),               // 19: protocol.CLReqListKey
-	(*VMReqVMName)(nil),                // 20: protocol.VMReqVMName
-	(*VMReqVcenter)(nil),               // 21: protocol.VMReqVcenter
-	(*VMReqDatacenter)(nil),            // 22: protocol.VMReqDatacenter
-	(*VMReqCluster)(nil),               // 23: protocol.VMReqCluster
-	(*VMKeyRec)(nil),                   // 24: protocol.VMKeyRec
-	(*HSKeyRec)(nil),                   // 25: protocol.HSKeyRec
-	(*CLKeyRec)(nil),                   // 26: protocol.CLKeyRec
-	(*VMListKey)(nil),                  // 27: protocol.VMListKey
-	(*HSListKey)(nil),                  // 28: protocol.HSListKey
-	(*CLListKey)(nil),                  // 29: protocol.CLListKey
-	(*VMPerf)(nil),                     // 30: protocol.VMPerf
-	(*HSPerf)(nil),                     // 31: protocol.HSPerf
-	(*CLPerf)(nil),                     // 32: protocol.CLPerf
-	(*VMPerfSlice)(nil),                // 33: protocol.VMPerfSlice
-	(*HSPerfSlice)(nil),                // 34: protocol.HSPerfSlice
-	(*CLPerfSlice)(nil),                // 35: protocol.CLPerfSlice
-	(*GuestDiskInfo)(nil),              // 36: protocol.GuestDiskInfo
-	(*GuestDiskSlice)(nil),             // 37: protocol.GuestDiskSlice
-	(*VMUsageOnDatastore)(nil),         // 38: protocol.VMUsageOnDatastore
-	(*VMUsageOnDatastoreSlice)(nil),    // 39: protocol.VMUsageOnDatastoreSlice
-	(*VMFile)(nil),                     // 40: protocol.VMFile
-	(*VMFileSlice)(nil),                // 41: protocol.VMFileSlice
-	(*Datastore)(nil),                  // 42: protocol.Datastore
-	(*DatastoreSlice)(nil),             // 43: protocol.DatastoreSlice
-	(*ScsiLun)(nil),                    // 44: protocol.ScsiLun
-	(*ScsiLunSlice)(nil),               // 45: protocol.ScsiLunSlice
-	(*Metric)(nil),                     // 46: protocol.Metric
-	(*VMPoint)(nil),                    // 47: protocol.VMPoint
-	(*VMPointShort)(nil),               // 48: protocol.VMPointShort
-	(*VMPointSlice)(nil),               // 49: protocol.VMPointSlice
-	(*Host)(nil),                       // 50: protocol.Host
-	(*HostFull)(nil),                   // 51: protocol.HostFull
-	(*Cluster)(nil),                    // 52: protocol.Cluster
-	(*ClusterFull)(nil),                // 53: protocol.ClusterFull
-	(*ClusterShort)(nil),               // 54: protocol.ClusterShort
-	(*SerialNumber)(nil),               // 55: protocol.SerialNumber
-	(*ServerName)(nil),                 // 56: protocol.ServerName
-	(*ServerHardware)(nil),             // 57: protocol.ServerHardware
-	(*OVServerHardware)(nil),           // 58: protocol.OVServerHardware
-	(*ServerHardwareMemory)(nil),       // 59: protocol.ServerHardwareMemory
-	(*MemoryStatus)(nil),               // 60: protocol.MemoryStatus
-	(*MemoryLocation)(nil),             // 61: protocol.MemoryLocation
-	(*Hpe)(nil),                        // 62: protocol.Hpe
-	(*OemMemory)(nil),                  // 63: protocol.OemMemory
-	(*MemoryModule)(nil),               // 64: protocol.MemoryModule
-	(*ServerHardwareLocalStorage)(nil), // 65: protocol.ServerHardwareLocalStorage
-	(*Status)(nil),                     // 66: protocol.Status
-	(*LocalStorage)(nil),               // 67: protocol.LocalStorage
-	(*CacheModuleStatus)(nil),          // 68: protocol.CacheModuleStatus
-	(*ControllerBoard)(nil),            // 69: protocol.ControllerBoard
-	(*ControllerSatus)(nil),            // 70: protocol.ControllerSatus
-	(*Version)(nil),                    // 71: protocol.Version
-	(*FirmwareVersion)(nil),            // 72: protocol.FirmwareVersion
-	(*LogicalDataDrive)(nil),           // 73: protocol.LogicalDataDrive
-	(*LocalLogicalDrive)(nil),          // 74: protocol.LocalLogicalDrive
-	(*LocalPhysicalDrive)(nil),         // 75: protocol.LocalPhysicalDrive
-	(*LocalStorageEnclosure)(nil),      // 76: protocol.LocalStorageEnclosure
-	(*Contents)(nil),                   // 77: protocol.Contents
-	(*DatacenterInfo)(nil),             // 78: protocol.DatacenterInfo
-	(*Racks)(nil),                      // 79: protocol.Racks
-	(*DeviceBayInfo)(nil),              // 80: protocol.DeviceBayInfo
-	(*InterconnectBayInfo)(nil),        // 81: protocol.InterconnectBayInfo
-	(*FanBayInfo)(nil),                 // 82: protocol.FanBayInfo
-	(*PowerSupplyBayInfo)(nil),         // 83: protocol.PowerSupplyBayInfo
-	(*ManagerBayInfo)(nil),             // 84: protocol.ManagerBayInfo
-	(*Enclosure)(nil),                  // 85: protocol.Enclosure
-	(*OVProcessorInfo)(nil),            // 86: protocol.OVProcessorInfo
-	(*OVNetworkPort)(nil),              // 87: protocol.OVNetworkPort
-	(*OVPCIDevice)(nil),                // 88: protocol.OVPCIDevice
-	(*OVFirmwareComponent)(nil),        // 89: protocol.OVFirmwareComponent
-	(*OVServerSource)(nil),             // 90: protocol.OVServerSource
-	(*OVServerMetadata)(nil),           // 91: protocol.OVServerMetadata
-	(*timestamppb.Timestamp)(nil),      // 92: google.protobuf.Timestamp
+	(*Empty)(nil),                      // 3: protocol.Empty
+	(*NameList)(nil),                   // 4: protocol.NameList
+	(*ClearMetricKey)(nil),             // 5: protocol.ClearMetricKey
+	(*Duration)(nil),                   // 6: protocol.Duration
+	(*StatusWork)(nil),                 // 7: protocol.StatusWork
+	(*KeyString)(nil),                  // 8: protocol.KeyString
+	(*VCReq)(nil),                      // 9: protocol.VCReq
+	(*VCenter)(nil),                    // 10: protocol.VCenter
+	(*OV)(nil),                         // 11: protocol.OV
+	(*DCReq)(nil),                      // 12: protocol.DCReq
+	(*Datacenter)(nil),                 // 13: protocol.Datacenter
+	(*CLReq)(nil),                      // 14: protocol.CLReq
+	(*HSReq)(nil),                      // 15: protocol.HSReq
+	(*VMReqKey)(nil),                   // 16: protocol.VMReqKey
+	(*HSReqKey)(nil),                   // 17: protocol.HSReqKey
+	(*CLReqKey)(nil),                   // 18: protocol.CLReqKey
+	(*VMReqListKey)(nil),               // 19: protocol.VMReqListKey
+	(*HSReqListKey)(nil),               // 20: protocol.HSReqListKey
+	(*CLReqListKey)(nil),               // 21: protocol.CLReqListKey
+	(*VMReqVMName)(nil),                // 22: protocol.VMReqVMName
+	(*VMReqVcenter)(nil),               // 23: protocol.VMReqVcenter
+	(*VMReqDatacenter)(nil),            // 24: protocol.VMReqDatacenter
+	(*VMReqCluster)(nil),               // 25: protocol.VMReqCluster
+	(*VMKeyRec)(nil),                   // 26: protocol.VMKeyRec
+	(*HSKeyRec)(nil),                   // 27: protocol.HSKeyRec
+	(*CLKeyRec)(nil),                   // 28: protocol.CLKeyRec
+	(*VMListKey)(nil),                  // 29: protocol.VMListKey
+	(*HSListKey)(nil),                  // 30: protocol.HSListKey
+	(*CLListKey)(nil),                  // 31: protocol.CLListKey
+	(*VMPerf)(nil),                     // 32: protocol.VMPerf
+	(*HSPerf)(nil),                     // 33: protocol.HSPerf
+	(*CLPerf)(nil),                     // 34: protocol.CLPerf
+	(*VMPerfSlice)(nil),                // 35: protocol.VMPerfSlice
+	(*HSPerfSlice)(nil),                // 36: protocol.HSPerfSlice
+	(*CLPerfSlice)(nil),                // 37: protocol.CLPerfSlice
+	(*GuestDiskInfo)(nil),              // 38: protocol.GuestDiskInfo
+	(*GuestDiskSlice)(nil),             // 39: protocol.GuestDiskSlice
+	(*VMUsageOnDatastore)(nil),         // 40: protocol.VMUsageOnDatastore
+	(*VMUsageOnDatastoreSlice)(nil),    // 41: protocol.VMUsageOnDatastoreSlice
+	(*VMFile)(nil),                     // 42: protocol.VMFile
+	(*VMFileSlice)(nil),                // 43: protocol.VMFileSlice
+	(*Datastore)(nil),                  // 44: protocol.Datastore
+	(*DatastoreSlice)(nil),             // 45: protocol.DatastoreSlice
+	(*ScsiLun)(nil),                    // 46: protocol.ScsiLun
+	(*ScsiLunSlice)(nil),               // 47: protocol.ScsiLunSlice
+	(*Metric)(nil),                     // 48: protocol.Metric
+	(*VMPoint)(nil),                    // 49: protocol.VMPoint
+	(*VMPointShort)(nil),               // 50: protocol.VMPointShort
+	(*VMPointSlice)(nil),               // 51: protocol.VMPointSlice
+	(*Host)(nil),                       // 52: protocol.Host
+	(*HostFull)(nil),                   // 53: protocol.HostFull
+	(*Cluster)(nil),                    // 54: protocol.Cluster
+	(*ClusterFull)(nil),                // 55: protocol.ClusterFull
+	(*ClusterShort)(nil),               // 56: protocol.ClusterShort
+	(*SerialNumber)(nil),               // 57: protocol.SerialNumber
+	(*ServerName)(nil),                 // 58: protocol.ServerName
+	(*ServerHardware)(nil),             // 59: protocol.ServerHardware
+	(*OVServerHardware)(nil),           // 60: protocol.OVServerHardware
+	(*ServerHardwareMemory)(nil),       // 61: protocol.ServerHardwareMemory
+	(*MemoryStatus)(nil),               // 62: protocol.MemoryStatus
+	(*MemoryLocation)(nil),             // 63: protocol.MemoryLocation
+	(*Hpe)(nil),                        // 64: protocol.Hpe
+	(*OemMemory)(nil),                  // 65: protocol.OemMemory
+	(*MemoryModule)(nil),               // 66: protocol.MemoryModule
+	(*ServerHardwareLocalStorage)(nil), // 67: protocol.ServerHardwareLocalStorage
+	(*Status)(nil),                     // 68: protocol.Status
+	(*LocalStorage)(nil),               // 69: protocol.LocalStorage
+	(*CacheModuleStatus)(nil),          // 70: protocol.CacheModuleStatus
+	(*ControllerBoard)(nil),            // 71: protocol.ControllerBoard
+	(*ControllerSatus)(nil),            // 72: protocol.ControllerSatus
+	(*Version)(nil),                    // 73: protocol.Version
+	(*FirmwareVersion)(nil),            // 74: protocol.FirmwareVersion
+	(*LogicalDataDrive)(nil),           // 75: protocol.LogicalDataDrive
+	(*LocalLogicalDrive)(nil),          // 76: protocol.LocalLogicalDrive
+	(*LocalPhysicalDrive)(nil),         // 77: protocol.LocalPhysicalDrive
+	(*LocalStorageEnclosure)(nil),      // 78: protocol.LocalStorageEnclosure
+	(*Contents)(nil),                   // 79: protocol.Contents
+	(*DatacenterInfo)(nil),             // 80: protocol.DatacenterInfo
+	(*Racks)(nil),                      // 81: protocol.Racks
+	(*DeviceBayInfo)(nil),              // 82: protocol.DeviceBayInfo
+	(*InterconnectBayInfo)(nil),        // 83: protocol.InterconnectBayInfo
+	(*FanBayInfo)(nil),                 // 84: protocol.FanBayInfo
+	(*PowerSupplyBayInfo)(nil),         // 85: protocol.PowerSupplyBayInfo
+	(*ManagerBayInfo)(nil),             // 86: protocol.ManagerBayInfo
+	(*Enclosure)(nil),                  // 87: protocol.Enclosure
+	(*OVProcessorInfo)(nil),            // 88: protocol.OVProcessorInfo
+	(*OVNetworkPort)(nil),              // 89: protocol.OVNetworkPort
+	(*OVPCIDevice)(nil),                // 90: protocol.OVPCIDevice
+	(*OVFirmwareComponent)(nil),        // 91: protocol.OVFirmwareComponent
+	(*OVServerSource)(nil),             // 92: protocol.OVServerSource
+	(*OVServerMetadata)(nil),           // 93: protocol.OVServerMetadata
+	(*timestamppb.Timestamp)(nil),      // 94: google.protobuf.Timestamp
 }
 var file_vm_proto_depIdxs = []int32{
-	8,   // 0: protocol.RegisterEndpoint.VCenter:type_name -> protocol.VCenter
-	9,   // 1: protocol.RegisterEndpoint.OneView:type_name -> protocol.OV
-	92,  // 2: protocol.ClearMetricKey.Start:type_name -> google.protobuf.Timestamp
-	92,  // 3: protocol.ClearMetricKey.End:type_name -> google.protobuf.Timestamp
-	92,  // 4: protocol.Duration.Start:type_name -> google.protobuf.Timestamp
-	92,  // 5: protocol.Duration.End:type_name -> google.protobuf.Timestamp
-	24,  // 6: protocol.VMListKey.KeyRecs:type_name -> protocol.VMKeyRec
-	25,  // 7: protocol.HSListKey.KeyRecs:type_name -> protocol.HSKeyRec
-	26,  // 8: protocol.CLListKey.KeyRecs:type_name -> protocol.CLKeyRec
-	92,  // 9: protocol.VMPerf.Start:type_name -> google.protobuf.Timestamp
-	92,  // 10: protocol.HSPerf.Start:type_name -> google.protobuf.Timestamp
-	92,  // 11: protocol.CLPerf.Start:type_name -> google.protobuf.Timestamp
-	30,  // 12: protocol.VMPerfSlice.Perf:type_name -> protocol.VMPerf
-	31,  // 13: protocol.HSPerfSlice.Perf:type_name -> protocol.HSPerf
-	32,  // 14: protocol.CLPerfSlice.Perf:type_name -> protocol.CLPerf
-	36,  // 15: protocol.GuestDiskSlice.GuestDisks:type_name -> protocol.GuestDiskInfo
-	38,  // 16: protocol.VMUsageOnDatastoreSlice.UsageOnDatastores:type_name -> protocol.VMUsageOnDatastore
-	40,  // 17: protocol.VMFileSlice.VMFiles:type_name -> protocol.VMFile
-	27,  // 18: protocol.Datastore.VmKeys:type_name -> protocol.VMListKey
-	42,  // 19: protocol.DatastoreSlice.Datastores:type_name -> protocol.Datastore
-	44,  // 20: protocol.ScsiLunSlice.ScsiLuns:type_name -> protocol.ScsiLun
-	92,  // 21: protocol.VMPoint.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 22: protocol.VMPoint.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 23: protocol.VMPoint.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 24: protocol.VMPoint.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 25: protocol.VMPoint.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 26: protocol.VMPoint.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 27: protocol.VMPoint.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 28: protocol.VMPoint.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 29: protocol.VMPoint.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 30: protocol.VMPoint.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 31: protocol.VMPoint.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 32: protocol.VMPoint.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	30,  // 33: protocol.VMPoint.Perf:type_name -> protocol.VMPerf
-	40,  // 34: protocol.VMPoint.VMFiles:type_name -> protocol.VMFile
-	36,  // 35: protocol.VMPoint.VMDisk:type_name -> protocol.GuestDiskInfo
-	38,  // 36: protocol.VMPoint.UsageDatastore:type_name -> protocol.VMUsageOnDatastore
-	92,  // 37: protocol.VMPointShort.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 38: protocol.VMPointShort.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 39: protocol.VMPointShort.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 40: protocol.VMPointShort.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 41: protocol.VMPointShort.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 42: protocol.VMPointShort.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 43: protocol.VMPointShort.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 44: protocol.VMPointShort.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 45: protocol.VMPointShort.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 46: protocol.VMPointShort.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 47: protocol.VMPointShort.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 48: protocol.VMPointShort.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	47,  // 49: protocol.VMPointSlice.VMPoints:type_name -> protocol.VMPoint
-	92,  // 50: protocol.Host.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 51: protocol.Host.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 52: protocol.Host.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 53: protocol.Host.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 54: protocol.Host.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 55: protocol.Host.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 56: protocol.Host.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 57: protocol.Host.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 58: protocol.Host.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 59: protocol.Host.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 60: protocol.Host.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 61: protocol.Host.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 62: protocol.HostFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 63: protocol.HostFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 64: protocol.HostFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 65: protocol.HostFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 66: protocol.HostFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 67: protocol.HostFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 68: protocol.HostFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 69: protocol.HostFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 70: protocol.HostFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 71: protocol.HostFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 72: protocol.HostFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 73: protocol.HostFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	31,  // 74: protocol.HostFull.Perf:type_name -> protocol.HSPerf
-	92,  // 75: protocol.Cluster.Date:type_name -> google.protobuf.Timestamp
-	92,  // 76: protocol.Cluster.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 77: protocol.Cluster.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 78: protocol.Cluster.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 79: protocol.Cluster.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 80: protocol.Cluster.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 81: protocol.Cluster.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 82: protocol.Cluster.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 83: protocol.Cluster.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 84: protocol.Cluster.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 85: protocol.Cluster.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 86: protocol.Cluster.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 87: protocol.Cluster.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 88: protocol.ClusterFull.Date:type_name -> google.protobuf.Timestamp
-	92,  // 89: protocol.ClusterFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 90: protocol.ClusterFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 91: protocol.ClusterFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 92: protocol.ClusterFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 93: protocol.ClusterFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 94: protocol.ClusterFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 95: protocol.ClusterFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 96: protocol.ClusterFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 97: protocol.ClusterFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 98: protocol.ClusterFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	92,  // 99: protocol.ClusterFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	92,  // 100: protocol.ClusterFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	32,  // 101: protocol.ClusterFull.Perf:type_name -> protocol.CLPerf
-	42,  // 102: protocol.ClusterFull.Storages:type_name -> protocol.Datastore
-	58,  // 103: protocol.ServerHardware.Base:type_name -> protocol.OVServerHardware
-	59,  // 104: protocol.ServerHardware.Memory:type_name -> protocol.ServerHardwareMemory
-	65,  // 105: protocol.ServerHardware.Storage:type_name -> protocol.ServerHardwareLocalStorage
-	78,  // 106: protocol.ServerHardware.Datacenter:type_name -> protocol.DatacenterInfo
-	79,  // 107: protocol.ServerHardware.Rack:type_name -> protocol.Racks
-	85,  // 108: protocol.ServerHardware.EnclosureInfo:type_name -> protocol.Enclosure
-	80,  // 109: protocol.ServerHardware.BayInfo:type_name -> protocol.DeviceBayInfo
-	86,  // 110: protocol.ServerHardware.Processors:type_name -> protocol.OVProcessorInfo
-	87,  // 111: protocol.ServerHardware.NetworkPorts:type_name -> protocol.OVNetworkPort
-	88,  // 112: protocol.ServerHardware.Devices:type_name -> protocol.OVPCIDevice
-	89,  // 113: protocol.ServerHardware.Firmware:type_name -> protocol.OVFirmwareComponent
-	91,  // 114: protocol.ServerHardware.Metadata:type_name -> protocol.OVServerMetadata
-	92,  // 115: protocol.ServerHardwareMemory.Modified:type_name -> google.protobuf.Timestamp
-	64,  // 116: protocol.ServerHardwareMemory.Data:type_name -> protocol.MemoryModule
-	62,  // 117: protocol.OemMemory.Hpe:type_name -> protocol.Hpe
-	61,  // 118: protocol.MemoryModule.MemoryLocation:type_name -> protocol.MemoryLocation
-	63,  // 119: protocol.MemoryModule.Oem:type_name -> protocol.OemMemory
-	60,  // 120: protocol.MemoryModule.Status:type_name -> protocol.MemoryStatus
-	92,  // 121: protocol.ServerHardwareLocalStorage.Modified:type_name -> google.protobuf.Timestamp
-	67,  // 122: protocol.ServerHardwareLocalStorage.Data:type_name -> protocol.LocalStorage
-	68,  // 123: protocol.LocalStorage.CacheModuleStatus:type_name -> protocol.CacheModuleStatus
-	69,  // 124: protocol.LocalStorage.ControllerBoard:type_name -> protocol.ControllerBoard
-	72,  // 125: protocol.LocalStorage.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	74,  // 126: protocol.LocalStorage.LogicalDrives:type_name -> protocol.LocalLogicalDrive
-	75,  // 127: protocol.LocalStorage.PhysicalDrives:type_name -> protocol.LocalPhysicalDrive
-	66,  // 128: protocol.LocalStorage.Status:type_name -> protocol.Status
-	76,  // 129: protocol.LocalStorage.StorageEnclosures:type_name -> protocol.LocalStorageEnclosure
-	70,  // 130: protocol.ControllerBoard.Status:type_name -> protocol.ControllerSatus
-	71,  // 131: protocol.FirmwareVersion.Current:type_name -> protocol.Version
-	72,  // 132: protocol.LogicalDataDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	66,  // 133: protocol.LogicalDataDrive.Status:type_name -> protocol.Status
-	73,  // 134: protocol.LocalLogicalDrive.DataDrives:type_name -> protocol.LogicalDataDrive
-	66,  // 135: protocol.LocalLogicalDrive.Status:type_name -> protocol.Status
-	72,  // 136: protocol.LocalPhysicalDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	66,  // 137: protocol.LocalPhysicalDrive.Status:type_name -> protocol.Status
-	72,  // 138: protocol.LocalStorageEnclosure.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	66,  // 139: protocol.LocalStorageEnclosure.Status:type_name -> protocol.Status
-	77,  // 140: protocol.DatacenterInfo.Contents:type_name -> protocol.Contents
-	92,  // 141: protocol.DatacenterInfo.Created:type_name -> google.protobuf.Timestamp
-	92,  // 142: protocol.DatacenterInfo.Modified:type_name -> google.protobuf.Timestamp
-	92,  // 143: protocol.Racks.Created:type_name -> google.protobuf.Timestamp
-	92,  // 144: protocol.Racks.Modified:type_name -> google.protobuf.Timestamp
-	92,  // 145: protocol.Enclosure.Created:type_name -> google.protobuf.Timestamp
-	92,  // 146: protocol.Enclosure.Modified:type_name -> google.protobuf.Timestamp
-	80,  // 147: protocol.Enclosure.DeviceBays:type_name -> protocol.DeviceBayInfo
-	81,  // 148: protocol.Enclosure.InterconnectBays:type_name -> protocol.InterconnectBayInfo
-	82,  // 149: protocol.Enclosure.FanBays:type_name -> protocol.FanBayInfo
-	83,  // 150: protocol.Enclosure.PowerSupplyBays:type_name -> protocol.PowerSupplyBayInfo
-	84,  // 151: protocol.Enclosure.ManagerBays:type_name -> protocol.ManagerBayInfo
-	90,  // 152: protocol.OVServerMetadata.Sources:type_name -> protocol.OVServerSource
-	7,   // 153: protocol.Loadmon.GetVCenters:input_type -> protocol.VCReq
-	10,  // 154: protocol.Loadmon.GetDatacenter:input_type -> protocol.DCReq
-	12,  // 155: protocol.Loadmon.GetCluster:input_type -> protocol.CLReq
-	12,  // 156: protocol.Loadmon.GetClusterMedium:input_type -> protocol.CLReq
-	12,  // 157: protocol.Loadmon.GetClusterMetrics:input_type -> protocol.CLReq
-	12,  // 158: protocol.Loadmon.GetClusterFull:input_type -> protocol.CLReq
-	12,  // 159: protocol.Loadmon.GetClusterStorages:input_type -> protocol.CLReq
-	12,  // 160: protocol.Loadmon.GetClusterHost:input_type -> protocol.CLReq
-	13,  // 161: protocol.Loadmon.GetHostFull:input_type -> protocol.HSReq
-	14,  // 162: protocol.Loadmon.GetVMByKey:input_type -> protocol.VMReqKey
-	27,  // 163: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
-	27,  // 164: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
-	14,  // 165: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
-	17,  // 166: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
-	18,  // 167: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
-	19,  // 168: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
-	20,  // 169: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
-	23,  // 170: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
-	21,  // 171: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
-	22,  // 172: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
-	14,  // 173: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
-	14,  // 174: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
-	14,  // 175: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
-	14,  // 176: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
-	15,  // 177: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
-	15,  // 178: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
-	16,  // 179: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
-	15,  // 180: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
-	55,  // 181: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
-	16,  // 182: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
-	6,   // 183: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
-	6,   // 184: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
-	4,   // 185: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
-	3,   // 186: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
-	3,   // 187: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
-	55,  // 188: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
-	56,  // 189: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
-	55,  // 190: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
+	10,  // 0: protocol.RegisterEndpoint.VCenter:type_name -> protocol.VCenter
+	11,  // 1: protocol.RegisterEndpoint.OneView:type_name -> protocol.OV
+	94,  // 2: protocol.ClearMetricKey.Start:type_name -> google.protobuf.Timestamp
+	94,  // 3: protocol.ClearMetricKey.End:type_name -> google.protobuf.Timestamp
+	94,  // 4: protocol.Duration.Start:type_name -> google.protobuf.Timestamp
+	94,  // 5: protocol.Duration.End:type_name -> google.protobuf.Timestamp
+	26,  // 6: protocol.VMListKey.KeyRecs:type_name -> protocol.VMKeyRec
+	27,  // 7: protocol.HSListKey.KeyRecs:type_name -> protocol.HSKeyRec
+	28,  // 8: protocol.CLListKey.KeyRecs:type_name -> protocol.CLKeyRec
+	94,  // 9: protocol.VMPerf.Start:type_name -> google.protobuf.Timestamp
+	94,  // 10: protocol.HSPerf.Start:type_name -> google.protobuf.Timestamp
+	94,  // 11: protocol.CLPerf.Start:type_name -> google.protobuf.Timestamp
+	32,  // 12: protocol.VMPerfSlice.Perf:type_name -> protocol.VMPerf
+	33,  // 13: protocol.HSPerfSlice.Perf:type_name -> protocol.HSPerf
+	34,  // 14: protocol.CLPerfSlice.Perf:type_name -> protocol.CLPerf
+	38,  // 15: protocol.GuestDiskSlice.GuestDisks:type_name -> protocol.GuestDiskInfo
+	40,  // 16: protocol.VMUsageOnDatastoreSlice.UsageOnDatastores:type_name -> protocol.VMUsageOnDatastore
+	42,  // 17: protocol.VMFileSlice.VMFiles:type_name -> protocol.VMFile
+	29,  // 18: protocol.Datastore.VmKeys:type_name -> protocol.VMListKey
+	44,  // 19: protocol.DatastoreSlice.Datastores:type_name -> protocol.Datastore
+	46,  // 20: protocol.ScsiLunSlice.ScsiLuns:type_name -> protocol.ScsiLun
+	94,  // 21: protocol.VMPoint.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 22: protocol.VMPoint.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 23: protocol.VMPoint.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 24: protocol.VMPoint.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 25: protocol.VMPoint.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 26: protocol.VMPoint.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 27: protocol.VMPoint.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 28: protocol.VMPoint.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 29: protocol.VMPoint.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 30: protocol.VMPoint.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 31: protocol.VMPoint.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 32: protocol.VMPoint.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	32,  // 33: protocol.VMPoint.Perf:type_name -> protocol.VMPerf
+	42,  // 34: protocol.VMPoint.VMFiles:type_name -> protocol.VMFile
+	38,  // 35: protocol.VMPoint.VMDisk:type_name -> protocol.GuestDiskInfo
+	40,  // 36: protocol.VMPoint.UsageDatastore:type_name -> protocol.VMUsageOnDatastore
+	94,  // 37: protocol.VMPointShort.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 38: protocol.VMPointShort.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 39: protocol.VMPointShort.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 40: protocol.VMPointShort.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 41: protocol.VMPointShort.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 42: protocol.VMPointShort.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 43: protocol.VMPointShort.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 44: protocol.VMPointShort.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 45: protocol.VMPointShort.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 46: protocol.VMPointShort.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 47: protocol.VMPointShort.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 48: protocol.VMPointShort.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	49,  // 49: protocol.VMPointSlice.VMPoints:type_name -> protocol.VMPoint
+	94,  // 50: protocol.Host.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 51: protocol.Host.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 52: protocol.Host.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 53: protocol.Host.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 54: protocol.Host.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 55: protocol.Host.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 56: protocol.Host.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 57: protocol.Host.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 58: protocol.Host.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 59: protocol.Host.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 60: protocol.Host.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 61: protocol.Host.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 62: protocol.HostFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 63: protocol.HostFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 64: protocol.HostFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 65: protocol.HostFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 66: protocol.HostFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 67: protocol.HostFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 68: protocol.HostFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 69: protocol.HostFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 70: protocol.HostFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 71: protocol.HostFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 72: protocol.HostFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 73: protocol.HostFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	33,  // 74: protocol.HostFull.Perf:type_name -> protocol.HSPerf
+	94,  // 75: protocol.Cluster.Date:type_name -> google.protobuf.Timestamp
+	94,  // 76: protocol.Cluster.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 77: protocol.Cluster.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 78: protocol.Cluster.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 79: protocol.Cluster.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 80: protocol.Cluster.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 81: protocol.Cluster.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 82: protocol.Cluster.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 83: protocol.Cluster.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 84: protocol.Cluster.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 85: protocol.Cluster.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 86: protocol.Cluster.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 87: protocol.Cluster.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 88: protocol.ClusterFull.Date:type_name -> google.protobuf.Timestamp
+	94,  // 89: protocol.ClusterFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 90: protocol.ClusterFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 91: protocol.ClusterFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 92: protocol.ClusterFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 93: protocol.ClusterFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 94: protocol.ClusterFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 95: protocol.ClusterFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 96: protocol.ClusterFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 97: protocol.ClusterFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 98: protocol.ClusterFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	94,  // 99: protocol.ClusterFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	94,  // 100: protocol.ClusterFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	34,  // 101: protocol.ClusterFull.Perf:type_name -> protocol.CLPerf
+	44,  // 102: protocol.ClusterFull.Storages:type_name -> protocol.Datastore
+	60,  // 103: protocol.ServerHardware.Base:type_name -> protocol.OVServerHardware
+	61,  // 104: protocol.ServerHardware.Memory:type_name -> protocol.ServerHardwareMemory
+	67,  // 105: protocol.ServerHardware.Storage:type_name -> protocol.ServerHardwareLocalStorage
+	80,  // 106: protocol.ServerHardware.Datacenter:type_name -> protocol.DatacenterInfo
+	81,  // 107: protocol.ServerHardware.Rack:type_name -> protocol.Racks
+	87,  // 108: protocol.ServerHardware.EnclosureInfo:type_name -> protocol.Enclosure
+	82,  // 109: protocol.ServerHardware.BayInfo:type_name -> protocol.DeviceBayInfo
+	88,  // 110: protocol.ServerHardware.Processors:type_name -> protocol.OVProcessorInfo
+	89,  // 111: protocol.ServerHardware.NetworkPorts:type_name -> protocol.OVNetworkPort
+	90,  // 112: protocol.ServerHardware.Devices:type_name -> protocol.OVPCIDevice
+	91,  // 113: protocol.ServerHardware.Firmware:type_name -> protocol.OVFirmwareComponent
+	93,  // 114: protocol.ServerHardware.Metadata:type_name -> protocol.OVServerMetadata
+	94,  // 115: protocol.ServerHardwareMemory.Modified:type_name -> google.protobuf.Timestamp
+	66,  // 116: protocol.ServerHardwareMemory.Data:type_name -> protocol.MemoryModule
+	64,  // 117: protocol.OemMemory.Hpe:type_name -> protocol.Hpe
+	63,  // 118: protocol.MemoryModule.MemoryLocation:type_name -> protocol.MemoryLocation
+	65,  // 119: protocol.MemoryModule.Oem:type_name -> protocol.OemMemory
+	62,  // 120: protocol.MemoryModule.Status:type_name -> protocol.MemoryStatus
+	94,  // 121: protocol.ServerHardwareLocalStorage.Modified:type_name -> google.protobuf.Timestamp
+	69,  // 122: protocol.ServerHardwareLocalStorage.Data:type_name -> protocol.LocalStorage
+	70,  // 123: protocol.LocalStorage.CacheModuleStatus:type_name -> protocol.CacheModuleStatus
+	71,  // 124: protocol.LocalStorage.ControllerBoard:type_name -> protocol.ControllerBoard
+	74,  // 125: protocol.LocalStorage.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	76,  // 126: protocol.LocalStorage.LogicalDrives:type_name -> protocol.LocalLogicalDrive
+	77,  // 127: protocol.LocalStorage.PhysicalDrives:type_name -> protocol.LocalPhysicalDrive
+	68,  // 128: protocol.LocalStorage.Status:type_name -> protocol.Status
+	78,  // 129: protocol.LocalStorage.StorageEnclosures:type_name -> protocol.LocalStorageEnclosure
+	72,  // 130: protocol.ControllerBoard.Status:type_name -> protocol.ControllerSatus
+	73,  // 131: protocol.FirmwareVersion.Current:type_name -> protocol.Version
+	74,  // 132: protocol.LogicalDataDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	68,  // 133: protocol.LogicalDataDrive.Status:type_name -> protocol.Status
+	75,  // 134: protocol.LocalLogicalDrive.DataDrives:type_name -> protocol.LogicalDataDrive
+	68,  // 135: protocol.LocalLogicalDrive.Status:type_name -> protocol.Status
+	74,  // 136: protocol.LocalPhysicalDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	68,  // 137: protocol.LocalPhysicalDrive.Status:type_name -> protocol.Status
+	74,  // 138: protocol.LocalStorageEnclosure.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	68,  // 139: protocol.LocalStorageEnclosure.Status:type_name -> protocol.Status
+	79,  // 140: protocol.DatacenterInfo.Contents:type_name -> protocol.Contents
+	94,  // 141: protocol.DatacenterInfo.Created:type_name -> google.protobuf.Timestamp
+	94,  // 142: protocol.DatacenterInfo.Modified:type_name -> google.protobuf.Timestamp
+	94,  // 143: protocol.Racks.Created:type_name -> google.protobuf.Timestamp
+	94,  // 144: protocol.Racks.Modified:type_name -> google.protobuf.Timestamp
+	94,  // 145: protocol.Enclosure.Created:type_name -> google.protobuf.Timestamp
+	94,  // 146: protocol.Enclosure.Modified:type_name -> google.protobuf.Timestamp
+	82,  // 147: protocol.Enclosure.DeviceBays:type_name -> protocol.DeviceBayInfo
+	83,  // 148: protocol.Enclosure.InterconnectBays:type_name -> protocol.InterconnectBayInfo
+	84,  // 149: protocol.Enclosure.FanBays:type_name -> protocol.FanBayInfo
+	85,  // 150: protocol.Enclosure.PowerSupplyBays:type_name -> protocol.PowerSupplyBayInfo
+	86,  // 151: protocol.Enclosure.ManagerBays:type_name -> protocol.ManagerBayInfo
+	92,  // 152: protocol.OVServerMetadata.Sources:type_name -> protocol.OVServerSource
+	9,   // 153: protocol.Loadmon.GetVCenters:input_type -> protocol.VCReq
+	12,  // 154: protocol.Loadmon.GetDatacenter:input_type -> protocol.DCReq
+	14,  // 155: protocol.Loadmon.GetCluster:input_type -> protocol.CLReq
+	14,  // 156: protocol.Loadmon.GetClusterMedium:input_type -> protocol.CLReq
+	14,  // 157: protocol.Loadmon.GetClusterMetrics:input_type -> protocol.CLReq
+	14,  // 158: protocol.Loadmon.GetClusterFull:input_type -> protocol.CLReq
+	14,  // 159: protocol.Loadmon.GetClusterStorages:input_type -> protocol.CLReq
+	14,  // 160: protocol.Loadmon.GetClusterHost:input_type -> protocol.CLReq
+	15,  // 161: protocol.Loadmon.GetHostFull:input_type -> protocol.HSReq
+	16,  // 162: protocol.Loadmon.GetVMByKey:input_type -> protocol.VMReqKey
+	29,  // 163: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
+	29,  // 164: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
+	16,  // 165: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
+	19,  // 166: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
+	20,  // 167: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
+	21,  // 168: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
+	22,  // 169: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
+	25,  // 170: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
+	23,  // 171: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
+	24,  // 172: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
+	16,  // 173: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
+	16,  // 174: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
+	16,  // 175: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
+	16,  // 176: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
+	17,  // 177: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
+	17,  // 178: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
+	18,  // 179: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
+	17,  // 180: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
+	57,  // 181: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
+	18,  // 182: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
+	8,   // 183: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
+	8,   // 184: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
+	6,   // 185: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
+	5,   // 186: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
+	5,   // 187: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
+	57,  // 188: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
+	58,  // 189: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
+	57,  // 190: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
 	2,   // 191: protocol.Loadmon.GetServerHardwareList:input_type -> protocol.HWReq
-	1,   // 192: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
-	0,   // 193: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
-	8,   // 194: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
-	11,  // 195: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
-	54,  // 196: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
-	52,  // 197: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
-	32,  // 198: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
-	53,  // 199: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
-	42,  // 200: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
-	50,  // 201: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
-	51,  // 202: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
-	47,  // 203: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
-	49,  // 204: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
-	47,  // 205: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
-	48,  // 206: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
-	27,  // 207: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
-	28,  // 208: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
-	29,  // 209: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
-	27,  // 210: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
-	27,  // 211: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
-	27,  // 212: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
-	27,  // 213: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
-	33,  // 214: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
-	41,  // 215: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
-	37,  // 216: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
-	39,  // 217: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
-	31,  // 218: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
-	34,  // 219: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
-	35,  // 220: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
-	50,  // 221: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
-	50,  // 222: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
-	52,  // 223: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
-	42,  // 224: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
-	42,  // 225: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
-	5,   // 226: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
-	5,   // 227: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
-	5,   // 228: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
-	57,  // 229: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
-	57,  // 230: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
-	57,  // 231: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
-	57,  // 232: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
-	5,   // 233: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
-	1,   // 234: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
-	194, // [194:235] is the sub-list for method output_type
-	153, // [153:194] is the sub-list for method input_type
+	3,   // 192: protocol.Loadmon.GetHWDatacenterNames:input_type -> protocol.Empty
+	3,   // 193: protocol.Loadmon.GetHWRackNames:input_type -> protocol.Empty
+	1,   // 194: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
+	0,   // 195: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
+	10,  // 196: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
+	13,  // 197: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
+	56,  // 198: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
+	54,  // 199: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
+	34,  // 200: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
+	55,  // 201: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
+	44,  // 202: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
+	52,  // 203: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
+	53,  // 204: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
+	49,  // 205: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
+	51,  // 206: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
+	49,  // 207: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
+	50,  // 208: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
+	29,  // 209: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
+	30,  // 210: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
+	31,  // 211: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
+	29,  // 212: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
+	29,  // 213: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
+	29,  // 214: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
+	29,  // 215: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
+	35,  // 216: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
+	43,  // 217: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
+	39,  // 218: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
+	41,  // 219: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
+	33,  // 220: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
+	36,  // 221: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
+	37,  // 222: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
+	52,  // 223: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
+	52,  // 224: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
+	54,  // 225: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
+	44,  // 226: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
+	44,  // 227: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
+	7,   // 228: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
+	7,   // 229: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
+	7,   // 230: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
+	59,  // 231: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
+	59,  // 232: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
+	59,  // 233: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
+	59,  // 234: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
+	4,   // 235: protocol.Loadmon.GetHWDatacenterNames:output_type -> protocol.NameList
+	4,   // 236: protocol.Loadmon.GetHWRackNames:output_type -> protocol.NameList
+	7,   // 237: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
+	1,   // 238: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
+	196, // [196:239] is the sub-list for method output_type
+	153, // [153:196] is the sub-list for method input_type
 	153, // [153:153] is the sub-list for extension type_name
 	153, // [153:153] is the sub-list for extension extendee
 	0,   // [0:153] is the sub-list for field type_name
@@ -11558,7 +11682,7 @@ func file_vm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vm_proto_rawDesc), len(file_vm_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   92,
+			NumMessages:   94,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

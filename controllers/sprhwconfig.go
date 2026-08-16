@@ -438,6 +438,90 @@ func parseHWConfigDate(s string) time.Time {
 // обновляет, а создаёт новую запись (o.Insert) и переходит на страницу
 // редактирования уже созданной записи по её настоящему Id.
 //
+// SprHwConfigEditBySN находит запись models.ServerHardware по серийному
+// номеру (SerialNum) и переходит на её карточку /sprsrv/hwconfedit/:id,
+// найденному по внутреннему Id. Используется пунктом меню "Конфигурация
+// сервера" на /sprsrv/view2 (там для строк аппаратного сервера/гипервизора
+// известен только серийный номер оборудования, а не внутренний Id записи
+// server_hardware - в отличие от /sprsrv/hwconflist, где ссылка строится по
+// уже загруженной записи и её Id известен сразу).
+//
+// Если запись с таким серийным номером не найдена, пользователь
+// перенаправляется на форму создания новой записи (/sprsrv/hwconfedit/0) с
+// предупреждением в flash - серийный номер при этом не подставляется
+// автоматически, так как форма добавления не принимает предзаполнение через
+// параметры запроса.
+//
+// Маршрут: /sprsrv/hwconfeditbysn/:SN
+func (this *MainController) SprHwConfigEditBySN() {
+	sn := this.Ctx.Input.Param(":SN")
+
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Redirect("/user/login/sprsrv_hwconfeditbysn_"+sn, 302)
+		return
+	}
+
+	flash := beego.NewFlash()
+
+	o := orm.NewOrm()
+	var rec models.ServerHardware
+	if err := o.QueryTable("server_hardware").Filter("SerialNum", sn).One(&rec); err != nil {
+		flash.Notice("Запись конфигурации сервера с серийным номером \"%s\" не найдена. Можно создать новую.", sn)
+		flash.Store(&this.Controller)
+		this.Redirect("/sprsrv/hwconfedit/0", 302)
+		return
+	}
+
+	this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit/%d", rec.Id), 302)
+}
+
+// SprHwConfigEditByName находит запись справочника серверов
+// (models.ServerSprRecords) по имени (Name) - физический сервер или
+// гипервизор VMware (Type 0/2) - и переходит на карточку связанной с ней
+// записи конфигурации оборудования (models.ServerHardware) по её Id
+// (ServerSprRecords.HWSprId - прямая ссылка на server_hardware, см.
+// cmdb/savedata.go и др.). В отличие от SprHwConfigEditBySN (поиск по
+// серийному номеру оборудования), здесь ключ поиска - имя записи
+// справочника серверов, как оно хранится в БД (совпадает с именем
+// хоста/сервера, а не с серийным номером) - нужен для ссылок оттуда, где
+// известно только имя (например, хосты кластера на /sprsrv/cluster/...,
+// у которых серийный номер оборудования не всегда собирается через
+// vSphere).
+//
+// Если запись справочника серверов с таким именем не найдена, или найдена,
+// но ссылки на конфигурацию оборудования у неё нет (HWSprId == 0),
+// пользователь перенаправляется на форму создания новой записи
+// конфигурации (/sprsrv/hwconfedit/0) с уведомлением в flash.
+//
+// Маршрут: /sprsrv/hwconfeditbyname/:Name
+func (this *MainController) SprHwConfigEditByName() {
+	name := this.Ctx.Input.Param(":Name")
+
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Redirect("/user/login/sprsrv_hwconfeditbyname_"+name, 302)
+		return
+	}
+
+	flash := beego.NewFlash()
+
+	o := orm.NewOrm()
+	var rec models.ServerSprRecords
+	err := o.QueryTable("server_spr_records").
+		Filter("Name", name).
+		Filter("Type__in", 0, 2).
+		One(&rec)
+	if err != nil || rec.HWSprId <= 0 {
+		flash.Notice("Запись конфигурации сервера/гипервизора с именем \"%s\" не найдена. Можно создать новую.", name)
+		flash.Store(&this.Controller)
+		this.Redirect("/sprsrv/hwconfedit/0", 302)
+		return
+	}
+
+	this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit/%d", rec.HWSprId), 302)
+}
+
 // Маршрут: /sprsrv/hwconfedit/:id
 func (this *MainController) SprHwConfigEdit() {
 

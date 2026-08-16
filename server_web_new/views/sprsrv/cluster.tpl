@@ -16,6 +16,39 @@ function selectdatacenter(val) {
 function selectcluster(val) {
     document.getElementById("Update").submit();
 }
+
+// Закрепление панели фильтра вверху экрана можно отключить чекбоксом -
+// приём идентичен /sprsrv/hwviewlist и /sprsrv/hwconflist/0, выбор
+// запоминается отдельным ключом в localStorage.
+(function () {
+    var STORAGE_KEY = 'cluster.filterSticky';
+
+    function init() {
+        var bar = document.querySelector('.cluster-filter-bar');
+        var toggle = document.getElementById('clusterFilterStickyToggle');
+        if (!bar || !toggle) return;
+
+        function applySticky(sticky) {
+            bar.classList.toggle('cluster-filter-bar-unpinned', !sticky);
+            toggle.checked = sticky;
+        }
+
+        var stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applySticky(stored === null ? true : stored === '1');
+
+        window.clusterToggleFilterSticky = function (sticky) {
+            applySticky(sticky);
+            try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
+        };
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
 </script>
 
 <style>
@@ -26,9 +59,33 @@ function selectcluster(val) {
 .hidestorage {
     display: none;
 }
+
+.cluster-filter-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+}
+
+.cluster-filter-bar.cluster-filter-bar-unpinned {
+    position: static;
+    box-shadow: none;
+}
+
+/* svg.bi без явного размера (в отличие от .power-led на других страницах)
+   рендерится в размере viewBox самого символа #activity, а не в размере
+   текста рядом - из-за этого иконка "график загрузки ВМ" выглядела в разы
+   крупнее остальных элементов таблицы. */
+.cluster-activity-icon {
+    width: 1rem;
+    height: 1rem;
+    vertical-align: -0.125em;
+}
 </style>
 
-<div class="container-fluid d-grid gap-2" style="width:100%; overflow:scroll">
+<div class="container-fluid d-grid gap-2">
 <div class="hero-text">
     <h3>Список кластеров и одиночных хостов виртуальных машин</h3>
     {{if .flash.error}}
@@ -41,37 +98,47 @@ function selectcluster(val) {
 </div>
 
 <form role="form" id="Update" method="POST">
-    <div class="row">
-        <div class="form-group col-sm-4">
-            <label for="vcenterId">Сервер управления</label>
-            <select id="vcid" name="vcenterId" size="1" class="form-control" onchange="selectvcenter(this.value)" value="{{.vcenterId}}">
-                <option value="all" {{if eq .vcenterId "all"}}selected{{end}}>Все</option>
-                {{range $vc := .VcenterList}}
-                <option value="{{$vc.Hostname}}" {{if eq $vc.Hostname $.vcenterId}}selected{{end}}>{{$vc.Hostname}}</option>
-                {{end}}
-            </select>
+    <div class="cluster-filter-bar mb-3 p-3 rounded border">
+        <div class="row">
+            <div class="form-group col-sm-4">
+                <label for="vcenterId">Сервер управления</label>
+                <select id="vcid" name="vcenterId" size="1" class="form-control" onchange="selectvcenter(this.value)" value="{{.vcenterId}}">
+                    <option value="all" {{if eq .vcenterId "all"}}selected{{end}}>Все</option>
+                    {{range $vc := .VcenterList}}
+                    <option value="{{$vc.Hostname}}" {{if eq $vc.Hostname $.vcenterId}}selected{{end}}>{{$vc.Hostname}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group col-sm-4">
+                <label for="datacenterId">Датацентр</label>
+                <select id="dcid" name="datacenterId" size="1" class="form-control" onchange="selectdatacenter(this.value)" value="{{.datacenterId}}">
+                    <option value="all" {{if eq .datacenterId "all"}}selected{{end}}>Все</option>
+                    {{range $dc := .DatacenterList}}
+                    <option value="{{$dc.Name}}" {{if eq $dc.Name $.datacenterId}}selected{{end}}>{{$dc.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group col-sm-4">
+                <label for="clusterId">Кластер</label>
+                <select id="clid" name="clusterId" size="1" class="form-control" onchange="selectcluster(this.value)" value="{{.clusterId}}">
+                    <option value="all" {{if eq .clusterId "all"}}selected{{end}}>Все</option>
+                    {{range $cli := .ClusterList2}}
+                    <option value="{{$cli.Name}}" {{if eq $cli.Name $.clusterId}}selected{{end}}>{{$cli.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
         </div>
-        <div class="form-group col-sm-4">
-            <label for="datacenterId">Датацентр</label>
-            <select id="dcid" name="datacenterId" size="1" class="form-control" onchange="selectdatacenter(this.value)" value="{{.datacenterId}}">
-                <option value="all" {{if eq .datacenterId "all"}}selected{{end}}>Все</option>
-                {{range $dc := .DatacenterList}}
-                <option value="{{$dc.Name}}" {{if eq $dc.Name $.datacenterId}}selected{{end}}>{{$dc.Name}}</option>
-                {{end}}
-            </select>
-        </div>
-        <div class="form-group col-sm-4">
-            <label for="clusterId">Кластер</label>
-            <select id="clid" name="clusterId" size="1" class="form-control" onchange="selectcluster(this.value)" value="{{.clusterId}}">
-                <option value="all" {{if eq .clusterId "all"}}selected{{end}}>Все</option>
-                {{range $cli := .ClusterList2}}
-                <option value="{{$cli.Name}}" {{if eq $cli.Name $.clusterId}}selected{{end}}>{{$cli.Name}}</option>
-                {{end}}
-            </select>
+        <div class="row mt-2">
+            <div class="col-12 d-flex justify-content-end">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="clusterFilterStickyToggle" onchange="clusterToggleFilterSticky(this.checked)">
+                    <label class="form-check-label small text-muted" for="clusterFilterStickyToggle">Закреплять фильтр вверху экрана</label>
+                </div>
+            </div>
         </div>
     </div>
-</form>
 
+<div style="overflow-x:auto">
 <table class="table">
     <tbody>
         <tr>
@@ -103,7 +170,7 @@ function selectcluster(val) {
                             <input type="checkbox" name="clusterst{{$index}}" id="clst{{$index}}" data-toggle="toggle-st">
                         </label>
                     </div>
-                    <div style="width:400px; float:left">{{$cl.Vcenter}} / {{$cl.Datacenter}} / {{if $cl.HostFlag}}<a href="/sprsrv/viewserverhw/{{$cl.Name}}" target="_blank" title="посмотреть конфигурацию хоста в новой вкладке">{{$cl.Name}}</a>{{else}}{{$cl.Name}}{{end}}</div>
+                    <div style="width:400px; float:left">{{$cl.Vcenter}} / {{$cl.Datacenter}} / {{if $cl.HostFlag}}{{if $cl.Hosts}}{{$h0 := index $cl.Hosts 0}}{{if ne $h0.SerialNumber ""}}<a href="/sprsrv/hwconfeditbysn/{{$h0.SerialNumber}}" target="_blank" title="Редактировать конфигурацию сервера">{{$cl.Name}}</a>{{else}}<a href="/sprsrv/hwconfeditbyname/{{$h0.Name}}" target="_blank" title="Редактировать конфигурацию сервера">{{$cl.Name}}</a>{{end}}{{else}}{{$cl.Name}}{{end}}{{else}}{{$cl.Name}}{{end}}</div>
                     <div style="width:120px; float:left; text-align: center">{{printf "%d/%d (%d)" $cl.AllNumCPUPkgs $cl.AllNumCPUCores $cl.CPUMhzAvg}}</div>
                     <div style="width:70px; float:left; text-align: center">{{printf "%.0f" $cl.AllMemorySizeGB}}</div>
                     {{if and (ge $cl.CPUUsageMaximum 0.0) (le $cl.CPUUsageMaximum 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.CPUUsageMaximum}}</div>
@@ -152,7 +219,7 @@ function selectcluster(val) {
             <td>
                 <div style="width:1440px">
                     {{range $idx, $hi := $cl.Hosts}}
-                    <div style="width:220px; float:left"><a href="/sprsrv/viewserverhw/{{$hi.Name}}" target="_blank">{{$hi.Name}}</a></div>
+                    <div style="width:220px; float:left">{{if ne $hi.SerialNumber ""}}<a href="/sprsrv/hwconfeditbysn/{{$hi.SerialNumber}}" target="_blank" title="Редактировать конфигурацию сервера">{{$hi.Name}}</a>{{else}}<a href="/sprsrv/hwconfeditbyname/{{$hi.Name}}" target="_blank" title="Редактировать конфигурацию сервера">{{$hi.Name}}</a>{{end}}</div>
                     <div style="width:120px; float:left; text-align: center">{{printf "%d/%d (%d)" $hi.NumCPUPkgs $hi.NumCPUCores $hi.CPUMhz}}</div>
                     <div style="width:70px; float:left; text-align: center">{{printf "%.0f" $hi.MemorySizeGB}}</div>
                     {{if and (ge $hi.CPUUsageMaximum 0.0) (le $hi.CPUUsageMaximum 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPUUsageMaximum}}</div>
@@ -248,8 +315,8 @@ function selectcluster(val) {
             <td>
                 <div style="width:1440px">
                     {{range $idx, $vm := $cl.VM}}
-                    <div style="width:20px; float:left; text-align: center">{{if gt $vm.PerfCount 0}}<a href="/sprsrv/vmperfday/{{$vm.Vcenter}}/{{$vm.Datacenter}}/{{$vm.Cluster}}/{{$vm.Name}}" target="_blank"><svg class="bi" aria-hidden="true"><use href="#activity"></use></svg></a>{{else}}<span class="glyphicon glyphicon-off" title="виртуальная машина выключена"></span>{{end}}</div>
-                    <div style="width:200px; float:left">{{$vm.Name}}</div>
+                    <div style="width:20px; float:left; text-align: center">{{if gt $vm.PerfCount 0}}<a href="/sprsrv/vmperfday/{{$vm.Vcenter}}/{{$vm.Datacenter}}/{{$vm.Cluster}}/{{$vm.Name}}" target="_blank"><svg class="bi cluster-activity-icon" aria-hidden="true"><use href="#activity"></use></svg></a>{{else}}<span class="glyphicon glyphicon-off" title="виртуальная машина выключена"></span>{{end}}</div>
+                    <div style="width:200px; float:left"><a href="/sprsrv/vmeditbyname/{{$vm.Name}}" target="_blank" title="Общие данные виртуальной машины">{{$vm.Name}}</a></div>
                     <div style="width:120px; float:left; text-align: center">{{printf "%d/%d" $vm.NumCPU $vm.NumCores}}</div>
                     <div style="width:70px; float:left; text-align: center">{{printf "%.0f" $vm.MemorySizeGB}}</div>
                     {{if and (ge $vm.CPUUsageMaximum 0.0) (le $vm.CPUUsageMaximum 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPUUsageMaximum}}</div>
@@ -330,4 +397,6 @@ function selectcluster(val) {
         </tr>
     </tfoot>
 </table>
+</div>
+</form>
 </div>

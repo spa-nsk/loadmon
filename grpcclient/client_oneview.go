@@ -118,4 +118,41 @@ func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, po
 	return out, nil
 }
 
+// GetHWDatacenterNames возвращает список всех различных значений
+// Datacenter.Name, накопленных oneview2.Infrastructure по всем собранным
+// серверам (см. oneview2/global.go) - в отличие от GetServerHardwareList,
+// не зависит от текущих значений остальных полей фильтра. Используется для
+// выпадающего списка "Датацентр" на /sprsrv/hwviewlist.
+func GetHWDatacenterNames() ([]string, error) {
+	c, conn, ctx, cancel, err := dialAPIHardware()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	defer cancel()
+	resp, err := c.GetHWDatacenterNames(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Names, nil
+}
+
+// GetHWRackNames возвращает список всех различных значений Rack.Name,
+// накопленных oneview2.Infrastructure по всем собранным серверам - см.
+// GetHWDatacenterNames. Используется для выпадающего списка "Шкаф" на
+// /sprsrv/hwviewlist.
+func GetHWRackNames() ([]string, error) {
+	c, conn, ctx, cancel, err := dialAPIHardware()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	defer cancel()
+	resp, err := c.GetHWRackNames(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Names, nil
+}
+
 //-------------------------------- DB interface ---------------------------------

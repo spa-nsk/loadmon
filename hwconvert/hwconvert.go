@@ -138,6 +138,9 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	out.Rack.UHeight = int32(in.Rack.UHeight)
 	out.Rack.Status = in.Rack.Status
 	out.Rack.State = in.Rack.State
+	out.Rack.TopUSlot = int32(in.Rack.TopUSlot)
+	out.Rack.MountUHeight = int32(in.Rack.MountUHeight)
+	out.Rack.MountLocation = in.Rack.MountLocation
 
 	out.EnclosureInfo = &pb.Enclosure{}
 	out.EnclosureInfo.Name = in.EnclosureInfo.Name
@@ -387,6 +390,9 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 		out.Rack.UHeight = int(in.Rack.UHeight)
 		out.Rack.Status = in.Rack.Status
 		out.Rack.State = in.Rack.State
+		out.Rack.TopUSlot = int(in.Rack.TopUSlot)
+		out.Rack.MountUHeight = int(in.Rack.MountUHeight)
+		out.Rack.MountLocation = in.Rack.MountLocation
 	}
 
 	if in.EnclosureInfo != nil {

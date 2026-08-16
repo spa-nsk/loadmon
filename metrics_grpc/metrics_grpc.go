@@ -28,8 +28,9 @@ import (
 	"sync"
 	"syscall"
 
-	oneview "github.com/spa-nsk/oneview2"
 	"time"
+
+	oneview "github.com/spa-nsk/oneview2"
 
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -75,15 +76,15 @@ func init() {
 func main() {
 
 	config.DBInit()
-/*
-	if len(os.Args) > 1 {
-		if os.Args[1] == "convert" {
-			fmt.Println("Конвертация данных начата")
-			cmdb.ConvertDatabase("default", "default-add")
-			fmt.Println("Конвертация данных завершена")
+	/*
+		if len(os.Args) > 1 {
+			if os.Args[1] == "convert" {
+				fmt.Println("Конвертация данных начата")
+				cmdb.ConvertDatabase("default", "default-add")
+				fmt.Println("Конвертация данных завершена")
+			}
 		}
-	}
-*/
+	*/
 	//c := make(chan string)
 	//shedulerExit := make(chan bool)
 
@@ -103,6 +104,15 @@ func main() {
 
 	_ = s1
 	_ = s2
+
+	ov := oneview.GetGlobalOVInfrastructure()
+	log.Println("Загрузка данных по конфигурациям серверов")
+	srv, err := ov.LoadServerHardwareList()
+	if err != nil {
+		log.Println("Ошибка загрузки данных по конфигурациям серверов: ", err)
+	} else {
+		log.Println("Загрузка данных по конфигурациям серверов завершена. Всего серверов: ", len(srv))
+	}
 
 	//	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.Println("Используется : ", runtime.NumCPU(), " CPU", "Количество Goroutine: ", runtime.NumGoroutine()) //количество потоков на старте
@@ -240,9 +250,6 @@ func main() {
 
 		go func() {
 			itsystem.LoadITSystemSpr()
-			ov := oneview.GetGlobalOVInfrastructure()
-			log.Println("Загрузка данных по конфигурациям серверов")
-			ov.LoadServerHardwareList()
 			log.Println("Обновление конфигураций серверов")
 			cmdb.UpdateHwSprHP()
 			log.Println("Обновление конфигураций серверов завершено")

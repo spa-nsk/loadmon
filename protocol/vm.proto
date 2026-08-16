@@ -92,7 +92,14 @@ service Loadmon {
   rpc GetServerHardwareByName(ServerName) returns (ServerHardware) {} //
   rpc GetServerHardwareByVirtualSN(SerialNumber) returns (ServerHardware) {} //
   rpc GetServerHardwareList(HWReq) returns (stream ServerHardware) {} //
-  // rpc GetDatacenter(HWReq) returns (stream ) {} //TODO
+  // Списки различных значений Datacenter.Name/Rack.Name, накопленные
+  // oneview2.Infrastructure по ВСЕМ собранным серверам (см.
+  // oneview2/global.go, Infrastructure.DatacenterNames/RackNames) - в
+  // отличие от перебора текущего отфильтрованного результата
+  // GetServerHardwareList, не зависят от остальных полей фильтра. Нужны
+  // для выпадающих списков фильтра "Датацентр"/"Шкаф" на /sprsrv/hwviewlist.
+  rpc GetHWDatacenterNames(Empty) returns (NameList) {} //
+  rpc GetHWRackNames(Empty) returns (NameList) {} //
   //all service
   rpc RegisterWorkProcess(RegisterEndpoint) returns (StatusWork) {}
   rpc GetClusterSprRecords(EndpointReq) returns (stream RegisterEndpoint) {}
@@ -120,6 +127,16 @@ message HWReq {
   string PowerState=3;
   string Status=4;
   string MaintenanceMode=5;
+}
+
+// Empty — запрос без параметров (GetHWDatacenterNames/GetHWRackNames).
+message Empty {
+}
+
+// NameList — список строковых значений (используется для отдачи
+// накопленных oneview2.Infrastructure.DatacenterNames/RackNames клиенту).
+message NameList {
+  repeated string Names=1;
 }
 
 //
@@ -1133,6 +1150,12 @@ message Racks {
   string                  Name=10;
   string                  State=11;
   string                  Status=12;
+  // Расположение конкретного сервера внутри стойки (oneview2.RackInfo.TopUSlot/
+  // MountUHeight/MountLocation) - верхний юнит крепления, высота крепления в
+  // юнитах и текстовое расположение, если OneView отдаёт его вместо номера юнита.
+  int32                   TopUSlot=13;
+  int32                   MountUHeight=14;
+  string                  MountLocation=15;
 }
 
 //

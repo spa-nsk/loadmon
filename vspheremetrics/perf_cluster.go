@@ -86,6 +86,20 @@ func (cl *Cluster) CalcPerfomance() {
 		return
 	}
 	maxCount := int64(0)
+
+	// AllNumCPUPkgs/AllNumCPUCores/AllNumCPUThreads/AllMemorySizeGB/CPUMhzAvg
+	// пересчитываются заново из cl.Hosts ниже через += - если не обнулить их
+	// здесь, каждый повторный вызов CalcPerfomance для одного и того же
+	// объекта Cluster (а при обращении через указатель, как в
+	// GetClusterMetrics/GetClusterPerfByKey, это тот же объект, что лежит в
+	// ClusterMapList) добавлял бы суммы хостов ПОВЕРХ уже накопленных -
+	// значения росли бы без ограничений при каждом обновлении.
+	cl.AllNumCPUPkgs = 0
+	cl.AllNumCPUCores = 0
+	cl.AllNumCPUThreads = 0
+	cl.AllMemorySizeGB = 0
+	cl.CPUMhzAvg = 0
+
 	cl.CPUUsageMinimum = math.MaxFloat64
 	cl.MemUsageMinimum = math.MaxFloat64
 	cl.DiskUsageMinimum = math.MaxFloat64

@@ -35,10 +35,18 @@ func (this *MainController) SprCluster() {
 
 	m := sess.(models.LoadFilter).Map
 
+	// Список серверов управления (vCenter) нужен уже здесь (до switch), чтобы
+	// при самом первом заходе на страницу (в сессии ещё нет сохранённого
+	// фильтра) можно было сразу подставить в поле "Сервер управления" первое
+	// имя из списка, а не показывать пустой выбор "Все".
+	vcList = grpcclient.LoadVCenterList("all")
+
 	switch this.Ctx.Input.Method() {
 	case "GET":
 		if s, ok := m[VcenterId]; ok {
 			vcenter = s.(string)
+		} else if (vcenter == "" || vcenter == "all") && len(vcList) > 0 {
+			vcenter = vcList[0].Hostname
 		}
 		if s, ok := m[DatacenterId]; ok {
 			datacenter = s.(string)
@@ -46,6 +54,12 @@ func (this *MainController) SprCluster() {
 		if s, ok := m[ClusterId]; ok {
 			cluster = s.(string)
 		}
+		// Раньше при обычном заходе на страницу (GET, без отправки формы)
+		// таблица кластеров не подгружалась вовсе - её нужно было явно
+		// "Найти" через POST, хотя фильтр к этому моменту уже определён (из
+		// сессии или значением по умолчанию, см. выше). Теперь данные по
+		// текущему фильтру показываются сразу при входе на страницу.
+		this.Data["ViewOn"] = 1
 	case "POST":
 		s1 := this.GetString(VcenterId)
 		s2 := this.GetString(DatacenterId)
@@ -75,7 +89,6 @@ func (this *MainController) SprCluster() {
 	this.Data[DatacenterId] = datacenter
 	this.Data[ClusterId] = cluster
 
-	vcList = grpcclient.LoadVCenterList("all")
 	dcList = grpcclient.LoadDatacenterList(vcenter)
 	clList = grpcclient.LoadClusterList(vcenter, datacenter)
 

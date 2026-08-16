@@ -38,7 +38,7 @@
 {{if .HW}}
 <div class="row g-3">
     <div class="col-12 col-xl-6">
-        <div class="hw-card">
+        <div class="hw-card hw-card-fill">
             <h6>Общие сведения</h6>
             <table class="table table-sm table-borderless hw-kv">
                 <tr><td>Имя сервера</td><td>{{.HW.Identity.ServerName}}</td></tr>
@@ -60,7 +60,7 @@
                         <span class="badge {{if eq .HW.Identity.PowerState "On"}}text-bg-success{{else if eq .HW.Identity.PowerState "Off"}}text-bg-secondary{{else}}text-bg-warning{{end}}">{{.HW.Identity.PowerState}}</span>
                     </td>
                 </tr>
-                <tr><td>Позиция в стойке</td><td>{{.HW.Identity.Position}}</td></tr>
+                <tr><td>Позиция в отсеке (bay)</td><td>{{.HW.Identity.Position}}</td></tr>
                 <tr><td>ОС</td><td>{{.HW.Identity.OperatingSystem}}</td></tr>
             </table>
         </div>
@@ -82,13 +82,21 @@
             </table>
         </div>
 
-        <div class="hw-card mt-3">
+        <div class="hw-card">
             <h6>Размещение</h6>
             <table class="table table-sm table-borderless hw-kv">
-                <tr><td>Датацентр</td><td>{{.HW.Datacenter.Name}}</td></tr>
-                <tr><td>Стойка</td><td>{{.HW.Rack.Name}}</td></tr>
-                <tr><td>Отсек (bay)</td><td>{{.HW.BayInfo.BayNumber}}</td></tr>
-                <tr><td>Корзина (enclosure)</td><td>{{.HW.EnclosureInfo.Name}}</td></tr>
+                <tr><td>Датацентр</td><td>{{if ne .HW.Datacenter.Name ""}}{{.HW.Datacenter.Name}}{{else}}&mdash;{{end}}</td></tr>
+                <tr><td>Шкаф</td><td>{{if ne .HW.Rack.Name ""}}{{.HW.Rack.Name}}{{else}}&mdash;{{end}}</td></tr>
+                <tr>
+                    <td>Размещение в шкафу</td>
+                    <td>
+                        {{if ne .HW.Rack.MountLocation ""}}{{.HW.Rack.MountLocation}}
+                        {{else if ne .RackSlotRange ""}}{{.RackSlotRange}}
+                        {{else}}&mdash;{{end}}
+                    </td>
+                </tr>
+                <tr><td>Корзина (enclosure)</td><td>{{if ne .HW.EnclosureInfo.Name ""}}{{.HW.EnclosureInfo.Name}}{{else}}&mdash;{{end}}</td></tr>
+                <tr><td>Отсек в корзине (bay)</td><td>{{if gt .HW.BayInfo.BayNumber 0}}{{.HW.BayInfo.BayNumber}}{{else}}&mdash;{{end}}</td></tr>
             </table>
         </div>
     </div>
@@ -215,6 +223,16 @@
         border: 1px solid var(--bs-border-color);
         border-radius: 0.6rem;
         padding: 1rem;
+    }
+
+    /* height:100% раньше стояло прямо в .hw-card - это работало, пока в
+       правой колонке была одна карточка. Как только туда добавили вторую
+       карточку "Размещение" (mt-3), первая карточка "Процессоры и память"
+       тянулась на 100% высоты колонки (по высоте левой колонки "Общие
+       сведения"), а вторая добавлялась поверх этой раздутой высоты - блоки
+       наезжали друг на друга и на "Модули памяти" ниже. Тянуть на всю высоту
+       имеет смысл только там, где в колонке ровно одна карточка. */
+    .hw-card-fill {
         height: 100%;
     }
 

@@ -1,0 +1,56 @@
+﻿
+сделай метод в controllers для редактирования записи в таблице models.ServerSprRecords наименование полей и значения для справочников в комментариях таблицы. Маршрут /sprsrv/updatebase/:backmode/:id([0-9]+)
+где :id идентификатор записи в таблице ServerSprRecords.Id   :backmode - пока зарезервирован и имеет значение "all"
+
+сделай шаблон tpl с использованием bootstrap для размещения полей в форме и обработкой светлой и темной тем
+
+поля для редактирования
+
+	Type             int       `form:"Type" json:"Type"` //0 - физический сервер 1 - виртуальный 2-host vmware
+	SerialNumber     string    `form:"SerialNumber" json:"SerialNumber"` //серийный номер для type 0 и 2
+	Vcenter          string    `form:"Vcenter" json:"Vcenter"` //для type 1 и 2
+	Datacenter       string    `form:"Datacenter" json:"Datacenter"` //для type 1 и 2
+	Cluster          string    `form:"Cluster" json:"Cluster"` //для type 1 и 2
+	TypeMicroservice int       `form:"TypeMicroservice" json:"TypeMicroservice"` // 0 не указано принадлежность к микросервисам, роль в этом пространстве
+	RoleType         int       `form:"RoleType" json:"RoleType"` //не указано 1-APP 2-DB
+	TypeWork         int       `form:"TypeWork" json:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
+	CriticalLevel    int       `form:"CriticalLevel" json:"CriticalLevel"` //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
+	Active           int       `form:"Active" json:"Active"` //1 активен 2 выведен из эксплуатации
+	TimeActiveState  time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"` //время изменения статуса активности введения в эксплуатацию
+	ActivatorUser    int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"` //автор записи
+	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"` //время выведения из эксплуатации
+	DeActivatorUser  int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"` //автор записи
+	BusinesPrivilage int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"` //ограничение по редактированию если указано 0 объект открыт // TODO: comment truncated in screenshot
+	Name             string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
+	NameFQDN         string    `form:"NameFQDN" json:"NameFQDN"` //полное имя сервера
+	NameInfo         string    `orm:"null" form:"NameInfo" json:"NameInfo"` //альтернативное имя сервера
+	IPAddress        string    `orm:"null" form:"IPAddress" json:"IPAddress"` //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
+	MacAddress       string    `form:"MacAddress"` //список через разделитель ;
+	Network          string    `orm:"null" form:"Network" json:"Network"` //сеть vlan144
+	NetworkName      string    `orm:"null" form:"NetworkName" json:"NetworkName"` //наименование сети сеть DMZ Prom
+	ITSystemKey      string    `form:"ITSystemKey" json:"ITSystemKey"` //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
+	OS               string    `form:"OS" json:"OS"` //операционная система
+	Owner            string    `form:"Owner" json:"Owner" csv:"-"` //владелец сервера (ответственный за сервер)
+	BusinessOwner    string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"` //владелец от бизнеса
+	ITOwner          string    `form:"ITOwner" json:"ITOwner" csv:"-"` //владелец со стороны ИТ
+	ProductOwner     string    `form:"ProductOwner" json:"ProductOwner" csv:"-"` //Владелец продукта
+	Support          string    `form:"Support" json:"Support" csv:"-"` //ответственные за поддержку
+	SupportTeam      string    `form:"SupportTeam" json:"SupportTeam" csv:"-"` //Подразделение поддержки
+	SystemType       string    `form:"SystemType" json:"SystemType"` //тип системы техническая ...
+	LicensingType    string    `form:"LicensingType" json:"LicensingType"` //тип лицензирования
+	SolutionType     string    `form:"SolutionType" json:"SolutionType"` //вариант решения (коробочной)
+	Users            string    `form:"Users" json:"Users" csv:"-"` //пользователи системы
+	Allocation       string    `form:"Allocation" json:"Allocation"` //аллокация (подразделение)
+	Anotation          string    `form:"Anotation" json:"Anotation" csv:"-"` //описание сервера
+	Role             string    `form:"Role" json:"Role"` //роль сервера (сервер баз данных, сервер приложений, хост)
+	Details          string    `form:"Details" json:"Details" csv:"-"` //детали по серверу в свободном формате (примечание)
+	DPCOffice        int       `form:"DPCOffice" json:"DPCOffice"` //ЦОД по справочнику комната с адресом, нужно создать справочние офисов в которых расположены серверы
+	SZHistory        string    `form:"SZHistory" json:"SZHistory"` //номера сз через пробел в хронологическом порядке
+	Monitoring       int       `form:"Monitoring" json:"Monitoring"` // 0- не указано 1-включен мониторинг 2-отключен мониторинг
+	Backuped         int       `form:"Backuped" json:"Backuped"` // 0 - не указано 1-включено резервное копирование 2-отключено резервное копирование
+	TimeActiveMonitoring time.Time `orm:"null" form:"TimeActiveMonitoring" json:"TimeActiveMonitoring"` //время постановки на мониторинг
+	MonitoringSZ     string    `form:"MonitoringSZ" json:"MonitoringSZ"` //основание постановки на мониторинг
+
+	проставляются исходя из текущих значений
+	Id_User          int64     `form:"Id_User" json:"Id_User"` //текущий зарегистрированный пользователь, изменивший данные 
+	Time_Mfy         time.Time `form:"Time_Mfy" json:"Time_Mfy"` //время изменения

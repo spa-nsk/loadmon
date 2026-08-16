@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"loadmon/grpcclient"
 
 	beego "github.com/beego/beego/v2/server/web"
@@ -43,4 +44,18 @@ func (this *MainController) SrvHwViewBySn() {
 	// oneview2.Server не хранит готовый итоговый объём памяти (в отличие от
 	// старого Base.MemoryMb) - считаем его по установленным модулям памяти.
 	this.Data["TotalMemoryMb"] = oneview.TotalMemoryMb(hw)
+
+	// Размещение в шкафу задаётся верхним юнитом крепления (TopUSlot) и
+	// высотой в юнитах (MountUHeight); если OneView отдаёт готовое текстовое
+	// расположение (MountLocation), шаблон использует его напрямую и это
+	// поле не нужно. Диапазон вычисляется здесь, а не в шаблоне, потому что
+	// html/template по умолчанию не регистрирует арифметические функции.
+	this.Data["RackSlotRange"] = ""
+	if hw.Rack.TopUSlot > 0 {
+		if hw.Rack.MountUHeight > 1 {
+			this.Data["RackSlotRange"] = fmt.Sprintf("U%d–U%d", hw.Rack.TopUSlot, hw.Rack.TopUSlot+hw.Rack.MountUHeight-1)
+		} else {
+			this.Data["RackSlotRange"] = fmt.Sprintf("U%d", hw.Rack.TopUSlot)
+		}
+	}
 }
