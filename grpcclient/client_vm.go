@@ -106,6 +106,47 @@ func LoadVMList(vcenter, datacenter, cluster, vmname string) []*vsphere.VMPoint 
 	return vmlist
 }
 
+// LoadVMListFull работает как LoadVMList, но дополнительно вычисляет
+// показатели загрузки (CPUUsageMaximum/Average/Minimum, MemUsage*,
+// DiskUsage*, NetUsage* и т.п.) по точкам метрик, присланным сервером в
+// каждом vmp.Perf - через CopyAndReCalcVMPerformance, как это уже делает
+// GetVMByKeyWithPerf для одиночной ВМ. LoadVMList этого не делает
+// намеренно (см. комментарий там) - используется там, где отображаются
+// только идентификационные поля ВМ (например, /sprsrv/vm), без загрузки
+// лишних данных метрик. LoadVMListFull нужен там, где показатели загрузки
+// действительно отображаются (например, "Виртуальные машины кластера" на
+// /sprsrv/cluster/... - раньше эти столбцы всегда показывали 0.00, так как
+// использовался LoadVMList без пересчёта).
+func LoadVMListFull(vcenter, datacenter, cluster, vmname string) []*vsphere.VMPoint {
+	vmlist := make([]*vsphere.VMPoint, 0)
+	c, conn, ctx, cancel, err := dialAPI()
+	if err != nil {
+		return vmlist
+	}
+	defer conn.Close()
+	defer cancel()
+	vml, err := c.GetVMListKey(ctx, &pb.VMReqListKey{Vcenter: vcenter, Datacenter: datacenter, Cluster: cluster, VMName: vmname})
+
+	stream, err2 := c.GetVMStreamByKeyList(ctx, vml)
+
+	if err2 == nil {
+		for {
+			vmp, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Printf("GetVMStreamByKeyList: ошибка чтения потока: %v", err)
+				break
+			}
+			vm2 := GetVMPointRPC(vmp)
+			CopyAndReCalcVMPerformance(&vm2, vmp)
+			vmlist = append(vmlist, &vm2)
+		}
+	}
+	return vmlist
+}
+
 // CopyAndReCalcVMPerformance копирует точки метрик производительности VM
 // (in.Perf) в доменную модель out, попутно вычисляя минимум/максимум/среднее
 // по CPU, памяти, диску и сети. При out == nil или in == nil ничего не

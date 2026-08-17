@@ -605,22 +605,23 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 		}
 
 		srvspr.HWSprId = hwId
-
-		if foundSrvSpr {
-			srvspr.Stat = 1
-			_, err = trn.Update(&srvspr)
-			if err != nil {
-				fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
-				trn.Rollback()
-				continue
-			}
-		} else {
-			srvspr.Stat = 1
-			serverId, err = trn.Insert(&srvspr)
-			if err != nil {
-				fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
-				trn.Rollback()
-				continue
+		if srvspr.Name != "" && srvspr.NameFQDN != "" { //если имя сервера не определено то не обновляем и не создаём новый
+			if foundSrvSpr {
+				srvspr.Stat = 1
+				_, err = trn.Update(&srvspr)
+				if err != nil {
+					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
+					trn.Rollback()
+					continue
+				}
+			} else {
+				srvspr.Stat = 1
+				serverId, err = trn.Insert(&srvspr)
+				if err != nil {
+					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
+					trn.Rollback()
+					continue
+				}
 			}
 		}
 		err = trn.Read(&hw, "Id")

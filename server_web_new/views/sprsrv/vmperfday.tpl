@@ -31,7 +31,7 @@
 {{end}}
 
 <script src="/static/js/apexcharts.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="/static/js/jspdf.umd.min.js"></script>
 <script src="/static/js/pdf-export.js"></script>
 
 <style>

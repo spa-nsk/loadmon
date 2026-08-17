@@ -330,13 +330,29 @@ func GetHWserverNameFQDN(srv *Server) string {
 	if srv == nil {
 		return ""
 	}
-	if srv.Identity.MpHostName != "" {
-		return srv.Identity.MpHostName
+	if srv.Identity.SerialNumber != "" && strings.Contains(srv.Identity.MpHostName, srv.Identity.SerialNumber) {
+		return srv.Identity.ServerName
 	}
-	if srv.Identity.ServerName != "" {
-		return srv.Identity.ServerName + GetHWserverDomain(srv)
+	for _, prefix := range []string{"ILO-", "ILO", "ilo-", "ilo", "iLO-", "iLO"} {
+		if !strings.Contains(srv.Identity.MpHostName, prefix) {
+			continue
+		}
+		if parts := strings.Split(srv.Identity.MpHostName, prefix); len(parts) == 2 {
+			return parts[1]
+		}
+		break
 	}
-	return GetHWserverName(srv)
+	return srv.Identity.ServerName
+
+	/*
+		if srv.Identity.MpHostName != "" {
+			return srv.Identity.MpHostName
+		}
+		if srv.Identity.ServerName != "" {
+			return srv.Identity.ServerName + GetHWserverDomain(srv)
+		}
+		return GetHWserverName(srv)
+	*/
 }
 
 // TotalMemoryMb суммирует ёмкость всех установленных модулей памяти сервера
