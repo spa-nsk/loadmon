@@ -100,7 +100,7 @@ func (this *MainController) SprCluster() {
 		return
 	}
 
-	vmList := grpcclient.LoadVMList(vcenter, datacenter, cluster, "all")
+	vmList := grpcclient.LoadVMListFull(vcenter, datacenter, cluster, "all")
 	hsList := grpcclient.LoadHostListFull(vcenter, datacenter, cluster, "all")
 	clusterList := grpcclient.LoadClusterListFull(vcenter, datacenter, cluster)
 
