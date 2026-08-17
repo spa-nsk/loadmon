@@ -1,0 +1,296 @@
+/*
+ * loadmon.css - общие стили для страниц раздела /sprsrv/*.
+ *
+ * Раньше почти каждый шаблон (hwviewlist.tpl, hwconflist.tpl, cluster.tpl,
+ * vmlist.tpl, hwconfedit.tpl, srvhwviewbysn.tpl и т.д.) содержал собственный
+ * <style> блок с копией одних и тех же правил (закрепляемая панель фильтра,
+ * "классическая" таблица со sticky-заголовком, индикатор питания power-led,
+ * панель постраничной навигации pager-bar, всплывающее контекстное меню
+ * строки, карточка данных hw-card) - образец стиля для всего этого взят со
+ * страницы /sprsrv/view2 (server_web_new/views/sprsrv/view2.tpl). Здесь эти
+ * правила собраны в одном месте и подключаются один раз в header.tpl, чтобы
+ * новые формы могли переиспользовать их вместо копирования в локальный
+ * <style> шаблона.
+ *
+ * Имена классов не менялись (чтобы не трогать уже работающую разметку и JS
+ * каждого шаблона) - там, где разные страницы использовали разные префиксы
+ * для одного и того же по смыслу компонента (.hw-filter-bar / .cluster-filter-bar /
+ * .vm-filter-bar), правило объявлено через список селекторов сразу для всех
+ * вариантов.
+ */
+
+/* ---------------------------------------------------------------------- */
+/* Закрепляемая панель фильтра вверху страницы (с возможностью открепления
+   через чекбокс - см. JS в hwviewlist.tpl/hwconflist.tpl/cluster.tpl,
+   классы *-unpinned переключаются оттуда). */
+/* ---------------------------------------------------------------------- */
+
+.hw-filter-bar,
+.cluster-filter-bar,
+.vm-filter-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+}
+
+.hw-filter-bar.hw-filter-bar-unpinned,
+.cluster-filter-bar.cluster-filter-bar-unpinned,
+.vm-filter-bar.vm-filter-bar-unpinned {
+    position: static;
+    box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------- */
+/* "Классическая" таблица (образец - /sprsrv/view2): выделенные заголовки,
+   разделители столбцов, цвета берутся из переменных Bootstrap 5 и сами
+   переключаются вместе с темой (data-bs-theme). */
+/* ---------------------------------------------------------------------- */
+
+.spr-classic-table {
+    --bs-table-border-color: var(--bs-border-color);
+}
+
+/* top задаётся через CSS-переменную --spr-thead-top: 0px по умолчанию
+   (заголовок прилипает к самому верху экрана), либо страница с закрепляемой
+   панелью фильтра выше таблицы (hwviewlist.tpl, hwconflist.tpl) пересчитывает
+   её через JS в высоту панели фильтра, когда та тоже закреплена - тогда
+   заголовок таблицы прилипает сразу под ней, а не под ней перекрывается. */
+.spr-classic-table thead th {
+    position: sticky;
+    top: var(--spr-thead-top, 0px);
+    z-index: 3;
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-emphasis-color);
+    font-weight: 600;
+    border-bottom: 2px solid var(--bs-border-color);
+    vertical-align: middle;
+}
+
+.spr-classic-table td,
+.spr-classic-table th {
+    border-color: var(--bs-border-color);
+}
+
+.spr-classic-table tbody tr:hover {
+    --bs-table-hover-bg: var(--bs-secondary-bg);
+}
+
+.spr-classic-table tbody tr.row-context-target {
+    cursor: context-menu;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Индикатор питания перед именем сервера/ВМ: на светлой теме - зелёный,
+   на тёмной - синий (как у большинства сетевого/серверного оборудования),
+   размер на 20% больше высоты текста (1.2em). */
+/* ---------------------------------------------------------------------- */
+
+.power-led {
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: -0.25em;
+    margin-right: 0.3rem;
+    flex-shrink: 0;
+}
+
+.power-led.is-on {
+    color: #2fb344;
+    filter: drop-shadow(0 0 2px rgba(47, 179, 68, 0.65));
+}
+
+[data-bs-theme="dark"] .power-led.is-on {
+    color: #4dabf7;
+    filter: drop-shadow(0 0 3px rgba(77, 171, 247, 0.75));
+}
+
+.power-led.is-off {
+    color: var(--bs-secondary-color);
+    opacity: 0.45;
+    filter: none;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Панель постраничной навигации: закреплена внизу видимой области (нижний
+   край прокручиваемого контейнера .content-panel из header.tpl). */
+/* ---------------------------------------------------------------------- */
+
+.pager-bar {
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.pager-bar-sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    margin-bottom: -1rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+}
+
+@media (min-width: 768px) {
+    .pager-bar-sticky {
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+    }
+}
+
+.pager-nav .btn:disabled {
+    color: var(--bs-secondary-color);
+    opacity: 0.55;
+}
+
+.pager-nav .btn:not(:disabled):not(.disabled):hover {
+    background-color: var(--bs-primary);
+    color: #fff;
+}
+
+.pager-pagesize {
+    min-width: 4.5rem;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Всплывающее контекстное меню строки (правая кнопка мыши) - "богатый"
+   вариант с заголовками секций и разделителями (view2.tpl #rowContextMenu,
+   vmlist.tpl #vmRowContextMenu), стиль повторяет левую панель навигации
+   (sidebar-panel / btn-toggle-nav из header.tpl). */
+/* ---------------------------------------------------------------------- */
+
+#rowContextMenu,
+#vmRowContextMenu {
+    position: fixed;
+    display: none;
+    min-width: 260px;
+    max-width: 380px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.3);
+    padding: 0.5rem;
+    z-index: 2000;
+}
+
+#rowContextMenu.show,
+#vmRowContextMenu.show {
+    display: block;
+}
+
+#rowContextMenu .ctx-menu-heading,
+#vmRowContextMenu .ctx-menu-heading {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    padding: 0.35rem 0.6rem 0.15rem;
+}
+
+#rowContextMenu a.ctx-menu-item,
+#vmRowContextMenu a.ctx-menu-item {
+    display: block;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.4rem;
+    font-size: 0.9rem;
+    text-decoration: none;
+    color: var(--bs-emphasis-color);
+    transition: background-color .15s ease, color .15s ease;
+}
+
+#rowContextMenu a.ctx-menu-item.disabled,
+#vmRowContextMenu a.ctx-menu-item.disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+#rowContextMenu a.ctx-menu-item:hover,
+#rowContextMenu a.ctx-menu-item:focus,
+#vmRowContextMenu a.ctx-menu-item:hover,
+#vmRowContextMenu a.ctx-menu-item:focus {
+    background-color: var(--bs-primary);
+    color: #fff;
+}
+
+#rowContextMenu hr.ctx-menu-divider,
+#vmRowContextMenu hr.ctx-menu-divider {
+    margin: 0.4rem 0;
+    border-color: var(--bs-border-color);
+    opacity: 1;
+}
+
+/* "Простой" вариант контекстного меню строки без заголовков секций
+   (hwconflist.tpl #hwRowContextMenu, класс .ctx-menu). */
+.ctx-menu {
+    position: fixed;
+    z-index: 1050;
+    min-width: 10rem;
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .25);
+    padding: 0.35rem 0;
+}
+
+.ctx-menu a.ctx-menu-item {
+    display: block;
+    padding: 0.4rem 1rem;
+    color: var(--bs-body-color);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ctx-menu a.ctx-menu-item:hover {
+    background-color: var(--bs-secondary-bg);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Карточка данных (форма просмотра/редактирования одной записи -
+   hwconfedit.tpl, srvhwviewbysn.tpl). */
+/* ---------------------------------------------------------------------- */
+
+.hw-card {
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.6rem;
+    padding: 1.1rem;
+}
+
+.hw-card h6 {
+    color: var(--bs-emphasis-color);
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.hw-card hr {
+    border-color: var(--bs-border-color);
+    opacity: 0.5;
+}
+
+/* height:100% нельзя вешать на .hw-card целиком - работает, только пока в
+   колонке ровно одна карточка (см. подробный комментарий про баг наложения
+   карточек в srvhwviewbysn.tpl); используется точечно там, где это
+   безопасно. */
+.hw-card-fill {
+    height: 100%;
+}
+
+/* пары "ключ - значение" внутри карточки (srvhwviewbysn.tpl) */
+.hw-kv td:first-child {
+    color: var(--bs-secondary-color);
+    width: 45%;
+}
+
+.hw-kv td {
+    padding: 0.2rem 0.4rem;
+}

@@ -187,25 +187,14 @@
 </form>
 {{end}}
 
+<!-- Базовые стили .hw-card/.hw-card hr вынесены в общий
+     server_web_new/static/css/loadmon.css - здесь остаётся только
+     дополнение для заголовков карточек (заглавными буквами), которое
+     присуще именно этой форме. -->
 <style>
-    .hw-card {
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.6rem;
-        padding: 1.1rem;
-    }
-
     .hw-card h6 {
-        color: var(--bs-emphasis-color);
-        font-weight: 600;
-        margin-bottom: 0.75rem;
         text-transform: uppercase;
         font-size: 0.8rem;
         letter-spacing: 0.03em;
-    }
-
-    .hw-card hr {
-        border-color: var(--bs-border-color);
-        opacity: 0.5;
     }
 </style>

@@ -208,46 +208,8 @@
 </div>
 {{end}}
 
-<style>
-    .hw-filter-bar {
-        position: sticky;
-        top: 0;
-        z-index: 5;
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color) !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
-    }
-
-    .hw-card {
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.6rem;
-        padding: 1rem;
-    }
-
-    /* height:100% раньше стояло прямо в .hw-card - это работало, пока в
-       правой колонке была одна карточка. Как только туда добавили вторую
-       карточку "Размещение" (mt-3), первая карточка "Процессоры и память"
-       тянулась на 100% высоты колонки (по высоте левой колонки "Общие
-       сведения"), а вторая добавлялась поверх этой раздутой высоты - блоки
-       наезжали друг на друга и на "Модули памяти" ниже. Тянуть на всю высоту
-       имеет смысл только там, где в колонке ровно одна карточка. */
-    .hw-card-fill {
-        height: 100%;
-    }
-
-    .hw-card h6 {
-        color: var(--bs-emphasis-color);
-        font-weight: 600;
-        margin-bottom: 0.75rem;
-    }
-
-    .hw-kv td:first-child {
-        color: var(--bs-secondary-color);
-        width: 45%;
-    }
-
-    .hw-kv td {
-        padding: 0.2rem 0.4rem;
-    }
-</style>
+<!-- Стили закрепляемой панели фильтра, карточки данных (.hw-card,
+     .hw-card-fill - height:100% только там, где в колонке ровно одна
+     карточка, см. комментарий в loadmon.css) и пар "ключ - значение"
+     (.hw-kv) вынесены в общий server_web_new/static/css/loadmon.css
+     (подключён в header.tpl). -->

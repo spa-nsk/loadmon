@@ -175,7 +175,10 @@ func ExportViewCSV(this *MainController, flash *beego.FlashData, recordsView []*
 	}
 	csvwriter := csv.NewWriter(csvFile)
 	csvwriter.Comma = '|'
-	header, _ := csvtools.GetCSVHeader(&recordsView[0])
+	header, err := csvtools.GetCSVHeader(recordsView[0])
+	if err != nil {
+		log.Println("GetCSVHeader:", err)
+	}
 	_ = csvwriter.Write(header)
 
 	for _, rec := range recordsView {
@@ -217,7 +220,10 @@ func ExportViewXLSX(this *MainController, flash *beego.FlashData, recordsView []
 		return
 	}
 
-	header, _ := csvtools.GetCSVHeader(&recordsView[0])
+	header, err := csvtools.GetCSVHeader(recordsView[0])
+	if err != nil {
+		log.Println("GetCSVHeader:", err)
+	}
 	sheet := "Конфигурация серверов"
 	index, err := file.NewSheet(sheet)
 	if err != nil {
