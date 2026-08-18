@@ -110,10 +110,10 @@ $(document).ready(function () {
         {{if and (ge $vm.Cpu_usage_maximum 0.0) (le $vm.Cpu_usage_maximum 75.00)}} <td style="text-align: right">
         {{$vm.Vm_NumCPU}} / {{$vm.Vm_NumCores}} ({{printf "%.0f" $vm.Cpu_usage_maximum}}%)</td>
         {{ else if and (gt $vm.Cpu_usage_maximum 75.00) (le $vm.Cpu_usage_maximum 90.00)}} <td
-        style="background-color: #ffff00; text-align: right">{{$vm.Vm_NumCPU}} / {{$vm.Vm_NumCores}} ({{printf
+        class="metric-warn" style="text-align: right">{{$vm.Vm_NumCPU}} / {{$vm.Vm_NumCores}} ({{printf
         "%.0f"
         $vm.Cpu_usage_maximum}}%) </td>
-        {{ else if (gt $vm.Cpu_usage_maximum 90.00 ) }} <td style="background-color: #fc2824; text-align: right">
+        {{ else if (gt $vm.Cpu_usage_maximum 90.00 ) }} <td class="metric-crit" style="text-align: right">
         {{$vm.Vm_NumCPU}} / {{$vm.Vm_NumCores}} ({{printf "%.0f" $vm.Cpu_usage_maximum}}%) </td>
         {{ else }} <td style="text-align: right"> {{$vm.Vm_NumCPU}} / {{$vm.Vm_NumCores}} ({{printf "%.0f"
         $vm.Cpu_usage_maximum}}%)</td> {{end}}
@@ -121,10 +121,10 @@ $(document).ready(function () {
         {{if and (ge $vm.Mem_usage_maximum 0.0) (le $vm.Mem_usage_maximum 75.00)}} <td style="text-align: right">
         {{printf "%.0f" $vm.Vm_MemorySizeGB}} ({{printf "%.0f" $vm.Mem_usage_maximum}}%)</td>
         {{ else if and (gt $vm.Mem_usage_maximum 75.00) (le $vm.Mem_usage_maximum 90.00)}} <td
-        style="background-color: #ffff00; text-align: right">{{printf "%.0f" $vm.Vm_MemorySizeGB}} ({{printf
+        class="metric-warn" style="text-align: right">{{printf "%.0f" $vm.Vm_MemorySizeGB}} ({{printf
         "%.0f"
         $vm.Mem_usage_maximum}}%) </td>
-        {{ else if (gt $vm.Mem_usage_maximum 90.00 ) }} <td style="background-color: #fc2824; text-align: right">
+        {{ else if (gt $vm.Mem_usage_maximum 90.00 ) }} <td class="metric-crit" style="text-align: right">
         {{printf "%.0f" $vm.Vm_MemorySizeGB}} ({{printf "%.0f" $vm.Mem_usage_maximum}}%) </td>
         {{ else }} <td style="text-align: right"> {{printf "%.0f" $vm.Vm_MemorySizeGB}} ({{printf "%.0f"
         $vm.Mem_usage_maximum}}%)</td> {{end}}
@@ -145,11 +145,11 @@ $(document).ready(function () {
                 <div style="width:80px;">{{printf "%.3fGb" $vm.Vm_CapacityGb}}</div>
               </th>
               {{if gt $vm.Vm_PercentUsed 90.0}}
-              <th style="background-color: #fc2824; text-align: right;">
+              <th class="metric-crit" style="text-align: right;">
                 <div style="width:60px;">{{printf "%2.2f" $vm.Vm_PercentUsed}}%</div>
               </th>
               {{else if lt $vm.Vm_PercentUsed 1.0}}
-              <th style="background-color: #00ffff; text-align: right;">
+              <th class="metric-info" style="text-align: right;">
                 <div style="width:60px;">{{printf "%2.2f" $vm.Vm_PercentUsed}}%</div>
               </th>
               {{else}}
@@ -171,11 +171,11 @@ $(document).ready(function () {
               </td>
 
               {{if gt $dsk.PercentUsed 90.0}}
-              <td style="background-color: #fc2824; text-align: right;">
+              <td class="metric-crit" style="text-align: right;">
                 <div style="width:60px;">{{printf "%.2f" $dsk.PercentUsed}}%</div>
               </td>
               {{else if lt $dsk.PercentUsed 1.0}}
-              <td style="background-color: #00ffff; text-align: right;">
+              <td class="metric-info" style="text-align: right;">
                 <div style="width:60px;">{{printf "%.2f" $dsk.PercentUsed}}%</div>
               </th>
               {{else}}
@@ -226,10 +226,10 @@ $(document).ready(function () {
 
             {{if $vm.VmFiles}}
             <tr>
-              <td style="text-align: center;background-color: #ffff00;">
+              <td class="metric-warn" style="text-align: center;">
                 <div style="width:200px;word-wrap: break-word;"><b>Снапшоты</b></div>
               </td>
-              <td style="text-align: center;background-color: #ffff00;">
+              <td class="metric-warn" style="text-align: center;">
                 <div style="width:80px;"><b>Размер</b></div>
               </td>
               <td style="text-align: center;">
@@ -243,8 +243,8 @@ $(document).ready(function () {
             {{range $vmf := $vm.VmFiles}}
             <tr>
               {{if eq $vmf.Type "snapshotData"}}
-              <td style="background-color: #ffff00;">{{$vmf.Name}}</td>
-              <td style="background-color: #ffff00;text-align: right;">{{printf "%.3fGb" $vmf.Size}}</td>
+              <td class="metric-warn">{{$vmf.Name}}</td>
+              <td class="metric-warn" style="text-align: right;">{{printf "%.3fGb" $vmf.Size}}</td>
               <td> </td>
               <td> </td>
               {{end}}
