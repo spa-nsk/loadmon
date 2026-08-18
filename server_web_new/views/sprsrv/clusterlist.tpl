@@ -40,17 +40,20 @@
         </div>
     </div>
     <div class="row mt-2">
-        <div class="col-12 d-flex justify-content-between align-items-center">
+        <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span class="text-muted small">Найдено кластеров: {{.ClusterCount}}</span>
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
                 <a href="/sprsrv/listclusterview?vcenter={{.CurVcenter}}&datacenter={{.CurDatacenter}}&cluster={{.CurCluster}}&export=xlsx" class="btn btn-outline-primary btn-sm rounded-pill px-3">Экспорт в XLSX</a>
                 <a href="/sprsrv/listclusterview" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="clusterFilterStickyToggle" onchange="clusterToggleFilterSticky(this.checked)">
+                    <label class="form-check-label small text-muted" for="clusterFilterStickyToggle">Закреплять фильтр вверху экрана</label>
+                </div>
             </div>
         </div>
     </div>
 </form>
 
-<div class="table-responsive">
     <table class="table table-bordered table-striped table-hover align-middle spr-classic-table vm-table">
         <thead>
             <tr>
@@ -148,7 +151,6 @@
             {{end}}
         </tbody>
     </table>
-</div>
 
 <!-- всплывающее меню строки (правая кнопка мыши) -->
 <div id="vmRowContextMenu"></div>
@@ -180,6 +182,44 @@
      server_web_new/static/css/loadmon.css (подключён в header.tpl). -->
 
 <script>
+    // Закрепление панели фильтра вверху экрана (переключается чекбоксом,
+    // выбор запоминается в localStorage) - высота панели пересчитывается в
+    // CSS-переменную --spr-thead-top, чтобы заголовок таблицы прилипал сразу
+    // под ней, а не перекрывался ею. Приём идентичен /sprsrv/hwconflist и
+    // /admin/userlog.
+    (function () {
+        var STORAGE_KEY = 'clusterlist.filterSticky';
+        var bar = document.querySelector('.vm-filter-bar');
+        var toggle = document.getElementById('clusterFilterStickyToggle');
+        if (!bar || !toggle) return;
+
+        function updateTheadOffset() {
+            var offset = 0;
+            if (!bar.classList.contains('vm-filter-bar-unpinned')) {
+                offset = bar.offsetHeight;
+            }
+            document.documentElement.style.setProperty('--spr-thead-top', offset + 'px');
+        }
+
+        function applySticky(sticky) {
+            bar.classList.toggle('vm-filter-bar-unpinned', !sticky);
+            toggle.checked = sticky;
+            updateTheadOffset();
+        }
+
+        var stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applySticky(stored === null ? true : stored === '1');
+
+        window.clusterToggleFilterSticky = function (sticky) {
+            applySticky(sticky);
+            try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
+        };
+
+        window.addEventListener('resize', updateTheadOffset);
+        window.addEventListener('load', updateTheadOffset);
+    })();
+
     function clusterFilterNavigate(changed) {
         var vc = document.getElementById('filterVcenter').value || 'all';
         var dc = document.getElementById('filterDatacenter').value || 'all';
