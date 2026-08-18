@@ -39,8 +39,7 @@
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
+    <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
             <thead>
                 <tr>
                     <th class="text-center">Id</th>
@@ -68,7 +67,6 @@
                 {{end}}
             </tbody>
         </table>
-    </div>
 
     <div class="pager-bar pager-bar-sticky d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
         <div class="text-muted small">

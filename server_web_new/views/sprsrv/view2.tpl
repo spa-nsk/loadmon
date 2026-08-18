@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function () {
                          (догружается отдельным запросом только для ВМ), из-за чего у
                          гипервизоров эта информация не показывалась вовсе. Для остальных типов
                          (физический сервер, внешнее облако) вторая строка не нужна и не выводится. -->
-                    <div style="width:300px;" class="{{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{end}}">
+                    <div style="width:300px;" class="srv-name-cell {{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{end}}">
                         <div class="d-inline-flex align-items-center">
                             <svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg>
                             <a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" class="{{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{else if eq $record.S.Type 0}}link-body-emphasis{{end}}" title="Общие данные по серверу">{{$record.S.NameFQDN}}</a>
@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         {{end}}{{end}}
                     </div>
                     {{else}}
-                    <div style="width:300px;" class="text-body-secondary">
+                    <div style="width:300px;" class="srv-name-cell text-body-secondary">
                         <div class="d-inline-flex align-items-center">
                             <svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg>
                             <a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" title="Общие данные по серверу">{{$record.S.Name}}</a>

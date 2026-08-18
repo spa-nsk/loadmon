@@ -191,6 +191,13 @@ func (this *MainController) ViewUserLog() {
 
 	o := orm.NewOrm()
 
+	// buildQuery возвращает queryset ТОЛЬКО с фильтром (без сортировки) -
+	// именно он должен использоваться для Count(): beego ORM встраивает
+	// ORDER BY прямо в SQL с агрегатом COUNT(*), а PostgreSQL не допускает
+	// ORDER BY по колонке, не входящей в GROUP BY/агрегат, в таком запросе
+	// ("column t0.time must appear in the GROUP BY clause..."). Сортировка
+	// (OrderBy) добавляется отдельно, только для выборки самих записей -
+	// см. buildOrderedQuery().
 	buildQuery := func() orm.QuerySeter {
 		qs := o.QueryTable("userlog")
 		if typeFilter != "all" {
@@ -198,7 +205,10 @@ func (this *MainController) ViewUserLog() {
 				qs = qs.Filter("Type", t)
 			}
 		}
-		return qs.OrderBy("-Time")
+		return qs
+	}
+	buildOrderedQuery := func() orm.QuerySeter {
+		return buildQuery().OrderBy("-Time")
 	}
 
 	// экспорт в XLSX отдаёт весь найденный по фильтру журнал (без постраничной
@@ -206,7 +216,7 @@ func (this *MainController) ViewUserLog() {
 	if this.GetString("export") == "xlsx" {
 		RegisterRequest(this, LogTypeExport) // выгрузка журнала действий в XLSX
 		var records []models.UserLog
-		if _, err := buildQuery().All(&records); err != nil {
+		if _, err := buildOrderedQuery().All(&records); err != nil {
 			flash.Error("Ошибка загрузки журнала для экспорта: %v", err)
 			flash.Store(&this.Controller)
 			return
@@ -245,7 +255,7 @@ func (this *MainController) ViewUserLog() {
 	offset := (page - 1) * pageSize
 
 	var records []models.UserLog
-	if _, err := buildQuery().Limit(pageSize, offset).All(&records); err != nil {
+	if _, err := buildOrderedQuery().Limit(pageSize, offset).All(&records); err != nil {
 		log.Println("ViewUserLog: ошибка выборки записей журнала (userlog):", err)
 		flash.Error("Ошибка чтения журнала (userlog): %v", err)
 		flash.Store(&this.Controller)
