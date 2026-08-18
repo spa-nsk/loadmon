@@ -267,6 +267,13 @@ function clusterPeriodNavigate() {
         </tr>
         {{end}}
         {{if gt $cl.VMCount 0}}
+        {{if $cl.VMDataMissing}}
+        <tr>
+            <td>
+                <div class="text-muted fst-italic py-1">Виртуальные машины кластера ({{$cl.VMCount}} шт.) - за выбранный период нет сохранённых данных в БД (vm_record). Попробуйте расширить диапазон дат.</div>
+            </td>
+        </tr>
+        {{else}}
         <tr>
             <td>
                 <div style="width:1440px">
@@ -325,6 +332,7 @@ function clusterPeriodNavigate() {
                 </div>
             </td>
         </tr>
+        {{end}}
         {{end}}
     </tbody>
     {{else}}
