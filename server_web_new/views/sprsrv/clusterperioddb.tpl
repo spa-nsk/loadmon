@@ -168,15 +168,15 @@ function clusterPeriodNavigate() {
                     <div style="width:120px; float:left; text-align: center">{{printf "%d/%d (%d)" $cl.AllNumCpuPkgs $cl.AllNumCpuCores $cl.CpuMhzAvg}}</div>
                     <div style="width:70px; float:left; text-align: center">{{printf "%.0f" $cl.AllMemorySizeGB}}</div>
                     {{if and (ge $cl.CPU.Max 0.0) (le $cl.CPU.Max 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.CPU.Max}}</div>
-                    {{else if and (gt $cl.CPU.Max 75.0) (le $cl.CPU.Max 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.CPU.Max}}</div>
-                    {{else if (gt $cl.CPU.Max 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.CPU.Max}}</div>
+                    {{else if and (gt $cl.CPU.Max 75.0) (le $cl.CPU.Max 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.CPU.Max}}</div>
+                    {{else if (gt $cl.CPU.Max 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.CPU.Max}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.CPU.Max}}</div>{{end}}
                     {{if and (ge $cl.Mem.Max 0.0) (le $cl.Mem.Max 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.Mem.Max}}</div>
-                    {{else if and (gt $cl.Mem.Max 75.0) (le $cl.Mem.Max 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.Mem.Max}}</div>
-                    {{else if (gt $cl.Mem.Max 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.Mem.Max}}</div>
+                    {{else if and (gt $cl.Mem.Max 75.0) (le $cl.Mem.Max 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.Mem.Max}}</div>
+                    {{else if (gt $cl.Mem.Max 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.Mem.Max}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.Mem.Max}}</div>{{end}}
-                    <div style="width:90px; float:left; text-align: right">{{printf "%.3f" $cl.AllCapacityGb}}</div>
-                    <div style="width:100px; float:left; text-align: right">{{printf "%.3f" $cl.AllFreeSpaceGb}}</div>
+                    <div style="width:90px; float:left; text-align: right">{{printf "%.1f" $cl.AllCapacityGb}}</div>
+                    <div style="width:100px; float:left; text-align: right">{{printf "%.1f" $cl.AllFreeSpaceGb}}</div>
                     <div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $cl.AllPercentUsed}}</div>
                     <div style="width:80px; float:left; text-align: right">{{$cl.RecordCount}}</div>
                     <div style="clear: both"></div>
@@ -216,32 +216,32 @@ function clusterPeriodNavigate() {
                     <div style="width:120px; float:left; text-align: center">{{printf "%d/%d (%d)" $hi.NumCpuPkgs $hi.NumCpuCores $hi.CpuMhz}}</div>
                     <div style="width:70px; float:left; text-align: center">{{printf "%.0f" $hi.MemorySizeGB}}</div>
                     {{if and (ge $hi.CPU.Max 0.0) (le $hi.CPU.Max 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Max}}</div>
-                    {{else if and (gt $hi.CPU.Max 75.0) (le $hi.CPU.Max 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Max}}</div>
-                    {{else if (gt $hi.CPU.Max 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Max}}</div>
+                    {{else if and (gt $hi.CPU.Max 75.0) (le $hi.CPU.Max 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Max}}</div>
+                    {{else if (gt $hi.CPU.Max 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Max}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Max}}</div>{{end}}
                     {{if and (ge $hi.CPU.Avg 0.0) (le $hi.CPU.Avg 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Avg}}</div>
-                    {{else if and (gt $hi.CPU.Avg 75.0) (le $hi.CPU.Avg 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Avg}}</div>
-                    {{else if (gt $hi.CPU.Avg 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Avg}}</div>
+                    {{else if and (gt $hi.CPU.Avg 75.0) (le $hi.CPU.Avg 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Avg}}</div>
+                    {{else if (gt $hi.CPU.Avg 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Avg}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Avg}}</div>{{end}}
                     <div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.CPU.Min}}</div>
                     {{if and (ge $hi.Mem.Max 0.0) (le $hi.Mem.Max 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Max}}</div>
-                    {{else if and (gt $hi.Mem.Max 75.0) (le $hi.Mem.Max 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Max}}</div>
-                    {{else if (gt $hi.Mem.Max 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Max}}</div>
+                    {{else if and (gt $hi.Mem.Max 75.0) (le $hi.Mem.Max 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Max}}</div>
+                    {{else if (gt $hi.Mem.Max 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Max}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Max}}</div>{{end}}
                     {{if and (ge $hi.Mem.Avg 0.0) (le $hi.Mem.Avg 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Avg}}</div>
-                    {{else if and (gt $hi.Mem.Avg 75.0) (le $hi.Mem.Avg 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Avg}}</div>
-                    {{else if (gt $hi.Mem.Avg 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Avg}}</div>
+                    {{else if and (gt $hi.Mem.Avg 75.0) (le $hi.Mem.Avg 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Avg}}</div>
+                    {{else if (gt $hi.Mem.Avg 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Avg}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Avg}}</div>{{end}}
                     {{if and (ge $hi.Mem.Min 0.0) (le $hi.Mem.Min 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Min}}</div>
-                    {{else if and (gt $hi.Mem.Min 75.0) (le $hi.Mem.Min 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Min}}</div>
-                    {{else if (gt $hi.Mem.Min 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Min}}</div>
+                    {{else if and (gt $hi.Mem.Min 75.0) (le $hi.Mem.Min 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Min}}</div>
+                    {{else if (gt $hi.Mem.Min 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Min}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $hi.Mem.Min}}</div>{{end}}
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $hi.Disk.Max}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $hi.Disk.Avg}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $hi.Disk.Min}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $hi.Net.Max}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $hi.Net.Avg}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $hi.Net.Min}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $hi.Disk.Max}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $hi.Disk.Avg}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $hi.Disk.Min}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $hi.Net.Max}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $hi.Net.Avg}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $hi.Net.Min}}</div>
                     <div style="clear: both"></div>
                     {{end}}
                     {{if gt $cl.HostCount 1}}
@@ -254,12 +254,12 @@ function clusterPeriodNavigate() {
                     <div style="width:80px; float:left; text-align: right"><b>{{printf "%2.2f" $cl.Mem.Max}}</b></div>
                     <div style="width:80px; float:left; text-align: right"><b>{{printf "%2.2f" $cl.Mem.Avg}}</b></div>
                     <div style="width:80px; float:left; text-align: right"><b>{{printf "%2.2f" $cl.Mem.Min}}</b></div>
-                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.3f" $cl.Disk.Max}}</b></div>
-                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.3f" $cl.Disk.Avg}}</b></div>
-                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.3f" $cl.Disk.Min}}</b></div>
-                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.3f" $cl.Net.Max}}</b></div>
-                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.3f" $cl.Net.Avg}}</b></div>
-                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.3f" $cl.Net.Min}}</b></div>
+                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.1f" $cl.Disk.Max}}</b></div>
+                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.1f" $cl.Disk.Avg}}</b></div>
+                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.1f" $cl.Disk.Min}}</b></div>
+                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.1f" $cl.Net.Max}}</b></div>
+                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.1f" $cl.Net.Avg}}</b></div>
+                    <div style="width:80px; float:left; text-align: right"><b>{{printf "%.1f" $cl.Net.Min}}</b></div>
                     <div style="clear: both"></div>
                     {{end}}
                 </div>
@@ -304,29 +304,29 @@ function clusterPeriodNavigate() {
                     <div style="width:120px; float:left; text-align: center">{{printf "%d/%d" $vm.NumCPU $vm.NumCores}}</div>
                     <div style="width:70px; float:left; text-align: center">{{printf "%.0f" $vm.MemorySizeGB}}</div>
                     {{if and (ge $vm.CPU.Max 0.0) (le $vm.CPU.Max 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Max}}</div>
-                    {{else if and (gt $vm.CPU.Max 75.0) (le $vm.CPU.Max 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Max}}</div>
-                    {{else if (gt $vm.CPU.Max 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Max}}</div>
+                    {{else if and (gt $vm.CPU.Max 75.0) (le $vm.CPU.Max 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Max}}</div>
+                    {{else if (gt $vm.CPU.Max 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Max}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Max}}</div>{{end}}
                     {{if and (ge $vm.CPU.Avg 0.0) (le $vm.CPU.Avg 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Avg}}</div>
-                    {{else if and (gt $vm.CPU.Avg 75.0) (le $vm.CPU.Avg 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Avg}}</div>
-                    {{else if (gt $vm.CPU.Avg 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Avg}}</div>
+                    {{else if and (gt $vm.CPU.Avg 75.0) (le $vm.CPU.Avg 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Avg}}</div>
+                    {{else if (gt $vm.CPU.Avg 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Avg}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Avg}}</div>{{end}}
                     <div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.CPU.Min}}</div>
                     {{if and (ge $vm.Mem.Max 0.0) (le $vm.Mem.Max 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Max}}</div>
-                    {{else if and (gt $vm.Mem.Max 75.0) (le $vm.Mem.Max 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Max}}</div>
-                    {{else if (gt $vm.Mem.Max 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Max}}</div>
+                    {{else if and (gt $vm.Mem.Max 75.0) (le $vm.Mem.Max 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Max}}</div>
+                    {{else if (gt $vm.Mem.Max 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Max}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Max}}</div>{{end}}
                     {{if and (ge $vm.Mem.Avg 0.0) (le $vm.Mem.Avg 75.0)}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Avg}}</div>
-                    {{else if and (gt $vm.Mem.Avg 75.0) (le $vm.Mem.Avg 90.0)}}<div style="background-color: #ffff00; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Avg}}</div>
-                    {{else if (gt $vm.Mem.Avg 90.0)}}<div style="background-color: #fc2824; width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Avg}}</div>
+                    {{else if and (gt $vm.Mem.Avg 75.0) (le $vm.Mem.Avg 90.0)}}<div class="metric-warn" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Avg}}</div>
+                    {{else if (gt $vm.Mem.Avg 90.0)}}<div class="metric-crit" style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Avg}}</div>
                     {{else}}<div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Avg}}</div>{{end}}
                     <div style="width:80px; float:left; text-align: right">{{printf "%2.2f" $vm.Mem.Min}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $vm.Disk.Max}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $vm.Disk.Avg}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $vm.Disk.Min}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $vm.Net.Max}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $vm.Net.Avg}}</div>
-                    <div style="width:80px; float:left; text-align: right">{{printf "%.3f" $vm.Net.Min}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $vm.Disk.Max}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $vm.Disk.Avg}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $vm.Disk.Min}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $vm.Net.Max}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $vm.Net.Avg}}</div>
+                    <div style="width:80px; float:left; text-align: right">{{printf "%.1f" $vm.Net.Min}}</div>
                     <div style="clear: both"></div>
                     {{end}}
                 </div>
