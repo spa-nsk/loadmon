@@ -14,7 +14,7 @@
 
     <div class="hw-filter-bar mb-3 p-3 rounded border">
         <div class="row g-3 align-items-end">
-            <div class="col-6 col-md-4">
+            <div class="col-6 col-md-3">
                 <label for="filterType" class="form-label">Тип операции</label>
                 <select id="filterType" name="type" class="form-select" onchange="document.getElementById('pageField').value=1;document.getElementById('Update').submit();">
                     <option value="all" {{if eq .CurType "all"}}selected{{end}}>Все</option>
@@ -23,12 +23,23 @@
                     {{end}}
                 </select>
             </div>
+            <div class="col-6 col-md-3">
+                <label for="filterFrom" class="form-label">Дата операции с</label>
+                <input type="date" id="filterFrom" name="from" class="form-control" value="{{.FromDate}}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="filterTo" class="form-label">Дата операции по</label>
+                <input type="date" id="filterTo" name="to" class="form-control" value="{{.ToDate}}">
+            </div>
+            <div class="col-6 col-md-3">
+                <button type="submit" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Найти</button>
+            </div>
         </div>
         <div class="row mt-2">
             <div class="col-12 d-flex flex-wrap align-items-center gap-2">
                 <span class="text-muted small">Найдено записей: {{.TotalRecords}}</span>
                 <div class="d-flex gap-2 ms-auto">
-                    <a href="/admin/userlog?type={{.CurType}}&export=xlsx" class="btn btn-outline-success btn-sm rounded-pill px-3">Экспорт в XLSX</a>
+                    <a href="#" onclick="userlogExportXLSX(); return false;" class="btn btn-outline-success btn-sm rounded-pill px-3">Экспорт в XLSX</a>
                     <a href="/admin/userlog" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
                 </div>
                 <div class="form-check form-switch mb-0">
@@ -133,6 +144,22 @@
         window.addEventListener('resize', updateTheadOffset);
         window.addEventListener('load', updateTheadOffset);
     })();
+
+    // Экспорт в XLSX учитывает текущие значения фильтра (тип операции и
+    // диапазон дат) прямо из полей формы - строится тот же GET-запрос, что
+    // и обычный "Найти", плюс export=xlsx (см. ViewUserLog в
+    // controllers/userlog.go).
+    function userlogExportXLSX() {
+        var type = document.getElementById('filterType').value;
+        var from = document.getElementById('filterFrom').value;
+        var to = document.getElementById('filterTo').value;
+        var params = new URLSearchParams();
+        params.set('type', type);
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+        params.set('export', 'xlsx');
+        window.location.href = '/admin/userlog?' + params.toString();
+    }
 
     function userlogPagerGoTo(page) {
         var field = document.getElementById('pageField');

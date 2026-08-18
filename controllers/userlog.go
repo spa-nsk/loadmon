@@ -189,6 +189,40 @@ func (this *MainController) ViewUserLog() {
 	}
 	this.Data["TypeList"] = typeOptions
 
+	// Фильтр по диапазону дат (по полю Time - время самой операции, а не
+	// входа в систему). Обе границы необязательны и независимы: можно
+	// задать только "с" или только "по"; если ни одна не задана - фильтр по
+	// дате не применяется и отдаётся журнал целиком (в пределах остальных
+	// фильтров). Верхняя граница включительна по дате - для этого к ToDate
+	// прибавляются сутки и используется Time__lt.
+	fromDateStr := this.GetString("from")
+	toDateStr := this.GetString("to")
+	this.Data["FromDate"] = fromDateStr
+	this.Data["ToDate"] = toDateStr
+
+	var fromDate, toDate time.Time
+	var hasFrom, hasTo bool
+	if fromDateStr != "" {
+		if t, err := time.ParseInLocation("2006-01-02", fromDateStr, time.Local); err == nil {
+			fromDate = t
+			hasFrom = true
+		} else {
+			this.Data["FromDate"] = ""
+		}
+	}
+	if toDateStr != "" {
+		if t, err := time.ParseInLocation("2006-01-02", toDateStr, time.Local); err == nil {
+			toDate = t
+			hasTo = true
+		} else {
+			this.Data["ToDate"] = ""
+		}
+	}
+	if hasFrom && hasTo && toDate.Before(fromDate) {
+		fromDate, toDate = toDate, fromDate
+		this.Data["FromDate"], this.Data["ToDate"] = this.Data["ToDate"], this.Data["FromDate"]
+	}
+
 	o := orm.NewOrm()
 
 	// buildQuery возвращает queryset ТОЛЬКО с фильтром (без сортировки) -
@@ -204,6 +238,12 @@ func (this *MainController) ViewUserLog() {
 			if t, err := strconv.Atoi(typeFilter); err == nil {
 				qs = qs.Filter("Type", t)
 			}
+		}
+		if hasFrom {
+			qs = qs.Filter("Time__gte", fromDate)
+		}
+		if hasTo {
+			qs = qs.Filter("Time__lt", toDate.AddDate(0, 0, 1))
 		}
 		return qs
 	}

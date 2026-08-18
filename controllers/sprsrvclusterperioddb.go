@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"loadmon/models"
+	"log"
 	"sort"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	beego "github.com/beego/beego/v2/server/web"
 )
 
 // PeriodMetric - агрегированный по периоду показатель (максимум/среднее/минимум).
@@ -57,6 +59,11 @@ type ClusterPeriodRow struct {
 	RecordCount                            int
 	Hosts                                  []*HostPeriodRow
 	VM                                     []*VMPeriodRow
+	// VMDataMissing = true, когда по текущей конфигурации кластера ВМ есть
+	// (VMCount > 0), но за выбранный период в vm_record не нашлось ни одной
+	// сохранённой записи по ВМ этого кластера - отличает "данных ещё нет"
+	// от "ВМ в кластере нет" в шаблоне (views/sprsrv/clusterperioddb.tpl).
+	VMDataMissing bool
 }
 
 // HostPeriodRow - агрегированная за период строка хоста кластера (по данным HostRecord).
@@ -134,6 +141,7 @@ func (this *MainController) SprClusterPeriodDB() {
 	this.Data["FromDate"] = from.Format("2006-01-02")
 	this.Data["ToDate"] = to.Format("2006-01-02")
 
+	flash := beego.NewFlash()
 	o := orm.NewOrm()
 
 	// справочник кластеров - источник списков для фильтра (vcenter/датацентр/
@@ -176,12 +184,16 @@ func (this *MainController) SprClusterPeriodDB() {
 
 	if len(matchedSprIds) > 0 {
 		var clRecs []models.ClusterRecord
-		_, _ = o.QueryTable("cluster_record").
+		if _, err := o.QueryTable("cluster_record").
 			Filter("ClusterId__in", matchedSprIds).
 			Filter("Date__gte", dateFrom).
 			Filter("Date__lt", dateTo).
 			OrderBy("Date").
-			All(&clRecs)
+			All(&clRecs); err != nil {
+			log.Println("SprClusterPeriodDB: ошибка выборки cluster_record:", err)
+			flash.Error("Ошибка чтения данных кластеров за период (cluster_record): %v", err)
+			flash.Store(&this.Controller)
+		}
 
 		for i := range clRecs {
 			r := &clRecs[i]
@@ -235,10 +247,14 @@ func (this *MainController) SprClusterPeriodDB() {
 
 	if len(allClRecIds) > 0 {
 		var hostRecs []models.HostRecord
-		_, _ = o.QueryTable("host_record").
+		if _, err := o.QueryTable("host_record").
 			Filter("ClusterId__in", allClRecIds).
 			OrderBy("Date").
-			All(&hostRecs)
+			All(&hostRecs); err != nil {
+			log.Println("SprClusterPeriodDB: ошибка выборки host_record:", err)
+			flash.Error("Ошибка чтения данных хостов за период (host_record): %v", err)
+			flash.Store(&this.Controller)
+		}
 
 		for i := range hostRecs {
 			h := &hostRecs[i]
@@ -302,10 +318,14 @@ func (this *MainController) SprClusterPeriodDB() {
 
 	if len(allClRecIds) > 0 {
 		var vmRecs []models.VMRecord
-		_, _ = o.QueryTable("vm_record").
+		if _, err := o.QueryTable("vm_record").
 			Filter("ClusterId__in", allClRecIds).
 			OrderBy("Date").
-			All(&vmRecs)
+			All(&vmRecs); err != nil {
+			log.Println("SprClusterPeriodDB: ошибка выборки vm_record:", err)
+			flash.Error("Ошибка чтения данных виртуальных машин за период (vm_record): %v", err)
+			flash.Store(&this.Controller)
+		}
 
 		for i := range vmRecs {
 			v := &vmRecs[i]
@@ -372,6 +392,9 @@ func (this *MainController) SprClusterPeriodDB() {
 				row.VM = append(row.VM, v)
 			}
 			sort.Slice(row.VM, func(i, j int) bool { return row.VM[i].Name < row.VM[j].Name })
+		}
+		if row.VMCount > 0 && len(row.VM) == 0 {
+			row.VMDataMissing = true
 		}
 		clusterList = append(clusterList, row)
 	}
