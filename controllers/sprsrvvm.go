@@ -1,10 +1,20 @@
 package controllers
 
 import (
-	"loadmon/grpcclient"
-	pb "loadmon/protocol"
+	"fmt"
+	"net/http"
+	"os"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
+
+	"loadmon/grpcclient"
+	pb "loadmon/protocol"
+	vsphere "loadmon/vspheremetrics"
+
+	beego "github.com/beego/beego/v2/server/web"
+	"github.com/xuri/excelize/v2"
 )
 
 // SprSrvVM отображает список виртуальных машин с каскадным фильтром
@@ -143,6 +153,25 @@ func (this *MainController) SprSrvVM() {
 		return keyList[i].VMName < keyList[j].VMName
 	})
 
+	// Экспорт в XLSX отдаёт ВЕСЬ найденный по фильтру список (все ключи из
+	// keyList), а не только текущую страницу - тот же принцип, что и в
+	// /sprsrv/hwviewlist. Набор столбцов повторяет то, что показывает
+	// html-таблица этой страницы (views/sprsrv/vmlist.tpl): столбцы
+	// Id/vCenter/Датацентр/Кластер/Имя/Хост/CPU/Память/Сеть/IP + сводка по
+	// дискам/хранилищам/снапшотам, вложенным в ячейку строки ВМ в html.
+	if this.GetString("export") == "xlsx" {
+		fullList := grpcclient.LoadVMByKeyRecs(keyList)
+		sort.Slice(fullList, func(i, j int) bool {
+			if fullList[i] == nil || fullList[j] == nil {
+				return fullList[j] == nil && fullList[i] != nil
+			}
+			return fullList[i].Name < fullList[j].Name
+		})
+		flash := beego.NewFlash()
+		ExportVMListXLSX(this, flash, fullList)
+		return
+	}
+
 	// пагинация на уровне ключей (как в /sprsrv/view2, но раньше по потоку
 	// данных) - полные данные (Disk/Perf/Files/UsageDatastore) запрашиваются
 	// только для ключей текущей страницы, а не для всей выборки целиком;
@@ -193,4 +222,162 @@ func (this *MainController) SprSrvVM() {
 		this.Data["PageFrom"] = offset + 1
 	}
 	this.Data["PageTo"] = end
+}
+
+// vmListXLSXHeader - заголовок листа XLSX-экспорта /sprsrv/vm/... Порядок и
+// состав столбцов повторяют то, что показывает html-таблица этой страницы
+// (views/sprsrv/vmlist.tpl): сводные столбцы CPU/память/сеть/IP как есть, а
+// вложенные в ячейку строки ВМ html-подтаблицы (диски, хранилища и RDM,
+// снапшоты) сведены в текстовые столбцы с разделителем "; " на запись.
+var vmListXLSXHeader = []string{
+	"Id", "vCenter", "Датацентр", "Кластер", "Имя", "Хост (ESXi)",
+	"Рабочая станция", "Питание",
+	"Процессоры", "Ядра", "CPU макс, %",
+	"Память, ГБ", "Память макс, %",
+	"Сеть", "IP адрес",
+	"Путь", "Диски всего, ГБ", "Занято, %", "Свободно, ГБ",
+	"Диски (детально)", "Хранилища и RDM", "Снапшоты",
+}
+
+// vmListXLSXRow формирует одну строку XLSX-экспорта из vsphere.VMPoint -
+// см. комментарий к vmListXLSXHeader про соответствие html-таблице.
+func vmListXLSXRow(vm *vsphere.VMPoint) []string {
+	if vm == nil {
+		return make([]string, len(vmListXLSXHeader))
+	}
+
+	workStation := "нет"
+	if vm.WorkStation {
+		workStation = "да"
+	}
+	powerState := "Выключена"
+	if vm.PowerState {
+		powerState = "Включена"
+	}
+
+	disks := make([]string, 0, len(vm.Disk))
+	for _, d := range vm.Disk {
+		disks = append(disks, fmt.Sprintf("%s: %.2f ГБ (%.2f%%, %.2f ГБ своб.)", d.DiskPath, d.CapacityGb, d.PercentUsed, d.FreeSpaceGb))
+	}
+
+	storages := make([]string, 0, len(vm.UsageDatastore))
+	for _, u := range vm.UsageDatastore {
+		if u.PercentAllocateStorage > 0 {
+			storages = append(storages, fmt.Sprintf("%s: %.2f ГБ (%.2f%%)", u.StorageName, u.CommittedGb, u.PercentAllocateStorage))
+		} else {
+			storages = append(storages, fmt.Sprintf("%s %s: %.2f ГБ", u.StorageName, u.Datastore, u.CommittedGb))
+		}
+	}
+
+	snapshots := make([]string, 0)
+	for _, f := range vm.Files {
+		if f.Type == "snapshotData" {
+			snapshots = append(snapshots, fmt.Sprintf("%s: %.2f КБ", f.Name, f.Size))
+		}
+	}
+
+	return []string{
+		strconv.FormatInt(vm.ID, 10),
+		vm.Vcenter,
+		vm.Datacenter,
+		vm.Cluster,
+		vm.Name,
+		vm.HostName,
+		workStation,
+		powerState,
+		strconv.FormatInt(int64(vm.NumCPU), 10),
+		strconv.FormatInt(int64(vm.NumCores), 10),
+		fmt.Sprintf("%.2f", vm.CPUUsageMaximum),
+		fmt.Sprintf("%.2f", vm.MemorySizeGB),
+		fmt.Sprintf("%.2f", vm.MemUsageMaximum),
+		vm.Network,
+		vm.IPAddress,
+		vm.PathName,
+		fmt.Sprintf("%.2f", vm.CapacityGb),
+		fmt.Sprintf("%.2f", vm.PercentUsed),
+		fmt.Sprintf("%.2f", vm.FreeSpaceGb),
+		strings.Join(disks, "; "),
+		strings.Join(storages, "; "),
+		strings.Join(snapshots, "; "),
+	}
+}
+
+// ExportVMListXLSX отдаёт найденный по фильтру список виртуальных машин
+// (весь, а не только текущую страницу) файлом XLSX на скачивание -
+// формирование листа аналогично экспорту /sprsrv/hwviewlist.
+func ExportVMListXLSX(this *MainController, flash *beego.FlashData, vmList []*vsphere.VMPoint) {
+	if len(vmList) == 0 {
+		flash.Notice("Нет записей для экспорта.")
+		flash.Store(&this.Controller)
+		return
+	}
+
+	crt := time.Now().Local()
+	shortName := fmt.Sprintf("vm%02d_%02d_%04d_%02d_%02d_%02d_%d.xlsx", crt.Day(), crt.Month(), crt.Year(), crt.Hour(), crt.Minute(), crt.Second(), crt.UnixNano())
+	destination := "./reports/" + shortName
+
+	file := excelize.NewFile()
+	if file == nil {
+		flash.Error("Ошибка создания XLSX файла: " + destination)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	sheet := "Виртуальные машины"
+	index, err := file.NewSheet(sheet)
+	if err != nil {
+		flash.Error("Ошибка создания листа XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	file.SetActiveSheet(index)
+
+	cell, _ := excelize.CoordinatesToCellName(1, 1)
+	if err := file.SetSheetRow(sheet, cell, &vmListXLSXHeader); err != nil {
+		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+
+	for j, vm := range vmList {
+		row := vmListXLSXRow(vm)
+		cell, _ := excelize.CoordinatesToCellName(1, j+2)
+		if err := file.SetSheetRow(sheet, cell, &row); err != nil {
+			flash.Error("Ошибка записи строки XLSX файла: "+destination+" ", err)
+			flash.Store(&this.Controller)
+			file.Close()
+			return
+		}
+	}
+
+	if err := file.SaveAs(destination); err != nil {
+		flash.Error("Ошибка сохранения XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	if err := file.Close(); err != nil {
+		flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	fileInfo, err := os.Stat(destination)
+	if err != nil {
+		flash.Error("Ошибка получения данных XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	this.Ctx.Output.Header("Content-Description", "File Transfer")
+	this.Ctx.Output.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	this.Ctx.Output.Header("Content-Disposition", "attachment; filename=\""+shortName+"\"")
+	this.Ctx.Output.Header("Expires", "0")
+	this.Ctx.Output.Header("Cache-Control", "must-revalidate")
+	this.Ctx.Output.Header("Pragma", "public")
+	this.Ctx.Output.Header("Content-Length", fmt.Sprint(fileInfo.Size()))
+
+	http.ServeFile(this.Ctx.Output.Context.ResponseWriter, this.Ctx.Output.Context.Request, destination)
 }

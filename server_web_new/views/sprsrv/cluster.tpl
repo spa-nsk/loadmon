@@ -51,6 +51,9 @@ function selectcluster(val) {
 })();
 </script>
 
+<!-- Стили закрепляемой панели фильтра вынесены в общий
+     server_web_new/static/css/loadmon.css (подключён в header.tpl); здесь
+     остаются только правила, специфичные для этой страницы. -->
 <style>
 .label tr td label {
     display: block;
@@ -58,20 +61,6 @@ function selectcluster(val) {
 
 .hidestorage {
     display: none;
-}
-
-.cluster-filter-bar {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    background-color: var(--bs-body-bg);
-    border-color: var(--bs-border-color) !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
-}
-
-.cluster-filter-bar.cluster-filter-bar-unpinned {
-    position: static;
-    box-shadow: none;
 }
 
 /* svg.bi без явного размера (в отличие от .power-led на других страницах)

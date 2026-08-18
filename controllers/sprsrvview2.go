@@ -751,7 +751,7 @@ func (this *MainController) SprSrvViewV2() {
 				return
 			}
 			csvwriter := csv.NewWriter(csvFile)
-			csvwriter.Comma = ';'
+			csvwriter.Comma = '|'
 			header, _ := csvtools.GetCSVHeader(&list[0])
 			_ = csvwriter.Write(header)
 

@@ -347,7 +347,7 @@ func (this *MainController) exportHWConfigCSV(rows []HWConfigRow, flash *beego.F
 	}
 
 	csvwriter := csv.NewWriter(csvFile)
-	csvwriter.Comma = ';'
+	csvwriter.Comma = '|'
 	header, _ := csvtools.GetCSVHeader(&rows[0])
 	_ = csvwriter.Write(header)
 	for j := range rows {

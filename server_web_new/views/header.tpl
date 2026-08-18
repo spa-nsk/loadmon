@@ -12,6 +12,11 @@
   <link href="/static/5.3.8/css/bootstrap.min.css" rel="stylesheet" />
   <link href="/static/css/sidebars.css" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/starter-template.css">
+  <!-- общие стили форм /sprsrv (закрепляемая панель фильтра, "классическая"
+       таблица, индикатор питания, панель пагинации, контекстное меню
+       строки, карточка данных) - вынесены сюда из локальных <style> блоков
+       шаблонов, образец - /sprsrv/view2, см. комментарий в самом файле -->
+  <link rel="stylesheet" href="/static/css/loadmon.css">
 
 
   <meta name="theme-color" content="#712cf9" />

@@ -115,18 +115,5 @@
 </form>
 {{end}}
 
-<style>
-    .hw-card {
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.6rem;
-        padding: 1rem;
-        height: 100%;
-    }
-
-    .hw-card h6 {
-        color: var(--bs-emphasis-color);
-        font-weight: 600;
-        margin-bottom: 0.75rem;
-    }
-</style>
+<!-- Стили .hw-card вынесены в общий server_web_new/static/css/loadmon.css
+     (подключён в header.tpl). -->

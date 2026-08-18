@@ -51,7 +51,10 @@
     <div class="row mt-2">
         <div class="col-12 d-flex justify-content-between align-items-center">
             <span class="text-muted small">Найдено виртуальных машин: {{.VMCount}}</span>
-            <a href="/sprsrv/vm/all/all/all/all" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+            <div class="d-flex gap-2">
+                <a href="?export=xlsx" class="btn btn-outline-success btn-sm rounded-pill px-3" title="Экспорт в XLSX всех виртуальных машин, найденных по текущему фильтру (не только текущей страницы)">Экспорт в XLSX</a>
+                <a href="/sprsrv/vm/all/all/all/all" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+            </div>
         </div>
     </div>
 </form>
@@ -237,70 +240,14 @@
     </div>
 </div>
 
+<!-- Стили закрепляемой панели фильтра, "классической" таблицы, индикатора
+     питания, всплывающего контекстного меню строки и панели пагинации
+     вынесены в общий server_web_new/static/css/loadmon.css (подключён в
+     header.tpl) - образец оформления для всего этого /sprsrv/view2. Здесь
+     остаются только правила, специфичные для этой страницы. -->
 <style>
-    /* фильтр закреплён вверху списка и не уезжает при прокрутке таблицы -
-       тот же приём, что и в /sprsrv/view2 */
-    .vm-filter-bar {
-        position: sticky;
-        top: 0;
-        z-index: 5;
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color) !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
-    }
-
-    /* классическая таблица - оформление идентично /sprsrv/view2 */
-    .spr-classic-table {
-        --bs-table-border-color: var(--bs-border-color);
-    }
-
-    .spr-classic-table thead th {
-        position: sticky;
-        top: 0;
-        z-index: 3;
-        background-color: var(--bs-tertiary-bg);
-        color: var(--bs-emphasis-color);
-        font-weight: 600;
-        border-bottom: 2px solid var(--bs-border-color);
-        vertical-align: middle;
-    }
-
-    .spr-classic-table td,
-    .spr-classic-table th {
-        border-color: var(--bs-border-color);
-    }
-
-    .spr-classic-table tbody tr:hover {
-        --bs-table-hover-bg: var(--bs-secondary-bg);
-    }
-
     .vm-disk-table td {
         padding: 0.15rem 0.4rem;
-    }
-
-    /* светодиод питания перед именем ВМ - тот же приём, что и в /sprsrv/view2 */
-    .power-led {
-        width: 1.2em;
-        height: 1.2em;
-        vertical-align: -0.25em;
-        margin-right: 0.3rem;
-        flex-shrink: 0;
-    }
-
-    .power-led.is-on {
-        color: #2fb344;
-        filter: drop-shadow(0 0 2px rgba(47, 179, 68, 0.65));
-    }
-
-    [data-bs-theme="dark"] .power-led.is-on {
-        color: #4dabf7;
-        filter: drop-shadow(0 0 3px rgba(77, 171, 247, 0.75));
-    }
-
-    .power-led.is-off {
-        color: var(--bs-secondary-color);
-        opacity: 0.45;
-        filter: none;
     }
 
     /* подсветка строки включённой ВМ - лёгкая заливка фона; цвет текста
@@ -319,106 +266,6 @@
 
     [data-bs-theme="dark"] tr.vm-row-on:hover {
         --bs-table-hover-bg: rgba(77, 171, 247, 0.18);
-    }
-
-    .spr-classic-table tbody tr.row-context-target {
-        cursor: context-menu;
-    }
-
-    /* всплывающее меню строки (правая кнопка мыши или кнопка "Действия") -
-       оформление повторяет /sprsrv/view2 */
-    #vmRowContextMenu {
-        position: fixed;
-        display: none;
-        min-width: 260px;
-        max-width: 380px;
-        max-height: 80vh;
-        overflow-y: auto;
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.5rem;
-        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.3);
-        padding: 0.5rem;
-        z-index: 2000;
-    }
-
-    #vmRowContextMenu.show {
-        display: block;
-    }
-
-    #vmRowContextMenu .ctx-menu-heading {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        font-weight: 600;
-        color: var(--bs-secondary-color);
-        padding: 0.35rem 0.6rem 0.15rem;
-    }
-
-    #vmRowContextMenu a.ctx-menu-item {
-        display: block;
-        padding: 0.35rem 0.6rem;
-        border-radius: 0.4rem;
-        font-size: 0.9rem;
-        text-decoration: none;
-        color: var(--bs-emphasis-color);
-        transition: background-color .15s ease, color .15s ease;
-    }
-
-    #vmRowContextMenu a.ctx-menu-item.disabled {
-        pointer-events: none;
-        opacity: 0.5;
-    }
-
-    #vmRowContextMenu a.ctx-menu-item:hover,
-    #vmRowContextMenu a.ctx-menu-item:focus {
-        background-color: var(--bs-primary);
-        color: #fff;
-    }
-
-    #vmRowContextMenu hr.ctx-menu-divider {
-        margin: 0.4rem 0;
-        border-color: var(--bs-border-color);
-        opacity: 1;
-    }
-
-    /* панель постраничной навигации - закреплена внизу, как в /sprsrv/view2 */
-    .pager-bar {
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem;
-    }
-
-    .pager-bar-sticky {
-        position: sticky;
-        bottom: 0;
-        z-index: 6;
-        margin-left: -1rem;
-        margin-right: -1rem;
-        margin-bottom: -1rem;
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-        border-bottom: none;
-        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
-    }
-
-    @media (min-width: 768px) {
-        .pager-bar-sticky {
-            margin-left: -1.5rem;
-            margin-right: -1.5rem;
-        }
-    }
-
-    .pager-nav .btn:disabled {
-        color: var(--bs-secondary-color);
-        opacity: 0.55;
-    }
-
-    .pager-nav .btn:not(:disabled):not(.disabled):hover {
-        background-color: var(--bs-primary);
-        color: #fff;
     }
 </style>
 

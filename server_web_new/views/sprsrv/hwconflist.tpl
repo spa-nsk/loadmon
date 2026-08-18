@@ -172,133 +172,11 @@
 
 <div id="hwRowContextMenu" class="ctx-menu d-none"></div>
 
-<style>
-    .hw-filter-bar {
-        position: sticky;
-        top: 0;
-        z-index: 5;
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color) !important;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
-    }
-
-    .hw-filter-bar.hw-filter-bar-unpinned {
-        position: static;
-        box-shadow: none;
-    }
-
-    .spr-classic-table {
-        --bs-table-border-color: var(--bs-border-color);
-    }
-
-    .spr-classic-table thead th {
-        position: sticky;
-        top: var(--hwc-thead-top, 0px);
-        z-index: 3;
-        background-color: var(--bs-tertiary-bg);
-        color: var(--bs-emphasis-color);
-        font-weight: 600;
-        border-bottom: 2px solid var(--bs-border-color);
-        vertical-align: middle;
-    }
-
-    .spr-classic-table td,
-    .spr-classic-table th {
-        border-color: var(--bs-border-color);
-    }
-
-    .spr-classic-table tbody tr:hover {
-        --bs-table-hover-bg: var(--bs-secondary-bg);
-    }
-
-    .power-led {
-        width: 1.2em;
-        height: 1.2em;
-        vertical-align: -0.25em;
-        flex-shrink: 0;
-    }
-
-    .power-led.is-on {
-        color: #2fb344;
-        filter: drop-shadow(0 0 2px rgba(47, 179, 68, 0.65));
-    }
-
-    [data-bs-theme="dark"] .power-led.is-on {
-        color: #4dabf7;
-        filter: drop-shadow(0 0 3px rgba(77, 171, 247, 0.75));
-    }
-
-    .power-led.is-off {
-        color: var(--bs-secondary-color);
-        opacity: 0.45;
-        filter: none;
-    }
-
-    .pager-bar {
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem;
-    }
-
-    .pager-bar-sticky {
-        position: sticky;
-        bottom: 0;
-        z-index: 6;
-        margin-left: -1rem;
-        margin-right: -1rem;
-        margin-bottom: -1rem;
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-        border-bottom: none;
-        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
-    }
-
-    @media (min-width: 768px) {
-        .pager-bar-sticky {
-            margin-left: -1.5rem;
-            margin-right: -1.5rem;
-        }
-    }
-
-    .pager-nav .btn:disabled {
-        color: var(--bs-secondary-color);
-        opacity: 0.55;
-    }
-
-    .pager-nav .btn:not(:disabled):not(.disabled):hover {
-        background-color: var(--bs-primary);
-        color: #fff;
-    }
-
-    .pager-pagesize {
-        min-width: 4.5rem;
-    }
-
-    .ctx-menu {
-        position: fixed;
-        z-index: 1050;
-        min-width: 10rem;
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.5rem;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .25);
-        padding: 0.35rem 0;
-    }
-
-    .ctx-menu a.ctx-menu-item {
-        display: block;
-        padding: 0.4rem 1rem;
-        color: var(--bs-body-color);
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .ctx-menu a.ctx-menu-item:hover {
-        background-color: var(--bs-secondary-bg);
-    }
-</style>
+<!-- Стили закрепляемой панели фильтра, "классической" таблицы (включая
+     sticky-заголовок через общую переменную --spr-thead-top), индикатора
+     питания, панели пагинации и простого контекстного меню строки (.ctx-menu)
+     вынесены в общий server_web_new/static/css/loadmon.css (подключён в
+     header.tpl). -->
 
 <script>
     // Закрепление панели фильтра вверху экрана можно отключить чекбоксом
@@ -324,7 +202,7 @@
             if (!bar.classList.contains('hw-filter-bar-unpinned')) {
                 offset = bar.offsetHeight;
             }
-            document.documentElement.style.setProperty('--hwc-thead-top', offset + 'px');
+            document.documentElement.style.setProperty('--spr-thead-top', offset + 'px');
         }
 
         function applySticky(sticky) {
