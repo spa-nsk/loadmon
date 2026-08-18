@@ -25,9 +25,16 @@
             </div>
         </div>
         <div class="row mt-2">
-            <div class="col-12 d-flex justify-content-between align-items-center">
+            <div class="col-12 d-flex flex-wrap align-items-center gap-2">
                 <span class="text-muted small">Найдено записей: {{.TotalRecords}}</span>
-                <a href="/admin/userlog" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+                <div class="d-flex gap-2 ms-auto">
+                    <a href="/admin/userlog?type={{.CurType}}&export=xlsx" class="btn btn-outline-success btn-sm rounded-pill px-3">Экспорт в XLSX</a>
+                    <a href="/admin/userlog" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+                </div>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="userlogFilterStickyToggle" onchange="userlogToggleFilterSticky(this.checked)">
+                    <label class="form-check-label small text-muted" for="userlogFilterStickyToggle">Закреплять фильтр вверху экрана</label>
+                </div>
             </div>
         </div>
     </div>
@@ -63,7 +70,7 @@
         </table>
     </div>
 
-    <div class="pager-bar d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+    <div class="pager-bar pager-bar-sticky d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
         <div class="text-muted small">
             Показано {{.PageFrom}}&ndash;{{.PageTo}} из {{.TotalRecords}}
         </div>
@@ -86,7 +93,49 @@
     </div>
 </form>
 
+<!-- Общие стили закрепляемой панели фильтра (.hw-filter-bar), "классической"
+     таблицы со sticky-заголовком (--spr-thead-top) и панели пагинации
+     (.pager-bar-sticky) вынесены в server_web_new/static/css/loadmon.css,
+     приём идентичен /sprsrv/hwconflist. -->
+
 <script>
+    // Закрепление панели фильтра вверху экрана (переключается чекбоксом,
+    // выбор запоминается в localStorage) - высота панели пересчитывается в
+    // CSS-переменную --spr-thead-top, чтобы заголовок таблицы прилипал сразу
+    // под ней, а не перекрывался ею. Приём идентичен /sprsrv/hwconflist.
+    (function () {
+        var STORAGE_KEY = 'userlog.filterSticky';
+        var bar = document.querySelector('.hw-filter-bar');
+        var toggle = document.getElementById('userlogFilterStickyToggle');
+        if (!bar || !toggle) return;
+
+        function updateTheadOffset() {
+            var offset = 0;
+            if (!bar.classList.contains('hw-filter-bar-unpinned')) {
+                offset = bar.offsetHeight;
+            }
+            document.documentElement.style.setProperty('--spr-thead-top', offset + 'px');
+        }
+
+        function applySticky(sticky) {
+            bar.classList.toggle('hw-filter-bar-unpinned', !sticky);
+            toggle.checked = sticky;
+            updateTheadOffset();
+        }
+
+        var stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applySticky(stored === null ? true : stored === '1');
+
+        window.userlogToggleFilterSticky = function (sticky) {
+            applySticky(sticky);
+            try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
+        };
+
+        window.addEventListener('resize', updateTheadOffset);
+        window.addEventListener('load', updateTheadOffset);
+    })();
+
     function userlogPagerGoTo(page) {
         var field = document.getElementById('pageField');
         if (!field) return;

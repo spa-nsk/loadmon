@@ -2,12 +2,17 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	models "loadmon/models"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	beego "github.com/beego/beego/v2/server/web"
+	"github.com/xuri/excelize/v2"
 )
 
 /*
@@ -165,9 +170,7 @@ func (this *MainController) ViewUserLog() {
 	}
 
 	this.activeContent("admin/userlog")
-	RegisterRequest(this, LogTypeAdminAction) // просмотр журнала действий пользователей
-
-	o := orm.NewOrm()
+	flash := beego.NewFlash()
 
 	typeFilter := this.GetString("type")
 	if typeFilter == "" {
@@ -186,13 +189,34 @@ func (this *MainController) ViewUserLog() {
 	}
 	this.Data["TypeList"] = typeOptions
 
-	qs := o.QueryTable("userlog")
-	if typeFilter != "all" {
-		if t, err := strconv.Atoi(typeFilter); err == nil {
-			qs = qs.Filter("Type", t)
+	o := orm.NewOrm()
+
+	buildQuery := func() orm.QuerySeter {
+		qs := o.QueryTable("userlog")
+		if typeFilter != "all" {
+			if t, err := strconv.Atoi(typeFilter); err == nil {
+				qs = qs.Filter("Type", t)
+			}
 		}
+		return qs.OrderBy("-Time")
 	}
-	qs = qs.OrderBy("-Time")
+
+	// экспорт в XLSX отдаёт весь найденный по фильтру журнал (без постраничной
+	// нарезки) - тот же приём, что и в /sprsrv/listclusterview и /sprsrv/vm
+	if this.GetString("export") == "xlsx" {
+		RegisterRequest(this, LogTypeExport) // выгрузка журнала действий в XLSX
+		var records []models.UserLog
+		if _, err := buildQuery().All(&records); err != nil {
+			flash.Error("Ошибка загрузки журнала для экспорта: %v", err)
+			flash.Store(&this.Controller)
+			return
+		}
+		rows := this.buildUserLogRows(o, records)
+		ExportUserLogXLSX(this, flash, rows)
+		return
+	}
+
+	RegisterRequest(this, LogTypeAdminAction) // просмотр журнала действий пользователей
 
 	pageSize, _ := strconv.Atoi(this.GetString("pagesize"))
 	switch pageSize {
@@ -205,7 +229,12 @@ func (this *MainController) ViewUserLog() {
 		page = 1
 	}
 
-	totalRecords, _ := qs.Count()
+	totalRecords, err := buildQuery().Count()
+	if err != nil {
+		log.Println("ViewUserLog: ошибка подсчёта записей журнала (userlog):", err)
+		flash.Error("Ошибка чтения журнала (userlog): %v", err)
+		flash.Store(&this.Controller)
+	}
 	totalPages := int((totalRecords + int64(pageSize) - 1) / int64(pageSize))
 	if totalPages < 1 {
 		totalPages = 1
@@ -216,10 +245,35 @@ func (this *MainController) ViewUserLog() {
 	offset := (page - 1) * pageSize
 
 	var records []models.UserLog
-	qs.Limit(pageSize, offset).All(&records)
+	if _, err := buildQuery().Limit(pageSize, offset).All(&records); err != nil {
+		log.Println("ViewUserLog: ошибка выборки записей журнала (userlog):", err)
+		flash.Error("Ошибка чтения журнала (userlog): %v", err)
+		flash.Store(&this.Controller)
+	}
 
-	// имена пользователей для отображения - один запрос по всем встретившимся
-	// UserId на текущей странице, а не по одному на запись
+	rows := this.buildUserLogRows(o, records)
+
+	this.Data["Rows"] = rows
+	this.Data["TotalRecords"] = totalRecords
+	this.Data["Page"] = page
+	this.Data["PageSize"] = pageSize
+	this.Data["TotalPages"] = totalPages
+	this.Data["PageFrom"] = int64(0)
+	if totalRecords > 0 {
+		this.Data["PageFrom"] = int64(offset) + 1
+	}
+	pageTo := int64(offset + pageSize)
+	if pageTo > totalRecords {
+		pageTo = totalRecords
+	}
+	this.Data["PageTo"] = pageTo
+}
+
+// buildUserLogRows дополняет записи журнала (models.UserLog) именем
+// пользователя (запрос по таблице users одним IN-запросом сразу по всем
+// встретившимся UserId, а не по одному на запись) и текстовой расшифровкой
+// типа операции.
+func (this *MainController) buildUserLogRows(o orm.Ormer, records []models.UserLog) []UserLogRow {
 	userIdSet := make(map[int64]struct{}, len(records))
 	for _, r := range records {
 		userIdSet[r.UserId] = struct{}{}
@@ -253,19 +307,100 @@ func (this *MainController) ViewUserLog() {
 		row.TypeLabel = userLogTypeLabel(r.Type)
 		rows = append(rows, row)
 	}
+	return rows
+}
 
-	this.Data["Rows"] = rows
-	this.Data["TotalRecords"] = totalRecords
-	this.Data["Page"] = page
-	this.Data["PageSize"] = pageSize
-	this.Data["TotalPages"] = totalPages
-	this.Data["PageFrom"] = int64(0)
-	if totalRecords > 0 {
-		this.Data["PageFrom"] = int64(offset) + 1
+// userLogXLSXHeader - заголовок листа XLSX-экспорта /admin/userlog.
+var userLogXLSXHeader = []string{"Id", "Пользователь", "Время входа", "Время операции", "Тип операции", "Запрос"}
+
+// userLogXLSXRow формирует одну строку XLSX-экспорта из UserLogRow.
+func userLogXLSXRow(r UserLogRow) []string {
+	return []string{
+		strconv.FormatInt(r.Id, 10),
+		r.UserName,
+		r.Login.Format("2006-01-02 15:04:05"),
+		r.Time.Format("2006-01-02 15:04:05"),
+		r.TypeLabel,
+		r.Request,
 	}
-	pageTo := int64(offset + pageSize)
-	if pageTo > totalRecords {
-		pageTo = totalRecords
+}
+
+// ExportUserLogXLSX отдаёт найденный по фильтру журнал действий (весь, а не
+// только текущую страницу) файлом XLSX на скачивание - формирование листа
+// аналогично экспорту /sprsrv/listclusterview (ExportClusterListXLSX).
+func ExportUserLogXLSX(this *MainController, flash *beego.FlashData, rows []UserLogRow) {
+	if len(rows) == 0 {
+		flash.Notice("Нет записей для экспорта.")
+		flash.Store(&this.Controller)
+		return
 	}
-	this.Data["PageTo"] = pageTo
+
+	crt := time.Now().Local()
+	shortName := fmt.Sprintf("userlog%02d_%02d_%04d_%02d_%02d_%02d_%d.xlsx", crt.Day(), crt.Month(), crt.Year(), crt.Hour(), crt.Minute(), crt.Second(), crt.UnixNano())
+	destination := "./reports/" + shortName
+
+	file := excelize.NewFile()
+	if file == nil {
+		flash.Error("Ошибка создания XLSX файла: " + destination)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	sheet := "Журнал"
+	index, err := file.NewSheet(sheet)
+	if err != nil {
+		flash.Error("Ошибка создания листа XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	file.SetActiveSheet(index)
+
+	cell, _ := excelize.CoordinatesToCellName(1, 1)
+	if err := file.SetSheetRow(sheet, cell, &userLogXLSXHeader); err != nil {
+		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+
+	for j, r := range rows {
+		row := userLogXLSXRow(r)
+		cell, _ := excelize.CoordinatesToCellName(1, j+2)
+		if err := file.SetSheetRow(sheet, cell, &row); err != nil {
+			flash.Error("Ошибка записи строки XLSX файла: "+destination+" ", err)
+			flash.Store(&this.Controller)
+			file.Close()
+			return
+		}
+	}
+
+	if err := file.SaveAs(destination); err != nil {
+		flash.Error("Ошибка сохранения XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	if err := file.Close(); err != nil {
+		flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	fileInfo, err := os.Stat(destination)
+	if err != nil {
+		flash.Error("Ошибка получения данных XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	this.Ctx.Output.Header("Content-Description", "File Transfer")
+	this.Ctx.Output.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	this.Ctx.Output.Header("Content-Disposition", "attachment; filename=\""+shortName+"\"")
+	this.Ctx.Output.Header("Expires", "0")
+	this.Ctx.Output.Header("Cache-Control", "must-revalidate")
+	this.Ctx.Output.Header("Pragma", "public")
+	this.Ctx.Output.Header("Content-Length", fmt.Sprint(fileInfo.Size()))
+
+	http.ServeFile(this.Ctx.Output.Context.ResponseWriter, this.Ctx.Output.Context.Request, destination)
 }
