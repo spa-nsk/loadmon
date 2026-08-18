@@ -31,6 +31,7 @@ func (this *MainController) SprSrvClusterPerfPeriod() {
 		this.Redirect("/user/login/sprsrv_clusterperfperiod_"+vcenter+"_"+datacenter+"_"+cluster, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewLoadTable) // график загрузки кластера по данным БД за период
 
 	this.activeContent("sprsrv/clusterperfperiod")
 

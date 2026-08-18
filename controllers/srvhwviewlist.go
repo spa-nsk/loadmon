@@ -37,6 +37,7 @@ func (this *MainController) SprHwViewList() {
 		this.Redirect("/user/login/sprsrv_hwviewlist_"+Id, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewReference) // просмотр списка серверов HPE OneView - отдельная запись типа "выгрузка" пишется ниже при экспорте
 
 	m := sess.(models.LoadFilter).Map
 	this.activeContent("sprsrv/hwviewlist")
@@ -104,10 +105,12 @@ func (this *MainController) SprHwViewList() {
 	// страницу
 	if this.Ctx.Input.Method() == "POST" && len(records) > 0 {
 		if str := this.GetString("ExportBTN"); str == "Экспорт в CSV" {
+			RegisterRequest(this, LogTypeExport) // выгрузка в CSV
 			ExportViewCSV(this, flash, records)
 			return
 		}
 		if str := this.GetString("ExportBTN2"); str == "Экспорт в XLSX" {
+			RegisterRequest(this, LogTypeExport) // выгрузка в XLSX
 			ExportViewXLSX(this, flash, records)
 			return
 		}

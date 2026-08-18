@@ -3,6 +3,8 @@ package controllers
 import (
 	"fmt"
 	models "loadmon/models"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
@@ -14,12 +16,44 @@ type UserLog struct {
 	UserId  int       `orm:"null" form:"userid"`  // id пользователя
 	Login   time.Time `orm:"null" form:"login"`   // время регистрации
 	Time    time.Time `orm:"null" form:"last"`    // время операции
-	Type    int       `form:"type"`               // тип операции (1 авторизация, 2 выход, 3 сброс пароля, 4 обновление профиля, 5 чтение справочника, 6 изменение данных справочника, 7 чтение таблицы...
+	Type    int       `form:"type"`               // тип операции - см. список кодов ниже
 	Request string    `form:"request"`            // текст запроса
 }
 */
 
-// type тип операции (1 авторизация, 2 выход, 3 сброс пароля, 4 обновление профиля, 5 чтение справочника, 6 изменение данных справочника, 7 чтение таблицы загрузки, 8 получение деталей по серверу, 9 выгрузка в...
+// Коды типа операции (RegisterRequest(this, type_request)) - используются для
+// журналирования (таблица user_log) факта обращения к любому маршруту
+// приложения, кроме служебных/отладочных (pprof, /metrics, favicon,
+// статические файлы) - для них журналирование не имеет смысла.
+//
+//	 1 - авторизация (вход)
+//	 2 - выход
+//	 3 - сброс/восстановление пароля (forgot/reset)
+//	 4 - обновление профиля пользователя
+//	 5 - чтение справочника / просмотр списка (view2, hwconflist, hwviewlist, vm, listclusterview и т.п.)
+//	 6 - изменение данных справочника (создание/редактирование/групповое редактирование записи)
+//	 7 - чтение таблицы загрузки (динамические графики метрик - cluster/host/vm perf day/period)
+//	 8 - получение деталей по серверу/хосту/ВМ (карточка объекта, переход по серийному номеру/имени)
+//	 9 - выгрузка данных (экспорт в CSV/XLSX)
+//	10 - регистрация нового пользователя
+//	11 - административная операция (остановка сервиса, удаление учётной записи)
+//	12 - обращение к API (/api/:json)
+//	13 - служебная страница (SSO, произвольные уведомления/фильтры без справочника)
+const (
+	LogTypeLogin         = 1
+	LogTypeLogout        = 2
+	LogTypePasswordReset = 3
+	LogTypeProfileUpdate = 4
+	LogTypeViewReference = 5
+	LogTypeEditReference = 6
+	LogTypeViewLoadTable = 7
+	LogTypeServerDetails = 8
+	LogTypeExport        = 9
+	LogTypeRegister      = 10
+	LogTypeAdminAction   = 11
+	LogTypeAPI           = 12
+	LogTypeServicePage   = 13
+)
 
 // RegisterRequest записывает в журнал (таблица user_log) факт обращения
 // пользователя к приложению с указанным типом операции type_request
@@ -56,7 +90,182 @@ func RegisterRequest(this *MainController, type_request int) error {
 	return nil
 }
 
-// ViewUserLog отображает журнал действий пользователей.
+// UserLogRow - одна строка журнала действий (models.UserLog) дополненная
+// именем пользователя для отображения в таблице (в самой таблице userlog
+// хранится только UserId, без имени).
+type UserLogRow struct {
+	models.UserLog
+	UserName  string
+	TypeLabel string
+}
+
+// UserLogTypeOption - одна опция выпадающего списка фильтра по типу операции
+// (код + расшифровка для отображения).
+type UserLogTypeOption struct {
+	Value int
+	Label string
+}
+
+// userLogTypeLabel переводит код типа операции (см. константы LogType* выше)
+// в текст для отображения в журнале.
+func userLogTypeLabel(t int) string {
+	switch t {
+	case LogTypeLogin:
+		return "Авторизация"
+	case LogTypeLogout:
+		return "Выход"
+	case LogTypePasswordReset:
+		return "Сброс/восстановление пароля"
+	case LogTypeProfileUpdate:
+		return "Обновление профиля"
+	case LogTypeViewReference:
+		return "Чтение справочника"
+	case LogTypeEditReference:
+		return "Изменение данных справочника"
+	case LogTypeViewLoadTable:
+		return "Чтение таблицы загрузки"
+	case LogTypeServerDetails:
+		return "Детали по серверу"
+	case LogTypeExport:
+		return "Выгрузка данных"
+	case LogTypeRegister:
+		return "Регистрация пользователя"
+	case LogTypeAdminAction:
+		return "Административная операция"
+	case LogTypeAPI:
+		return "Обращение к API"
+	case LogTypeServicePage:
+		return "Служебная страница"
+	default:
+		return fmt.Sprintf("Тип %d", t)
+	}
+}
+
+// ViewUserLog отображает журнал действий пользователей (таблица userlog,
+// заполняется через RegisterRequest) с фильтром по типу операции и
+// постраничной навигацией. Раздел "Администрирование" в меню (header.tpl) и
+// сам маршрут доступны только пользователям с models.AuthUser.Priv == 3
+// (администратор) - при недостаточных правах запрос перенаправляется на
+// справочник серверов без ошибки.
+//
+// Маршрут: /admin/userlog
 func (this *MainController) ViewUserLog() {
 
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Redirect("/user/login/admin_userlog", 302)
+		return
+	}
+
+	m := sess.(models.LoadFilter).Map
+	priv, _ := m["privilage"].(int)
+	if priv != 3 {
+		this.Redirect("/sprsrv/view2/all/0", 302)
+		return
+	}
+
+	this.activeContent("admin/userlog")
+	RegisterRequest(this, LogTypeAdminAction) // просмотр журнала действий пользователей
+
+	o := orm.NewOrm()
+
+	typeFilter := this.GetString("type")
+	if typeFilter == "" {
+		typeFilter = "all"
+	}
+	this.Data["CurType"] = typeFilter
+	typeCodes := []int{
+		LogTypeLogin, LogTypeLogout, LogTypePasswordReset, LogTypeProfileUpdate,
+		LogTypeViewReference, LogTypeEditReference, LogTypeViewLoadTable,
+		LogTypeServerDetails, LogTypeExport, LogTypeRegister, LogTypeAdminAction,
+		LogTypeAPI, LogTypeServicePage,
+	}
+	typeOptions := make([]UserLogTypeOption, 0, len(typeCodes))
+	for _, t := range typeCodes {
+		typeOptions = append(typeOptions, UserLogTypeOption{Value: t, Label: userLogTypeLabel(t)})
+	}
+	this.Data["TypeList"] = typeOptions
+
+	qs := o.QueryTable("userlog")
+	if typeFilter != "all" {
+		if t, err := strconv.Atoi(typeFilter); err == nil {
+			qs = qs.Filter("Type", t)
+		}
+	}
+	qs = qs.OrderBy("-Time")
+
+	pageSize, _ := strconv.Atoi(this.GetString("pagesize"))
+	switch pageSize {
+	case 25, 50, 100, 200:
+	default:
+		pageSize = 50
+	}
+	page, _ := strconv.Atoi(this.GetString("page"))
+	if page < 1 {
+		page = 1
+	}
+
+	totalRecords, _ := qs.Count()
+	totalPages := int((totalRecords + int64(pageSize) - 1) / int64(pageSize))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	offset := (page - 1) * pageSize
+
+	var records []models.UserLog
+	qs.Limit(pageSize, offset).All(&records)
+
+	// имена пользователей для отображения - один запрос по всем встретившимся
+	// UserId на текущей странице, а не по одному на запись
+	userIdSet := make(map[int64]struct{}, len(records))
+	for _, r := range records {
+		userIdSet[r.UserId] = struct{}{}
+	}
+	userIds := make([]int64, 0, len(userIdSet))
+	for id := range userIdSet {
+		userIds = append(userIds, id)
+	}
+	userById := make(map[int64]models.AuthUser, len(userIds))
+	if len(userIds) > 0 {
+		var users []models.AuthUser
+		if _, err := o.QueryTable("users").Filter("Id__in", userIds).All(&users); err == nil {
+			for _, u := range users {
+				userById[int64(u.Id)] = u
+			}
+		}
+	}
+
+	rows := make([]UserLogRow, 0, len(records))
+	for _, r := range records {
+		row := UserLogRow{UserLog: r}
+		if u, ok := userById[r.UserId]; ok {
+			row.UserName = strings.TrimSpace(u.First + " " + u.Last)
+			if row.UserName == "" {
+				row.UserName = u.Email
+			}
+		}
+		if row.UserName == "" {
+			row.UserName = fmt.Sprintf("Id=%d", r.UserId)
+		}
+		row.TypeLabel = userLogTypeLabel(r.Type)
+		rows = append(rows, row)
+	}
+
+	this.Data["Rows"] = rows
+	this.Data["TotalRecords"] = totalRecords
+	this.Data["Page"] = page
+	this.Data["PageSize"] = pageSize
+	this.Data["TotalPages"] = totalPages
+	this.Data["PageFrom"] = int64(0)
+	if totalRecords > 0 {
+		this.Data["PageFrom"] = int64(offset) + 1
+	}
+	pageTo := int64(offset + pageSize)
+	if pageTo > totalRecords {
+		pageTo = totalRecords
+	}
+	this.Data["PageTo"] = pageTo
 }

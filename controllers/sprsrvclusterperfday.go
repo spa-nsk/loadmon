@@ -29,6 +29,7 @@ func (this *MainController) SprSrvClusterPerfDay() {
 		this.Redirect("/user/login/sprsrv_clusterperfday_"+vcenter+"_"+datacenter+"_"+cluster, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewLoadTable) // график загрузки кластера за текущий день
 
 	this.activeContent("sprsrv/clusterperfday")
 

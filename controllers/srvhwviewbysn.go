@@ -26,6 +26,7 @@ func (this *MainController) SrvHwViewBySn() {
 		this.Redirect("/user/login/sprsrv_srvhwviewbysn_"+sn, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeServerDetails) // карточка сервера HPE OneView по серийному номеру
 
 	this.activeContent("sprsrv/srvhwviewbysn")
 

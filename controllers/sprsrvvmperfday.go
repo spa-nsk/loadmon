@@ -50,6 +50,7 @@ func (this *MainController) SprSrvVMPerfDay() {
 		this.Redirect("/user/login/sprsrv_vmperfday_"+vcenter+"_"+datacenter+"_"+cluster+"_"+vmname, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewLoadTable) // график загрузки ВМ за текущий день
 
 	this.activeContent("sprsrv/vmperfday")
 

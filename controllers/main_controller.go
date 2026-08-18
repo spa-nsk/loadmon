@@ -42,6 +42,7 @@ func (this *MainController) Favicon_ico() {
 
 // Shutdown корректно останавливает HTTP-сервер приложения.
 func (this *MainController) Shutdown() {
+	RegisterRequest(this, LogTypeAdminAction) // административная операция - остановка сервиса
 	events.ShutdownServerHTTP()
 	this.Ctx.ResponseWriter.Write([]byte{})
 }
@@ -192,6 +193,7 @@ func (this *MainController) Get() {
 // Notice отображает страницу с уведомлением (flash-сообщением).
 func (this *MainController) Notice() {
 	this.activeContent("notice")
+	RegisterRequest(this, LogTypeServicePage) // служебная страница
 
 	flash := beego.ReadFromRequest(&this.Controller)
 	if n, ok := flash.Data["notice"]; ok {
@@ -209,6 +211,7 @@ func (this *MainController) Filter() {
 		this.Redirect("/user/login/filter", 302)
 		return
 	}
+	RegisterRequest(this, LogTypeServicePage) // служебная страница - фильтр отчётов
 
 	p := this.Data["Filter"]
 	filter := p.(models.LoadFilter)
@@ -434,6 +437,7 @@ func (this *MainController) ServerDetails() {
 		//this.Redirect("/user/login/view_filter", 302)
 		return
 	}
+	RegisterRequest(this, LogTypeServerDetails) // получение деталей по серверу
 
 	p := this.Data["Filter"]
 	login := strings.TrimSpace(this.Data["First"].(string))

@@ -38,6 +38,7 @@ func (this *MainController) SprSrvUpdateBaseByVMName() {
 		this.Redirect("/user/login/sprsrv_vmeditbyname_"+name, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeServerDetails) // переход к деталям ВМ по имени
 
 	flash := beego.NewFlash()
 
@@ -66,6 +67,7 @@ func (this *MainController) SprSrvUpdateBase() {
 		this.Redirect("/user/login/sprsrv_updatebase_"+backmode+"_"+idStr, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewReference) // просмотр карточки записи справочника - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/updatebase")
 	this.Data["backmode"] = backmode

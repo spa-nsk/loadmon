@@ -57,6 +57,7 @@ func init() {
 	beego.Router("/sprsrv/vmperfday/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVMPerfDay") // динамические графики метрик ВМ (VMPerf) за текущий день
 	//beego.Router("/sprsrv/hs/:Vcenter/:Datacenter/:Cluster/:HS", &controllers.MainController{}, "get,post:SprHost") // метод SprHost не реализован в controllers
 	beego.Router("/sprsrv/cluster/:Vcenter/:Datacenter/:Cluster", &controllers.MainController{}, "get,post:SprCluster")
+	beego.Router("/sprsrv/clusterperioddb", &controllers.MainController{}, "get,post:SprClusterPeriodDB") // список кластеров/хостов с метриками за период, посчитанными по данным БД (cluster_record/host_record/vm_record), аналогично /sprsrv/cluster, но без обращения к live vSphere через gRPC
 	//beego.Router("/sprsrv/clusterperiod/:Vcenter/:Datacenter/:Cluster", &controllers.MainController{}, "get,post:SprClusterPeriod") // метод SprClusterPeriod не реализован в controllers
 	//beego.Router("/sprsrv/vmperf/:Id", &controllers.MainController{}, "get,post:SprSrvVMPerf") // метод SprSrvVMPerf не реализован в controllers
 	//beego.Router("/sprsrv/vmperfkeytest/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVMPerfKeyTest") //тестовой вывод метрик по виртуальной машине // метод SprSrvVMPerfKeyTest не реализован в controllers
@@ -93,6 +94,7 @@ func init() {
 	//beego.Router("/sprsrv/addsrvdoc/:Id", &controllers.MainController{}, "get,post:AddServerDocument") // метод AddServerDocument не реализован в controllers
 	//beego.Router("/sprsrv/csvdata", &controllers.MainController{}, "get:GetCSVListServer") // метод GetCSVListServer не реализован в controllers
 	beego.Router("/sprsrv/listclusterview", &controllers.MainController{}, "get,post:SprSrvListClusterView") // список кластеров vSphere по аналогии со списком ВМ (/sprsrv/vm)
+	beego.Router("/admin/userlog", &controllers.MainController{}, "get:ViewUserLog") // журнал действий пользователей (userlog) - доступ только для models.AuthUser.Priv == 3 (проверяется внутри контроллера)
 	beego.Router("/api/:json", &controllers.MainController{}, "get,post:RequestAPI")
 	beego.Router("/debug/pprof/", &controllers.MainController{}, "get,post:Prof")
 	beego.Router("/debug/pprof/cmdline", &controllers.MainController{}, "get,post:ProfCmdline")
