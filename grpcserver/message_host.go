@@ -313,12 +313,18 @@ func RecalcHostToMessageFull(hs *vsphere.HostInfo, out *pb.HostFull) {
 		}
 		out.PerfCount = (int64)(len(hs.Perf))
 		count := float64(out.PerfCount)
-		out.CpuUsageAverage = hs.CPUUsageAverage / count
-		out.MemUsageAverage = hs.MemUsageAverage / count
-		out.DiskUsageAverage = hs.DiskUsageAverage / count
-		out.DiskWriteAverage = hs.DiskWriteAverage / count
-		out.DiskReadAverage = hs.DiskReadAverage / count
-		out.NetUsageAverage = hs.NetUsageAverage / count
+		// Делим именно на суммы, накопленные в цикле выше по актуальному
+		// (возможно, урезанному после ClearMetricByKey/clearHSPerf) срезу
+		// hs.Perf, а не на "сырые" hs.CPUUsageAverage/hs.MemUsageAverage -
+		// те продолжают расти по всей истории хоста и не обрезаются вместе
+		// с hs.Perf при частичной очистке метрик, из-за чего среднее
+		// оказывалось завышено (иногда за 100%, особенно по памяти).
+		out.CpuUsageAverage /= count
+		out.MemUsageAverage /= count
+		out.DiskUsageAverage /= count
+		out.DiskWriteAverage /= count
+		out.DiskReadAverage /= count
+		out.NetUsageAverage /= count
 	}
 }
 
@@ -441,12 +447,15 @@ func RecalcHostToMessageShort(hs *vsphere.HostInfo, out *pb.Host) {
 		}
 		out.PerfCount = (int64)(len(hs.Perf))
 		count := float64(out.PerfCount)
-		out.CpuUsageAverage = hs.CPUUsageAverage / count
-		out.MemUsageAverage = hs.MemUsageAverage / count
-		out.DiskUsageAverage = hs.DiskUsageAverage / count
-		out.DiskWriteAverage = hs.DiskWriteAverage / count
-		out.DiskReadAverage = hs.DiskReadAverage / count
-		out.NetUsageAverage = hs.NetUsageAverage / count
+		// см. аналогичный комментарий в RecalcHostToMessageFull выше - делим
+		// суммы, накопленные в цикле по актуальному срезу hs.Perf, а не
+		// "сырые" hs.CPUUsageAverage/hs.MemUsageAverage.
+		out.CpuUsageAverage /= count
+		out.MemUsageAverage /= count
+		out.DiskUsageAverage /= count
+		out.DiskWriteAverage /= count
+		out.DiskReadAverage /= count
+		out.NetUsageAverage /= count
 	}
 }
 

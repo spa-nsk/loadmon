@@ -358,6 +358,11 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Загрузка кластеров и хостов с
                 00:00</a>
             </li>
+            <li>
+              <a href="/sprsrv/clusterperioddb"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Загрузка кластеров и хостов за
+                период (по данным БД)</a>
+            </li>
           </ul>
         </div>
       </li>
@@ -399,6 +404,23 @@
           </ul>
         </div>
       </li>
+{{if eq .Privilage 3}}
+      <li class="mb-1">
+        <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
+          data-bs-toggle="collapse" data-bs-target="#admin-collapse" aria-expanded="false">
+          Администрирование
+        </button>
+        <div class="collapse hide" id="admin-collapse">
+          <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+            <li>
+              <a href="/admin/userlog"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Журнал действий
+                пользователей</a>
+            </li>
+          </ul>
+        </div>
+      </li>
+{{end}}
 {{end}}
     </ul>
     <div class="sidebar-footer text-center">

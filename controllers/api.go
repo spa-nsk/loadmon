@@ -52,6 +52,7 @@ func (this *MainController) LoginAPI() {
 // серверов: поиск по имени (Code=1), по серийному номеру (Code=2)
 // или оперативный запрос к HP OneView (Code=3).
 func (this *MainController) RequestAPI() {
+	RegisterRequest(this, LogTypeAPI) // обращение к API - сессии обычно нет (авторизация API отключена ниже), RegisterRequest в этом случае просто не пишет запись, а не падает
 	var err error
 	/*
 		sess := this.GetSession("loadmon")

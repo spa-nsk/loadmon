@@ -70,6 +70,11 @@ func (this *MainController) SprSrvVM() {
 		this.Redirect("/user/login/sprsrv_vm_"+vcenter+"_"+datacenter+"_"+cluster+"_"+vmname, 302)
 		return
 	}
+	if this.GetString("export") == "xlsx" {
+		RegisterRequest(this, LogTypeExport) // выгрузка списка ВМ в XLSX
+	} else {
+		RegisterRequest(this, LogTypeViewReference) // просмотр списка виртуальных машин
+	}
 
 	this.activeContent("sprsrv/vmlist")
 

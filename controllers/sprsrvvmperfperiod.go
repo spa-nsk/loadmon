@@ -49,6 +49,7 @@ func (this *MainController) SprSrvVMPerfPeriod() {
 		this.Redirect("/user/login/sprsrv_vmperfperiod_"+vcenter+"_"+datacenter+"_"+cluster+"_"+vmname, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewLoadTable) // график загрузки ВМ по данным БД за период
 
 	this.activeContent("sprsrv/vmperfperiod")
 

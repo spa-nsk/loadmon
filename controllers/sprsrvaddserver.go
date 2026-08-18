@@ -30,6 +30,7 @@ func (this *MainController) SprAddServer() {
 		this.Redirect("/user/login/sprsrv_addserver_"+backmode+"_"+name, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewReference) // просмотр формы добавления записи - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	// используем тот же шаблон, что и форма редактирования - набор полей
 	// идентичен, отличается только heading (см. .IsNew) и действие при отправке

@@ -42,7 +42,10 @@
     <div class="row mt-2">
         <div class="col-12 d-flex justify-content-between align-items-center">
             <span class="text-muted small">Найдено кластеров: {{.ClusterCount}}</span>
-            <a href="/sprsrv/listclusterview" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+            <div class="d-flex gap-2">
+                <a href="/sprsrv/listclusterview?vcenter={{.CurVcenter}}&datacenter={{.CurDatacenter}}&cluster={{.CurCluster}}&export=xlsx" class="btn btn-outline-primary btn-sm rounded-pill px-3">Экспорт в XLSX</a>
+                <a href="/sprsrv/listclusterview" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+            </div>
         </div>
     </div>
 </form>
@@ -58,10 +61,15 @@
                 <th class="text-center">Память, ГБ</th>
                 <th class="text-center">Хранилище, ГБ</th>
                 <th class="text-center">Виртуальные машины</th>
+                <th>Тип среды</th>
+                <th>Статус</th>
+                <th>Примечание</th>
             </tr>
         </thead>
         <tbody>
             {{range $cl := .ClusterFullList}}
+            {{$sprKey := printf "%s/%s/%s" $cl.Vcenter $cl.Datacenter $cl.Name}}
+            {{$spr := index $.ClusterSprMap $sprKey}}
             <tr class="row-context-target" data-menu-id="clusterRowMenu{{$cl.ID}}" title="Правая кнопка мыши - меню действий">
                 <td class="text-end">{{$cl.ID}}</td>
                 <td style="min-width:220px;">
@@ -100,6 +108,27 @@
 
                 <td class="text-center">{{$cl.VMCount}}</td>
 
+                <td>
+                    {{if $spr}}
+                        {{if eq $spr.TypeWork 1}}Продуктовая среда
+                        {{else if eq $spr.TypeWork 2}}Внутренний тест
+                        {{else if eq $spr.TypeWork 3}}Внешний тест
+                        {{else}}<span class="text-muted">не указано</span>
+                        {{end}}
+                    {{else}}<span class="text-muted">не указано</span>
+                    {{end}}
+                </td>
+                <td>
+                    {{if $spr}}
+                        {{if eq $spr.Stat 1}}<span class="badge text-bg-success">Активен</span>
+                        {{else if eq $spr.Stat 2}}<span class="badge text-bg-secondary">Выведен из работы</span>
+                        {{else}}<span class="text-muted">не указано</span>
+                        {{end}}
+                    {{else}}<span class="text-muted">не указано</span>
+                    {{end}}
+                </td>
+                <td>{{if $spr}}{{$spr.Annotation}}{{end}}</td>
+
                 <td id="clusterRowMenu{{$cl.ID}}" class="d-none">
                     <div class="ctx-menu-heading">Загрузка кластера</div>
                     <a class="ctx-menu-item {{if eq $cl.PerfCount 0}}disabled{{end}}"
@@ -114,7 +143,7 @@
             </tr>
             {{else}}
             <tr>
-                <td colspan="7" class="text-center text-muted py-4">По выбранным условиям фильтра кластеры не найдены</td>
+                <td colspan="10" class="text-center text-muted py-4">По выбранным условиям фильтра кластеры не найдены</td>
             </tr>
             {{end}}
         </tbody>

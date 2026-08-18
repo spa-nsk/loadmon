@@ -154,7 +154,7 @@ func (this *MainController) Login() {
 			m["last"] = user.Last
 			m["username"] = email
 			m["user_id"] = int64(user.Id)
-			m["privilage"] = user.Priv     // 0 - обычный пользователь 1 - разрешено редактировать справочник
+			m["privilage"] = user.Priv     // 0 - обычный пользователь 1 - разрешено редактировать справочник 3 - администратор
 			m["podrazdelenie"] = user.Podr // 0 - не указано 1 - ДАТИ  2 - СТО
 			m["timestamp"] = time.Now()
 			m["SprSearchString"] = "" //строка фильтра справочника
@@ -201,6 +201,7 @@ type user1 struct {
 // её отправку: создаёт учётную запись и отправляет письмо с подтверждением.
 func (this *MainController) Register() {
 	this.activeContent("user/register")
+	RegisterRequest(this, LogTypeRegister) // регистрация нового пользователя - до создания сессии запись не пишется, RegisterRequest тихо возвращает ошибку
 
 	if this.Ctx.Input.Method() == "POST" {
 		flash := beego.NewFlash()
@@ -347,6 +348,7 @@ func sendVerification(email, u string, domainname string) error {
 // (uuid) из ссылки в письме.
 func (this *MainController) Verify() {
 	this.activeContent("user/verify")
+	RegisterRequest(this, LogTypeRegister) // подтверждение регистрации - без сессии запись не пишется
 
 	u := this.Ctx.Input.Param(":uuid")
 	o := orm.NewOrm()
@@ -380,6 +382,7 @@ func (this *MainController) Profile() {
 		this.Redirect("/user/login/home", 302)
 		return
 	}
+	RegisterRequest(this, LogTypeServicePage) // просмотр страницы профиля - отдельная запись типа "обновление профиля" пишется ниже только при успешном сохранении
 
 	this.Data["Filter"] = sess.(models.LoadFilter)
 
@@ -501,6 +504,7 @@ func (this *MainController) Remove() {
 		this.Redirect("/user/login/home", 302)
 		return
 	}
+	RegisterRequest(this, LogTypeAdminAction) // административная операция - удаление учётной записи
 
 	this.Data["Filter"] = sess.(models.LoadFilter)
 
@@ -575,6 +579,7 @@ func (this *MainController) Remove() {
 // письмо со ссылкой для сброса пароля.
 func (this *MainController) Forgot() {
 	this.activeContent("user/forgot")
+	RegisterRequest(this, LogTypePasswordReset) // сброс/восстановление пароля - без сессии запись не пишется
 
 	if this.Ctx.Input.Method() == "POST" {
 		email := this.GetString("email")
@@ -672,6 +677,7 @@ func sendRequestReset(email, u string, domainname string) error {
 // и обрабатывает установку нового пароля.
 func (this *MainController) Reset() {
 	this.activeContent("user/reset")
+	RegisterRequest(this, LogTypePasswordReset) // сброс/восстановление пароля - без сессии запись не пишется
 
 	flash := beego.NewFlash()
 

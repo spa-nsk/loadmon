@@ -356,13 +356,35 @@ document.addEventListener('DOMContentLoaded', function () {
                     {{else}}
                     <div style="width:20px; float:left; text-align: center"><a href="/details/filter/{{$record.S.Name}}" target="_blank" title="График загрузки сервера за период из фильтра с {{printf "%02d.%02d.%04d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%04d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}"><span class="glyphicon glyphicon-tasks"></span></a></div>
                     {{end}}
-                    <div style="width:300px;" class="d-inline-flex align-items-center {{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{end}}"><svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg><a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" class="{{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{else if eq $record.S.Type 0}}link-body-emphasis{{end}}" title="Общие данные по серверу">{{$record.S.NameFQDN}}</a> {{if gt $record.VM.Id 0 }} ( <a href="/sprsrv/clusterperiod/{{$record.VM.Vcenter}}/{{$record.VM.Datacenter}}/{{$record.VM.Cluster}}" target="_blank" title="Информация по кластеру">{{$record.VM.Vcenter}}/{{$record.VM.Datacenter}}/{{$record.VM.Cluster}}</a> ){{end}}{{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}</div>
+                    <!-- Для ВМ (Type 1) и гипервизоров (Type 2) имя сервера показывается в 2
+                         строки: 1-я - индикатор питания + имя (+ sn для гипервизора), 2-я -
+                         vcenter/датацентр/кластер (models.ServerSprRecords.Vcenter/Datacenter/
+                         Cluster заполняются именно для Type 1 и 2 - см. комментарий к полям в
+                         models/models_add.go); раньше vcenter/dc/cluster брались из $record.VM
+                         (догружается отдельным запросом только для ВМ), из-за чего у
+                         гипервизоров эта информация не показывалась вовсе. Для остальных типов
+                         (физический сервер, внешнее облако) вторая строка не нужна и не выводится. -->
+                    <div style="width:300px;" class="{{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{end}}">
+                        <div class="d-inline-flex align-items-center">
+                            <svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg>
+                            <a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" class="{{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{else if eq $record.S.Type 0}}link-body-emphasis{{end}}" title="Общие данные по серверу">{{$record.S.NameFQDN}}</a>
+                            {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}
+                        </div>
+                        {{if or (eq $record.S.Type 1) (eq $record.S.Type 2)}}{{if ne $record.S.Vcenter "" }}
+                        <div><a href="/sprsrv/clusterperiod/{{$record.S.Vcenter}}/{{$record.S.Datacenter}}/{{$record.S.Cluster}}" target="_blank" title="Информация по кластеру" class="text-success">{{$record.S.Vcenter}} / {{$record.S.Datacenter}} / {{$record.S.Cluster}}</a></div>
+                        {{end}}{{end}}
+                    </div>
                     {{else}}
-                    {{if gt $record.VM.Id 0 }}
-                    <div style="width:300px;" class="d-inline-flex align-items-center text-body-secondary"><svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg><a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" title="Общие данные по серверу">{{$record.S.Name}}</a> ( {{$record.VM.Vcenter}} / {{$record.VM.Datacenter}} / {{$record.VM.Cluster}} ) </div>
-                    {{else}}
-                    <div style="width:300px;" class="d-inline-flex align-items-center text-body-secondary"><svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg><a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" title="Общие данные по серверу">{{$record.S.Name}}</a> {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}</div>
-                    {{end}}
+                    <div style="width:300px;" class="text-body-secondary">
+                        <div class="d-inline-flex align-items-center">
+                            <svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg>
+                            <a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" title="Общие данные по серверу">{{$record.S.Name}}</a>
+                            {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}
+                        </div>
+                        {{if or (eq $record.S.Type 1) (eq $record.S.Type 2)}}{{if ne $record.S.Vcenter "" }}
+                        <div class="text-success">{{$record.S.Vcenter}} / {{$record.S.Datacenter}} / {{$record.S.Cluster}}</div>
+                        {{end}}{{end}}
+                    </div>
                     {{end}}
                 </td>
                 <td id="rowMenu{{$record.S.Id}}" class="d-none">

@@ -33,6 +33,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 		this.Redirect("/user/login/sprsrv_updateselectedbase_"+selected, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewReference) // просмотр формы группового редактирования - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/updateselectedbase")
 	this.Data["selected"] = selected

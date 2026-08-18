@@ -67,6 +67,7 @@ func (this *MainController) SprHwConfig() {
 		this.Redirect("/user/login/sprsrv_hwconflist_"+Id, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewReference) // просмотр справочника конфигураций серверов
 
 	this.activeContent("sprsrv/hwconflist")
 	this.Data["ListId"] = Id
@@ -461,6 +462,7 @@ func (this *MainController) SprHwConfigEditBySN() {
 		this.Redirect("/user/login/sprsrv_hwconfeditbysn_"+sn, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeServerDetails) // переход к конфигурации сервера по серийному номеру
 
 	flash := beego.NewFlash()
 
@@ -503,6 +505,7 @@ func (this *MainController) SprHwConfigEditByName() {
 		this.Redirect("/user/login/sprsrv_hwconfeditbyname_"+name, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeServerDetails) // переход к конфигурации сервера по имени
 
 	flash := beego.NewFlash()
 
@@ -532,6 +535,7 @@ func (this *MainController) SprHwConfigEdit() {
 		this.Redirect("/user/login/sprsrv_hwconfedit_"+idStr, 302)
 		return
 	}
+	RegisterRequest(this, LogTypeViewReference) // просмотр карточки конфигурации сервера - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/hwconfedit")
 	this.Data["Id"] = idStr
@@ -602,6 +606,7 @@ func (this *MainController) SprHwConfigEdit() {
 				this.Data["HW"] = rec
 				return
 			}
+			RegisterRequest(this, LogTypeEditReference) // создание записи конфигурации сервера
 			this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit/%d", rec.Id), 302)
 			return
 		}
@@ -612,6 +617,7 @@ func (this *MainController) SprHwConfigEdit() {
 			this.Data["HW"] = rec
 			return
 		}
+		RegisterRequest(this, LogTypeEditReference) // изменение записи конфигурации сервера
 
 		flash.Notice("Запись сохранена.")
 		flash.Store(&this.Controller)
@@ -666,6 +672,11 @@ func (this *MainController) SprHwConfigBulkEdit() {
 	if sess == nil {
 		this.Redirect("/user/login/sprsrv_hwconfbulkedit", 302)
 		return
+	}
+	if this.GetString("ApplyBulk") == "1" {
+		RegisterRequest(this, LogTypeEditReference) // групповое изменение записей конфигурации серверов
+	} else {
+		RegisterRequest(this, LogTypeViewReference) // просмотр формы группового редактирования
 	}
 
 	this.activeContent("sprsrv/hwconfbulkedit")

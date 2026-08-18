@@ -1,10 +1,18 @@
 package controllers
 
 import (
+	"fmt"
 	"loadmon/grpcclient"
+	"loadmon/models"
 	vsphere "loadmon/vspheremetrics"
+	"net/http"
+	"os"
 	"sort"
 	"strconv"
+	"time"
+
+	beego "github.com/beego/beego/v2/server/web"
+	"github.com/xuri/excelize/v2"
 )
 
 // SprSrvListClusterView отображает список кластеров vSphere по всем
@@ -43,6 +51,11 @@ func (this *MainController) SprSrvListClusterView() {
 	if sess == nil {
 		this.Redirect("/user/login/sprsrv_listclusterview", 302)
 		return
+	}
+	if this.GetString("export") == "xlsx" {
+		RegisterRequest(this, LogTypeExport) // выгрузка списка кластеров в XLSX
+	} else {
+		RegisterRequest(this, LogTypeViewReference) // просмотр списка кластеров
 	}
 
 	this.activeContent("sprsrv/clusterlist")
@@ -107,6 +120,26 @@ func (this *MainController) SprSrvListClusterView() {
 		return clusterList[i].Name < clusterList[j].Name
 	})
 
+	// Справочник кластеров (models.ClusterSprRecords) - используется для
+	// отображения дополнительных колонок (тип среды/статус/примечание) и
+	// для экспорта в XLSX. Поиск ведётся по тому же составному ключу
+	// "Vcenter/Datacenter/Name", что и в cmdb (см. cmdb/savedata.go,
+	// grpcclient.LoadClusterSpr) - именно Name (наименование кластера), а не
+	// ClusterId.
+	clusterSpr, err := grpcclient.LoadClusterSpr(vcenter, datacenter, cluster)
+	if err != nil || clusterSpr == nil {
+		clusterSpr = make(map[string]*models.ClusterSprRecords)
+	}
+	this.Data["ClusterSprMap"] = clusterSpr
+
+	// экспорт в XLSX отдаёт весь найденный по фильтру список, а не только
+	// текущую страницу - тот же приём, что и в /sprsrv/vm и /sprsrv/hwviewlist
+	if this.GetString("export") == "xlsx" {
+		flash := beego.NewFlash()
+		ExportClusterListXLSX(this, flash, clusterList, clusterSpr)
+		return
+	}
+
 	// пагинация - тот же приём и те же параметры (page/pagesize), что и в
 	// /sprsrv/vm (controllers/sprsrvvm.go, views/sprsrv/vmlist.tpl); в
 	// отличие от /sprsrv/vm здесь не требуется двухшаговая загрузка по
@@ -150,4 +183,173 @@ func (this *MainController) SprSrvListClusterView() {
 		this.Data["PageFrom"] = offset + 1
 	}
 	this.Data["PageTo"] = end
+}
+
+// clusterSprKey строит ключ вида "Vcenter/Datacenter/Name" для поиска записи
+// справочника кластеров (models.ClusterSprRecords) - тот же формат ключа,
+// что используют grpcclient.LoadClusterSpr и cmdb.SaveClusterCMDBData; Name
+// здесь - именно наименование кластера, а не ClusterId.
+func clusterSprKey(vcenter, datacenter, name string) string {
+	return fmt.Sprintf("%s/%s/%s", vcenter, datacenter, name)
+}
+
+// clusterTypeWorkLabel переводит код models.ClusterSprRecords.TypeWork в
+// текст - соответствует расшифровке, использованной в других формах
+// (view2.tpl, updatebase.tpl) для того же поля у серверов.
+func clusterTypeWorkLabel(v int) string {
+	switch v {
+	case 1:
+		return "Продуктовая среда"
+	case 2:
+		return "Внутренний тест"
+	case 3:
+		return "Внешний тест"
+	default:
+		return "не указано"
+	}
+}
+
+// clusterStatLabel переводит код models.ClusterSprRecords.Stat в текст -
+// расшифровка значений взята из комментария к полю в models/models_add.go.
+func clusterStatLabel(v int) string {
+	switch v {
+	case 1:
+		return "Активен"
+	case 2:
+		return "Выведен из работы"
+	default:
+		return "не указано"
+	}
+}
+
+// clusterListXLSXHeader - заголовок листа XLSX-экспорта /sprsrv/listclusterview.
+// Порядок и состав столбцов повторяют то, что показывает html-таблица этой
+// страницы (views/sprsrv/clusterlist.tpl), плюс колонки из справочника
+// кластеров (тип среды/статус/примечание).
+var clusterListXLSXHeader = []string{
+	"Id", "vCenter", "Датацентр", "Кластер",
+	"Хосты",
+	"Процессоры", "Ядра", "Потоки", "CPU макс, %",
+	"Память, ГБ", "Память макс, %",
+	"Хранилище, ГБ", "Занято, %",
+	"Виртуальные машины",
+	"Тип среды", "Статус", "Примечание",
+}
+
+// clusterListXLSXRow формирует одну строку XLSX-экспорта из vsphere.Cluster,
+// дополняя её данными из справочника кластеров (models.ClusterSprRecords),
+// найденного по ключу vCenter/Датацентр/Имя кластера.
+func clusterListXLSXRow(cl *vsphere.Cluster, sprMap map[string]*models.ClusterSprRecords) []string {
+	if cl == nil {
+		return make([]string, len(clusterListXLSXHeader))
+	}
+
+	typeWorkText := clusterTypeWorkLabel(0)
+	statText := clusterStatLabel(0)
+	annotation := ""
+	if spr, ok := sprMap[clusterSprKey(cl.Vcenter, cl.Datacenter, cl.Name)]; ok && spr != nil {
+		typeWorkText = clusterTypeWorkLabel(spr.TypeWork)
+		statText = clusterStatLabel(spr.Stat)
+		annotation = spr.Annotation
+	}
+
+	return []string{
+		strconv.FormatInt(cl.ID, 10),
+		cl.Vcenter,
+		cl.Datacenter,
+		cl.Name,
+		strconv.FormatInt(cl.HostCount, 10),
+		strconv.FormatInt(int64(cl.AllNumCPUPkgs), 10),
+		strconv.FormatInt(int64(cl.AllNumCPUCores), 10),
+		strconv.FormatInt(int64(cl.AllNumCPUThreads), 10),
+		fmt.Sprintf("%.2f", cl.CPUUsageMaximum),
+		fmt.Sprintf("%.2f", cl.AllMemorySizeGB),
+		fmt.Sprintf("%.2f", cl.MemUsageMaximum),
+		fmt.Sprintf("%.2f", cl.AllCapacityGb),
+		fmt.Sprintf("%.2f", cl.AllPercentUsed),
+		strconv.FormatInt(cl.VMCount, 10),
+		typeWorkText,
+		statText,
+		annotation,
+	}
+}
+
+// ExportClusterListXLSX отдаёт найденный по фильтру список кластеров (весь,
+// а не только текущую страницу) файлом XLSX на скачивание - формирование
+// листа аналогично экспорту /sprsrv/vm (ExportVMListXLSX, controllers/sprsrvvm.go).
+func ExportClusterListXLSX(this *MainController, flash *beego.FlashData, clusterList []*vsphere.Cluster, sprMap map[string]*models.ClusterSprRecords) {
+	if len(clusterList) == 0 {
+		flash.Notice("Нет записей для экспорта.")
+		flash.Store(&this.Controller)
+		return
+	}
+
+	crt := time.Now().Local()
+	shortName := fmt.Sprintf("cluster%02d_%02d_%04d_%02d_%02d_%02d_%d.xlsx", crt.Day(), crt.Month(), crt.Year(), crt.Hour(), crt.Minute(), crt.Second(), crt.UnixNano())
+	destination := "./reports/" + shortName
+
+	file := excelize.NewFile()
+	if file == nil {
+		flash.Error("Ошибка создания XLSX файла: " + destination)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	sheet := "Кластеры"
+	index, err := file.NewSheet(sheet)
+	if err != nil {
+		flash.Error("Ошибка создания листа XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	file.SetActiveSheet(index)
+
+	cell, _ := excelize.CoordinatesToCellName(1, 1)
+	if err := file.SetSheetRow(sheet, cell, &clusterListXLSXHeader); err != nil {
+		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+
+	for j, cl := range clusterList {
+		row := clusterListXLSXRow(cl, sprMap)
+		cell, _ := excelize.CoordinatesToCellName(1, j+2)
+		if err := file.SetSheetRow(sheet, cell, &row); err != nil {
+			flash.Error("Ошибка записи строки XLSX файла: "+destination+" ", err)
+			flash.Store(&this.Controller)
+			file.Close()
+			return
+		}
+	}
+
+	if err := file.SaveAs(destination); err != nil {
+		flash.Error("Ошибка сохранения XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	if err := file.Close(); err != nil {
+		flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	fileInfo, err := os.Stat(destination)
+	if err != nil {
+		flash.Error("Ошибка получения данных XLSX файла: "+destination+" ", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	this.Ctx.Output.Header("Content-Description", "File Transfer")
+	this.Ctx.Output.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	this.Ctx.Output.Header("Content-Disposition", "attachment; filename=\""+shortName+"\"")
+	this.Ctx.Output.Header("Expires", "0")
+	this.Ctx.Output.Header("Cache-Control", "must-revalidate")
+	this.Ctx.Output.Header("Pragma", "public")
+	this.Ctx.Output.Header("Content-Length", fmt.Sprint(fileInfo.Size()))
+
+	http.ServeFile(this.Ctx.Output.Context.ResponseWriter, this.Ctx.Output.Context.Request, destination)
 }
