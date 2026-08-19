@@ -313,7 +313,7 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 
 		rec.Date = time.Now().Local()
 		rec.ServerId = serverId           //ссылка на справочник серверов
-		rec.VMsprId = VMSprId             //заполняем ссылку на справочник виртуальных машин
+		rec.VMSprId = VMSprId             //заполняем ссылку на справочник виртуальных машин
 		vmRecordId, err := o.Insert(&rec) //добавляем запись по виртуальной машине в переменной vmRecordId запоминаем номер записи по виртуальной машине по нему будет строиться связь с зависимыми данными
 
 		if err != nil {

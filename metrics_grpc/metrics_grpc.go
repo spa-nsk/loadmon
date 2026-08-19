@@ -104,16 +104,16 @@ func main() {
 
 	_ = s1
 	_ = s2
-
-	ov := oneview.GetGlobalOVInfrastructure()
-	log.Println("Загрузка данных по конфигурациям серверов")
-	srv, err := ov.LoadServerHardwareList()
-	if err != nil {
-		log.Println("Ошибка загрузки данных по конфигурациям серверов: ", err)
-	} else {
-		log.Println("Загрузка данных по конфигурациям серверов завершена. Всего серверов: ", len(srv))
-	}
-
+	go func(){
+		ov := oneview.GetGlobalOVInfrastructure()
+		log.Println("Загрузка данных по конфигурациям серверов")
+		srv, err := ov.LoadServerHardwareList()
+		if err != nil {
+			log.Println("Ошибка загрузки данных по конфигурациям серверов: ", err)
+		} else {
+			log.Println("Загрузка данных по конфигурациям серверов завершена. Всего серверов: ", len(srv))
+		}
+	}()
 	//	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.Println("Используется : ", runtime.NumCPU(), " CPU", "Количество Goroutine: ", runtime.NumGoroutine()) //количество потоков на старте
 

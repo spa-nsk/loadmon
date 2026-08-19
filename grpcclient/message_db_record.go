@@ -292,7 +292,7 @@ func VMRecordToMessage(in *models.VMRecord, out *pb.VMRecord) {
 
 	out.Id = in.Id
 	out.ServerId = in.ServerId
-	out.VMSprId = in.VMsprId
+	out.VMSprId = in.VMSprId
 	out.ClusterId = in.ClusterId
 	out.Date = timestamppb.New(in.Date)
 	out.Vm_NumCPU = in.Vm_NumCPU
@@ -360,7 +360,7 @@ func MessageToVMRecord(in *pb.VMRecord, out *models.VMRecord) {
 
 	out.Id = in.Id
 	out.ServerId = in.ServerId
-	out.VMsprId = in.VMSprId
+	out.VMSprId = in.VMSprId
 	out.ClusterId = in.ClusterId
 	out.Date = in.Date.AsTime()
 	out.Vm_NumCPU = in.Vm_NumCPU

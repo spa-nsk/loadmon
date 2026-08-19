@@ -175,12 +175,12 @@ function selectcluster(val) {
             <td class="text-center">{{printf "%d/%d (%d)" $cl.AllNumCPUPkgs $cl.AllNumCPUCores $cl.CPUMhzAvg}}</td>
             <td class="text-center">{{printf "%.0f" $cl.AllMemorySizeGB}}</td>
             {{if and (ge $cl.CPUUsageMaximum 0.0) (le $cl.CPUUsageMaximum 75.0)}}<td class="text-end">{{printf "%2.2f" $cl.CPUUsageMaximum}}</td>
-            {{else if and (gt $cl.CPUUsageMaximum 75.0) (le $cl.CPUUsageMaximum 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $cl.CPUUsageMaximum}}</td>
-            {{else if (gt $cl.CPUUsageMaximum 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $cl.CPUUsageMaximum}}</td>
+            {{else if and (gt $cl.CPUUsageMaximum 75.0) (le $cl.CPUUsageMaximum 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $cl.CPUUsageMaximum}}</td>
+            {{else if (gt $cl.CPUUsageMaximum 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $cl.CPUUsageMaximum}}</td>
             {{else}}<td class="text-end">{{printf "%2.2f" $cl.CPUUsageMaximum}}</td>{{end}}
             {{if and (ge $cl.MemUsageMaximum 0.0) (le $cl.MemUsageMaximum 75.0)}}<td class="text-end">{{printf "%2.2f" $cl.MemUsageMaximum}}</td>
-            {{else if and (gt $cl.MemUsageMaximum 75.0) (le $cl.MemUsageMaximum 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $cl.MemUsageMaximum}}</td>
-            {{else if (gt $cl.MemUsageMaximum 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $cl.MemUsageMaximum}}</td>
+            {{else if and (gt $cl.MemUsageMaximum 75.0) (le $cl.MemUsageMaximum 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $cl.MemUsageMaximum}}</td>
+            {{else if (gt $cl.MemUsageMaximum 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $cl.MemUsageMaximum}}</td>
             {{else}}<td class="text-end">{{printf "%2.2f" $cl.MemUsageMaximum}}</td>{{end}}
             <td class="text-end">{{printf "%.1f" $cl.DiskUsageMaximum}}</td>
             <td class="text-end">{{printf "%.1f" $cl.NetUsageMaximum}}</td>
@@ -208,7 +208,7 @@ function selectcluster(val) {
                         <tr>
                             <th>Хосты кластера</th>
                             <th class="text-center">Процессоры / Ядра (частота МГц)</th>
-                            <th class="text-center">Память (Гб)</th>
+                       C:\work\loadmon\server_web_new\views\sprsrv\cluster.tpl     <th class="text-center">Память (Гб)</th>
                             <th class="text-center">Процессор (макс. %)</th>
                             <th class="text-center">Процессор (ср. %)</th>
                             <th class="text-center">Процессор (мин. %)</th>
@@ -230,25 +230,25 @@ function selectcluster(val) {
                         <td class="text-center">{{printf "%d/%d (%d)" $hi.NumCPUPkgs $hi.NumCPUCores $hi.CPUMhz}}</td>
                         <td class="text-center">{{printf "%.0f" $hi.MemorySizeGB}}</td>
                         {{if and (ge $hi.CPUUsageMaximum 0.0) (le $hi.CPUUsageMaximum 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.CPUUsageMaximum}}</td>
-                        {{else if and (gt $hi.CPUUsageMaximum 75.0) (le $hi.CPUUsageMaximum 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.CPUUsageMaximum}}</td>
-                        {{else if (gt $hi.CPUUsageMaximum 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.CPUUsageMaximum}}</td>
+                        {{else if and (gt $hi.CPUUsageMaximum 75.0) (le $hi.CPUUsageMaximum 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.CPUUsageMaximum}}</td>
+                        {{else if (gt $hi.CPUUsageMaximum 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.CPUUsageMaximum}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.CPUUsageMaximum}}</td>{{end}}
                         {{if and (ge $hi.CPUUsageAverage 0.0) (le $hi.CPUUsageAverage 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.CPUUsageAverage}}</td>
-                        {{else if and (gt $hi.CPUUsageAverage 75.0) (le $hi.CPUUsageAverage 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.CPUUsageAverage}}</td>
-                        {{else if (gt $hi.CPUUsageAverage 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.CPUUsageAverage}}</td>
+                        {{else if and (gt $hi.CPUUsageAverage 75.0) (le $hi.CPUUsageAverage 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.CPUUsageAverage}}</td>
+                        {{else if (gt $hi.CPUUsageAverage 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.CPUUsageAverage}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.CPUUsageAverage}}</td>{{end}}
                         <td class="text-end">{{printf "%2.2f" $hi.CPUUsageMinimum}}</td>
                         {{if and (ge $hi.MemUsageMaximum 0.0) (le $hi.MemUsageMaximum 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.MemUsageMaximum}}</td>
-                        {{else if and (gt $hi.MemUsageMaximum 75.0) (le $hi.MemUsageMaximum 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.MemUsageMaximum}}</td>
-                        {{else if (gt $hi.MemUsageMaximum 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.MemUsageMaximum}}</td>
+                        {{else if and (gt $hi.MemUsageMaximum 75.0) (le $hi.MemUsageMaximum 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.MemUsageMaximum}}</td>
+                        {{else if (gt $hi.MemUsageMaximum 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.MemUsageMaximum}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.MemUsageMaximum}}</td>{{end}}
                         {{if and (ge $hi.MemUsageAverage 0.0) (le $hi.MemUsageAverage 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.MemUsageAverage}}</td>
-                        {{else if and (gt $hi.MemUsageAverage 75.0) (le $hi.MemUsageAverage 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.MemUsageAverage}}</td>
-                        {{else if (gt $hi.MemUsageAverage 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.MemUsageAverage}}</td>
+                        {{else if and (gt $hi.MemUsageAverage 75.0) (le $hi.MemUsageAverage 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.MemUsageAverage}}</td>
+                        {{else if (gt $hi.MemUsageAverage 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.MemUsageAverage}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.MemUsageAverage}}</td>{{end}}
                         {{if and (ge $hi.MemUsageMinimum 0.0) (le $hi.MemUsageMinimum 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.MemUsageMinimum}}</td>
-                        {{else if and (gt $hi.MemUsageMinimum 75.0) (le $hi.MemUsageMinimum 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.MemUsageMinimum}}</td>
-                        {{else if (gt $hi.MemUsageMinimum 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.MemUsageMinimum}}</td>
+                        {{else if and (gt $hi.MemUsageMinimum 75.0) (le $hi.MemUsageMinimum 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.MemUsageMinimum}}</td>
+                        {{else if (gt $hi.MemUsageMinimum 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.MemUsageMinimum}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.MemUsageMinimum}}</td>{{end}}
                         <td class="text-end">{{printf "%.1f" $hi.DiskUsageMaximum}}</td>
                         <td class="text-end">{{printf "%.1f" $hi.DiskUsageAverage}}</td>
@@ -259,7 +259,7 @@ function selectcluster(val) {
                     </tr>
                     {{end}}
                     {{if gt $cl.HostCount 1}}
-                    <tr class="table-secondary">
+                    <tr>
                         <td><b>Итого</b></td>
                         <td class="text-center"><b>{{printf "%d/%d (%d)" $cl.AllNumCPUPkgs $cl.AllNumCPUCores $cl.CPUMhzAvg}}</b></td>
                         <td class="text-center"><b>{{printf "%.0f" $cl.AllMemorySizeGB}}</b></td>
@@ -325,21 +325,21 @@ function selectcluster(val) {
                         <td class="text-center">{{printf "%d/%d" $vm.NumCPU $vm.NumCores}}</td>
                         <td class="text-center">{{printf "%.0f" $vm.MemorySizeGB}}</td>
                         {{if and (ge $vm.CPUUsageMaximum 0.0) (le $vm.CPUUsageMaximum 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.CPUUsageMaximum}}</td>
-                        {{else if and (gt $vm.CPUUsageMaximum 75.0) (le $vm.CPUUsageMaximum 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.CPUUsageMaximum}}</td>
-                        {{else if (gt $vm.CPUUsageMaximum 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.CPUUsageMaximum}}</td>
+                        {{else if and (gt $vm.CPUUsageMaximum 75.0) (le $vm.CPUUsageMaximum 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.CPUUsageMaximum}}</td>
+                        {{else if (gt $vm.CPUUsageMaximum 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.CPUUsageMaximum}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.CPUUsageMaximum}}</td>{{end}}
                         {{if and (ge $vm.CPUUsageAverage 0.0) (le $vm.CPUUsageAverage 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.CPUUsageAverage}}</td>
-                        {{else if and (gt $vm.CPUUsageAverage 75.0) (le $vm.CPUUsageAverage 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.CPUUsageAverage}}</td>
-                        {{else if (gt $vm.CPUUsageAverage 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.CPUUsageAverage}}</td>
+                        {{else if and (gt $vm.CPUUsageAverage 75.0) (le $vm.CPUUsageAverage 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.CPUUsageAverage}}</td>
+                        {{else if (gt $vm.CPUUsageAverage 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.CPUUsageAverage}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.CPUUsageAverage}}</td>{{end}}
                         <td class="text-end">{{printf "%2.2f" $vm.CPUUsageMinimum}}</td>
                         {{if and (ge $vm.MemUsageMaximum 0.0) (le $vm.MemUsageMaximum 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.MemUsageMaximum}}</td>
-                        {{else if and (gt $vm.MemUsageMaximum 75.0) (le $vm.MemUsageMaximum 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.MemUsageMaximum}}</td>
-                        {{else if (gt $vm.MemUsageMaximum 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.MemUsageMaximum}}</td>
+                        {{else if and (gt $vm.MemUsageMaximum 75.0) (le $vm.MemUsageMaximum 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.MemUsageMaximum}}</td>
+                        {{else if (gt $vm.MemUsageMaximum 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.MemUsageMaximum}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.MemUsageMaximum}}</td>{{end}}
                         {{if and (ge $vm.MemUsageAverage 0.0) (le $vm.MemUsageAverage 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.MemUsageAverage}}</td>
-                        {{else if and (gt $vm.MemUsageAverage 75.0) (le $vm.MemUsageAverage 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.MemUsageAverage}}</td>
-                        {{else if (gt $vm.MemUsageAverage 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.MemUsageAverage}}</td>
+                        {{else if and (gt $vm.MemUsageAverage 75.0) (le $vm.MemUsageAverage 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.MemUsageAverage}}</td>
+                        {{else if (gt $vm.MemUsageAverage 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.MemUsageAverage}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.MemUsageAverage}}</td>{{end}}
                         <td class="text-end">{{printf "%2.2f" $vm.MemUsageMinimum}}</td>
                         <td class="text-end">{{printf "%.1f" $vm.DiskUsageMaximum}}</td>
@@ -380,7 +380,7 @@ function selectcluster(val) {
                     </thead>
                     <tbody>
                     {{range $st := $cl.Storage}}
-                    <tr class="table-secondary">
+                    <tr>
                         <td><b>{{$st.StorageName}}</b></td>
                         <td class="text-end"><b>{{printf "%.1f" $st.CapacityGb}}</b></td>
                         <td class="text-end"><b>{{printf "%.1f" $st.FreeSpaceGb}}</b></td>
@@ -404,7 +404,7 @@ function selectcluster(val) {
                     {{end}}
                     {{end}}
                     {{if gt $cl.StorageCount 1}}
-                    <tr class="table-secondary">
+                    <tr>
                         <td><b>Итого</b></td>
                         <td class="text-end"><b>{{printf "%.1f" $cl.AllCapacityGb}}</b></td>
                         <td class="text-end"><b>{{printf "%.1f" $cl.AllFreeSpaceGb}}</b></td>

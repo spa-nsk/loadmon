@@ -113,11 +113,11 @@ func (this *MainController) SprSrvVMPerfPeriod() {
 	this.Data["VMName"] = sprRecord.Vm_Name
 	this.Data["VMHostName"] = sprRecord.Vm_HostName
 
-	// 2) агрегаты min/avg/max за период (VMRecord.VMsprId = sprRecord.Id,
+	// 2) агрегаты min/avg/max за период (VMRecord.VMSprId = sprRecord.Id,
 	// Date в диапазоне [from, to] включительно)
 	var vmRecs []models.VMRecord
 	_, err = o.QueryTable("vm_record").
-		Filter("VMsprId", sprRecord.Id).
+		Filter("VMSprId", sprRecord.Id).
 		Filter("Date__gte", from.UTC()).
 		Filter("Date__lt", to.AddDate(0, 0, 1).UTC()).
 		OrderBy("Date").

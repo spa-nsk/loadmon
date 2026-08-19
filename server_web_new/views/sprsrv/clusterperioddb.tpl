@@ -176,12 +176,12 @@ function clusterPeriodNavigate() {
             <td class="text-center">{{printf "%d/%d (%d)" $cl.AllNumCpuPkgs $cl.AllNumCpuCores $cl.CpuMhzAvg}}</td>
             <td class="text-center">{{printf "%.0f" $cl.AllMemorySizeGB}}</td>
             {{if and (ge $cl.CPU.Max 0.0) (le $cl.CPU.Max 75.0)}}<td class="text-end">{{printf "%2.2f" $cl.CPU.Max}}</td>
-            {{else if and (gt $cl.CPU.Max 75.0) (le $cl.CPU.Max 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $cl.CPU.Max}}</td>
-            {{else if (gt $cl.CPU.Max 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $cl.CPU.Max}}</td>
+            {{else if and (gt $cl.CPU.Max 75.0) (le $cl.CPU.Max 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $cl.CPU.Max}}</td>
+            {{else if (gt $cl.CPU.Max 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $cl.CPU.Max}}</td>
             {{else}}<td class="text-end">{{printf "%2.2f" $cl.CPU.Max}}</td>{{end}}
             {{if and (ge $cl.Mem.Max 0.0) (le $cl.Mem.Max 75.0)}}<td class="text-end">{{printf "%2.2f" $cl.Mem.Max}}</td>
-            {{else if and (gt $cl.Mem.Max 75.0) (le $cl.Mem.Max 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $cl.Mem.Max}}</td>
-            {{else if (gt $cl.Mem.Max 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $cl.Mem.Max}}</td>
+            {{else if and (gt $cl.Mem.Max 75.0) (le $cl.Mem.Max 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $cl.Mem.Max}}</td>
+            {{else if (gt $cl.Mem.Max 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $cl.Mem.Max}}</td>
             {{else}}<td class="text-end">{{printf "%2.2f" $cl.Mem.Max}}</td>{{end}}
             <td class="text-end">{{printf "%.1f" $cl.AllCapacityGb}}</td>
             <td class="text-end">{{printf "%.1f" $cl.AllFreeSpaceGb}}</td>
@@ -230,25 +230,25 @@ function clusterPeriodNavigate() {
                         <td class="text-center">{{printf "%d/%d (%d)" $hi.NumCpuPkgs $hi.NumCpuCores $hi.CpuMhz}}</td>
                         <td class="text-center">{{printf "%.0f" $hi.MemorySizeGB}}</td>
                         {{if and (ge $hi.CPU.Max 0.0) (le $hi.CPU.Max 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.CPU.Max}}</td>
-                        {{else if and (gt $hi.CPU.Max 75.0) (le $hi.CPU.Max 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.CPU.Max}}</td>
-                        {{else if (gt $hi.CPU.Max 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.CPU.Max}}</td>
+                        {{else if and (gt $hi.CPU.Max 75.0) (le $hi.CPU.Max 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.CPU.Max}}</td>
+                        {{else if (gt $hi.CPU.Max 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.CPU.Max}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.CPU.Max}}</td>{{end}}
                         {{if and (ge $hi.CPU.Avg 0.0) (le $hi.CPU.Avg 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.CPU.Avg}}</td>
-                        {{else if and (gt $hi.CPU.Avg 75.0) (le $hi.CPU.Avg 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.CPU.Avg}}</td>
-                        {{else if (gt $hi.CPU.Avg 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.CPU.Avg}}</td>
+                        {{else if and (gt $hi.CPU.Avg 75.0) (le $hi.CPU.Avg 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.CPU.Avg}}</td>
+                        {{else if (gt $hi.CPU.Avg 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.CPU.Avg}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.CPU.Avg}}</td>{{end}}
                         <td class="text-end">{{printf "%2.2f" $hi.CPU.Min}}</td>
                         {{if and (ge $hi.Mem.Max 0.0) (le $hi.Mem.Max 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.Mem.Max}}</td>
-                        {{else if and (gt $hi.Mem.Max 75.0) (le $hi.Mem.Max 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.Mem.Max}}</td>
-                        {{else if (gt $hi.Mem.Max 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.Mem.Max}}</td>
+                        {{else if and (gt $hi.Mem.Max 75.0) (le $hi.Mem.Max 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.Mem.Max}}</td>
+                        {{else if (gt $hi.Mem.Max 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.Mem.Max}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.Mem.Max}}</td>{{end}}
                         {{if and (ge $hi.Mem.Avg 0.0) (le $hi.Mem.Avg 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.Mem.Avg}}</td>
-                        {{else if and (gt $hi.Mem.Avg 75.0) (le $hi.Mem.Avg 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.Mem.Avg}}</td>
-                        {{else if (gt $hi.Mem.Avg 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.Mem.Avg}}</td>
+                        {{else if and (gt $hi.Mem.Avg 75.0) (le $hi.Mem.Avg 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.Mem.Avg}}</td>
+                        {{else if (gt $hi.Mem.Avg 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.Mem.Avg}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.Mem.Avg}}</td>{{end}}
                         {{if and (ge $hi.Mem.Min 0.0) (le $hi.Mem.Min 75.0)}}<td class="text-end">{{printf "%2.2f" $hi.Mem.Min}}</td>
-                        {{else if and (gt $hi.Mem.Min 75.0) (le $hi.Mem.Min 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $hi.Mem.Min}}</td>
-                        {{else if (gt $hi.Mem.Min 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $hi.Mem.Min}}</td>
+                        {{else if and (gt $hi.Mem.Min 75.0) (le $hi.Mem.Min 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $hi.Mem.Min}}</td>
+                        {{else if (gt $hi.Mem.Min 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $hi.Mem.Min}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $hi.Mem.Min}}</td>{{end}}
                         <td class="text-end">{{printf "%.1f" $hi.Disk.Max}}</td>
                         <td class="text-end">{{printf "%.1f" $hi.Disk.Avg}}</td>
@@ -259,7 +259,7 @@ function clusterPeriodNavigate() {
                     </tr>
                     {{end}}
                     {{if gt $cl.HostCount 1}}
-                    <tr class="table-secondary">
+                    <tr>
                         <td><b>Итого (по кластеру)</b></td>
                         <td class="text-center"><b>{{printf "%d/%d (%d)" $cl.AllNumCpuPkgs $cl.AllNumCpuCores $cl.CpuMhzAvg}}</b></td>
                         <td class="text-center"><b>{{printf "%.0f" $cl.AllMemorySizeGB}}</b></td>
@@ -329,21 +329,21 @@ function clusterPeriodNavigate() {
                         <td class="text-center">{{printf "%d/%d" $vm.NumCPU $vm.NumCores}}</td>
                         <td class="text-center">{{printf "%.0f" $vm.MemorySizeGB}}</td>
                         {{if and (ge $vm.CPU.Max 0.0) (le $vm.CPU.Max 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.CPU.Max}}</td>
-                        {{else if and (gt $vm.CPU.Max 75.0) (le $vm.CPU.Max 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.CPU.Max}}</td>
-                        {{else if (gt $vm.CPU.Max 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.CPU.Max}}</td>
+                        {{else if and (gt $vm.CPU.Max 75.0) (le $vm.CPU.Max 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.CPU.Max}}</td>
+                        {{else if (gt $vm.CPU.Max 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.CPU.Max}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.CPU.Max}}</td>{{end}}
                         {{if and (ge $vm.CPU.Avg 0.0) (le $vm.CPU.Avg 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.CPU.Avg}}</td>
-                        {{else if and (gt $vm.CPU.Avg 75.0) (le $vm.CPU.Avg 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.CPU.Avg}}</td>
-                        {{else if (gt $vm.CPU.Avg 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.CPU.Avg}}</td>
+                        {{else if and (gt $vm.CPU.Avg 75.0) (le $vm.CPU.Avg 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.CPU.Avg}}</td>
+                        {{else if (gt $vm.CPU.Avg 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.CPU.Avg}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.CPU.Avg}}</td>{{end}}
                         <td class="text-end">{{printf "%2.2f" $vm.CPU.Min}}</td>
                         {{if and (ge $vm.Mem.Max 0.0) (le $vm.Mem.Max 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.Mem.Max}}</td>
-                        {{else if and (gt $vm.Mem.Max 75.0) (le $vm.Mem.Max 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.Mem.Max}}</td>
-                        {{else if (gt $vm.Mem.Max 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.Mem.Max}}</td>
+                        {{else if and (gt $vm.Mem.Max 75.0) (le $vm.Mem.Max 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.Mem.Max}}</td>
+                        {{else if (gt $vm.Mem.Max 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.Mem.Max}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.Mem.Max}}</td>{{end}}
                         {{if and (ge $vm.Mem.Avg 0.0) (le $vm.Mem.Avg 75.0)}}<td class="text-end">{{printf "%2.2f" $vm.Mem.Avg}}</td>
-                        {{else if and (gt $vm.Mem.Avg 75.0) (le $vm.Mem.Avg 90.0)}}<td class="metric-warn text-end">{{printf "%2.2f" $vm.Mem.Avg}}</td>
-                        {{else if (gt $vm.Mem.Avg 90.0)}}<td class="metric-crit text-end">{{printf "%2.2f" $vm.Mem.Avg}}</td>
+                        {{else if and (gt $vm.Mem.Avg 75.0) (le $vm.Mem.Avg 90.0)}}<td class="table-warning text-end">{{printf "%2.2f" $vm.Mem.Avg}}</td>
+                        {{else if (gt $vm.Mem.Avg 90.0)}}<td class="table-danger text-end">{{printf "%2.2f" $vm.Mem.Avg}}</td>
                         {{else}}<td class="text-end">{{printf "%2.2f" $vm.Mem.Avg}}</td>{{end}}
                         <td class="text-end">{{printf "%2.2f" $vm.Mem.Min}}</td>
                         <td class="text-end">{{printf "%.1f" $vm.Disk.Max}}</td>

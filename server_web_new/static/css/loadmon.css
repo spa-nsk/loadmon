@@ -27,7 +27,8 @@
 
 .hw-filter-bar,
 .cluster-filter-bar,
-.vm-filter-bar {
+.vm-filter-bar,
+.zabbix-filter-bar {
     position: sticky;
     top: 0;
     z-index: 5;
@@ -38,7 +39,8 @@
 
 .hw-filter-bar.hw-filter-bar-unpinned,
 .cluster-filter-bar.cluster-filter-bar-unpinned,
-.vm-filter-bar.vm-filter-bar-unpinned {
+.vm-filter-bar.vm-filter-bar-unpinned,
+.zabbix-filter-bar.zabbix-filter-bar-unpinned {
     position: static;
     box-shadow: none;
 }
