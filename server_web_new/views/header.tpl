@@ -401,6 +401,14 @@
               <a href="/sprsrv/hwconflist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Конфигурации серверов</a>
             </li>
+            <li>
+              <a href="/sprsrv/storagesystemslist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник СХД</a>
+            </li>
+            <li>
+              <a href="/sprsrv/bladesystemslist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Блейд-корзины</a>
+            </li>
           </ul>
         </div>
       </li>

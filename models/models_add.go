@@ -187,11 +187,22 @@ type ReportServerRecord struct {
 	UseWorkDisk            bool      `form:"-"`
 }
 
+	// Раньше поле называлось VMsprId (со строчной "s" в "spr") - из-за этого
+	// beego ORM вычисляло имя колонки как v_mspr_id вместо v_m_spr_id,
+	// используемого везде в проекте для этой же по смыслу ссылки (см.
+	// ServerSprRecords.VMSprId, VMUsageDatastore.VMSprId и т.д., а также
+	// TableIndex ниже, который уже ссылался на "VMSprId"). RunSyncdb (config.DBInit,
+	// force=false) не переименовывает и не удаляет колонки - он молча ДОБАВИЛ
+	// в БД новую колонку v_mspr_id, которая всегда оставалась равна 0, тогда
+	// как реальные значения продолжали писаться в старую v_m_spr_id только тем
+	// кодом, который её ещё использовал. Приведение имени поля к VMSprId
+	// заставляет ORM снова читать/писать v_m_spr_id, где лежат корректные данные.
+
 // VMRecord описывает запись/справочник БД loadmon, соответствующую сущности VMRecord.
 type VMRecord struct {
 	Id                   int64     `form:"Id" csv:"-"`
 	ServerId             int64     `form:"ServerId" csv:"-"` //новая ссылка на справочник серверов. Добавить запись значений.
-	VMsprId              int64     `form:"VMsprId" csv:"-"`  //ссылка на справочник VM
+	VMSprId              int64     `orm:"column(v_m_spr_id)" form:"VMSprId" csv:"-"` //ссылка на справочник VM (vm_spr_record.Id)
 	ClusterId            int64     `form:"ClusterId" csv:"-"`
 	Date                 time.Time `form:"Date" csv:"-"`
 	Vm_NumCPU            int32     `form:"Vm_NumCPU" csv:"-"`

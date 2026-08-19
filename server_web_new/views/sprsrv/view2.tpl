@@ -395,7 +395,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     <a class="ctx-menu-item" href="/sprsrv/updatevm/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Детали по виртуальной машине</a>
                     <a class="ctx-menu-item" href="/sprsrv/updatevmcluster/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Размещение виртуальной машины</a>
                     {{end}}
-                    {{if ne $record.S.Type 0}}
+                    <!-- Раньше весь блок "Загрузка" был обёрнут в {{"{{if ne $record.S.Type 0}}"}},
+                         из-за чего он никогда не показывался для аппаратных серверов (Type 0) -
+                         даже уже готовая ссылка на /sprsrv/zabbixperfperiod ниже была недостижима,
+                         хотя ZabbixHostId заполняется именно для физических серверов
+                         (zabbix.Get10MinutesHistory опрашивает только группу "физические серверы").
+                         Условие снято - для Type 0 отрабатывает ветка {{"{{else}}"}} ниже
+                         (сохранены старые ссылки /details/... на report) плюс общая ссылка на
+                         Zabbix, если ZabbixHostId для сервера заполнен. -->
                     <hr class="ctx-menu-divider">
                     <div class="ctx-menu-heading">Загрузка</div>
                     {{if eq $record.S.Type 1}}
@@ -415,7 +422,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     {{end}}
                     {{if gt $record.S.ZabbixHostId 0}}
                     <a class="ctx-menu-item" href="/sprsrv/zabbixperfperiod/{{$record.S.ZabbixHostId}}" target="_blank">График загрузки по данным Zabbix за период из фильтра с {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}</a>
-                    {{end}}
                     {{end}}
                 </td>
                 <td>

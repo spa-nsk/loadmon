@@ -187,8 +187,8 @@ func (c *Client) GetHosts(ctx context.Context) ([]Host, error) {
 	params := map[string]any{
 		//"output":          []string{"hostid", "host", "name"},
 		"output":           []string{"hostid", "host", "name", "status", "available", "error", "lastaccess", "maintenance_status", "interfaces"},
-		"selectGroups":     []string{"extend"},
-		"selectInterfaces": []string{"interfaceid", "type", "main", "ip", "dns", "port", "useip"},
+		"selectgroups":     []string{"extend"},
+		"selectinterfaces": []string{"interfaceid", "type", "main", "ip", "dns", "port", "useip"},
 		"filter": map[string]any{
 			"groupids": 1185, //только физические серверы
 		},

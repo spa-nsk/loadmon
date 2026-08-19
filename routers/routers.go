@@ -70,10 +70,11 @@ func init() {
 	//beego.Router("/sprsrv/hostperfbyserverid/:Mode/:ServerId", &controllers.MainController{}, "get,post:HostPerfByServerId") // метод HostPerfByServerId не реализован в controllers
 	//beego.Router("/sprsrv/clusterperfbyid/:Id", &controllers.MainController{}, "get:ClusterPerfById") // метод ClusterPerfById не реализован в controllers
 	//beego.Router("/sprsrv/clusterallocation/:Name", &controllers.MainController{}, "get:ClusterAllocationByName") // метод ClusterAllocationByName не реализован в controllers
-	//beego.Router("/sprsrv/zabbixperfperiod/:Id", &controllers.MainController{}, "get,post:SprSrvZabbixPerfPeriod") // метод SprSrvZabbixPerfPeriod не реализован в controllers
-	//beego.Router("/sprsrv/bladesystems", &controllers.MainController{}, "get:SprBladeSystems") // метод SprBladeSystems не реализован в controllers
-	//beego.Router("/sprsrv/bladesystemconfig/:Id", &controllers.MainController{}, "get,post:SprBladeSystemConfig") // метод SprBladeSystemConfig не реализован в controllers
-	//beego.Router("/sprsrv/storagesystems", &controllers.MainController{}, "get:SprStorageSystems") // метод SprStorageSystems не реализован в controllers
+	beego.Router("/sprsrv/zabbixperfperiod/:Id", &controllers.MainController{}, "get,post:SprSrvZabbixPerfPeriod") // графики загрузки аппаратного сервера за период по данным Zabbix (zabbix_item/zabbix_key), см. controllers/sprsrvzabbixperfperiod.go
+	beego.Router("/sprsrv/bladesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystems")     // список записей models.BladeSystems (справочник блейд-корзин) с фильтром, пагинацией и экспортом в CSV/XLSX
+	beego.Router("/sprsrv/bladesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystemsEdit") // просмотр/редактирование/добавление одной записи models.BladeSystems по Id (Id=0 - новая запись)
+	beego.Router("/sprsrv/storagesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystems")     // список записей models.StorageSystems (справочник СХД) с фильтром, пагинацией и экспортом в CSV/XLSX
+	beego.Router("/sprsrv/storagesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemsEdit") // просмотр/редактирование/добавление одной записи models.StorageSystems по Id (Id=0 - новая запись)
 	//beego.Router("/sprsrv/storagesystemconfig/:Id", &controllers.MainController{}, "get,post:SprStorageSystemConfig") // метод SprStorageSystemConfig не реализован в controllers
 	//beego.Router("/sprsrv/storagevolumes", &controllers.MainController{}, "get:SprStorageVolumes") // метод SprStorageVolumes не реализован в controllers
 	//beego.Router("/sprsrv/storagevolumeconfig/:Id", &controllers.MainController{}, "get,post:SprStorageVolumeConfig") // метод SprStorageVolumeConfig не реализован в controllers

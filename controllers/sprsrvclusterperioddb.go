@@ -330,16 +330,16 @@ func (this *MainController) SprClusterPeriodDB() {
 		for i := range vmRecs {
 			v := &vmRecs[i]
 			sprId, ok := clRecIdToSpr[v.ClusterId]
-			if !ok || v.VMsprId == 0 {
+			if !ok || v.VMSprId == 0 {
 				continue
 			}
 			if vmsBySpr[sprId] == nil {
 				vmsBySpr[sprId] = make(map[int64]*VMPeriodRow)
 			}
-			row, ok := vmsBySpr[sprId][v.VMsprId]
+			row, ok := vmsBySpr[sprId][v.VMSprId]
 			if !ok {
 				row = &VMPeriodRow{}
-				vmsBySpr[sprId][v.VMsprId] = row
+				vmsBySpr[sprId][v.VMSprId] = row
 			}
 			row.CPU.addDay(v.Cpu_usage_maximum, v.Cpu_usage_average, v.Cpu_usage_minimum)
 			row.Mem.addDay(v.Mem_usage_maximum, v.Mem_usage_average, v.Mem_usage_minimum)
@@ -350,7 +350,7 @@ func (this *MainController) SprClusterPeriodDB() {
 			row.NumCores = v.Vm_NumCores
 			row.MemorySizeGB = v.Vm_MemorySizeGB
 
-			vmSprIdSet[v.VMsprId] = struct{}{}
+			vmSprIdSet[v.VMSprId] = struct{}{}
 		}
 		for _, vms := range vmsBySpr {
 			for _, row := range vms {
@@ -362,7 +362,7 @@ func (this *MainController) SprClusterPeriodDB() {
 		}
 	}
 
-	// имена ВМ (VMRecord их не хранит - только ссылку VMsprId на vm_spr_record)
+	// имена ВМ (VMRecord их не хранит - только ссылку VMSprId на vm_spr_record)
 	vmNameById := make(map[int64]string)
 	if len(vmSprIdSet) > 0 {
 		vmSprIds := make([]int64, 0, len(vmSprIdSet))
