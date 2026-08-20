@@ -259,21 +259,11 @@ $(document).ready(function () {
           </div>
         </td>
         <td>
-            <div class="row">
-                <a class="btn btn-default btn-sm btn-outline-secondary rounded-pill {{if eq $vm.PerfCount 0}}disabled{{end}}"
-                href="/sprsrv/vmperfkey/{{$vm.KeyName}}" target="_blank">Загрузка</a>
-            </div>
-
-            {{if eq $.Privilage 3 }}
-            <div class="row">
-                <a class="btn btn-default btn-sm btn-outline-secondary rounded-pill {{if eq $vm.PerfCount 0}}disabled{{end}}"
-                href="/sprsrv/vmperfkeytest/{{$vm.KeyName}}" target="_blank">тест1</a>
-            </div>
-            <div class="row">
-                <a class="btn btn-default btn-sm btn-outline-secondary rounded-pill {{if eq $vm.PerfCount 0}}disabled{{end}}"
-                href="/sprsrv/vmdelperfkey/{{$vm.KeyName}}" target="_blank">тест2</a>
-            </div>
-            {{end}}
+            <!-- Кнопки "Загрузка" (/sprsrv/vmperfkey - не встречается в routers.go ни в
+                 активном, ни в закомментированном виде) и тестовые "тест1"/"тест2"
+                 (/sprsrv/vmperfkeytest, /sprsrv/vmdelperfkey - методы не реализованы в
+                 controllers, маршруты закомментированы в routers/routers.go) убраны как
+                 нерабочие; актуальная ссылка на график загрузки ВМ - ниже. -->
             <div class="row">
                 <a class="btn btn-default btn-sm btn-outline-secondary rounded-pill {{if eq $vm.PerfCount 0}}disabled{{end}}"
                 href="/sprsrv/vmperfperiod/{{$vm.Vcenter}}/{{$vm.Datacenter}}/{{$vm.Cluster}}/{{$vm.Vm_HostName}}"
