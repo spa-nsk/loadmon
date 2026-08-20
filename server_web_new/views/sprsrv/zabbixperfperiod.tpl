@@ -242,7 +242,15 @@ function zabbixPeriodNavigate() {
                     min: 0,
                     max: chart.unit === '%' ? 100 : undefined,
                     labels: {
-                        formatter: function (v) { return (v === undefined || v === null) ? '' : v.toFixed(1); }
+                        // ГБ/МБ-с-значения обычно дробные и меньше 1 при малой
+                        // загрузке - вторым знаком после запятой их не видно
+                        // на "%"/мс-графиках, поэтому точность подбирается по
+                        // единице измерения графика
+                        formatter: function (v) {
+                            if (v === undefined || v === null) return '';
+                            var digits = (chart.unit === 'МБ/с' || chart.unit === 'ГБ') ? 2 : 1;
+                            return v.toFixed(digits);
+                        }
                     }
                 },
                 tooltip: {

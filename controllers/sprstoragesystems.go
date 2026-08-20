@@ -408,6 +408,10 @@ func (this *MainController) SprStorageSystemsEdit() {
 	}
 
 	if this.Ctx.Input.Method() == "POST" {
+		if !this.RequireEditReference() {
+			this.Data["ST"] = rec
+			return
+		}
 		rec.UID = this.GetString("UID")
 		rec.ShortName = this.GetString("ShortName")
 		rec.TagName = this.GetString("TagName")

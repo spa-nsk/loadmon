@@ -50,6 +50,11 @@ func (this *MainController) SprAddServer() {
 
 	if this.Ctx.Input.Method() == "POST" {
 
+		if !this.RequireEditReference() {
+			this.Data["record"] = record
+			return
+		}
+
 		form := models.ServerSprRecords{}
 		if err := this.ParseForm(&form); err != nil {
 			flash.Error("Ошибка распознавания формы: %v", err)

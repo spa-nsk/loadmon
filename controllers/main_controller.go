@@ -79,6 +79,65 @@ func (this *MainController) activeContent(view string) {
 	}
 }
 
+// CanEditReference проверяет, есть ли у текущего авторизованного пользователя
+// право на сохранение изменений в формах редактирования справочников -
+// разрешено при privilage == 1 ("разрешено редактировать справочник") или
+// privilage == 3 (администратор), запрещено для privilage == 0 (обычный
+// пользователь) и при отсутствии/повреждении сессии. Значение privilage
+// хранится в сессии (m["privilage"], заполняется при логине - см.
+// controllers/user2.go) - тот же источник, что activeContent() кладёт в
+// this.Data["Privilage"] для скрытия элементов интерфейса в шаблонах
+// (единственный текущий пример - {{if eq .Privilage 3}} в header.tpl); здесь
+// то же значение используется как ОБЯЗАТЕЛЬНАЯ серверная проверка перед
+// записью в БД, а не только как подсказка для UI, так как скрытую в шаблоне
+// кнопку можно обойти, отправив POST-запрос формы напрямую.
+func (this *MainController) CanEditReference() bool {
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		return false
+	}
+	filter, ok := sess.(models.LoadFilter)
+	if !ok {
+		return false
+	}
+	priv, _ := filter.Map["privilage"].(int)
+	return priv == 1 || priv == 3
+}
+
+// RequireEditReference - CanEditReference с готовым отказом: если прав нет,
+// кладёт в flash понятное сообщение об ошибке (тем же способом, что и
+// остальные ошибки в формах редактирования справочников - flash.Error +
+// flash.Store) и возвращает false. Вызывающему контроллеру достаточно
+// написать в начале обработки POST (до первого присвоения полей записи и до
+// o.Insert/o.Update):
+//
+//	if this.Ctx.Input.Method() == "POST" {
+//	    if !this.RequireEditReference() {
+//	        return
+//	    }
+//	    ... чтение полей формы и сохранение записи ...
+//	}
+//
+// Эта проверка ОБЯЗАТЕЛЬНА для любой новой формы редактирования справочника с
+// сохранением в БД (по аналогии с SprHwConfigEdit/SprHwConfigBulkEdit в
+// controllers/sprhwconfig.go, SprStorageSystemsEdit в
+// controllers/sprstoragesystems.go, SprBladeSystemsEdit в
+// controllers/sprbladesystems.go, SprAddServer в
+// controllers/sprsrvaddserver.go, SprSrvUpdateBase в
+// controllers/sprsrvupdatebase.go, SprSrvUpdateSelectedBase в
+// controllers/sprsrvupdateselectedbase.go - образец для всех них) - GET
+// (простой просмотр формы) при этом продолжает работать без ограничений,
+// проверка нужна только перед фактической записью.
+func (this *MainController) RequireEditReference() bool {
+	if this.CanEditReference() {
+		return true
+	}
+	flash := beego.NewFlash()
+	flash.Error("Недостаточно прав для сохранения изменений. Требуется право редактирования справочников или права администратора.")
+	flash.Store(&this.Controller)
+	return false
+}
+
 func (this *MainController) SaveContent(name string, data interface{}) {
 	sess := this.GetSession("loadmon")
 	if sess != nil {
