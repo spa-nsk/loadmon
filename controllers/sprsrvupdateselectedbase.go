@@ -70,6 +70,10 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 
 	if this.Ctx.Input.Method() == "POST" {
 
+		if !this.RequireEditReference() {
+			return
+		}
+
 		form := models.ServerSprRecords{}
 		if err := this.ParseForm(&form); err != nil {
 			flash.Error("Ошибка распознавания формы: %v", err)

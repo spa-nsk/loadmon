@@ -563,6 +563,13 @@ func (this *MainController) SprHwConfigEdit() {
 	}
 
 	if this.Ctx.Input.Method() == "POST" {
+		if !this.RequireEditReference() {
+			this.Data["HW"] = rec
+			this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
+			this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
+			this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
+			return
+		}
 		rec.PowerState, _ = strconv.Atoi(this.GetString("PowerState"))
 		rec.Active, _ = strconv.Atoi(this.GetString("Active"))
 		rec.Vendor = this.GetString("Vendor")
@@ -695,7 +702,11 @@ func (this *MainController) SprHwConfigBulkEdit() {
 
 	o := orm.NewOrm()
 
-	if this.GetString("ApplyBulk") == "1" {
+	if this.GetString("ApplyBulk") == "1" && !this.RequireEditReference() {
+		// нет прав на сохранение - flash с ошибкой уже положен в RequireEditReference,
+		// применять изменения не будем, но форма ниже всё равно отрисуется со
+		// значениями первой выделенной записи (см. this.Data["HW"] в конце функции)
+	} else if this.GetString("ApplyBulk") == "1" {
 		values := orm.Params{}
 
 		if this.GetString("apply_Active") == "on" {

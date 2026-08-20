@@ -75,6 +75,8 @@ func init() {
 	beego.Router("/sprsrv/bladesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystemsEdit") // просмотр/редактирование/добавление одной записи models.BladeSystems по Id (Id=0 - новая запись)
 	beego.Router("/sprsrv/storagesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystems")     // список записей models.StorageSystems (справочник СХД) с фильтром, пагинацией и экспортом в CSV/XLSX
 	beego.Router("/sprsrv/storagesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemsEdit") // просмотр/редактирование/добавление одной записи models.StorageSystems по Id (Id=0 - новая запись)
+	beego.Router("/sprsrv/clustersprlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprClusterList") // список записей models.ClusterSprRecords (справочник кластеров) с фильтром, пагинацией и экспортом в CSV/XLSX
+	beego.Router("/sprsrv/clusterspredit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprClusterEdit") // просмотр/редактирование одной записи models.ClusterSprRecords по Id (добавление вручную не предусмотрено - справочник наполняется автоматически)
 	//beego.Router("/sprsrv/storagesystemconfig/:Id", &controllers.MainController{}, "get,post:SprStorageSystemConfig") // метод SprStorageSystemConfig не реализован в controllers
 	//beego.Router("/sprsrv/storagevolumes", &controllers.MainController{}, "get:SprStorageVolumes") // метод SprStorageVolumes не реализован в controllers
 	//beego.Router("/sprsrv/storagevolumeconfig/:Id", &controllers.MainController{}, "get,post:SprStorageVolumeConfig") // метод SprStorageVolumeConfig не реализован в controllers

@@ -34,7 +34,9 @@ import (
 //
 // Маршрут: /sprsrv/zabbixperfperiod/:Id, где :Id - models.ZabbixHost.Id (ссылка
 // $record.S.ZabbixHostId в views/sprsrv/view2.tpl). Период задаётся GET-параметрами
-// from/to (по умолчанию - последние 7 суток), аналогично /sprsrv/clusterperioddb.
+// from/to (по умолчанию - 1 сутки, аналогично /sprsrv/clusterperioddb, но короче -
+// именно этот график по умолчанию открывают для быстрой проверки текущего
+// состояния сервера, а не для анализа за неделю).
 func (this *MainController) SprSrvZabbixPerfPeriod() {
 
 	idStr := this.Ctx.Input.Param(":Id")
@@ -50,7 +52,7 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 	this.activeContent("sprsrv/zabbixperfperiod")
 
 	to := CorrectTimeFilter(time.Now())
-	from := to.AddDate(0, 0, -6)
+	from := to // период по умолчанию - 1 сутки (dateTo ниже включает весь день "to")
 	if s := this.GetString("from"); s != "" {
 		if t, err := time.ParseInLocation("2006-01-02", s, time.Local); err == nil {
 			from = t
@@ -171,6 +173,13 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 		if err != nil {
 			continue
 		}
+		// перевод единиц измерения к более читаемым: скорости в байтах/с
+		// (Zabbix Units "Bps", сетевые интерфейсы и диски) - в мегабайты/с,
+		// объёмы в байтах (Zabbix Units "B", размер оперативной памяти) - в
+		// гигабайты; остальные единицы (%, мс, безразмерные) не трогаем -
+		// см. displayUnit ниже, который определяет и множитель, и итоговую
+		// подпись графика по исходной единице из models.ZabbixKey.Units.
+		v = convertZabbixValue(v, key.Units)
 
 		mk := metricKey{keyId: it.KeyId, keyParam: it.KeyParam}
 		buckets, ok := aggByMetric[mk]
@@ -207,24 +216,30 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 		return metricOrder[i].keyParam < metricOrder[j].keyParam
 	})
 
-	// группировка рядов по графикам - один график на каждый уникальный ZabbixKey.Key
-	// (метрику), с отдельным набором рядов "мин"/"сред"/"макс" на каждый экземпляр
-	// (KeyParam - имя диска/сетевого интерфейса и т.п.; для метрик без параметра,
-	// например system.cpu.load, экземпляр один и подпись ряда упрощается)
-	chartByKeyId := make(map[int64]*vmPerfChartData)
-	chartOrder := make([]int64, 0)
+	// группировка рядов по графикам - раньше один график вмещал сразу все
+	// экземпляры метрики (все диски/интерфейсы вместе), из-за чего при
+	// нескольких экземплярах график превращался в нечитаемое месиво из
+	// десятка линий. Теперь график строится на каждую пару (ZabbixKey.Key,
+	// KeyParam) отдельно - т.е. каждый диск/интерфейс получает свой график с
+	// тремя рядами "мин"/"сред"/"макс", а не делит один график с остальными -
+	// так плотность информации на каждом графике падает до читаемого уровня.
+	chartByMetric := make(map[metricKey]*vmPerfChartData)
+	chartOrder := make([]metricKey, 0)
 
 	for _, mk := range metricOrder {
 		key := keyById[mk.keyId]
-		chart, ok := chartByKeyId[mk.keyId]
+		chart, ok := chartByMetric[mk]
 		if !ok {
 			title := key.Name
 			if title == "" {
 				title = key.Key
 			}
-			chart = &vmPerfChartData{Title: title, Unit: key.Units, Series: make(map[string][]vmPerfSeriesPoint)}
-			chartByKeyId[mk.keyId] = chart
-			chartOrder = append(chartOrder, mk.keyId)
+			if mk.keyParam != "" {
+				title = title + " — " + mk.keyParam
+			}
+			chart = &vmPerfChartData{Title: title, Unit: displayUnit(key.Units), Series: make(map[string][]vmPerfSeriesPoint)}
+			chartByMetric[mk] = chart
+			chartOrder = append(chartOrder, mk)
 		}
 
 		label := "Значение"
@@ -258,8 +273,8 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 	}
 
 	charts := make([]vmPerfChartData, 0, len(chartOrder))
-	for _, keyId := range chartOrder {
-		charts = append(charts, *chartByKeyId[keyId])
+	for _, mk := range chartOrder {
+		charts = append(charts, *chartByMetric[mk])
 	}
 
 	b, jerr := json.Marshal(charts)
@@ -270,4 +285,36 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 		return
 	}
 	this.Data["ChartsJSON"] = template.JS(b)
+}
+
+// convertZabbixValue переводит значение метрики Zabbix из исходной единицы
+// (Zabbix Units, models.ZabbixKey.Units - как её отдаёт сам Zabbix API) в
+// более удобную для восприятия: "Bps" (байты/с - сетевые интерфейсы
+// net.if.in/out/total, дисковые vfs.dev.read/write) переводится в мегабайты/с
+// (/1024/1024), "B" (байты - объём памяти vm.memory.size[total]/[used])
+// переводится в гигабайты (/1024/1024/1024). Остальные единицы (%, мс,
+// безразмерные величины вроде system.cpu.load) не трогаем - см. displayUnit,
+// который отдаёт итоговую подпись, соответствующую этому же переводу.
+func convertZabbixValue(v float64, units string) float64 {
+	switch units {
+	case "Bps", "B/s":
+		return v / (1024 * 1024)
+	case "B":
+		return v / (1024 * 1024 * 1024)
+	default:
+		return v
+	}
+}
+
+// displayUnit отдаёт подпись единицы измерения графика после перевода
+// convertZabbixValue - должна вызываться с тем же исходным units.
+func displayUnit(units string) string {
+	switch units {
+	case "Bps", "B/s":
+		return "МБ/с"
+	case "B":
+		return "ГБ"
+	default:
+		return units
+	}
 }

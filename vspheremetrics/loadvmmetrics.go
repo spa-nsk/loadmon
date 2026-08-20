@@ -230,6 +230,10 @@ func (infra *VMInfrastructure) LoadVmMetricV4(ctx context.Context, vc VCenter) e
 			continue
 		}
 
+		if vm.Config == nil { //vm.Config - указатель, у "битых"/orphaned ВМ или ВМ без прав на чтение конфигурации vSphere отдаёт его nil - без этой проверки обращение к vm.Config.Template ниже приводило к панике (nil pointer dereference, segfault signal 0xc0000005)
+			continue
+		}
+
 		if vm.Config.Template { //пропускаем шаблоны
 			continue
 		}

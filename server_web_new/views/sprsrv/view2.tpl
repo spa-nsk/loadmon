@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <tr class="row-context-target" data-menu-id="rowMenu{{$record.S.Id}}" title="Правая кнопка мыши - меню действий">
                 <td class="text-center"><input name="chSelection{{$record.S.Id}}" title="chSelection{{$record.S.Id}}" class="form-check-input" type="checkbox" id="Selection{{$record.S.Id}}" value="on"></td>
                 <td class="text-center">
-                    {{if eq $record.S.Type 1}}{{if $record.VM.WorkStation}}виртуальная рабочая станция{{else}}виртуальный сервер{{end}}{{else if eq $record.S.Type 2}}гипервизор{{else if eq $record.S.Type 3}}сервер во внешнем облаке{{else}}аппаратный сервер {{if gt $record.S.ZabbixHostId 0}}<br>(Zabbix){{end}} {{end}}{{if eq $record.S.Stat 666}}<del>{{end}}
+                    {{if eq $record.S.Type 1}}{{if $record.VM.WorkStation}}виртуальная рабочая станция{{else}}виртуальный сервер{{end}}{{else if eq $record.S.Type 2}}гипервизор{{else if eq $record.S.Type 3}}сервер во внешнем облаке{{else}}аппаратный сервер {{end}}{{if gt $record.S.ZabbixHostId 0}}<br><span class="badge rounded-pill text-bg-info" title="Сервер зарегистрирован в Zabbix (ZabbixHostId={{$record.S.ZabbixHostId}}) - метрики загрузки поступают из Zabbix">Zabbix</span>{{end}}{{if eq $record.S.Stat 666}}<del>{{end}}
                 </td>
                 <td class="text-end">{{printf "%.2f" $record.PercentFilledField}}</td>
                 <td>
@@ -400,9 +400,11 @@ document.addEventListener('DOMContentLoaded', function () {
                          даже уже готовая ссылка на /sprsrv/zabbixperfperiod ниже была недостижима,
                          хотя ZabbixHostId заполняется именно для физических серверов
                          (zabbix.Get10MinutesHistory опрашивает только группу "физические серверы").
-                         Условие снято - для Type 0 отрабатывает ветка {{"{{else}}"}} ниже
-                         (сохранены старые ссылки /details/... на report) плюс общая ссылка на
-                         Zabbix, если ZabbixHostId для сервера заполнен. -->
+                         Условие снято.
+                         Для аппаратных серверов (Type 0) все старые ссылки на /details/... (report)
+                         убраны по требованию - для них показывается только график по данным
+                         Zabbix (см. общий блок ZabbixHostId ниже); для остальных типов (Type 3 -
+                         внешнее облако) старые ссылки /details/... сохранены без изменений. -->
                     <hr class="ctx-menu-divider">
                     <div class="ctx-menu-heading">Загрузка</div>
                     {{if eq $record.S.Type 1}}
@@ -415,6 +417,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     <a class="ctx-menu-item" href="/sprsrv/hostperfbyserverid/month/{{$record.S.Id}}" target="_blank">График загрузки за последний месяц</a>
                     <a class="ctx-menu-item" href="/sprsrv/hostperfbyserverid/all/{{$record.S.Id}}" target="_blank">График загрузки за весь период</a>
                     <a class="ctx-menu-item" href="/sprsrv/hostperfbyserverid/filter/{{$record.S.Id}}" target="_blank">График загрузки за период из фильтра с {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}</a>
+                    {{else if eq $record.S.Type 0}}
+                    {{if le $record.S.ZabbixHostId 0}}
+                    <span class="ctx-menu-item text-muted" title="Сервер не зарегистрирован в Zabbix (ZabbixHostId не заполнен) - данные о загрузке недоступны">Нет данных о загрузке (сервер не в Zabbix)</span>
+                    {{end}}
                     {{else}}
                     <a class="ctx-menu-item" href="/details/month/{{$record.S.Name}}" target="_blank">График загрузки за последний месяц</a>
                     <a class="ctx-menu-item" href="/details/all/{{$record.S.Name}}" target="_blank">График загрузки за весь период</a>

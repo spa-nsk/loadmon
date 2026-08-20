@@ -409,6 +409,10 @@
               <a href="/sprsrv/bladesystemslist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Блейд-корзины</a>
             </li>
+            <li>
+              <a href="/sprsrv/clustersprlist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник кластеров</a>
+            </li>
           </ul>
         </div>
       </li>

@@ -397,6 +397,10 @@ func (this *MainController) SprBladeSystemsEdit() {
 	}
 
 	if this.Ctx.Input.Method() == "POST" {
+		if !this.RequireEditReference() {
+			this.Data["BS"] = rec
+			return
+		}
 		rec.Name = this.GetString("Name")
 		rec.Vendor = this.GetString("Vendor")
 		rec.Model = this.GetString("Model")
