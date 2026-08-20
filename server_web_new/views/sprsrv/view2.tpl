@@ -8,6 +8,7 @@ $(document).ready(function () {
     });
 });
 
+
 function setFocusList() {
     document.getElementById("detail{{$.ListId}}").focus();
 }
