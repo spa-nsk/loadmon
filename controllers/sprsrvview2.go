@@ -221,6 +221,29 @@ func (this *MainController) SprSrvViewV2() {
 			return
 		}
 
+		// beego.ParseForm (beego/v2/server/web/context/form.go: formFirstValue)
+		// для строковых полей молча пропускает присвоение, если значение поля
+		// формы - пустая строка (formFirstValue возвращает ok=false для value
+		// == ""). Из-за этого при очистке текстового поля фильтра и нажатии
+		// "Просмотр" ParseForm никак не изменяет соответствующее поле record -
+		// а record это не новый объект на каждый запрос, а указатель,
+		// сохранённый в сессии (m["FilterServer"] выше), поэтому в нём остаётся
+		// прежнее (непустое) значение с прошлого поиска, и очищенное поле
+		// фильтра "само" заполняется обратно. Читаем эти строковые поля
+		// вручную через this.GetString - он корректно возвращает "" для
+		// пустого/отсутствующего поля - и присваиваем их record напрямую,
+		// перекрывая то, что (не) сделал ParseForm.
+		record.Name = this.GetString("Name")
+		record.NameFQDN = this.GetString("NameFQDN")
+		record.NameInfo = this.GetString("NameInfo")
+		record.ITSystemKey = this.GetString("ITSystemKey")
+		record.OS = this.GetString("OS")
+		record.Role = this.GetString("Role")
+		record.Anotation = this.GetString("Anotation")
+		record.Network = this.GetString("Network")
+		record.IPAddress = this.GetString("IPAddress")
+		record.Owner = this.GetString("Owner")
+
 		expBtn := this.GetString("ExportBTN")
 		if expBtn == "Экспорт в CSV" {
 			this.Data["ExportCSV"] = 1
