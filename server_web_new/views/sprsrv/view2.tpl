@@ -349,10 +349,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     {{if ne $record.S.NameInfo ""}} [ {{$record.S.NameInfo}} ] {{end}}
                     {{if ne $record.S.Active 2}}
                     {{if eq $record.S.Type 1}}
-                    <div style="width:20px; float:left; text-align: center;"><a href="/sprsrv/vmperfperiodbysrvid/{{$record.S.Id}}" target="_blank" title="График загрузки виртуальной машины за период из фильтра с {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}"><span class="glyphicon glyphicon-tasks"></span></a></div>
-                    <div style="width:20px; float:left; text-align: center;"><a href="/sprsrv/vmperfkeytest/{{$record.VM.Vcenter}}/{{$record.VM.Datacenter}}/{{$record.VM.Cluster}}/{{$record.VM.Vm_Name}}" target="_blank" title="Данные для анализа утилизации ресурсов {{$record.VM.Vm_Name}} в https://bcs-gpt.global.bcs/ базовый промпт: В файле приложены данные по загрузке ресурсов процессора, оперативной памяти, дисков и сети, данные получены из vmware. Имя виртуальной машины в наименовании листа. Виртуальная машина использует N ядра процессора NN гигабайта оперативной памяти и диск NNNгб. Проведи анализ утилизации ресурсов и выдай рекомендации по оптимизации. "><span class="glyphicon glyphicon-tasks"></span></a></div>
+                    <!-- Иконки /sprsrv/vmperfperiodbysrvid и /sprsrv/vmperfkeytest вели на методы,
+                         не реализованные в controllers (маршруты закомментированы в
+                         routers/routers.go) - убраны. -->
                     {{else if eq $record.S.Type 2}}
-                    <div style="width:20px; float:left; text-align: center"><a href="/sprsrv/hostperfbyserverid/filter/{{$record.S.Id}}" target="_blank" title="График загрузки хоста за период из фильтра с {{printf "%02d.%02d.%04d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%04d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}"><span class="glyphicon glyphicon-tasks"></span></a></div>
+                    <!-- Иконка /sprsrv/hostperfbyserverid вела на метод HostPerfByServerId,
+                         не реализованный в controllers (маршрут закомментирован в
+                         routers/routers.go) - убрана. -->
                     {{else}}
                     <div style="width:20px; float:left; text-align: center"><a href="/details/filter/{{$record.S.Name}}" target="_blank" title="График загрузки сервера за период из фильтра с {{printf "%02d.%02d.%04d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%04d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}"><span class="glyphicon glyphicon-tasks"></span></a></div>
                     {{end}}
@@ -371,7 +374,13 @@ document.addEventListener('DOMContentLoaded', function () {
                             {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}
                         </div>
                         {{if or (eq $record.S.Type 1) (eq $record.S.Type 2)}}{{if ne $record.S.Vcenter "" }}
-                        <div><a href="/sprsrv/clusterperiod/{{$record.S.Vcenter}}/{{$record.S.Datacenter}}/{{$record.S.Cluster}}" target="_blank" title="Информация по кластеру" class="text-success">{{$record.S.Vcenter}} / {{$record.S.Datacenter}} / {{$record.S.Cluster}}</a></div>
+                        <!-- Раньше ссылка вела на /sprsrv/clusterperiod/... (метод SprClusterPeriod
+                             не был реализован, маршрут закомментирован в routers/routers.go) -
+                             теперь ведёт на его рабочий аналог /sprsrv/clusterperfperiod/... -
+                             графики загрузки кластера за период по данным БД
+                             (controllers/sprsrvclusterperfperiod.go, ClusterRecord/ClusterPerf),
+                             реализованный по тому же принципу, что и /sprsrv/vmperfperiod для ВМ. -->
+                        <a href="/sprsrv/clusterperfperiod/{{$record.S.Vcenter}}/{{$record.S.Datacenter}}/{{$record.S.Cluster}}" target="_blank" title="Загрузка кластера за период" class="text-success">{{$record.S.Vcenter}} / {{$record.S.Datacenter}} / {{$record.S.Cluster}}</a>
                         {{end}}{{end}}
                     </div>
                     {{else}}
@@ -391,10 +400,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="ctx-menu-heading">Подробнее</div>
                     <a class="ctx-menu-item" href="/sprsrv/updatebase/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Общие данные</a>
                     {{if and (or (eq $record.S.Type 0) (eq $record.S.Type 2)) (ne $record.S.SerialNumber "") }}<a class="ctx-menu-item" href="/sprsrv/hwconfeditbysn/{{$record.S.SerialNumber}}" target="_blank">Конфигурация сервера</a>{{end}}
-                    {{if eq $record.S.Type 1}}
-                    <a class="ctx-menu-item" href="/sprsrv/updatevm/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Детали по виртуальной машине</a>
-                    <a class="ctx-menu-item" href="/sprsrv/updatevmcluster/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Размещение виртуальной машины</a>
-                    {{end}}
+                    <!-- Пункты "Детали по виртуальной машине"/"Размещение виртуальной машины"
+                         (controllers.SprSrvUpdateVM/SprSrvUpdateVMCluster) убраны - методы не
+                         реализованы, маршруты закомментированы в routers/routers.go. -->
                     <!-- Раньше весь блок "Загрузка" был обёрнут в {{"{{if ne $record.S.Type 0}}"}},
                          из-за чего он никогда не показывался для аппаратных серверов (Type 0) -
                          даже уже готовая ссылка на /sprsrv/zabbixperfperiod ниже была недостижима,
@@ -408,15 +416,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     <hr class="ctx-menu-divider">
                     <div class="ctx-menu-heading">Загрузка</div>
                     {{if eq $record.S.Type 1}}
-                    <a class="ctx-menu-item" href="/detailskeyvm/{{$record.VM.Vcenter}}/{{$record.VM.Datacenter}}/{{$record.VM.Cluster}}/{{$record.VM.Vm_Name}}" target="_blank">График загрузки виртуальной машины за день с 0:00 - 24:00</a>
-                    <a class="ctx-menu-item" href="/sprsrv/vmperfkeytest/{{$record.VM.Vcenter}}/{{$record.VM.Datacenter}}/{{$record.VM.Cluster}}/{{$record.VM.Vm_Name}}" target="_blank" title="Данные для анализа утилизации ресурсов {{$record.VM.Vm_Name}} за день с 0:00 до текущего времени в https://bcs-gpt.global.bcs/ базовый промпт: В файле приложены данные по загрузке ресурсов процессора, оперативной памяти, дисков и сети, данные получены из vmware. Имя виртуальной машины в наименовании листа. Виртуальная машина использует N ядра процессора NN гигабайта оперативной памяти и диск NNNгб. Проведи анализ утилизации ресурсов и выдай рекомендации по оптимизации.">Данные для анализа утилизации ресурсов {{$record.VM.Vm_Name}} за день с 0:00 до текущего времени в BCS GPT</a>
-                    <a class="ctx-menu-item" href="/detailsvmid/all/{{$record.S.VMSprId}}" target="_blank">График загрузки за весь период</a>
-                    <a class="ctx-menu-item" href="/sprsrv/vmperfperiodbysrvid/{{$record.S.Id}}" target="_blank">График загрузки за период из фильтра с {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}</a>
-                    {{if gt $record.S.OldId 0}}<a class="ctx-menu-item" href="/sprsrv/vmperfperiodbysrvid/{{$record.S.OldId}}" target="_blank">График загрузки архивной версии за период из фильтра с {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}</a>{{end}}
+                    <!-- Для ВМ (Type 1) прежние ссылки этого блока (/detailskeyvm,
+                         /sprsrv/vmperfkeytest, /detailsvmid, /sprsrv/vmperfperiodbysrvid) вели на
+                         методы, не реализованные в controllers (маршруты закомментированы в
+                         routers/routers.go) - убраны. Вместо них - два реально работающих
+                         метода: SprSrvVMPerfDay (controllers/sprsrvvmperfday.go, график за текущий
+                         день с 0:00 по "живым" данным гипервизора, grpcclient.GetVMByKeyWithPerf)
+                         и SprSrvVMPerfPeriod (controllers/sprsrvvmperfperiod.go, график за
+                         произвольный период по данным из БД - models.VMRecord/VMPerfRecord). -->
+                    <a class="ctx-menu-item" href="/sprsrv/vmperfday/{{$record.VM.Vcenter}}/{{$record.VM.Datacenter}}/{{$record.VM.Cluster}}/{{$record.VM.Vm_Name}}" target="_blank">График загрузки виртуальной машины за текущий день с 0:00</a>
+                    <a class="ctx-menu-item" href="/sprsrv/vmperfperiod/{{$record.VM.Vcenter}}/{{$record.VM.Datacenter}}/{{$record.VM.Cluster}}/{{$record.VM.Vm_Name}}" target="_blank">График загрузки виртуальной машины за период (по данным БД)</a>
                     {{else if eq $record.S.Type 2}}
-                    <a class="ctx-menu-item" href="/sprsrv/hostperfbyserverid/month/{{$record.S.Id}}" target="_blank">График загрузки за последний месяц</a>
-                    <a class="ctx-menu-item" href="/sprsrv/hostperfbyserverid/all/{{$record.S.Id}}" target="_blank">График загрузки за весь период</a>
-                    <a class="ctx-menu-item" href="/sprsrv/hostperfbyserverid/filter/{{$record.S.Id}}" target="_blank">График загрузки за период из фильтра с {{printf "%02d.%02d.%4d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%4d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}</a>
+                    <!-- Для гипервизора (Type 2) ссылки /sprsrv/hostperfbyserverid/... ведут на
+                         метод HostPerfByServerId, не реализованный в controllers (маршрут
+                         закомментирован в routers/routers.go) - убраны, вместо них поясняющая
+                         надпись. -->
+                    <span class="ctx-menu-item text-muted" title="Метод построения графика загрузки гипервизора пока не реализован">График загрузки гипервизора пока не реализован</span>
                     {{else if eq $record.S.Type 0}}
                     {{if le $record.S.ZabbixHostId 0}}
                     <span class="ctx-menu-item text-muted" title="Сервер не зарегистрирован в Zabbix (ZabbixHostId не заполнен) - данные о загрузке недоступны">Нет данных о загрузке (сервер не в Zabbix)</span>

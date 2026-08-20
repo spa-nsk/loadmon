@@ -196,14 +196,9 @@
                         href="/sprsrv/vmperfperiod/{{$vm.Vcenter}}/{{$vm.Datacenter}}/{{$vm.Cluster}}/{{$vm.Name}}" target="_blank">
                         Загрузка за период
                     </a>
-                    {{if eq $.Privilage 3}}
-                    <hr class="ctx-menu-divider">
-                    <div class="ctx-menu-heading">Служебное</div>
-                    <a class="ctx-menu-item {{if eq $vm.PerfCount 0}}disabled{{end}}"
-                        href="/sprsrv/vmperfkeytest/{{$vm.KeyName}}" target="_blank">тест1</a>
-                    <a class="ctx-menu-item {{if eq $vm.PerfCount 0}}disabled{{end}}"
-                        href="/sprsrv/vmdelperfkey/{{$vm.KeyName}}" target="_blank">тест2</a>
-                    {{end}}
+                    <!-- Служебные пункты "тест1"/"тест2" (/sprsrv/vmperfkeytest,
+                         /sprsrv/vmdelperfkey) убраны - методы не реализованы в controllers,
+                         маршруты закомментированы в routers/routers.go. -->
                 </td>
             </tr>
             {{else}}

@@ -7,6 +7,7 @@ import (
 	"log"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
@@ -287,19 +288,31 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 	this.Data["ChartsJSON"] = template.JS(b)
 }
 
-// convertZabbixValue переводит значение метрики Zabbix из исходной единицы
-// (Zabbix Units, models.ZabbixKey.Units - как её отдаёт сам Zabbix API) в
-// более удобную для восприятия: "Bps" (байты/с - сетевые интерфейсы
-// net.if.in/out/total, дисковые vfs.dev.read/write) переводится в мегабайты/с
-// (/1024/1024), "B" (байты - объём памяти vm.memory.size[total]/[used])
-// переводится в гигабайты (/1024/1024/1024). Остальные единицы (%, мс,
+// normalizeZabbixUnits приводит единицу измерения Zabbix (models.ZabbixKey.Units)
+// к нижнему регистру и без пробелов по краям для сравнения в convertZabbixValue/
+// displayUnit - сама Zabbix API и этот код (см. zabbix/zabbixupdate.go:596-609,
+// где для двух дисковых метрик units жёстко прописан как "Bytes/sec", а для
+// остальных берётся "как есть" из ответа Zabbix - it.Units) не гарантируют
+// единый регистр/написание единицы (встречаются и "Bps", и "bps", и
+// "Bytes/sec") - без нормализации switch по точному совпадению строки просто
+// не срабатывал, из-за чего конвертация ранее не применялась вовсе.
+func normalizeZabbixUnits(units string) string {
+	return strings.ToLower(strings.TrimSpace(units))
+}
+
+// convertZabbixValue переводит значение метрики Zabbix из исходной единицы в
+// более удобную для восприятия: байты/с (сетевые интерфейсы net.if.in/out/
+// total, дисковые vfs.dev.read/write - "Bps"/"bps"/"Bytes/sec"/"bytes/sec" в
+// разном написании, встречающемся в данных) переводятся в мегабайты/с
+// (/1024/1024), байты (объём памяти vm.memory.size[total]/[used] - "B"/"bytes")
+// переводятся в гигабайты (/1024/1024/1024). Остальные единицы (%, мс,
 // безразмерные величины вроде system.cpu.load) не трогаем - см. displayUnit,
 // который отдаёт итоговую подпись, соответствующую этому же переводу.
 func convertZabbixValue(v float64, units string) float64 {
-	switch units {
-	case "Bps", "B/s":
+	switch normalizeZabbixUnits(units) {
+	case "bps", "b/s", "bytes/sec", "bytes/s":
 		return v / (1024 * 1024)
-	case "B":
+	case "b", "bytes":
 		return v / (1024 * 1024 * 1024)
 	default:
 		return v
@@ -309,10 +322,10 @@ func convertZabbixValue(v float64, units string) float64 {
 // displayUnit отдаёт подпись единицы измерения графика после перевода
 // convertZabbixValue - должна вызываться с тем же исходным units.
 func displayUnit(units string) string {
-	switch units {
-	case "Bps", "B/s":
+	switch normalizeZabbixUnits(units) {
+	case "bps", "b/s", "bytes/sec", "bytes/s":
 		return "МБ/с"
-	case "B":
+	case "b", "bytes":
 		return "ГБ"
 	default:
 		return units

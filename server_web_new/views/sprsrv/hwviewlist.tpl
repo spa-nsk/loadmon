@@ -97,7 +97,7 @@
             </thead>
             <tbody id="myTable">
                 {{range $ind, $hw := .HWList}}
-                <tr>
+                <tr class="row-context-target" data-menu-id="hwvRowMenu{{$ind}}" title="Правая кнопка мыши - меню действий">
                     <td>
                         <span class="badge {{if eq $hw.Identity.Status "OK"}}text-bg-success{{else if eq $hw.Identity.Status "Warning"}}text-bg-warning{{else if eq $hw.Identity.Status "Critical"}}text-bg-danger{{else}}text-bg-secondary{{end}}">{{$hw.Identity.Status}}</span>
                     </td>
@@ -110,6 +110,15 @@
                         <div style="max-width:340px; word-wrap:break-word;">{{$hw.Identity.Model}} {{if ne $hw.Identity.PartNumber ""}}({{$hw.Identity.PartNumber}}){{end}}</div>
                     </td>
                     <td>{{if ne $hw.Datacenter.Name ""}}{{$hw.Datacenter.Name}}{{end}}{{if ne $hw.Rack.Name ""}} ({{$hw.Rack.Name}}){{end}}</td>
+                    <td id="hwvRowMenu{{$ind}}" class="d-none">
+                        <div class="ctx-menu-heading">Подробнее</div>
+                        <a class="ctx-menu-item" href="/sprsrv/srvhwviewbysn/{{$hw.Identity.SerialNumber}}" target="_blank">Данные OneView</a>
+                        {{if ne $hw.Identity.SerialNumber ""}}
+                        <hr class="ctx-menu-divider">
+                        <div class="ctx-menu-heading">Редактирование</div>
+                        <a class="ctx-menu-item" href="/sprsrv/hwconfeditbysn/{{$hw.Identity.SerialNumber}}" target="_blank">Редактировать конфигурацию сервера (справочник)</a>
+                        {{end}}
+                    </td>
                 </tr>
                 {{else}}
                 <tr>
@@ -142,6 +151,8 @@
     </div>
     {{end}}
 </form>
+
+<div id="hwvRowContextMenu" class="ctx-menu d-none"></div>
 
 <!-- Стили закрепляемой панели фильтра, "классической" таблицы (включая
      sticky-заголовок через общую переменную --spr-thead-top), панели
@@ -243,5 +254,45 @@
 
         window.addEventListener('resize', updateTheadOffset);
         window.addEventListener('load', updateTheadOffset);
+    })();
+
+    // Контекстное меню по правой кнопке мыши на строке таблицы - приём
+    // идентичен /sprsrv/storagesystemslist и /sprsrv/bladesystemslist:
+    // содержимое скрытого <td id="hwvRowMenu..."> строки копируется в общий
+    // плавающий блок #hwvRowContextMenu и позиционируется под курсором.
+    (function () {
+        var menu = document.getElementById('hwvRowContextMenu');
+        if (!menu) return;
+
+        function hideMenu() {
+            menu.classList.add('d-none');
+            menu.innerHTML = '';
+        }
+
+        document.querySelectorAll('.row-context-target').forEach(function (row) {
+            row.addEventListener('contextmenu', function (evt) {
+                var menuId = row.getAttribute('data-menu-id');
+                var source = menuId ? document.getElementById(menuId) : null;
+                if (!source) return;
+                evt.preventDefault();
+                menu.innerHTML = source.innerHTML;
+                menu.classList.remove('d-none');
+
+                var x = evt.clientX;
+                var y = evt.clientY;
+                var maxX = window.innerWidth - menu.offsetWidth - 8;
+                var maxY = window.innerHeight - menu.offsetHeight - 8;
+                if (x > maxX) x = Math.max(8, maxX);
+                if (y > maxY) y = Math.max(8, maxY);
+                menu.style.left = x + 'px';
+                menu.style.top = y + 'px';
+            });
+        });
+
+        document.addEventListener('click', function (evt) {
+            if (!menu.contains(evt.target)) hideMenu();
+        });
+        document.addEventListener('scroll', hideMenu, true);
+        window.addEventListener('resize', hideMenu);
     })();
 </script>
