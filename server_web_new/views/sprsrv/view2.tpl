@@ -579,8 +579,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     {{end}}
                 </td>
                 <td id="rowMenu{{$record.S.Id}}" class="d-none">
-                    <div class="ctx-menu-heading">Подробнее</div>
-                    <a class="ctx-menu-item" href="/sprsrv/updatebase/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Общие данные</a>
+                    <!-- Меню объединено в один плоский список без заголовков секций
+                         "Подробнее"/"Загрузка" и разделителя между ними - по запросу. -->
+                    <a class="ctx-menu-item" href="/sprsrv/updatebase/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Редактировать</a>
                     {{if and (or (eq $record.S.Type 0) (eq $record.S.Type 2)) (ne $record.S.SerialNumber "") }}<a class="ctx-menu-item" href="/sprsrv/hwconfeditbysn/{{$record.S.SerialNumber}}" target="_blank">Конфигурация сервера</a>{{end}}
                     <!-- Пункты "Детали по виртуальной машине"/"Размещение виртуальной машины"
                          (controllers.SprSrvUpdateVM/SprSrvUpdateVMCluster) убраны - методы не
@@ -595,8 +596,6 @@ document.addEventListener('DOMContentLoaded', function () {
                          убраны по требованию - для них показывается только график по данным
                          Zabbix (см. общий блок ZabbixHostId ниже); для остальных типов (Type 3 -
                          внешнее облако) старые ссылки /details/... сохранены без изменений. -->
-                    <hr class="ctx-menu-divider">
-                    <div class="ctx-menu-heading">Загрузка</div>
                     {{if eq $record.S.Type 1}}
                     <!-- Для ВМ (Type 1) прежние ссылки этого блока (/detailskeyvm,
                          /sprsrv/vmperfkeytest, /detailsvmid, /sprsrv/vmperfperiodbysrvid) вели на

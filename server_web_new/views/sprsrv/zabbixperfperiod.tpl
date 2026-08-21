@@ -100,9 +100,9 @@ function zabbixPeriodNavigate() {
 <div id="zabbixPerfCharts" class="row g-3"></div>
 {{end}}
 
-<script src="/static/js/apexcharts.min.js"></script>
-<script src="/static/js/jspdf.umd.min.js"></script>
-<script src="/static/js/pdf-export.js"></script>
+<script src="/static/js/apexcharts.min.js?v={{.StaticVer}}"></script>
+<script src="/static/js/jspdf.umd.min.js?v={{.StaticVer}}"></script>
+<script src="/static/js/pdf-export.js?v={{.StaticVer}}"></script>
 
 <style>
     .vm-perf-card {

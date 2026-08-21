@@ -9,22 +9,28 @@
   <meta name="generator" content="spa.usvc.global.bcs" />
   <title>Монитор утилизации ресурсов</title>
 
-  <link href="/static/5.3.8/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="/static/css/sidebars.css" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/css/starter-template.css">
+  <!-- ?v={{.StaticVer}} - cache-busting: значение меняется при каждом
+       перезапуске/выкладке приложения (см. staticAssetVersion в
+       controllers/main_controller.go), чтобы браузер не продолжал
+       использовать старую закэшированную версию файла после деплоя -
+       именно это раньше приводило к пропаданию полос прокрутки у части
+       пользователей, пока не чистили кэш вручную. -->
+  <link href="/static/5.3.8/css/bootstrap.min.css?v={{.StaticVer}}" rel="stylesheet" />
+  <link href="/static/css/sidebars.css?v={{.StaticVer}}" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/starter-template.css?v={{.StaticVer}}">
   <!-- общие стили форм /sprsrv (закрепляемая панель фильтра, "классическая"
        таблица, индикатор питания, панель пагинации, контекстное меню
        строки, карточка данных) - вынесены сюда из локальных <style> блоков
        шаблонов, образец - /sprsrv/view2, см. комментарий в самом файле -->
-  <link rel="stylesheet" href="/static/css/loadmon.css">
+  <link rel="stylesheet" href="/static/css/loadmon.css?v={{.StaticVer}}">
 
 
   <meta name="theme-color" content="#712cf9" />
 
-  <script src="/static/5.3.8/js/bootstrap.bundle.min.js" class="astro-vvvwv3sm"></script>
-  <script src="/static/js/sidebars.js" class="astro-vvvwv3sm"></script>
-  <script src="/static/js/color-modes.js"></script>
-  <script src="/static/js2/jquery.min.js"></script>
+  <script src="/static/5.3.8/js/bootstrap.bundle.min.js?v={{.StaticVer}}" class="astro-vvvwv3sm"></script>
+  <script src="/static/js/sidebars.js?v={{.StaticVer}}" class="astro-vvvwv3sm"></script>
+  <script src="/static/js/color-modes.js?v={{.StaticVer}}"></script>
+  <script src="/static/js2/jquery.min.js?v={{.StaticVer}}"></script>
 
   <style>
     html, body {
