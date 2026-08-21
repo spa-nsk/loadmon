@@ -276,3 +276,66 @@ func correctServerSprRecord(record *models.ServerSprRecords, itsysRec *models.It
 		record.Allocation = itsystem.GetAttributes(objAttr, "Business column")
 	}
 }
+
+// SprITSystemCorrectPreview отдаёт JSON с результатом correctServerSprRecord
+// для переданного кода ИТ-системы - используется формой /sprsrv/updatebase
+// (см. JS-обработчик выбора ИТ-системы в updatebase.tpl), чтобы показать
+// пользователю пересчитанные поля (критичность, мониторинг, резервное
+// копирование, ответственные, тип/лицензирование/вариант решения,
+// пользователи, аллокация) сразу при выборе ИТ-системы в форме - до нажатия
+// "Сохранить", а не только после него, когда те же поля пересчитывает сам
+// SprSrvUpdateBase при сохранении. Логика намеренно та же самая
+// (correctServerSprRecord вызывается на пустой записи, чтобы получить только
+// то, что она сама выставляет, без примеси текущих значений формы).
+//
+// Ответ: {"found":false} - код не найден в справочнике (itsystem.GetITSystemRec);
+// иначе {"found":true, "criticalLevel":N, "monitoring":N, "backuped":N,
+// "businessOwner":"...", "itOwner":"...", "owner":"...", "productOwner":"...",
+// "support":"...", "supportTeam":"...", "systemType":"...",
+// "licensingType":"...", "solutionType":"...", "users":"...", "allocation":"..."}.
+//
+// Маршрут: /sprsrv/itsystemcorrectpreview/:key (GET)
+func (this *MainController) SprITSystemCorrectPreview() {
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Data["json"] = map[string]interface{}{"found": false, "error": "не авторизован"}
+		this.ServeJSON()
+		return
+	}
+
+	key := strings.TrimSpace(this.Ctx.Input.Param(":key"))
+	if key == "" {
+		this.Data["json"] = map[string]interface{}{"found": false}
+		this.ServeJSON()
+		return
+	}
+
+	itsysRec, ok := itsystem.GetITSystemRec(key)
+	if !ok {
+		this.Data["json"] = map[string]interface{}{"found": false}
+		this.ServeJSON()
+		return
+	}
+
+	var rec models.ServerSprRecords
+	correctServerSprRecord(&rec, &itsysRec)
+
+	this.Data["json"] = map[string]interface{}{
+		"found":         true,
+		"criticalLevel": rec.CriticalLevel,
+		"monitoring":    rec.Monitoring,
+		"backuped":      rec.Backuped,
+		"businessOwner": rec.BusinessOwner,
+		"itOwner":       rec.ITOwner,
+		"owner":         rec.Owner,
+		"productOwner":  rec.ProductOwner,
+		"support":       rec.Support,
+		"supportTeam":   rec.SupportTeam,
+		"systemType":    rec.SystemType,
+		"licensingType": rec.LicensingType,
+		"solutionType":  rec.SolutionType,
+		"users":         rec.Users,
+		"allocation":    rec.Allocation,
+	}
+	this.ServeJSON()
+}
