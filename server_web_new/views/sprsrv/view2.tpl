@@ -1,3 +1,23 @@
+<style>
+    /* стиль выпадающего списка поиска ИТ-системы - скопирован из
+       views/sprsrv/updatebase.tpl (образец для этого поля) */
+    .it-system-dropdown {
+        z-index: 1000;
+        max-height: 280px;
+        overflow-y: auto;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .25);
+    }
+
+    .it-system-dropdown .list-group-item {
+        cursor: pointer;
+    }
+
+    .it-system-dropdown .list-group-item small {
+        display: block;
+        color: var(--bs-secondary-color);
+    }
+</style>
+
 <script>
 $(document).ready(function () {
     $("#myInput").on("keyup", function () {
@@ -8,6 +28,139 @@ $(document).ready(function () {
     });
 });
 
+document.addEventListener('DOMContentLoaded', function () {
+    initITSystemPicker();
+});
+
+// Поле "ИТ система" - два синхронизированных способа ввода: прямой ввод
+// кода в ITSystemKey и поиск по справочнику (ITSystemSearch) с фильтрацией
+// списка по вводимым символам (код/название/статус/тип/бизнес-направление/
+// ЦФО) - выбор элемента списка подставляет его код в ITSystemKey. Код
+// скопирован 1:1 из views/sprsrv/updatebase.tpl (initITSystemPicker там же,
+// образец для этого поля) - при изменении логики поддерживать в обоих
+// местах синхронно.
+function initITSystemPicker() {
+    var keyInput = document.getElementById('ITSystemKey');
+    var hint = document.getElementById('ITSystemKeyHint');
+    var searchInput = document.getElementById('ITSystemSearch');
+    var results = document.getElementById('ITSystemSearchResults');
+    var dataList = document.getElementById('ITSystemDataList');
+    if (!keyInput || !searchInput || !results || !dataList) return;
+
+    var items = Array.prototype.map.call(dataList.querySelectorAll('.it-system-item'), function (el) {
+        return {
+            key: el.getAttribute('data-key') || '',
+            label: el.getAttribute('data-label') || '',
+            full: el.getAttribute('data-full') || '',
+            status: el.getAttribute('data-status') || '',
+            type: el.getAttribute('data-type') || '',
+            biz: el.getAttribute('data-biz') || '',
+            cfo: el.getAttribute('data-cfo') || ''
+        };
+    });
+
+    function findByKey(key) {
+        if (!key) return null;
+        var lower = key.toLowerCase();
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].key.toLowerCase() === lower) return items[i];
+        }
+        return null;
+    }
+
+    function describe(item) {
+        var parts = [item.key];
+        if (item.label) parts.push(item.label);
+        if (item.full) parts.push(item.full);
+        return parts.join(' — ');
+    }
+
+    function updateHint() {
+        var match = findByKey(keyInput.value.trim());
+        if (match) {
+            hint.textContent = describe(match) + (match.status ? ' (' + match.status + ')' : '');
+            hint.classList.remove('text-danger');
+        } else if (keyInput.value.trim() !== '') {
+            hint.textContent = 'Код не найден в справочнике - будет сохранён как есть';
+            hint.classList.add('text-danger');
+        } else {
+            hint.textContent = '';
+            hint.classList.remove('text-danger');
+        }
+    }
+
+    function hideResults() {
+        results.classList.add('d-none');
+        results.innerHTML = '';
+    }
+
+    function renderResults(query) {
+        var q = query.trim().toLowerCase();
+        if (q === '') {
+            hideResults();
+            return;
+        }
+        var matches = items.filter(function (item) {
+            return item.key.toLowerCase().indexOf(q) !== -1 ||
+                item.label.toLowerCase().indexOf(q) !== -1 ||
+                item.full.toLowerCase().indexOf(q) !== -1 ||
+                item.status.toLowerCase().indexOf(q) !== -1 ||
+                item.type.toLowerCase().indexOf(q) !== -1 ||
+                item.biz.toLowerCase().indexOf(q) !== -1 ||
+                item.cfo.toLowerCase().indexOf(q) !== -1;
+        }).slice(0, 50);
+
+        if (matches.length === 0) {
+            results.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
+            results.classList.remove('d-none');
+            return;
+        }
+
+        results.innerHTML = '';
+        matches.forEach(function (item) {
+            var row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'list-group-item list-group-item-action';
+            row.innerHTML = '<div>' + escapeHtml(item.key) + (item.label ? ' — ' + escapeHtml(item.label) : '') + '</div>' +
+                (item.full ? '<small>' + escapeHtml(item.full) + '</small>' : '');
+            row.addEventListener('click', function () {
+                keyInput.value = item.key;
+                searchInput.value = describe(item);
+                updateHint();
+                hideResults();
+            });
+            results.appendChild(row);
+        });
+        results.classList.remove('d-none');
+    }
+
+    function escapeHtml(s) {
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    searchInput.addEventListener('input', function () {
+        renderResults(searchInput.value);
+    });
+    searchInput.addEventListener('focus', function () {
+        if (searchInput.value.trim() !== '') renderResults(searchInput.value);
+    });
+    document.addEventListener('click', function (evt) {
+        if (evt.target !== searchInput && !results.contains(evt.target)) hideResults();
+    });
+
+    keyInput.addEventListener('input', updateHint);
+    keyInput.addEventListener('blur', updateHint);
+
+    // первичная инициализация: если фильтр уже содержит код ИТ-системы,
+    // сразу показать расшифровку и заполнить строку поиска для наглядности
+    var initial = findByKey(keyInput.value.trim());
+    if (initial) {
+        searchInput.value = describe(initial);
+    }
+    updateHint();
+}
 
 function setFocusList() {
     document.getElementById("detail{{$.ListId}}").focus();
@@ -213,15 +366,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
         <div class="row">
             <div class="form-group col-sm-12">
-                <label for="ITSystemKey">ИТ система, в которой используется серверы</label>
-                <select name="ITSystemKey" size="1" class="form-control" value="{{.record.ITSystemKey}}">
-                    <option value="" {{if eq .record.ITSystemKey "" }}selected{{end}}>не выбрано</option>
+                <label class="form-label">ИТ система, в которой используется серверы</label>
+                <!-- Поле "ИТ система" в этом фильтре переделано с <select> (плохо
+                     масштабируется на большой справочник ИТ-систем и не позволяет
+                     искать по названию/статусу) на тот же ввод с поиском, что и в
+                     /sprsrv/updatebase/all - код вводится напрямую в ITSystemKey
+                     (значение уходит в форму как есть, пустое значение = фильтр не
+                     применяется) либо подбирается через ITSystemSearch, который
+                     фильтрует список .ITSystemSpr на клиенте и подставляет код
+                     выбранной записи - см. initITSystemPicker() ниже, код скопирован
+                     1:1 из views/sprsrv/updatebase.tpl (образец для этого поля). -->
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" name="ITSystemKey" id="ITSystemKey" class="form-control"
+                            value="{{.record.ITSystemKey}}" placeholder="CMDB-" autocomplete="off">
+                        <div id="ITSystemKeyHint" class="form-text"></div>
+                    </div>
+                    <div class="col-md-8 position-relative">
+                        <input type="text" id="ITSystemSearch" class="form-control"
+                            placeholder="Поиск по справочнику: код, название, статус..." autocomplete="off">
+                        <div id="ITSystemSearchResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
+                    </div>
+                </div>
+                <!-- источник данных справочника ИТ-систем для поиска на клиенте -
+                     сами элементы скрыты, JS читает их data-атрибуты один раз при
+                     загрузке страницы; html/template экранирует значения -->
+                <div id="ITSystemDataList" class="d-none">
                     {{range $its := .ITSystemSpr}}
-                    <option value="{{$its.ObjectKey}}" {{if eq $its.ObjectKey $.record.ITSystemKey}}selected{{end}}>
-                        {{$its.ObjectKey}} {{$its.Label}}: {{$its.FullName}} {{$its.Status}} {{$its.SystemType}} {{$its.BusinessColumn}} {{$its.CFO}}
-                    </option>
+                    <div class="it-system-item"
+                        data-key="{{$its.ObjectKey}}"
+                        data-label="{{$its.Label}}"
+                        data-full="{{$its.FullName}}"
+                        data-status="{{$its.Status}}"
+                        data-type="{{$its.SystemType}}"
+                        data-biz="{{$its.BusinessColumn}}"
+                        data-cfo="{{$its.CFO}}"></div>
                     {{end}}
-                </select>
+                </div>
             </div>
         </div>
 
@@ -358,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function () {
                          не реализованный в controllers (маршрут закомментирован в
                          routers/routers.go) - убрана. -->
                     {{else}}
-                    <div style="width:20px; float:left; text-align: center"><a href="/details/filter/{{$record.S.Name}}" target="_blank" title="График загрузки сервера за период из фильтра с {{printf "%02d.%02d.%04d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%04d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}"><span class="glyphicon glyphicon-tasks"></span></a></div>
+                    <div style="width:20px; float:left; text-align: center"><a href="/details/filter/{{$record.S.Name}}" target="_blank" title="График загрузки сервера за период из фильтра с {{printf "%02d.%02d.%04d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%04d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}"><svg class="bi cluster-activity-icon" aria-hidden="true"><use href="#activity"></use></svg></a></div>
                     {{end}}
                     <!-- Для ВМ (Type 1) и гипервизоров (Type 2) имя сервера показывается в 2
                          строки: 1-я - индикатор питания + имя (+ sn для гипервизора), 2-я -
