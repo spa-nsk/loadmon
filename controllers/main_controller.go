@@ -23,6 +23,7 @@ import (
 	beego "github.com/beego/beego/v2/server/web"
 
 	//	"github.com/astaxie/beego/validation"
+	"loadmon/config"
 	"loadmon/events"
 	//	exportres "loadmon/export"
 	models "loadmon/models"
@@ -134,6 +135,39 @@ func (this *MainController) RequireEditReference() bool {
 	}
 	flash := beego.NewFlash()
 	flash.Error("Недостаточно прав для сохранения изменений. Требуется право редактирования справочников или права администратора.")
+	flash.Store(&this.Controller)
+	return false
+}
+
+// RequireLocalAuth проверяет, что локальная авторизация (логин/пароль по
+// локальной таблице models.AuthUser) вообще разрешена конфигурацией -
+// разрешена, только если config.ConfigData.AuthMode явно выставлен в
+// "local" (config.ConfigData.IsLocalAuth()). Если в конфигурации указана
+// доменная авторизация (AuthMode == "domain", а также пустое/неизвестное
+// значение - см. IsDomainAuth в config/config.go, трактуется как domain по
+// умолчанию для обратной совместимости), локальный вход, самостоятельная
+// регистрация нового пользователя и подтверждение регистрации по ссылке из
+// письма должны быть принудительно заблокированы - учётные записи и пароли
+// в этом режиме не являются источником истины, им является домен
+// (Kerberos/SPNEGO, см. spnegoFilter в server_web_new/main_web.go), и
+// локальный вход в обход домена не должен быть возможен.
+//
+// Используется в начале controllers.Login (в ветке логин/пароль - не
+// затрагивает ни X-Loadmon-Auth/SSO-заголовок, ни гостевой вход по чекбоксу
+// "domain" - это независимые от AuthMode механизмы), controllers.Register и
+// controllers.Verify (controllers/user2.go) - по тому же принципу, что и
+// RequireEditReference выше: flash.Error + flash.Store, вызывающему
+// достаточно написать в начале обработки:
+//
+//	if !this.RequireLocalAuth() {
+//	    return
+//	}
+func (this *MainController) RequireLocalAuth() bool {
+	if config.ConfigData.IsLocalAuth() {
+		return true
+	}
+	flash := beego.NewFlash()
+	flash.Error("Локальная авторизация отключена - используется доменная авторизация (Kerberos/SPNEGO). Войдите под доменной учётной записью.")
 	flash.Store(&this.Controller)
 	return false
 }

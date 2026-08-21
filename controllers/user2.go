@@ -102,6 +102,16 @@ func (this *MainController) Login() {
 			m["SprSearchString"] = "" //строка фильтра справочника
 			m["SprSearchField"] = "1" //тип строки для фильтра справочника
 		} else {
+			// Локальный вход по логину/паролю запрещён, если конфигурация
+			// требует доменную авторизацию (см. RequireLocalAuth в
+			// controllers/main_controller.go) - гостевой вход по чекбоксу
+			// "domain" выше и SSO-заголовок X-Loadmon-Auth в начале функции
+			// это отдельные, не завязанные на AuthMode механизмы и здесь не
+			// проверяются.
+			if !this.RequireLocalAuth() {
+				return
+			}
+
 			valid.Email(email, "email")
 			if valid.HasErrors() {
 				errormap := make(map[string]string)
@@ -202,6 +212,16 @@ type user1 struct {
 func (this *MainController) Register() {
 	this.activeContent("user/register")
 	RegisterRequest(this, LogTypeRegister) // регистрация нового пользователя - до создания сессии запись не пишется, RegisterRequest тихо возвращает ошибку
+
+	// Самостоятельная регистрация полностью заблокирована при доменной
+	// авторизации (см. RequireLocalAuth в controllers/main_controller.go) -
+	// учётные записи в этом режиме заводятся не через models.AuthUser, а
+	// приходят из домена (Kerberos/SPNEGO). Проверка до POST, чтобы форма
+	// регистрации не работала вовсе (не только сохранение), а не только
+	// после отправки.
+	if !this.RequireLocalAuth() {
+		return
+	}
 
 	if this.Ctx.Input.Method() == "POST" {
 		flash := beego.NewFlash()
@@ -349,6 +369,14 @@ func sendVerification(email, u string, domainname string) error {
 func (this *MainController) Verify() {
 	this.activeContent("user/verify")
 	RegisterRequest(this, LogTypeRegister) // подтверждение регистрации - без сессии запись не пишется
+
+	// Подтверждение регистрации заблокировано вместе с самой регистрацией
+	// при доменной авторизации (см. RequireLocalAuth в
+	// controllers/main_controller.go и аналогичную проверку в Register выше) -
+	// раз новые локальные учётные записи не создаются, подтверждать нечего.
+	if !this.RequireLocalAuth() {
+		return
+	}
 
 	u := this.Ctx.Input.Param(":uuid")
 	o := orm.NewOrm()

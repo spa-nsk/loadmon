@@ -320,7 +320,7 @@ function selectcluster(val) {
                     <tbody>
                     {{range $idx, $vm := $cl.VM}}
                     <tr>
-                        <td class="text-center">{{if gt $vm.PerfCount 0}}<a href="/sprsrv/vmperfday/{{$vm.Vcenter}}/{{$vm.Datacenter}}/{{$vm.Cluster}}/{{$vm.Name}}" target="_blank"><svg class="bi cluster-activity-icon" aria-hidden="true"><use href="#activity"></use></svg></a>{{else}}<span class="glyphicon glyphicon-off" title="виртуальная машина выключена"></span>{{end}}</td>
+                        <td class="text-center">{{if gt $vm.PerfCount 0}}<a href="/sprsrv/vmperfday/{{$vm.Vcenter}}/{{$vm.Datacenter}}/{{$vm.Cluster}}/{{$vm.Name}}" target="_blank"><svg class="bi cluster-activity-icon" aria-hidden="true"><use href="#activity"></use></svg></a>{{else}}<svg class="bi power-led is-off" aria-hidden="true" title="виртуальная машина выключена"><use href="#power"></use></svg>{{end}}</td>
                         <td><a href="/sprsrv/vmeditbyname/{{$vm.Name}}" target="_blank" title="Общие данные виртуальной машины">{{$vm.Name}}</a></td>
                         <td class="text-center">{{printf "%d/%d" $vm.NumCPU $vm.NumCores}}</td>
                         <td class="text-center">{{printf "%.0f" $vm.MemorySizeGB}}</td>
