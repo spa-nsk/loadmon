@@ -158,6 +158,7 @@
                     searchInput.value = describe(item);
                     updateHint();
                     hideResults();
+                    applyITSystemCorrection(item.key);
                 });
                 results.appendChild(row);
             });
@@ -181,15 +182,85 @@
         });
 
         keyInput.addEventListener('input', updateHint);
-        keyInput.addEventListener('blur', updateHint);
+        keyInput.addEventListener('blur', function () {
+            updateHint();
+            // прямой ввод кода вручную (без выбора из результатов поиска) -
+            // применяем корректировку тоже, но только если код действительно
+            // нашёлся в справочнике (иначе бессмысленно дёргать сервер)
+            var match = findByKey(keyInput.value.trim());
+            if (match) applyITSystemCorrection(match.key);
+        });
 
         // первичная инициализация: если запись уже содержит код ИТ-системы,
         // сразу показать расшифровку и заполнить строку поиска для наглядности
+        // (но НЕ применяем корректировку полей - это уже сохранённая запись,
+        // трогать её значения только из-за того, что страница открылась, не
+        // нужно; корректировка выполняется только при явной смене ИТ-системы
+        // пользователем - см. applyITSystemCorrection выше/ниже)
         var initial = findByKey(keyInput.value.trim());
         if (initial) {
             searchInput.value = describe(initial);
         }
         updateHint();
+    }
+
+    // Подтягивает поля, которые пересчитывает controllers.correctServerSprRecord
+    // (критичность, мониторинг, резервное копирование, ответственные, тип
+    // системы, лицензирование, вариант решения, пользователи, аллокация) для
+    // выбранной ИТ-системы - через JSON-предпросмотр /sprsrv/itsystemcorrectpreview
+    // (controllers/sprsrvupdatebase.go: SprITSystemCorrectPreview), чтобы
+    // изменения было видно в форме сразу при выборе ИТ-системы, до нажатия
+    // "Сохранить" - та же самая логика в этот момент ещё не выполнялась бы
+    // (correctServerSprRecord вызывается только при сохранении формы).
+    function applyITSystemCorrection(key) {
+        key = (key || '').trim();
+        if (!key) return;
+
+        var hint = document.getElementById('ITSystemKeyHint');
+        var prevHintText = hint ? hint.textContent : '';
+        if (hint) hint.textContent = prevHintText + ' (обновление полей…)';
+
+        fetch('/sprsrv/itsystemcorrectpreview/' + encodeURIComponent(key))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (hint) hint.textContent = prevHintText;
+                if (!data || !data.found) return;
+
+                setSelectValue('CriticalLevel', data.criticalLevel);
+                setSelectValue('Monitoring', data.monitoring);
+                setSelectValue('Backuped', data.backuped);
+
+                setFieldValue('BusinessOwner', data.businessOwner);
+                setFieldValue('ITOwner', data.itOwner);
+                setFieldValue('Owner', data.owner);
+                setFieldValue('ProductOwner', data.productOwner);
+                setFieldValue('Support', data.support);
+                setFieldValue('SupportTeam', data.supportTeam);
+                setFieldValue('SystemType', data.systemType);
+                setFieldValue('LicensingType', data.licensingType);
+                setFieldValue('SolutionType', data.solutionType);
+                setFieldValue('Users', data.users);
+                setFieldValue('Allocation', data.allocation);
+            })
+            .catch(function () {
+                // сеть/сервер недоступны - предпросмотр не критичен, поля формы
+                // остаются как были, ошибку показывать не нужно (при
+                // фактическом сохранении та же корректировка будет
+                // предпринята заново на сервере)
+                if (hint) hint.textContent = prevHintText;
+            });
+    }
+
+    function setFieldValue(id, value) {
+        var el = document.getElementById(id);
+        if (!el || value === undefined || value === null) return;
+        el.value = value;
+    }
+
+    function setSelectValue(id, value) {
+        var el = document.getElementById(id);
+        if (!el || value === undefined || value === null) return;
+        el.value = String(value);
     }
 </script>
 
