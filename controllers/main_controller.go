@@ -48,6 +48,21 @@ func (this *MainController) Shutdown() {
 	this.Ctx.ResponseWriter.Write([]byte{})
 }
 
+// staticAssetVersion - значение для cache-busting query-параметра (?v=...)
+// у ссылок на статику (/static/css/..., /static/js/...) в header.tpl и
+// страницах с графиками (vmperfday.tpl/vmperfperiod.tpl/clusterperfday.tpl/
+// clusterperfperiod.tpl/zabbixperfperiod.tpl). Вычисляется один раз при
+// старте процесса (инициализация пакетной переменной) - значит, у всех
+// пользователей меняется одновременно и ровно один раз за каждый
+// перезапуск/выкладку приложения, без необходимости вручную поднимать номер
+// версии в коде при каждом изменении CSS/JS. Причина появления - при
+// выкладке новой версии static/css/loadmon.css браузер мог продолжать
+// использовать старую закэшированную копию файла (кэш браузера не видел
+// смены URL, раз в самом URL ничего не менялось), из-за чего у части
+// пользователей "пропадали" полосы прокрутки (см. .content-panel { overflow:
+// auto } в loadmon.css) до ручной очистки кэша - см. историю обсуждения.
+var staticAssetVersion = strconv.FormatInt(time.Now().Unix(), 10)
+
 func (this *MainController) activeContent(view string) {
 	this.Layout = "basic-layout.tpl"
 	this.LayoutSections = make(map[string]string)
@@ -58,6 +73,7 @@ func (this *MainController) activeContent(view string) {
 	}
 	this.TplName = view + ".tpl"
 	this.Data["domainname"] = "https://spa.usvc.global.bcs"
+	this.Data["StaticVer"] = staticAssetVersion // cache-busting для ссылок на /static/... (см. комментарий у staticAssetVersion)
 	//this.Data["domainname"] = "yourdomainname"
 	//	_ = this.Render()
 

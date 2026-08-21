@@ -146,6 +146,11 @@ func (this *MainController) SprSrvUpdateBase() {
 		record.MacAddress = strings.TrimSpace(form.MacAddress)
 		record.Network = strings.TrimSpace(form.Network)
 		record.NetworkName = strings.TrimSpace(form.NetworkName)
+
+		// запоминаем прежнее значение ИТ-системы до перезаписи - нужно ниже,
+		// чтобы понять, изменилось ли оно, и решить, нужна ли автоматическая
+		// корректировка зависимых полей через correctServerSprRecord
+		prevITSystemKey := record.ITSystemKey
 		record.ITSystemKey = strings.TrimSpace(form.ITSystemKey)
 		record.OS = strings.TrimSpace(form.OS)
 		record.Owner = strings.TrimSpace(form.Owner)
@@ -167,6 +172,26 @@ func (this *MainController) SprSrvUpdateBase() {
 		record.Monitoring = form.Monitoring
 		record.Backuped = form.Backuped
 		record.MonitoringSZ = strings.TrimSpace(form.MonitoringSZ)
+
+		// Если поле "ИТ система" изменилось - подтягиваем актуальные данные по
+		// выбранной ИТ-системе из локального справочника (itsystem.GetITSystemRec,
+		// наполняется itsystem/jira.go) и корректируем зависимые поля записи
+		// (критичность, признаки мониторинга/резервного копирования,
+		// ответственные, тип системы и т.п.) через correctServerSprRecord -
+		// функция была объявлена ранее, но нигде не вызывалась. Значения из
+		// itsysRec намеренно перезаписывают то, что пришло из формы для тех же
+		// полей (BusinessOwner/ITOwner/Owner/ProductOwner/Support/SupportTeam/
+		// SystemType/LicensingType/SolutionType/Users/Allocation/CriticalLevel/
+		// Monitoring/Backuped выше в этой же функции) - источником истины для
+		// них должна быть выбранная ИТ-система, а не то, что ранее было
+		// сохранено/введено вручную. Если код не найден в справочнике - запись
+		// сохраняется как есть, без корректировки (пользователь уже видит
+		// подсказку "код не найден" в форме - см. updatebase.tpl).
+		if record.ITSystemKey != "" && record.ITSystemKey != prevITSystemKey {
+			if itsysRec, ok := itsystem.GetITSystemRec(record.ITSystemKey); ok {
+				correctServerSprRecord(&record, &itsysRec)
+			}
+		}
 
 		now := time.Now().Local()
 
@@ -210,4 +235,44 @@ func (this *MainController) SprSrvUpdateBase() {
 	}
 
 	this.Data["record"] = record
+}
+
+func correctServerSprRecord(record *models.ServerSprRecords, itsysRec *models.ItSystemRecord) {
+	switch itsysRec.LevelCriticality {
+	case "Критически важные (Vital)":
+		record.CriticalLevel = 1
+	case "Критические для бизнеса (Critical)":
+		record.CriticalLevel = 2
+	case "Важные для бизнеса (Secondary)":
+		record.CriticalLevel = 3
+	case "Поддерживающие (Non-priority)":
+		record.CriticalLevel = 4
+	}
+
+	if itsysRec.IsMonitored {
+		record.Monitoring = 1
+	} else {
+		record.Monitoring = 2
+	}
+
+	if itsysRec.IsBackuped {
+		record.Backuped = 1
+	} else {
+		record.Backuped = 2
+	}
+
+	objAttr, err := itsystem.GetITSystemObjectAttributes(itsysRec.Key)
+	if err == nil {
+		record.BusinessOwner = itsystem.GetAttributes(objAttr, "Business-owner")
+		record.ITOwner = itsystem.GetAttributes(objAttr, "IT-owner")
+		record.Owner = record.ITOwner
+		record.ProductOwner = itsystem.GetAttributes(objAttr, "Product owners")
+		record.Support = itsystem.GetAttributes(objAttr, "Support")
+		record.SupportTeam = itsystem.GetAttributes(objAttr, "Support team")
+		record.SystemType = itsystem.GetAttributes(objAttr, "System type")
+		record.LicensingType = itsystem.GetAttributes(objAttr, "Licensing type")
+		record.SolutionType = itsystem.GetAttributes(objAttr, "Solution type")
+		record.Users = itsystem.GetAttributes(objAttr, "IT-System users")
+		record.Allocation = itsystem.GetAttributes(objAttr, "Business column")
+	}
 }
