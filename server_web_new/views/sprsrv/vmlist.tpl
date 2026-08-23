@@ -38,19 +38,22 @@
                 {{end}}
             </select>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-3 position-relative">
             <label for="filterVM" class="form-label">Виртуальная машина</label>
-            <input type="text" id="filterVM" class="form-control" list="filterVMDatalist"
+            <input type="text" id="filterVM" class="form-control"
                 placeholder="Все (введите часть имени и нажмите Enter)"
                 value="{{if ne .CurVM "all"}}{{.CurVM}}{{end}}"
-                autocomplete="off"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();vmFilterNavigate('vm');}"
-                onchange="vmFilterNavigate('vm')" />
-            <datalist id="filterVMDatalist">
+                autocomplete="off" />
+            <div id="filterVMResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
+            <!-- Скрытый источник имён ВМ для JS-подсказок (см. initVMNamePicker
+                 ниже) - вместо нативного <datalist>, чей выпадающий список
+                 браузер всегда рисует в системной светлой теме и не подчиняется
+                 CSS/data-bs-theme страницы. -->
+            <div id="filterVMDataList" class="d-none">
                 {{range $v := .VMNameList}}
-                <option value="{{$v}}"></option>
+                <div class="vm-name-item" data-name="{{$v}}"></div>
                 {{end}}
-            </datalist>
+            </div>
         </div>
     </div>
     <div class="row mt-2">
@@ -72,7 +75,14 @@
     </div>
 </form>
 
-<div class="table-responsive">
+<!-- Без обёртки .table-responsive: у неё overflow-x:auto, из-за чего браузер
+     вынужден трактовать и overflow-y как auto - это создаёт собственный
+     скролл-контекст, внутри которого position:sticky у thead "прилипает" не
+     к верху окна, а к верху этого контейнера, и на глаз выглядит как
+     заголовок таблицы, уехавший в середину экрана. Остальные страницы с
+     закрепляемым заголовком (/sprsrv/hwviewlist, /sprsrv/cluster и т.п.) по
+     той же причине тоже не используют .table-responsive для основной таблицы. -->
+<div>
     <table class="table table-bordered table-striped table-hover align-middle spr-classic-table vm-table">
         <thead>
             <tr>
@@ -254,6 +264,22 @@
      header.tpl) - образец оформления для всего этого /sprsrv/view2. Здесь
      остаются только правила, специфичные для этой страницы. -->
 <style>
+    /* Стиль выпадающего списка подсказок по имени ВМ - скопирован из
+       .it-system-dropdown (views/sprsrv/view2.tpl, updatebase.tpl): элементы
+       Bootstrap list-group сами подчиняются теме (data-bs-theme), в отличие
+       от нативного <datalist>, который браузер всегда рисует в системной
+       светлой теме. */
+    .it-system-dropdown {
+        z-index: 1000;
+        max-height: 280px;
+        overflow-y: auto;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .25);
+    }
+
+    .it-system-dropdown .list-group-item {
+        cursor: pointer;
+    }
+
     .vm-disk-table td {
         padding: 0.15rem 0.4rem;
     }
@@ -291,6 +317,79 @@
 </style>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        initVMNamePicker();
+    });
+
+    // Поле "Виртуальная машина" - подсказки по частично введённому имени,
+    // отрисованные вручную (Bootstrap list-group), а не через нативный
+    // <datalist>: выпадающий список datalist рисуется самим браузером в
+    // системной светлой теме и не подчиняется теме страницы (light/dark) -
+    // приём идентичен initITSystemPicker() в views/sprsrv/view2.tpl.
+    function initVMNamePicker() {
+        var input = document.getElementById('filterVM');
+        var results = document.getElementById('filterVMResults');
+        var dataList = document.getElementById('filterVMDataList');
+        if (!input || !results || !dataList) return;
+
+        var names = Array.prototype.map.call(dataList.querySelectorAll('.vm-name-item'), function (el) {
+            return el.getAttribute('data-name') || '';
+        });
+
+        function hideResults() {
+            results.classList.add('d-none');
+            results.innerHTML = '';
+        }
+
+        function renderResults(query) {
+            var q = query.trim().toLowerCase();
+            if (q === '') {
+                hideResults();
+                return;
+            }
+            var matches = names.filter(function (name) {
+                return name.toLowerCase().indexOf(q) !== -1;
+            }).slice(0, 50);
+
+            if (matches.length === 0) {
+                hideResults();
+                return;
+            }
+
+            results.innerHTML = '';
+            matches.forEach(function (name) {
+                var row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'list-group-item list-group-item-action';
+                row.textContent = name;
+                row.addEventListener('click', function () {
+                    input.value = name;
+                    hideResults();
+                    vmFilterNavigate('vm');
+                });
+                results.appendChild(row);
+            });
+            results.classList.remove('d-none');
+        }
+
+        input.addEventListener('input', function () {
+            renderResults(input.value);
+        });
+        input.addEventListener('focus', function () {
+            if (input.value.trim() !== '') renderResults(input.value);
+        });
+        document.addEventListener('click', function (evt) {
+            if (evt.target !== input && !results.contains(evt.target)) hideResults();
+        });
+        input.addEventListener('keydown', function (evt) {
+            if (evt.key === 'Enter') {
+                evt.preventDefault();
+                hideResults();
+                vmFilterNavigate('vm');
+            }
+        });
+    }
+
     function vmFilterNavigate(changed) {
         var vc = document.getElementById('filterVcenter').value || 'all';
         var dc = document.getElementById('filterDatacenter').value || 'all';
