@@ -396,7 +396,12 @@ func (this *MainController) SprSrvViewV2() {
 			cond = cond.And("role_type", record.RoleType)
 		}
 
-		if record.Type != 999 {
+		if record.Type == 4 {
+			// Псевдо-тип "Аппаратный сервер в Zabbix" (значение 4 в форме фильтра
+			// не хранится в БД) - реальный тип 0 (аппаратный сервер) + признак
+			// регистрации в Zabbix (ZabbixHostId > 0).
+			cond = cond.And("type", 0).And("zabbix_host_id__gt", 0)
+		} else if record.Type != 999 {
 			cond = cond.And("type", record.Type)
 		}
 

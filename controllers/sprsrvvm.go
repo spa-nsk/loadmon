@@ -143,9 +143,13 @@ func (this *MainController) SprSrvVM() {
 	if vmname == "all" {
 		keyList = keySource
 	} else {
+		// Поиск по частично введённому имени ВМ (регистронезависимо, без учёта
+		// позиции подстроки) - раньше значение ":VM" бралось из выпадающего
+		// списка точных имён, теперь это поле свободного ввода на форме.
+		needle := strings.ToLower(vmname)
 		keyList = make([]*pb.VMKeyRec, 0, len(keySource))
 		for _, k := range keySource {
-			if k != nil && k.VMName == vmname {
+			if k != nil && strings.Contains(strings.ToLower(k.VMName), needle) {
 				keyList = append(keyList, k)
 			}
 		}
