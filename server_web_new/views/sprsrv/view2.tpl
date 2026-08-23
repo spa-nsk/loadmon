@@ -322,6 +322,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <option value="1" {{if eq .record.Type 1}}selected{{end}}>Виртуальная машина</option>
                     <option value="2" {{if eq .record.Type 2}}selected{{end}}>Гипервизор VMWARE</option>
                     <option value="3" {{if eq .record.Type 3}}selected{{end}}>Сервер во внешнем облаке</option>
+                    <option value="4" {{if eq .record.Type 4}}selected{{end}}>Аппаратный сервер в Zabbix</option>
                     <option value="999" {{if eq .record.Type 999}}selected{{end}}>Все</option>
                 </select>
             </div>
@@ -460,19 +461,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
         <div class="row">
             <div class="form-group col-sm-6">
-                <input name="chClusters" class="form-check-input" type="checkbox" value="on" checked>
-                <label style="color:#800000;" class="form-check-label" for="chClusters">Дополнение фильтра по кластерам</label>
+                <input id="chClusters" name="chClusters" class="form-check-input" type="checkbox" value="on" onchange="toggleClusterList()">
+                <label style="color:#800000;" class="form-check-label" for="chClusters">Дополнительные фильтры по кластерам</label>
             </div>
         </div>
 
-        <div class="row">
+        <div class="row" id="clusterListRow" style="display:none;">
             {{range $cluster := .ClusterList}}
             <div class="form-group col-sm-3">
-                <input name="ch{{$cluster.Name}}" class="form-check-input" type="checkbox" value="on" {{if eq $cluster.ID 1}}checked{{end}}>
+                <input id="ch{{$cluster.Name}}" name="ch{{$cluster.Name}}" class="form-check-input" type="checkbox" value="on" {{if eq $cluster.ID 1}}checked{{end}}>
                 <label class="form-check-label" for="ch{{$cluster.Name}}">{{$cluster.Name}}</label>
             </div>
             {{end}}
         </div>
+        <script>
+            function toggleClusterList() {
+                var ch = document.getElementById('chClusters');
+                var row = document.getElementById('clusterListRow');
+                if (ch && row) {
+                    row.style.display = ch.checked ? '' : 'none';
+                }
+            }
+            document.addEventListener('DOMContentLoaded', toggleClusterList);
+        </script>
 
         <div class="row">
             <div class="col-12 d-flex flex-wrap gap-2">
@@ -539,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function () {
                          не реализованный в controllers (маршрут закомментирован в
                          routers/routers.go) - убрана. -->
                     {{else}}
-                    <div style="width:20px; float:left; text-align: center"><a href="/details/filter/{{$record.S.Name}}" target="_blank" title="График загрузки сервера за период из фильтра с {{printf "%02d.%02d.%04d" $.Filter_save.FromTime.Day $.Filter_save.FromTime.Month $.Filter_save.FromTime.Year}} по {{printf "%02d.%02d.%04d" $.Filter_save.ToTime.Day $.Filter_save.ToTime.Month $.Filter_save.ToTime.Year}}"><svg class="bi cluster-activity-icon" aria-hidden="true"><use href="#activity"></use></svg></a></div>
+                    <!-- Иконка/ссылка на /details/filter/... убрана по требованию. -->
                     {{end}}
                     <!-- Для ВМ (Type 1) и гипервизоров (Type 2) имя сервера показывается в 2
                          строки: 1-я - индикатор питания + имя (+ sn для гипервизора), 2-я -

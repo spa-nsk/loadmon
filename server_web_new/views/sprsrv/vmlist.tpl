@@ -40,12 +40,17 @@
         </div>
         <div class="col-6 col-md-3">
             <label for="filterVM" class="form-label">Виртуальная машина</label>
-            <select id="filterVM" class="form-select" onchange="vmFilterNavigate('vm')">
-                <option value="all" {{if eq .CurVM "all"}}selected{{end}}>Все</option>
+            <input type="text" id="filterVM" class="form-control" list="filterVMDatalist"
+                placeholder="Все (введите часть имени и нажмите Enter)"
+                value="{{if ne .CurVM "all"}}{{.CurVM}}{{end}}"
+                autocomplete="off"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();vmFilterNavigate('vm');}"
+                onchange="vmFilterNavigate('vm')" />
+            <datalist id="filterVMDatalist">
                 {{range $v := .VMNameList}}
-                <option value="{{$v}}" {{if eq $.CurVM $v}}selected{{end}}>{{$v}}</option>
+                <option value="{{$v}}"></option>
                 {{end}}
-            </select>
+            </datalist>
         </div>
     </div>
     <div class="row mt-2">
@@ -54,6 +59,14 @@
             <div class="d-flex gap-2">
                 <a href="?export=xlsx" class="btn btn-outline-success btn-sm rounded-pill px-3" title="Экспорт в XLSX всех виртуальных машин, найденных по текущему фильтру (не только текущей страницы)">Экспорт в XLSX</a>
                 <a href="/sprsrv/vm/all/all/all/all" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Сбросить фильтр</a>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-12 d-flex justify-content-end">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="vmFilterStickyToggle" onchange="vmToggleFilterSticky(this.checked)">
+                <label class="form-check-label small text-muted" for="vmFilterStickyToggle">Закреплять фильтр вверху экрана</label>
             </div>
         </div>
     </div>
@@ -123,7 +136,7 @@
                             </tr>
                             {{range $dsk := $vm.Disk}}
                             <tr>
-                                <td>{{$dsk.DiskPath}}</td>
+                                <td class="vm-disk-path" title="{{$dsk.DiskPath}}">{{$dsk.DiskPath}}</td>
                                 <td class="text-end">{{printf "%.2f" $dsk.CapacityGb}} ГБ</td>
                                 {{if gt $dsk.PercentUsed 90.0}}
                                 <td class="text-end table-danger">{{printf "%.2f" $dsk.PercentUsed}}%</td>
@@ -245,6 +258,19 @@
         padding: 0.15rem 0.4rem;
     }
 
+    /* Полное имя диска (важно для unix-путей вида /opt/app/very/long/mount) -
+       без этого длинное имя без пробелов не переносится и обрезается/вылезает
+       за пределы ячейки; break-all переносит по любому символу, если слово
+       не помещается, min-width:0 разрешает столбцу таблицы сжиматься под
+       перенос вместо того чтобы расширять всю таблицу. */
+    .vm-disk-table .vm-disk-path {
+        white-space: normal;
+        word-break: break-all;
+        overflow-wrap: break-word;
+        max-width: 260px;
+        min-width: 0;
+    }
+
     /* подсветка строки включённой ВМ - лёгкая заливка фона; цвет текста
        не меняется, статус питания уже показывает индикатор (power-led) */
     tr.vm-row-on {
@@ -279,6 +305,46 @@
         var enc = encodeURIComponent;
         window.location.href = '/sprsrv/vm/' + enc(vc) + '/' + enc(dc) + '/' + enc(cl) + '/' + enc(vm);
     }
+
+    // Закрепление панели фильтра вверху экрана можно отключить чекбоксом -
+    // приём идентичен /sprsrv/hwviewlist, выбор запоминается отдельным
+    // ключом в localStorage. Заголовок таблицы (.spr-classic-table thead th)
+    // закреплён всегда, но его отступ сверху (top) подстраивается под текущее
+    // состояние панели фильтра: если фильтр закреплён - заголовок прилипает
+    // сразу под ним (на высоту панели), если фильтр не закреплён (прокручивается
+    // вместе со страницей) - заголовок прилипает к самому верху экрана.
+    (function () {
+        var STORAGE_KEY = 'vmlist.filterSticky';
+        var bar = document.querySelector('.vm-filter-bar');
+        var toggle = document.getElementById('vmFilterStickyToggle');
+        if (!bar || !toggle) return;
+
+        function updateTheadOffset() {
+            var offset = 0;
+            if (!bar.classList.contains('vm-filter-bar-unpinned')) {
+                offset = bar.offsetHeight;
+            }
+            document.documentElement.style.setProperty('--spr-thead-top', offset + 'px');
+        }
+
+        function applySticky(sticky) {
+            bar.classList.toggle('vm-filter-bar-unpinned', !sticky);
+            toggle.checked = sticky;
+            updateTheadOffset();
+        }
+
+        var stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applySticky(stored === null ? true : stored === '1');
+
+        window.vmToggleFilterSticky = function (sticky) {
+            applySticky(sticky);
+            try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
+        };
+
+        window.addEventListener('resize', updateTheadOffset);
+        window.addEventListener('load', updateTheadOffset);
+    })();
 
     function vmPagerGoTo(page) {
         if (page < 1) page = 1;
