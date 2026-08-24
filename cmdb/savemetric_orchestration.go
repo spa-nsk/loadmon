@@ -116,6 +116,11 @@ func SaveMetricData() {
 		SaveClusterData(cl, clusterSpr, currentTime)
 	}
 
+	// После сохранения данных по всем кластерам (в т.ч. виртуальным машинам,
+	// см. SaveClusterData -> SaveVMRecord) приводим в порядок статусы
+	// справочника серверов - см. комментарий к функции.
+	CheckServerSprRecordsExistence()
+
 	//  for !atomic.CompareAndSwapInt32(&flDelOldVMMetrics, 1, 0) {
 	//      runtime.Gosched()
 	//  }
