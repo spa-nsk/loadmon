@@ -99,6 +99,7 @@ func init() {
 	//beego.Router("/sprsrv/csvdata", &controllers.MainController{}, "get:GetCSVListServer") // метод GetCSVListServer не реализован в controllers
 	beego.Router("/sprsrv/listclusterview", &controllers.MainController{}, "get,post:SprSrvListClusterView") // список кластеров vSphere по аналогии со списком ВМ (/sprsrv/vm)
 	beego.Router("/admin/userlog", &controllers.MainController{}, "get:ViewUserLog") // журнал действий пользователей (userlog) - доступ только для models.AuthUser.Priv == 3 (проверяется внутри контроллера)
+	beego.Router("/admin/metricsexport", &controllers.MainController{}, "get,post:AdminMetricsUnifiedExport") // единообразная выгрузка метрик утилизации (CPU/память/диск/сеть) по ВМ и Zabbix-серверам, ресемплированная на минутную сетку - доступ только для models.AuthUser.Priv == 3 (проверяется внутри контроллера), см. controllers/adminmetricsexport.go
 	beego.Router("/api/:json", &controllers.MainController{}, "get,post:RequestAPI")
 	beego.Router("/debug/pprof/", &controllers.MainController{}, "get,post:Prof")
 	beego.Router("/debug/pprof/cmdline", &controllers.MainController{}, "get,post:ProfCmdline")

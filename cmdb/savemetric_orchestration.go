@@ -18,8 +18,19 @@ var (
 	timeOutError string = "Превышено время ожидания"
 )
 
-// ClearOldMetric удаляет из таблиц vm_perf, cluster_perf и insight_vm_perf записи метрик
-// производительности старше одних суток, порциями по 1000 строк.
+// vmPerfRetention - срок хранения детальных ("сырых") метрик загрузки ВМ
+// (таблица vm_perf, models.VMPerfRecord) - по требованию 3 суток; за более
+// давние периоды доступны только суточные агрегированные записи vm_record
+// (models.VMRecord, хранятся без отдельного ограничения времени, как и
+// раньше). См. также controllers/adminmetricsexport.go - выбор источника
+// данных (детальный vm_perf/zabbix_item или суточный vm_record) для
+// единообразной выгрузки метрик опирается на эту же границу в 3 суток.
+const vmPerfRetention = time.Hour * 24 * 3
+
+// ClearOldMetric удаляет из таблиц vm_perf (детальные метрики ВМ, срок
+// хранения - vmPerfRetention, см. выше), cluster_perf и insight_vm_perf
+// записи метрик производительности старше срока хранения, порциями по 1000
+// строк.
 func ClearOldMetric() {
 
 	currentTime := time.Now().Local() //запоминаем текущее время
@@ -27,7 +38,7 @@ func ClearOldMetric() {
 	o := orm.NewOrm()
 	count := int64(0)
 	for {
-		res, err := o.Raw("DELETE FROM vm_perf WHERE id IN (SELECT id FROM vm_perf WHERE start <=? LIMIT 1000)", currentTime.Add(-time.Hour*24)).Exec()
+		res, err := o.Raw("DELETE FROM vm_perf WHERE id IN (SELECT id FROM vm_perf WHERE start <=? LIMIT 1000)", currentTime.Add(-vmPerfRetention)).Exec()
 		if err != nil {
 			fmt.Println("Ошибка удаления старых записей из таблицы vm_perf", err)
 			break
@@ -39,7 +50,7 @@ func ClearOldMetric() {
 			}
 		}
 	}
-	fmt.Println("Удалено :", count, "записей старее 1 дня из таблицы vm_perf")
+	fmt.Println("Удалено :", count, "записей старее", vmPerfRetention.String(), "из таблицы vm_perf")
 	count = int64(0)
 	for {
 		res, err := o.Raw("DELETE FROM cluster_perf WHERE id IN (SELECT id FROM cluster_perf WHERE start <=? LIMIT 1000)", currentTime.Add(-time.Hour*24)).Exec()

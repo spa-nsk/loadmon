@@ -435,6 +435,11 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Журнал действий
                 пользователей</a>
             </li>
+            <li>
+              <a href="/admin/metricsexport"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка метрик
+                утилизации</a>
+            </li>
           </ul>
         </div>
       </li>
