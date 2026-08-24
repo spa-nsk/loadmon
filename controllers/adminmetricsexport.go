@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"loadmon/itsystem"
 	"loadmon/models"
 	"net/http"
 	"os"
@@ -262,21 +263,25 @@ func (this *MainController) AdminMetricsUnifiedExport() {
 	this.Data["IncludeVM"] = includeVM
 	this.Data["IncludeZabbix"] = includeZabbix
 
-	if this.GetString("export") != "xlsx" {
-		RegisterRequest(this, LogTypeAdminAction) // просмотр формы выгрузки метрик (администрирование)
-		return
-	}
-
-	RegisterRequest(this, LogTypeExport) // выгрузка единообразных метрик утилизации (администрирование)
+	// Справочник ИТ-систем для поля с поиском по коду/названию (тот же
+	// клиентский виджет, что и на /sprsrv/view2 и /sprsrv/updatebase - см.
+	// initITSystemPicker() в шаблоне, kontext/04-web-ui.md).
+	this.Data["ITSystemSpr"] = itsystem.ImportITSystemSpr()
 
 	o := orm.NewOrm()
 
+	// ⚠️ Ранее здесь стоял qs.Filter("i_t_system_key", itSystemFilter) -
+	// beego ORM Filter() принимает имя ПОЛЯ структуры Go (как объявлено в
+	// models.ServerSprRecords - "ITSystemKey"), а не имя колонки БД в
+	// snake_case. Несуществующее имя поля приводило к ошибке ORM при
+	// каждом запросе с непустым фильтром по ИТ-системе (qs.All() возвращал
+	// err != nil) - именно из-за этого выгрузка не работала.
 	qs := o.QueryTable("server_spr_records").Filter("Active", 1)
 	if nameFilter != "" {
 		qs = qs.Filter("Name__icontains", nameFilter)
 	}
 	if itSystemFilter != "" {
-		qs = qs.Filter("i_t_system_key", itSystemFilter)
+		qs = qs.Filter("ITSystemKey", itSystemFilter)
 	}
 	var candidates []*models.ServerSprRecords
 	_, err := qs.All(&candidates)
@@ -314,8 +319,61 @@ func (this *MainController) AdminMetricsUnifiedExport() {
 		return rows[i].Timestamp.Before(rows[j].Timestamp)
 	})
 
-	flash := beego.NewFlash()
-	exportUnifiedMetricsXLSX(this, flash, rows)
+	if this.GetString("export") == "xlsx" {
+		// Экспорт - по всей отфильтрованной выборке, не по текущей странице
+		// просмотра (см. kontext/06-list-page-pattern.md, п.5).
+		RegisterRequest(this, LogTypeExport) // выгрузка единообразных метрик утилизации (администрирование)
+		flash := beego.NewFlash()
+		exportUnifiedMetricsXLSX(this, flash, rows)
+		return
+	}
+
+	RegisterRequest(this, LogTypeAdminAction) // просмотр формы/таблицы выгрузки метрик (администрирование)
+
+	// Постраничный просмотр на экране (kontext/06-list-page-pattern.md, п.4) -
+	// пагинация только для отображения, сама выборка rows строится по всему
+	// отфильтрованному набору (нужна целиком и для подсчёта количества
+	// страниц, и для XLSX-выгрузки выше).
+	pageSize, _ := strconv.Atoi(this.GetString("pagesize"))
+	switch pageSize {
+	case 25, 50, 100, 200:
+	default:
+		pageSize = 50
+	}
+	page, _ := strconv.Atoi(this.GetString("page"))
+	if page < 1 {
+		page = 1
+	}
+	totalRecords := len(rows)
+	totalPages := (totalRecords + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	offset := (page - 1) * pageSize
+	end := offset + pageSize
+	if end > totalRecords {
+		end = totalRecords
+	}
+	pageRows := make([]unifiedMetricRow, 0)
+	if offset < totalRecords {
+		pageRows = rows[offset:end]
+	}
+
+	this.Data["Rows"] = pageRows
+	this.Data["RowCount"] = totalRecords
+	this.Data["Page"] = page
+	this.Data["PageSize"] = pageSize
+	this.Data["TotalPages"] = totalPages
+	if totalRecords == 0 {
+		this.Data["PageFrom"] = 0
+		this.Data["PageTo"] = 0
+	} else {
+		this.Data["PageFrom"] = offset + 1
+		this.Data["PageTo"] = end
+	}
 }
 
 // buildVMMetricRows строит точки CPU/память/диск для одной ВМ.
