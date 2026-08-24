@@ -301,6 +301,47 @@ func (s *server) GetHostByKey(_ context.Context, in *pb.HSReqKey) (*pb.Host, err
 	return &out, nil
 }
 
+// GetHostByKeyDirect возвращает информацию о хосте, полученную НАПРЯМУЮ из
+// VMware (vsphere.GetHostDirect - отдельное govmomi-соединение, без чтения
+// закэшированного в памяти состояния инфраструктуры VMInfrastructure), в
+// отличие от GetHostByKey выше, которая читает уже собранный ранее снимок
+// (infra.HostMapList). Запрос ретранслируется на удалённые обработчики
+// (config.Switch.Endpoint) по тому же принципу, что и остальные методы
+// этого файла.
+func (s *server) GetHostByKeyDirect(_ context.Context, in *pb.HSReq) (*pb.Host, error) {
+	if config.Switch.Endpoint.Count() > 0 {
+		for _, key := range config.Switch.Endpoint.Keys() {
+			endpoint, ok := config.Switch.Endpoint.Get(key)
+			if !ok {
+				continue
+			}
+			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				log.Printf("did not connect: %v\n", err)
+				return &pb.Host{}, err
+			}
+			defer conn.Close()
+
+			c := pb.NewLoadmonClient(conn)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			hs, err := c.GetHostByKeyDirect(ctx, in)
+			if err == nil { //как только получаем правильный ответ, пересылаем его
+				return hs, nil
+			}
+		}
+		return &pb.Host{}, errors.New(errNotFound) //ничего не найдено
+	}
+
+	hs, err := vsphere.GetHostDirect(in.GetVcenter(), in.GetDatacenter(), in.GetCluster(), in.GetHSName())
+	if err != nil {
+		return &pb.Host{}, err
+	}
+	out := pb.Host{}
+	RecalcHostToMessageShort(&hs, &out)
+	return &out, nil
+}
+
 // GetHostBySN возвращает краткую информацию о хосте по серийному номеру сервера. Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется на каждый из них через gRPC-клиент, иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().
 func (s *server) GetHostBySN(_ context.Context, in *pb.SerialNumber) (*pb.Host, error) {
 	if config.Switch.Endpoint.Count() > 0 {

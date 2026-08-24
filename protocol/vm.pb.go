@@ -11265,7 +11265,7 @@ const file_vm_proto_rawDesc = "" +
 	"\aProduct\x18\x02 \x01(\tR\aProduct\x12\x1a\n" +
 	"\bEndpoint\x18\x03 \x01(\tR\bEndpoint\x12\x1a\n" +
 	"\bWarnings\x18\x04 \x03(\tR\bWarnings\x122\n" +
-	"\aSources\x18\x05 \x03(\v2\x18.protocol.OVServerSourceR\aSources2\x8b\x16\n" +
+	"\aSources\x18\x05 \x03(\v2\x18.protocol.OVServerSourceR\aSources2\x85\x17\n" +
 	"\aLoadmon\x125\n" +
 	"\vGetVCenters\x12\x0f.protocol.VCReq\x1a\x11.protocol.VCenter\"\x000\x01\x12:\n" +
 	"\rGetDatacenter\x12\x0f.protocol.DCReq\x1a\x14.protocol.Datacenter\"\x000\x01\x129\n" +
@@ -11278,7 +11278,8 @@ const file_vm_proto_rawDesc = "" +
 	"\x0eGetClusterHost\x12\x0f.protocol.CLReq\x1a\x0e.protocol.Host\"\x000\x01\x126\n" +
 	"\vGetHostFull\x12\x0f.protocol.HSReq\x1a\x12.protocol.HostFull\"\x000\x01\x125\n" +
 	"\n" +
-	"GetVMByKey\x12\x12.protocol.VMReqKey\x1a\x11.protocol.VMPoint\"\x00\x12E\n" +
+	"GetVMByKey\x12\x12.protocol.VMReqKey\x1a\x11.protocol.VMPoint\"\x00\x12?\n" +
+	"\x10GetVMByKeyDirect\x12\x16.protocol.VMReqListKey\x1a\x11.protocol.VMPoint\"\x00\x12E\n" +
 	"\x14GetVMsSliceByKeyList\x12\x13.protocol.VMListKey\x1a\x16.protocol.VMPointSlice\"\x00\x12B\n" +
 	"\x14GetVMStreamByKeyList\x12\x13.protocol.VMListKey\x1a\x11.protocol.VMPoint\"\x000\x01\x12?\n" +
 	"\x0fGetVMShortByKey\x12\x12.protocol.VMReqKey\x1a\x16.protocol.VMPointShort\"\x00\x12=\n" +
@@ -11298,6 +11299,7 @@ const file_vm_proto_rawDesc = "" +
 	"\x10GetHostPerfByKey\x12\x12.protocol.HSReqKey\x1a\x15.protocol.HSPerfSlice\"\x00\x12B\n" +
 	"\x13GetClusterPerfByKey\x12\x12.protocol.CLReqKey\x1a\x15.protocol.CLPerfSlice\"\x00\x124\n" +
 	"\fGetHostByKey\x12\x12.protocol.HSReqKey\x1a\x0e.protocol.Host\"\x00\x127\n" +
+	"\x12GetHostByKeyDirect\x12\x0f.protocol.HSReq\x1a\x0e.protocol.Host\"\x00\x127\n" +
 	"\vGetHostBySN\x12\x16.protocol.SerialNumber\x1a\x0e.protocol.Host\"\x00\x12:\n" +
 	"\x0fGetClusterByKey\x12\x12.protocol.CLReqKey\x1a\x11.protocol.Cluster\"\x00\x127\n" +
 	"\tGetDSData\x12\x13.protocol.KeyString\x1a\x13.protocol.Datastore\"\x00\x12<\n" +
@@ -11588,84 +11590,88 @@ var file_vm_proto_depIdxs = []int32{
 	14,  // 160: protocol.Loadmon.GetClusterHost:input_type -> protocol.CLReq
 	15,  // 161: protocol.Loadmon.GetHostFull:input_type -> protocol.HSReq
 	16,  // 162: protocol.Loadmon.GetVMByKey:input_type -> protocol.VMReqKey
-	29,  // 163: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
-	29,  // 164: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
-	16,  // 165: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
-	19,  // 166: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
-	20,  // 167: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
-	21,  // 168: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
-	22,  // 169: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
-	25,  // 170: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
-	23,  // 171: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
-	24,  // 172: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
-	16,  // 173: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
-	16,  // 174: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
-	16,  // 175: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
-	16,  // 176: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
-	17,  // 177: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
-	17,  // 178: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
-	18,  // 179: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
-	17,  // 180: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
-	57,  // 181: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
-	18,  // 182: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
-	8,   // 183: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
-	8,   // 184: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
-	6,   // 185: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
-	5,   // 186: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
-	5,   // 187: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
-	57,  // 188: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
-	58,  // 189: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
-	57,  // 190: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
-	2,   // 191: protocol.Loadmon.GetServerHardwareList:input_type -> protocol.HWReq
-	3,   // 192: protocol.Loadmon.GetHWDatacenterNames:input_type -> protocol.Empty
-	3,   // 193: protocol.Loadmon.GetHWRackNames:input_type -> protocol.Empty
-	1,   // 194: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
-	0,   // 195: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
-	10,  // 196: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
-	13,  // 197: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
-	56,  // 198: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
-	54,  // 199: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
-	34,  // 200: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
-	55,  // 201: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
-	44,  // 202: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
-	52,  // 203: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
-	53,  // 204: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
-	49,  // 205: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
-	51,  // 206: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
-	49,  // 207: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
-	50,  // 208: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
-	29,  // 209: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
-	30,  // 210: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
-	31,  // 211: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
-	29,  // 212: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
-	29,  // 213: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
-	29,  // 214: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
-	29,  // 215: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
-	35,  // 216: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
-	43,  // 217: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
-	39,  // 218: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
-	41,  // 219: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
-	33,  // 220: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
-	36,  // 221: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
-	37,  // 222: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
-	52,  // 223: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
-	52,  // 224: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
-	54,  // 225: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
-	44,  // 226: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
-	44,  // 227: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
-	7,   // 228: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
-	7,   // 229: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
-	7,   // 230: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
-	59,  // 231: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
-	59,  // 232: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
-	59,  // 233: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
-	59,  // 234: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
-	4,   // 235: protocol.Loadmon.GetHWDatacenterNames:output_type -> protocol.NameList
-	4,   // 236: protocol.Loadmon.GetHWRackNames:output_type -> protocol.NameList
-	7,   // 237: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
-	1,   // 238: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
-	196, // [196:239] is the sub-list for method output_type
-	153, // [153:196] is the sub-list for method input_type
+	19,  // 163: protocol.Loadmon.GetVMByKeyDirect:input_type -> protocol.VMReqListKey
+	29,  // 164: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
+	29,  // 165: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
+	16,  // 166: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
+	19,  // 167: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
+	20,  // 168: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
+	21,  // 169: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
+	22,  // 170: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
+	25,  // 171: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
+	23,  // 172: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
+	24,  // 173: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
+	16,  // 174: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
+	16,  // 175: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
+	16,  // 176: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
+	16,  // 177: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
+	17,  // 178: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
+	17,  // 179: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
+	18,  // 180: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
+	17,  // 181: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
+	15,  // 182: protocol.Loadmon.GetHostByKeyDirect:input_type -> protocol.HSReq
+	57,  // 183: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
+	18,  // 184: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
+	8,   // 185: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
+	8,   // 186: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
+	6,   // 187: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
+	5,   // 188: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
+	5,   // 189: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
+	57,  // 190: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
+	58,  // 191: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
+	57,  // 192: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
+	2,   // 193: protocol.Loadmon.GetServerHardwareList:input_type -> protocol.HWReq
+	3,   // 194: protocol.Loadmon.GetHWDatacenterNames:input_type -> protocol.Empty
+	3,   // 195: protocol.Loadmon.GetHWRackNames:input_type -> protocol.Empty
+	1,   // 196: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
+	0,   // 197: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
+	10,  // 198: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
+	13,  // 199: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
+	56,  // 200: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
+	54,  // 201: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
+	34,  // 202: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
+	55,  // 203: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
+	44,  // 204: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
+	52,  // 205: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
+	53,  // 206: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
+	49,  // 207: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
+	49,  // 208: protocol.Loadmon.GetVMByKeyDirect:output_type -> protocol.VMPoint
+	51,  // 209: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
+	49,  // 210: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
+	50,  // 211: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
+	29,  // 212: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
+	30,  // 213: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
+	31,  // 214: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
+	29,  // 215: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
+	29,  // 216: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
+	29,  // 217: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
+	29,  // 218: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
+	35,  // 219: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
+	43,  // 220: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
+	39,  // 221: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
+	41,  // 222: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
+	33,  // 223: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
+	36,  // 224: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
+	37,  // 225: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
+	52,  // 226: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
+	52,  // 227: protocol.Loadmon.GetHostByKeyDirect:output_type -> protocol.Host
+	52,  // 228: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
+	54,  // 229: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
+	44,  // 230: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
+	44,  // 231: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
+	7,   // 232: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
+	7,   // 233: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
+	7,   // 234: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
+	59,  // 235: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
+	59,  // 236: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
+	59,  // 237: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
+	59,  // 238: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
+	4,   // 239: protocol.Loadmon.GetHWDatacenterNames:output_type -> protocol.NameList
+	4,   // 240: protocol.Loadmon.GetHWRackNames:output_type -> protocol.NameList
+	7,   // 241: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
+	1,   // 242: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
+	198, // [198:243] is the sub-list for method output_type
+	153, // [153:198] is the sub-list for method input_type
 	153, // [153:153] is the sub-list for extension type_name
 	153, // [153:153] is the sub-list for extension extendee
 	0,   // [0:153] is the sub-list for field type_name
