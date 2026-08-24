@@ -321,20 +321,29 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 			continue
 		}
 
-		// отладка
-		/*
+		// Детальные ("сырые", по каждому замеру vSphere) метрики загрузки ВМ -
+		// таблица vm_perf (models.VMPerfRecord), в отличие от только что
+		// вставленной агрегированной суточной записи rec (vm_record). Раньше
+		// эта вставка была отключена (закомментирована как отладочная) -
+		// таблица vm_perf не заполнялась вовсе. Включено по требованию:
+		// хранить детальные метрики только для серверов, рабочие станции
+		// Windows (vm.WorkStation - поле уже по своему определению означает
+		// именно "рабочая станция Windows", см. комментарий к полю в
+		// vspheremetrics/datatypes.go) в детальную запись не включать - для
+		// них остаётся только суточная агрегированная запись rec выше.
+		// Хранение ограничено 3 сутками - см. ClearOldMetric
+		// (cmdb/savemetric_orchestration.go).
+		if !vm.WorkStation {
 			for _, perf := range vm.Perf {
 				vmperf := models.VMPerfRecord{}
 				ImportVMPerf(&vmperf, perf)
 				vmperf.VMId = vmRecordId
-				_, err := o.Insert(&vmperf)
-				if err != nil {
-					fmt.Println("Ошибка записи метрик по виртуальной машине: ", err)
+				if _, err := o.Insert(&vmperf); err != nil {
+					fmt.Println("Ошибка записи детальных метрик по виртуальной машине: ", vm.Name, err)
 					continue
 				}
 			}
-		*/
-		//
+		}
 		if len(vm.UsageDatastore) > 0 { // проверяем есть ли данные по использованию хранилищ виртуальной машиной
 			//вставить запись данных записей хранилища (дополнение к записям кластеров)
 			for _, st := range vm.UsageDatastore {
