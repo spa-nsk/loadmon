@@ -43,6 +43,7 @@ const (
 	Loadmon_GetClusterHost_FullMethodName               = "/protocol.Loadmon/GetClusterHost"
 	Loadmon_GetHostFull_FullMethodName                  = "/protocol.Loadmon/GetHostFull"
 	Loadmon_GetVMByKey_FullMethodName                   = "/protocol.Loadmon/GetVMByKey"
+	Loadmon_GetVMByKeyDirect_FullMethodName             = "/protocol.Loadmon/GetVMByKeyDirect"
 	Loadmon_GetVMsSliceByKeyList_FullMethodName         = "/protocol.Loadmon/GetVMsSliceByKeyList"
 	Loadmon_GetVMStreamByKeyList_FullMethodName         = "/protocol.Loadmon/GetVMStreamByKeyList"
 	Loadmon_GetVMShortByKey_FullMethodName              = "/protocol.Loadmon/GetVMShortByKey"
@@ -61,6 +62,7 @@ const (
 	Loadmon_GetHostPerfByKey_FullMethodName             = "/protocol.Loadmon/GetHostPerfByKey"
 	Loadmon_GetClusterPerfByKey_FullMethodName          = "/protocol.Loadmon/GetClusterPerfByKey"
 	Loadmon_GetHostByKey_FullMethodName                 = "/protocol.Loadmon/GetHostByKey"
+	Loadmon_GetHostByKeyDirect_FullMethodName           = "/protocol.Loadmon/GetHostByKeyDirect"
 	Loadmon_GetHostBySN_FullMethodName                  = "/protocol.Loadmon/GetHostBySN"
 	Loadmon_GetClusterByKey_FullMethodName              = "/protocol.Loadmon/GetClusterByKey"
 	Loadmon_GetDSData_FullMethodName                    = "/protocol.Loadmon/GetDSData"
@@ -126,6 +128,9 @@ type LoadmonClient interface {
 	GetClusterHost(ctx context.Context, in *CLReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Host], error)
 	GetHostFull(ctx context.Context, in *HSReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[HostFull], error)
 	GetVMByKey(ctx context.Context, in *VMReqKey, opts ...grpc.CallOption) (*VMPoint, error)
+	// Прямой запрос в VMware, минуя закэшированный в памяти пул данных (vspheremetrics.GetVMDirect) -
+	// используется там, где важно самое актуальное состояние объекта (напр. cmdb.CheckServerSprRecordsExistence).
+	GetVMByKeyDirect(ctx context.Context, in *VMReqListKey, opts ...grpc.CallOption) (*VMPoint, error)
 	GetVMsSliceByKeyList(ctx context.Context, in *VMListKey, opts ...grpc.CallOption) (*VMPointSlice, error)
 	GetVMStreamByKeyList(ctx context.Context, in *VMListKey, opts ...grpc.CallOption) (grpc.ServerStreamingClient[VMPoint], error)
 	GetVMShortByKey(ctx context.Context, in *VMReqKey, opts ...grpc.CallOption) (*VMPointShort, error)
@@ -144,6 +149,9 @@ type LoadmonClient interface {
 	GetHostPerfByKey(ctx context.Context, in *HSReqKey, opts ...grpc.CallOption) (*HSPerfSlice, error)
 	GetClusterPerfByKey(ctx context.Context, in *CLReqKey, opts ...grpc.CallOption) (*CLPerfSlice, error)
 	GetHostByKey(ctx context.Context, in *HSReqKey, opts ...grpc.CallOption) (*Host, error)
+	// Прямой запрос в VMware, минуя закэшированный в памяти пул данных (vspheremetrics.GetHostDirect) -
+	// аналог GetVMByKeyDirect выше, но для хостов.
+	GetHostByKeyDirect(ctx context.Context, in *HSReq, opts ...grpc.CallOption) (*Host, error)
 	GetHostBySN(ctx context.Context, in *SerialNumber, opts ...grpc.CallOption) (*Host, error)
 	GetClusterByKey(ctx context.Context, in *CLReqKey, opts ...grpc.CallOption) (*Cluster, error)
 	GetDSData(ctx context.Context, in *KeyString, opts ...grpc.CallOption) (*Datastore, error)
@@ -358,6 +366,16 @@ func (c *loadmonClient) GetVMByKey(ctx context.Context, in *VMReqKey, opts ...gr
 	return out, nil
 }
 
+func (c *loadmonClient) GetVMByKeyDirect(ctx context.Context, in *VMReqListKey, opts ...grpc.CallOption) (*VMPoint, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VMPoint)
+	err := c.cc.Invoke(ctx, Loadmon_GetVMByKeyDirect_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *loadmonClient) GetVMsSliceByKeyList(ctx context.Context, in *VMListKey, opts ...grpc.CallOption) (*VMPointSlice, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(VMPointSlice)
@@ -550,6 +568,16 @@ func (c *loadmonClient) GetHostByKey(ctx context.Context, in *HSReqKey, opts ...
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Host)
 	err := c.cc.Invoke(ctx, Loadmon_GetHostByKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *loadmonClient) GetHostByKeyDirect(ctx context.Context, in *HSReq, opts ...grpc.CallOption) (*Host, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Host)
+	err := c.cc.Invoke(ctx, Loadmon_GetHostByKeyDirect_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -781,6 +809,9 @@ type LoadmonServer interface {
 	GetClusterHost(*CLReq, grpc.ServerStreamingServer[Host]) error
 	GetHostFull(*HSReq, grpc.ServerStreamingServer[HostFull]) error
 	GetVMByKey(context.Context, *VMReqKey) (*VMPoint, error)
+	// Прямой запрос в VMware, минуя закэшированный в памяти пул данных (vspheremetrics.GetVMDirect) -
+	// используется там, где важно самое актуальное состояние объекта (напр. cmdb.CheckServerSprRecordsExistence).
+	GetVMByKeyDirect(context.Context, *VMReqListKey) (*VMPoint, error)
 	GetVMsSliceByKeyList(context.Context, *VMListKey) (*VMPointSlice, error)
 	GetVMStreamByKeyList(*VMListKey, grpc.ServerStreamingServer[VMPoint]) error
 	GetVMShortByKey(context.Context, *VMReqKey) (*VMPointShort, error)
@@ -799,6 +830,9 @@ type LoadmonServer interface {
 	GetHostPerfByKey(context.Context, *HSReqKey) (*HSPerfSlice, error)
 	GetClusterPerfByKey(context.Context, *CLReqKey) (*CLPerfSlice, error)
 	GetHostByKey(context.Context, *HSReqKey) (*Host, error)
+	// Прямой запрос в VMware, минуя закэшированный в памяти пул данных (vspheremetrics.GetHostDirect) -
+	// аналог GetVMByKeyDirect выше, но для хостов.
+	GetHostByKeyDirect(context.Context, *HSReq) (*Host, error)
 	GetHostBySN(context.Context, *SerialNumber) (*Host, error)
 	GetClusterByKey(context.Context, *CLReqKey) (*Cluster, error)
 	GetDSData(context.Context, *KeyString) (*Datastore, error)
@@ -862,6 +896,9 @@ func (UnimplementedLoadmonServer) GetHostFull(*HSReq, grpc.ServerStreamingServer
 func (UnimplementedLoadmonServer) GetVMByKey(context.Context, *VMReqKey) (*VMPoint, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVMByKey not implemented")
 }
+func (UnimplementedLoadmonServer) GetVMByKeyDirect(context.Context, *VMReqListKey) (*VMPoint, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVMByKeyDirect not implemented")
+}
 func (UnimplementedLoadmonServer) GetVMsSliceByKeyList(context.Context, *VMListKey) (*VMPointSlice, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVMsSliceByKeyList not implemented")
 }
@@ -915,6 +952,9 @@ func (UnimplementedLoadmonServer) GetClusterPerfByKey(context.Context, *CLReqKey
 }
 func (UnimplementedLoadmonServer) GetHostByKey(context.Context, *HSReqKey) (*Host, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetHostByKey not implemented")
+}
+func (UnimplementedLoadmonServer) GetHostByKeyDirect(context.Context, *HSReq) (*Host, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHostByKeyDirect not implemented")
 }
 func (UnimplementedLoadmonServer) GetHostBySN(context.Context, *SerialNumber) (*Host, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetHostBySN not implemented")
@@ -1095,6 +1135,24 @@ func _Loadmon_GetVMByKey_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LoadmonServer).GetVMByKey(ctx, req.(*VMReqKey))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Loadmon_GetVMByKeyDirect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VMReqListKey)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonServer).GetVMByKeyDirect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Loadmon_GetVMByKeyDirect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonServer).GetVMByKeyDirect(ctx, req.(*VMReqListKey))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1409,6 +1467,24 @@ func _Loadmon_GetHostByKey_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Loadmon_GetHostByKeyDirect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HSReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonServer).GetHostByKeyDirect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Loadmon_GetHostByKeyDirect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonServer).GetHostByKeyDirect(ctx, req.(*HSReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Loadmon_GetHostBySN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SerialNumber)
 	if err := dec(in); err != nil {
@@ -1670,6 +1746,10 @@ var Loadmon_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Loadmon_GetVMByKey_Handler,
 		},
 		{
+			MethodName: "GetVMByKeyDirect",
+			Handler:    _Loadmon_GetVMByKeyDirect_Handler,
+		},
+		{
 			MethodName: "GetVMsSliceByKeyList",
 			Handler:    _Loadmon_GetVMsSliceByKeyList_Handler,
 		},
@@ -1732,6 +1812,10 @@ var Loadmon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetHostByKey",
 			Handler:    _Loadmon_GetHostByKey_Handler,
+		},
+		{
+			MethodName: "GetHostByKeyDirect",
+			Handler:    _Loadmon_GetHostByKeyDirect_Handler,
 		},
 		{
 			MethodName: "GetHostBySN",

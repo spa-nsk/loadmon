@@ -87,6 +87,30 @@ func GetHostByKey(key string) *vsphere.HostInfo {
 	return nil
 }
 
+// GetHostByKeyDirect - аналог GetHostByKey выше, но данные запрашиваются
+// НАПРЯМУЮ в VMware через отдельное govmomi-соединение (см.
+// vspheremetrics.GetHostDirect, вызывается на сервере обработчиком
+// GetHostByKeyDirect, grpcserver/handler_host.go), минуя закэшированный в
+// памяти пул данных (VMInfrastructure.HostMapList), который читает
+// GetHostByKey. Использовать там, где важно самое текущее состояние хоста
+// в vSphere прямо сейчас - см. комментарий к grpcclient.GetVMByKeyDirect
+// (тот же принцип, для хостов).
+func GetHostByKeyDirect(vcenter, datacenter, cluster, hostname string) (vsphere.HostInfo, error) {
+	c, conn, ctx, cancel, err := dialAPI()
+	if err != nil {
+		return vsphere.HostInfo{}, err
+	}
+	defer conn.Close()
+	defer cancel()
+	hs, err := c.GetHostByKeyDirect(ctx, &pb.HSReq{Vcenter: vcenter, Datacenter: datacenter, Cluster: cluster, HSName: hostname})
+	if err != nil {
+		return vsphere.HostInfo{}, err
+	}
+	out := vsphere.HostInfo{}
+	MessageToHostInfo(hs, &out)
+	return out, nil
+}
+
 // GetHostBySN возвращает информацию о хосте по серийному номеру. Возвращает
 // nil при ошибке подключения или если хост не найден.
 func GetHostBySN(sn string) *vsphere.HostInfo {

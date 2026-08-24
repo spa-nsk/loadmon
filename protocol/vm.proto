@@ -62,6 +62,9 @@ service Loadmon {
   rpc GetClusterHost(CLReq) returns (stream Host){} //
   rpc GetHostFull(HSReq) returns (stream HostFull){} //
   rpc GetVMByKey (VMReqKey) returns (VMPoint) {} //
+  // Прямой запрос в VMware, минуя закэшированный в памяти пул данных (vspheremetrics.GetVMDirect) -
+  // используется там, где важно самое актуальное состояние объекта (напр. cmdb.CheckServerSprRecordsExistence).
+  rpc GetVMByKeyDirect (VMReqListKey) returns (VMPoint) {} //
   rpc GetVMsSliceByKeyList (VMListKey) returns (VMPointSlice) {} //
   rpc GetVMStreamByKeyList (VMListKey) returns (stream VMPoint) {} //
   rpc GetVMShortByKey (VMReqKey) returns (VMPointShort) {} //
@@ -80,6 +83,9 @@ service Loadmon {
   rpc GetHostPerfByKey(HSReqKey) returns (HSPerfSlice) {} //
   rpc GetClusterPerfByKey(CLReqKey) returns (CLPerfSlice) {} //
   rpc GetHostByKey(HSReqKey) returns (Host) {} //
+  // Прямой запрос в VMware, минуя закэшированный в памяти пул данных (vspheremetrics.GetHostDirect) -
+  // аналог GetVMByKeyDirect выше, но для хостов.
+  rpc GetHostByKeyDirect(HSReq) returns (Host) {} //
   rpc GetHostBySN(SerialNumber) returns (Host) {} //
   rpc GetClusterByKey(CLReqKey) returns (Cluster) {} //
   rpc GetDSData(KeyString) returns (Datastore) {} //

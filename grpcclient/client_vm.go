@@ -184,6 +184,35 @@ func GetVMByKey(vcenter, datacenter, cluster, vmname string) (vsphere.VMPoint, e
 	return vsphere.VMPoint{}, errors.New("Данные по ключу не найдены.")
 }
 
+// GetVMByKeyDirect - аналог GetVMByKey выше, но данные запрашиваются
+// НАПРЯМУЮ в VMware через отдельное govmomi-соединение (см.
+// vspheremetrics.GetVMDirect, вызывается на сервере обработчиком
+// GetVMByKeyDirect, grpcserver/handler_vm.go), минуя закэшированный в
+// памяти пул данных (VMInfrastructure.VMMapList и связанные карты
+// глобальной инфраструктуры сборщика), который читает GetVMByKey.
+//
+// Использовать там, где важно не устаревшее (до нескольких минут, до
+// следующего опроса кластера сборщиком), а самое текущее состояние ВМ в
+// vSphere прямо сейчас - например, перед тем как пометить запись
+// справочника выведенной из эксплуатации из-за предполагаемого отсутствия
+// ВМ (см. cmdb.CheckServerSprRecordsExistence). Для обычного чтения
+// данных ВМ (списки, карточки, графики и т.п.) следует по-прежнему
+// использовать GetVMByKey/GetVM/LoadVMList* - прямой запрос к vCenter
+// заметно медленнее и не должен вызываться массово.
+func GetVMByKeyDirect(vcenter, datacenter, cluster, vmname string) (vsphere.VMPoint, error) {
+	c, conn, ctx, cancel, err := dialAPI()
+	if err != nil {
+		return vsphere.VMPoint{}, err
+	}
+	defer conn.Close()
+	defer cancel()
+	vm, err := c.GetVMByKeyDirect(ctx, &pb.VMReqListKey{Vcenter: vcenter, Datacenter: datacenter, Cluster: cluster, VMName: vmname})
+	if err != nil {
+		return vsphere.VMPoint{}, err
+	}
+	return GetVMPointRPC(vm), nil
+}
+
 // GetVMByKeyWithPerf аналогичен GetVMByKey (возвращает первую VM, подходящую
 // под vcenter/datacenter/cluster/vmname), но дополнительно заполняет
 // vm.Perf/vm.PerfCount - временной ряд метрик производительности. GetVMByKey

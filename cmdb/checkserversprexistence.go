@@ -87,7 +87,12 @@ func checkVMExistence(o orm.Ormer, srv *models.ServerSprRecords) {
 		return // недостаточно данных для поиска в VMware
 	}
 
-	if _, err := grpcclient.GetVMByKey(vmSpr.Vcenter, vmSpr.Datacenter, vmSpr.Cluster, vmSpr.Vm_Name); err == nil {
+	// Намеренно GetVMByKeyDirect, а не GetVMByKey - запрос идёт напрямую в
+	// VMware, минуя закэшированный в памяти пул данных сборщика (который
+	// мог ещё не заметить удаление/переименование ВМ до следующего опроса
+	// по тикеру) - иначе можно было бы ошибочно пометить ещё существующую
+	// ВМ как выведенную из эксплуатации только из-за отставания кэша.
+	if _, err := grpcclient.GetVMByKeyDirect(vmSpr.Vcenter, vmSpr.Datacenter, vmSpr.Cluster, vmSpr.Vm_Name); err == nil {
 		return // ВМ найдена в VMware - запись актуальна, ничего не меняем
 	}
 
@@ -114,7 +119,10 @@ func checkHypervisorExistence(o orm.Ormer, srv *models.ServerSprRecords) {
 		return // недостаточно данных для поиска в VMware
 	}
 
-	if hosts := grpcclient.LoadHostListFull(srv.Vcenter, srv.Datacenter, srv.Cluster, srv.Name); len(hosts) > 0 {
+	// Намеренно GetHostByKeyDirect, а не LoadHostListFull - запрос идёт
+	// напрямую в VMware, минуя закэшированный в памяти пул данных сборщика
+	// (см. аналогичный комментарий выше в checkVMExistence).
+	if _, err := grpcclient.GetHostByKeyDirect(srv.Vcenter, srv.Datacenter, srv.Cluster, srv.Name); err == nil {
 		return // хост найден в VMware - запись актуальна, ничего не меняем
 	}
 

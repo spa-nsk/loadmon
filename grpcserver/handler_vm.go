@@ -230,6 +230,51 @@ func (s *server) GetVMByKey(_ context.Context, in *pb.VMReqKey) (*pb.VMPoint, er
 	return &out, nil
 }
 
+// GetVMByKeyDirect возвращает информацию о виртуальной машине, полученную
+// НАПРЯМУЮ из VMware (vsphere.GetVMDirect - отдельное govmomi-соединение,
+// без чтения закэшированного в памяти состояния инфраструктуры
+// VMInfrastructure), в отличие от GetVMByKey выше, которая читает уже
+// собранный ранее снимок. Запрос ретранслируется на удалённые обработчики
+// (config.Switch.Endpoint) по тому же принципу, что и остальные методы
+// этого файла - каждый обработчик отвечает за свой набор vCenter, поэтому
+// прямой запрос всё равно должен уйти на инстанс, который реально
+// подключается к нужному vcenter (наличие vcenter в конфигурации проверяет
+// сам vsphere.GetVMDirect).
+func (s *server) GetVMByKeyDirect(_ context.Context, in *pb.VMReqListKey) (*pb.VMPoint, error) {
+	if config.Switch.Endpoint.Count() > 0 {
+		for _, key := range config.Switch.Endpoint.Keys() {
+			endpoint, ok := config.Switch.Endpoint.Get(key)
+			if !ok {
+				continue
+			}
+			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				log.Printf("did not connect: %v\n", err)
+				return &pb.VMPoint{}, err
+			}
+			defer conn.Close()
+
+			c := pb.NewLoadmonClient(conn)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			vm, err := c.GetVMByKeyDirect(ctx, in)
+			if err == nil { //как только получаем правильный ответ, пересылаем его
+				return vm, nil
+			}
+		}
+		return &pb.VMPoint{}, errors.New(errNotFound) //ничего не найдено
+	}
+
+	vm, err := vsphere.GetVMDirect(in.GetVcenter(), in.GetDatacenter(), in.GetCluster(), in.GetVMName())
+	if err != nil {
+		return &pb.VMPoint{}, err
+	}
+	out := pb.VMPoint{}
+	VMToMessageFull(vm, &out)
+
+	return &out, nil
+}
+
 // GetVMsSliceByKeyList возвращает срез с полной информацией о нескольких виртуальных машинах по списку ключей. Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется на каждый из них через gRPC-клиент, иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().
 func (s *server) GetVMsSliceByKeyList(_ context.Context, in *pb.VMListKey) (*pb.VMPointSlice, error) {
 	if config.Switch.Endpoint.Count() > 0 {

@@ -355,6 +355,12 @@ func pollVCenter(vc *vspheremetrics.VCenter) {
 	if err := infra.LoadVmMetricV4(ctx, *vc); err != nil {
 		log.Printf("LoadVmMetricV4 %s: %v", vc.Hostname, err)
 	}
+	// Сверка пула в памяти с фактическим состоянием vCenter и удаление
+	// объектов (ВМ/хостов/кластеров), которых там больше нет - см.
+	// комментарий к vspheremetrics.PruneStaleObjects.
+	if err := infra.PruneStaleObjects(ctx, *vc); err != nil {
+		log.Printf("PruneStaleObjects %s: %v", vc.Hostname, err)
+	}
 }
 
 // StartGetMetricThread запускает по отдельной горутине на каждый настроенный

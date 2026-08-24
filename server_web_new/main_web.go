@@ -226,8 +226,46 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 					m["user_id"] = int64(users[0].Id)
 					m["privilage"] = users[0].Priv     // 0 - обычный пользователь 1 - разрешено редактировать справочник
 					m["podrazdelenie"] = users[0].Podr // 0 - не указано 1 - ДАТИ 2 - СТО
+				} else if len(users) == 0 {
+					// Доменный пользователь успешно прошёл Kerberos/SPNEGO-
+					// аутентификацию, но в локальной таблице users записи о
+					// нём ещё нет (первый вход) - заводим её автоматически с
+					// правами просмотра (Priv=0 - "обычный пользователь"),
+					// чтобы не требовать от администратора ручного заведения
+					// каждого доменного пользователя заранее. Права при
+					// необходимости повышаются вручную через существующий
+					// UI управления пользователями.
+					first := name[0]
+					last := ""
+					if len(name) > 1 {
+						last = name[1]
+					}
+					newUser := models.AuthUser{First: first, Last: last, Email: email, Priv: 0, Podr: 0}
+					// email всегда пуст в этой записи только если ADCreds не
+					// дал имени - подстраховка от вставки записи без email
+					// (Email в models.AuthUser помечен orm:"unique").
+					if newUser.Email == "" {
+						fmt.Println("Не удалось создать запись доменного пользователя: пустой email", ADCreds.EffectiveName)
+						m["user_id"] = 0
+						m["privilage"] = 0
+						m["podrazdelenie"] = 0
+					} else if newID, errIns := o.Insert(&newUser); errIns != nil {
+						// Гонка (два одновременных первых входа одного и того
+						// же пользователя) или иная ошибка вставки - не
+						// блокируем вход, просто заходим без прав до
+						// следующего успешного разрешения.
+						fmt.Println("Ошибка создания записи доменного пользователя: ", email, errIns)
+						m["user_id"] = 0
+						m["privilage"] = 0
+						m["podrazdelenie"] = 0
+					} else {
+						fmt.Println("Создана запись доменного пользователя (права просмотра): ", email)
+						m["user_id"] = newID
+						m["privilage"] = newUser.Priv
+						m["podrazdelenie"] = newUser.Podr
+					}
 				} else {
-					fmt.Println("В локальной базе пользователей не найден: ", ADCreds.EffectiveName)
+					fmt.Println("В локальной базе пользователей неоднозначное совпадение (", len(users), "): ", ADCreds.EffectiveName)
 					m["user_id"] = 0
 					m["privilage"] = 0
 					m["podrazdelenie"] = 0
