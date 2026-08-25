@@ -47,11 +47,7 @@ func (this *MainController) SprSrvListClusterView() {
 		cluster = "all"
 	}
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_listclusterview", 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	if this.GetString("export") == "xlsx" {
 		RegisterRequest(this, LogTypeExport) // выгрузка списка кластеров в XLSX
 	} else {

@@ -28,11 +28,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 
 	selected := this.Ctx.Input.Param(":selected")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_updateselectedbase_"+selected, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр формы группового редактирования - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/updateselectedbase")

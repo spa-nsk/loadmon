@@ -72,11 +72,8 @@ func (this *MainController) SprSrvViewV2() {
 
 	Mode := this.Ctx.Input.Param(":mode")
 	Id := this.Ctx.Input.Param(":id")
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_view2"+"_"+Mode+"_"+Id, 302)
-		return
-	}
 	this.activeContent("sprsrv/view2")
 	this.Data["ListId"] = Id
 	this.Data["backmode"] = Mode

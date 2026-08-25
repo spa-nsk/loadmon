@@ -63,11 +63,8 @@ func (this *MainController) SprHwConfig() {
 
 	Id := this.Ctx.Input.Param(":id")
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_hwconflist_"+Id, 302)
-		return
-	}
 	RegisterRequest(this, LogTypeViewReference) // просмотр справочника конфигураций серверов
 
 	this.activeContent("sprsrv/hwconflist")
@@ -461,11 +458,7 @@ func parseHWConfigDate(s string) time.Time {
 func (this *MainController) SprHwConfigEditBySN() {
 	sn := this.Ctx.Input.Param(":SN")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_hwconfeditbysn_"+sn, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeServerDetails) // переход к конфигурации сервера по серийному номеру
 
 	flash := beego.NewFlash()
@@ -504,11 +497,7 @@ func (this *MainController) SprHwConfigEditBySN() {
 func (this *MainController) SprHwConfigEditByName() {
 	name := this.Ctx.Input.Param(":Name")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_hwconfeditbyname_"+name, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeServerDetails) // переход к конфигурации сервера по имени
 
 	flash := beego.NewFlash()
@@ -534,11 +523,7 @@ func (this *MainController) SprHwConfigEdit() {
 
 	idStr := this.Ctx.Input.Param(":id")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_hwconfedit_"+idStr, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки конфигурации сервера - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/hwconfedit")
@@ -679,11 +664,7 @@ func parseHWConfigIds(s string) []int64 {
 // Маршрут: /sprsrv/hwconfbulkedit
 func (this *MainController) SprHwConfigBulkEdit() {
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_hwconfbulkedit", 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	if this.GetString("ApplyBulk") == "1" {
 		RegisterRequest(this, LogTypeEditReference) // групповое изменение записей конфигурации серверов
 	} else {

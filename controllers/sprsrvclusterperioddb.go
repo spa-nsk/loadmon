@@ -95,11 +95,7 @@ type VMPeriodRow struct {
 // from/to передаются GET-параметрами, как на /sprsrv/listclusterview).
 func (this *MainController) SprClusterPeriodDB() {
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_clusterperioddb", 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewLoadTable) // просмотр списка кластеров/хостов с загрузкой за период (по данным БД)
 
 	this.activeContent("sprsrv/clusterperioddb")

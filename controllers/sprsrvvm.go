@@ -65,11 +65,7 @@ func (this *MainController) SprSrvVM() {
 		vmname = "all"
 	}
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_vm_"+vcenter+"_"+datacenter+"_"+cluster+"_"+vmname, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	if this.GetString("export") == "xlsx" {
 		RegisterRequest(this, LogTypeExport) // выгрузка списка ВМ в XLSX
 	} else {

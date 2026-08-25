@@ -8,6 +8,6 @@
 </head>
 
 <body>
-  <script src="/static/js/reload.min.js"></script>
+  <script src="/static/js/reload.min.js?v={{.StaticVer}}"></script>
 </body>
 </html>

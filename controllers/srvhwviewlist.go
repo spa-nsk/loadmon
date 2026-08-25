@@ -32,11 +32,8 @@ func (this *MainController) SprHwViewList() {
 
 	Id := this.Ctx.Input.Param(":id")
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_hwviewlist_"+Id, 302)
-		return
-	}
 	RegisterRequest(this, LogTypeViewReference) // просмотр списка серверов HPE OneView - отдельная запись типа "выгрузка" пишется ниже при экспорте
 
 	m := sess.(models.LoadFilter).Map

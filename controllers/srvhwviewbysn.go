@@ -21,11 +21,7 @@ func (this *MainController) SrvHwViewBySn() {
 
 	sn := this.Ctx.Input.Param(":SN")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_srvhwviewbysn_"+sn, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeServerDetails) // карточка сервера HPE OneView по серийному номеру
 
 	this.activeContent("sprsrv/srvhwviewbysn")

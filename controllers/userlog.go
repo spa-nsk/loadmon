@@ -156,11 +156,8 @@ func userLogTypeLabel(t int) string {
 // Маршрут: /admin/userlog
 func (this *MainController) ViewUserLog() {
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/admin_userlog", 302)
-		return
-	}
 
 	m := sess.(models.LoadFilter).Map
 	priv, _ := m["privilage"].(int)

@@ -315,11 +315,9 @@ func (this *MainController) Notice() {
 func (this *MainController) Filter() {
 	this.activeContent("filter")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/filter", 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (controllers/auth_filter.go,
+	// подключён через beego.InsertFilter в routers/routers.go) - без активной
+	// сессии до этого места хендлер не доходит.
 	RegisterRequest(this, LogTypeServicePage) // служебная страница - фильтр отчётов
 
 	p := this.Data["Filter"]
@@ -539,13 +537,7 @@ func (this *MainController) ServerDetails() {
 
 	var records []*models.ReportServerRecord
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		redirect := "/user/login/details_" + this.Ctx.Input.Param(":Mode") + "_" + this.Ctx.Input.Param(":ServerName")
-		this.Redirect(redirect, 302)
-		//this.Redirect("/user/login/view_filter", 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeServerDetails) // получение деталей по серверу
 
 	p := this.Data["Filter"]

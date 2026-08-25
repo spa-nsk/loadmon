@@ -33,11 +33,7 @@ import (
 func (this *MainController) SprSrvUpdateBaseByVMName() {
 	name := this.Ctx.Input.Param(":Name")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_vmeditbyname_"+name, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeServerDetails) // переход к деталям ВМ по имени
 
 	flash := beego.NewFlash()
@@ -62,11 +58,7 @@ func (this *MainController) SprSrvUpdateBase() {
 	backmode := this.Ctx.Input.Param(":backmode")
 	idStr := this.Ctx.Input.Param(":id")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_updatebase_"+backmode+"_"+idStr, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки записи справочника - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/updatebase")

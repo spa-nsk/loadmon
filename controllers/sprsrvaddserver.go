@@ -23,13 +23,8 @@ import (
 func (this *MainController) SprAddServer() {
 
 	backmode := this.Ctx.Input.Param(":backmode")
-	name := this.Ctx.Input.Param(":name")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_addserver_"+backmode+"_"+name, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр формы добавления записи - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	// используем тот же шаблон, что и форма редактирования - набор полей
