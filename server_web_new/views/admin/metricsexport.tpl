@@ -144,29 +144,29 @@
     <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
         <thead>
             <tr>
-                <th>Тип объекта</th>
-                <th>Имя объекта</th>
-                <th>ИТ система</th>
-                <th>Метрика</th>
-                <th>Экземпляр</th>
-                <th>Гранулярность</th>
-                <th>Ед. изм.</th>
                 <th>Время</th>
-                <th>Значение</th>
+                <th>ИТ система</th>
+                <th>Имя сервера</th>
+                <th>Утилизация CPU %</th>
+                <th>Утилизация RAM %</th>
+                <th>Диск чтение МБ/сек</th>
+                <th>Диск запись МБ/сек</th>
+                <th>Сеть приём МБ/сек</th>
+                <th>Сеть передача МБ/сек</th>
             </tr>
         </thead>
         <tbody>
             {{range $r := .Rows}}
             <tr>
-                <td>{{$r.ObjectType}}</td>
-                <td>{{$r.ObjectName}}</td>
-                <td>{{$r.ITSystem}}</td>
-                <td>{{$r.Metric}}</td>
-                <td>{{$r.Instance}}</td>
-                <td>{{$r.Granularity}}</td>
-                <td>{{$r.Unit}}</td>
                 <td>{{$r.Timestamp.Format "2006-01-02 15:04:05"}}</td>
-                <td>{{printf "%.4f" $r.Value}}</td>
+                <td>{{$r.ITSystem}}</td>
+                <td>{{$r.ObjectName}}</td>
+                <td>{{if $r.CPUPercent}}{{$r.CPUPercent}}{{else}}—{{end}}</td>
+                <td>{{if $r.MemPercent}}{{$r.MemPercent}}{{else}}—{{end}}</td>
+                <td>{{if $r.DiskReadMBs}}{{$r.DiskReadMBs}}{{else}}—{{end}}</td>
+                <td>{{if $r.DiskWriteMBs}}{{$r.DiskWriteMBs}}{{else}}—{{end}}</td>
+                <td>{{if $r.NetRecvMBs}}{{$r.NetRecvMBs}}{{else}}—{{end}}</td>
+                <td>{{if $r.NetTransMBs}}{{$r.NetTransMBs}}{{else}}—{{end}}</td>
             </tr>
             {{end}}
         </tbody>

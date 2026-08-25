@@ -961,10 +961,61 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.Server, ov *onevie
 // ImportServerSprFromHW переносит данные о процессорах, памяти, дисковой ёмкости,
 // состоянии питания и операционной системе из данных HP OneView (oneview2.Server)
 // в запись справочника серверов ServerSprRecords.
+//
+// Определение "гипервизор или нет" (передача владения записью между OneView и
+// vSphere-стороной CMDB):
+//
+// Раньше признаком "это гипервизор, обновление OS - в другом месте" служило
+// либо уже сохранённое srvspr.Type == 2, либо срабатывание проверки
+// strings.Contains(OS, "ESXI") на уже сохранённом значении OS. Это не
+// учитывало смену РОЛИ оборудования: если сервер, ранее бывший гипервизором,
+// переустановили под другую задачу (например, ESXi снесли и поставили ОС для
+// базы данных), OneView продолжал видеть Type==2/OS=="esxi" в уже
+// сохранённой записи и молча пропускал её - Type, Vcenter, Datacenter,
+// Cluster, ClusterId так и оставались от прежней роли навсегда (баг,
+// зафиксированный в этом комментарии для истории).
+//
+// Теперь роль определяется не по сохранённым данным, а по факту: ищем хост с
+// таким же серийным номером в актуальном закэшированном пуле vSphere
+// (vsphere.GetGlobalVMInfrastructure().HostBySNMapList - cmdb выполняется в
+// процессе metrics_grpc и имеет прямой доступ к пулу, поэтому используется
+// он напрямую, а не grpcclient, см. kontext/01-architecture.md).
+//   - Хост НАЙДЕН по серийному номеру - сервер сейчас является гипервизором:
+//     Type=2, Vcenter/Datacenter/Cluster/ClusterId обновляются данными из
+//     vSphere, OS не трогаем (её актуализирует сторона vSphere, см.
+//     cmdb.UpdateHWHostInfo).
+//   - Хост НЕ найден, но в записи ранее было Type==2 - "передача владения":
+//     оборудование больше не гипервизор (либо переустановлено под другую
+//     роль, либо снято с учёта вместе с vCenter/кластером) - демотируем
+//     запись обратно в Type=0 (физический сервер) и очищаем
+//     Vcenter/Datacenter/Cluster/ClusterId/OS, чтобы дальше по функции OS
+//     заполнилась уже из данных OneView, а не осталась зависшей на "esxi".
 func ImportServerSprFromHW(srvspr *models.ServerSprRecords, srv *oneview.Server) {
 	if srvspr == nil || srv == nil {
 		return
 	}
+
+	isHypervisorNow := false
+	if hi := vsphere.GetGlobalVMInfrastructure().HostBySNMapList; hi != nil {
+		if hs, ok := hi.Get(srv.Identity.SerialNumber); ok && hs != nil {
+			isHypervisorNow = true
+			srvspr.Type = 2
+			srvspr.Vcenter = hs.Vcenter
+			srvspr.Datacenter = hs.Datacenter
+			srvspr.Cluster = hs.Cluster
+			srvspr.ClusterId = hs.ClusterID
+		}
+	}
+	if !isHypervisorNow && srvspr.Type == 2 {
+		// передача владения - см. комментарий к функции выше
+		srvspr.Type = 0
+		srvspr.Vcenter = ""
+		srvspr.Datacenter = ""
+		srvspr.Cluster = ""
+		srvspr.ClusterId = ""
+		srvspr.OS = ""
+	}
+
 	srvspr.CPUCount = float64(len(srv.Processors))
 	if len(srv.Processors) > 0 {
 		srvspr.CPULogical = float64(len(srv.Processors)) * float64(srv.Processors[0].TotalCores)
@@ -989,15 +1040,14 @@ func ImportServerSprFromHW(srvspr *models.ServerSprRecords, srv *oneview.Server)
 		srvspr.OS = ""
 	}
 
-	up := strings.ToUpper(srvspr.OS)
-	if strings.Contains(up, "ESXI") || srvspr.Type == 2 {
-		//это гипервизор и обновление будет в другом месте
-	} else {
+	if !isHypervisorNow {
 		if srv.Identity.OperatingSystem == "" || srv.Identity.OperatingSystem == "Unknown" {
 			//srvspr.OS = "" не трогаем данные введенные руками
 		} else {
 			srvspr.OS = srv.Identity.OperatingSystem
 		}
 	}
+	//else: гипервизор - OS обновляется по данным vSphere в другом месте (cmdb.UpdateHWHostInfo), OneView здесь её не трогает.
+
 	srvspr.Time_Mfy = time.Now().Local()
 }
