@@ -61,7 +61,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 	// список выбранных серверов - показываем, что именно будет изменено
 	selectedRecords := make([]models.ServerSprRecords, 0, len(ids))
 	qs := o.QueryTable("server_spr_records")
-	qs = qs.Filter("id__in", ids).OrderBy("name")
+	qs = qs.Filter("Id__in", ids).OrderBy("Name")
 	qs.All(&selectedRecords)
 
 	this.Data["SelectedRecords"] = selectedRecords

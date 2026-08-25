@@ -30,6 +30,7 @@ type HWConfigFilter struct {
 	PartNum        string `form:"PartNum"`
 	FormFactor     string `form:"FormFactor"`
 	CPUModel       string `form:"CPUModel"`
+	SerialNum      string `form:"SerialNum"`
 	DatacenterRoom string `form:"DatacenterRoom"`
 	RackNum        string `form:"RackNum"`
 	ServerName     string `form:"ServerName"`
@@ -142,6 +143,9 @@ func (this *MainController) SprHwConfig() {
 	}
 	if filter.CPUModel != "" {
 		qs = qs.Filter("CPUModel__icontains", filter.CPUModel)
+	}
+	if filter.SerialNum != "" {
+		qs = qs.Filter("SerialNum__icontains", filter.SerialNum)
 	}
 	if filter.DatacenterRoom != "" {
 		qs = qs.Filter("DatacenterRoom__icontains", filter.DatacenterRoom)

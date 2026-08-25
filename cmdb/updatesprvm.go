@@ -332,7 +332,7 @@ func UpdateSprVM() {
 		//		qs = qs.Filter("type__eq", 1).Filter("VMSprId__eq", VMSprId).Filter("name__icontains", vmName) // type == 1 виртуальные серверы + краткое имя без учета регистра
 
 		cond := orm.NewCondition()
-		cond1 := cond.And("type__eq", 1).And("VMSprId__eq", VMSprId).AndCond(cond.Or("name__iexact", vmName).Or("name__iexact", vmHostName).Or("NameFQDN__iexact", vmName).Or("NameFQDN__iexact", vmHostName))
+		cond1 := cond.And("Type__eq", 1).And("VMSprId__eq", VMSprId).AndCond(cond.Or("Name__iexact", vmName).Or("Name__iexact", vmHostName).Or("NameFQDN__iexact", vmName).Or("NameFQDN__iexact", vmHostName))
 		//cond1 := cond.And("type__eq", 1).AndCond(cond.And("name__iexact", vmName).Or("name__iexact", vmHostName).Or("NameFQDN__iexact", vmName).Or("NameFQDN__iexact", vmHostName))
 		qs = qs.SetCond(cond1) // type == 1 виртуальные серверы + краткое имя без учета регистра
 

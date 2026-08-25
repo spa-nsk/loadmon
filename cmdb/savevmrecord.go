@@ -441,9 +441,9 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 						}
 					}
 					qs := o.QueryTable("datastore")
-					qs = qs.OrderBy("cluster_id")
-					qs = qs.Filter("cluster_id__eq", clusterId)
-					qs = qs.Filter("storage_name__eq", ds.StorageName)
+					qs = qs.OrderBy("ClusterId")
+					qs = qs.Filter("ClusterId__eq", clusterId)
+					qs = qs.Filter("StorageName__eq", ds.StorageName)
 					err = qs.One(&dsRecord)
 					if err == nil {
 						datastoreId = dsRecord.Id
@@ -504,9 +504,9 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 						}
 					}
 					qs := o.QueryTable("datastore")
-					qs = qs.OrderBy("cluster_id")
-					qs = qs.Filter("cluster_id__eq", clusterId)
-					qs = qs.Filter("storage_name__eq", st.StorageName)
+					qs = qs.OrderBy("ClusterId")
+					qs = qs.Filter("ClusterId__eq", clusterId)
+					qs = qs.Filter("StorageName__eq", st.StorageName)
 					err = qs.One(&dsRecord)
 					if err == nil {
 						datastoreId = dsRecord.Id

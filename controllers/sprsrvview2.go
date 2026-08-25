@@ -134,7 +134,7 @@ func (this *MainController) SprSrvViewV2() {
 	qs = qs.OrderBy("active", "name")
 	cond := orm.NewCondition()
 
-	cond = cond.And("stat__ne", 666)
+	cond = cond.And("Stat__ne", 666)
 	active := 0
 
 	switch Mode {
@@ -336,7 +336,7 @@ func (this *MainController) SprSrvViewV2() {
 		case 2:
 			cond = cond.And("active", 2)
 		case 998:
-			cond = cond.And("active__ne", 2)
+			cond = cond.And("Active__ne", 2)
 		case 999:
 		}
 
@@ -348,7 +348,7 @@ func (this *MainController) SprSrvViewV2() {
 			for m := range names {
 				s := strings.TrimSpace(names[m])
 				if s != "" {
-					condName = condName.Or("name__icontains", s)
+					condName = condName.Or("Name__icontains", s)
 				}
 			}
 			cond = cond.AndCond(condName)
@@ -362,7 +362,7 @@ func (this *MainController) SprSrvViewV2() {
 			for m := range names {
 				s := strings.TrimSpace(names[m])
 				if s != "" {
-					condName = condName.Or("name_info__icontains", s)
+					condName = condName.Or("NameInfo__icontains", s)
 				}
 			}
 			cond = cond.AndCond(condName)
@@ -383,55 +383,55 @@ func (this *MainController) SprSrvViewV2() {
 		}
 
 		if record.ITSystemKey != "" {
-			cond = cond.And("i_t_system_key", record.ITSystemKey)
+			cond = cond.And("ITSystemKey", record.ITSystemKey)
 		}
 
 		//         if record.DPCAddress != 0 {
 		//             cond = cond.And("d_p_c_address", record.DPCAddress)
 		//         }
 		if record.DPCOffice != 0 {
-			cond = cond.And("d_p_c_office", record.DPCOffice)
+			cond = cond.And("DPCOffice", record.DPCOffice)
 		}
 		if record.RoleType != 0 {
-			cond = cond.And("role_type", record.RoleType)
+			cond = cond.And("RoleType", record.RoleType)
 		}
 
 		if record.Type == 4 {
 			// Псевдо-тип "Аппаратный сервер в Zabbix" (значение 4 в форме фильтра
 			// не хранится в БД) - реальный тип 0 (аппаратный сервер) + признак
 			// регистрации в Zabbix (ZabbixHostId > 0).
-			cond = cond.And("type", 0).And("zabbix_host_id__gt", 0)
+			cond = cond.And("type", 0).And("ZabbixHostId__gt", 0)
 		} else if record.Type != 999 {
 			cond = cond.And("type", record.Type)
 		}
 
 		if record.TypeMicroservice != 999 {
-			cond = cond.And("type_microservice", record.TypeMicroservice)
+			cond = cond.And("TypeMicroservice", record.TypeMicroservice)
 		}
 
 		if record.TypeWork != 0 {
-			cond = cond.And("type_work", record.TypeWork)
+			cond = cond.And("TypeWork", record.TypeWork)
 		}
 
 		if record.CriticalLevel != 0 {
-			cond = cond.And("critical_level", record.CriticalLevel)
+			cond = cond.And("CriticalLevel", record.CriticalLevel)
 		}
 		//		if record.ServiceId != 0 {
 		//			cond = cond.And("service_id", record.ServiceId)
 		//		}
 
 		if strings.TrimSpace(record.ITSystemKey) != "" {
-			cond = cond.And("i_t_system_key", record.ITSystemKey)
+			cond = cond.And("ITSystemKey", record.ITSystemKey)
 		}
 
 		//		if strings.TrimSpace(record.Service) != "" {
 		//			cond = cond.And("service__icontains", record.Service)
 		//		}
 		if strings.TrimSpace(record.Anotation) != "" {
-			cond = cond.And("anotation__icontains", record.Anotation)
+			cond = cond.And("Anotation__icontains", record.Anotation)
 		}
 		if strings.TrimSpace(record.Role) != "" {
-			cond = cond.And("role__icontains", record.Role)
+			cond = cond.And("Role__icontains", record.Role)
 		}
 
 		record.Owner = strings.TrimSpace(record.Owner)
@@ -442,7 +442,7 @@ func (this *MainController) SprSrvViewV2() {
 			for m := range owners {
 				s := strings.TrimSpace(owners[m])
 				if s != "" {
-					condOwner = condOwner.Or("owner__icontains", s)
+					condOwner = condOwner.Or("Owner__icontains", s)
 				}
 			}
 			cond = cond.AndCond(condOwner)
@@ -465,33 +465,33 @@ func (this *MainController) SprSrvViewV2() {
 		//	}
 		record.OS = strings.TrimSpace(record.OS)
 		if record.OS == "не указано" || record.OS == "-" { //поиск незаполненных
-			cond = cond.And("os__eq", "")
+			cond = cond.And("OS__eq", "")
 		} else if record.OS != "" {
 			condName := orm.NewCondition()
 			os := strings.Split(record.OS, ";")
 			for m := range os {
 				s := strings.TrimSpace(os[m])
 				if s != "" {
-					condName = condName.And("os__icontains", s)
+					condName = condName.And("OS__icontains", s)
 				}
 			}
 			cond = cond.AndCond(condName)
 		}
 
 		if record.PowerState != 0 {
-			cond = cond.And("power_state", record.PowerState)
+			cond = cond.And("PowerState", record.PowerState)
 		}
 
 		if strings.TrimSpace(record.Network) != "" {
-			cond = cond.And("network__icontains", record.Network)
+			cond = cond.And("Network__icontains", record.Network)
 		}
 
 		if strings.TrimSpace(record.NetworkName) != "" {
-			cond = cond.And("network_name__icontains", record.NetworkName)
+			cond = cond.And("NetworkName__icontains", record.NetworkName)
 		}
 
 		if strings.TrimSpace(record.IPAddress) != "" {
-			cond = cond.And("i_p_address__icontains", record.IPAddress)
+			cond = cond.And("IPAddress__icontains", record.IPAddress)
 		}
 
 		//		if strings.TrimSpace(record.IPSharedVIP) != "" {
