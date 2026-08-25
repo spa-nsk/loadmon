@@ -24,11 +24,7 @@ func (this *MainController) SprSrvClusterPerfDay() {
 	datacenter := this.Ctx.Input.Param(":Datacenter")
 	cluster := this.Ctx.Input.Param(":Cluster")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_clusterperfday_"+vcenter+"_"+datacenter+"_"+cluster, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewLoadTable) // график загрузки кластера за текущий день
 
 	this.activeContent("sprsrv/clusterperfday")

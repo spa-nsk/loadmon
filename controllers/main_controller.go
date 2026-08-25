@@ -315,11 +315,9 @@ func (this *MainController) Notice() {
 func (this *MainController) Filter() {
 	this.activeContent("filter")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/filter", 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (controllers/auth_filter.go,
+	// подключён через beego.InsertFilter в routers/routers.go) - без активной
+	// сессии до этого места хендлер не доходит.
 	RegisterRequest(this, LogTypeServicePage) // служебная страница - фильтр отчётов
 
 	p := this.Data["Filter"]
@@ -400,13 +398,13 @@ func (this *MainController) View() {
 
 	mode := this.Ctx.Input.Param(":Mode")
 	if mode == "" || mode == "filter" {
-		qs = qs.Filter("time__gte", filter.FromTime.UTC()).Filter("time__lt", filter.ToTime.UTC().AddDate(0, 0, 1))
+		qs = qs.Filter("Time__gte", filter.FromTime.UTC()).Filter("Time__lt", filter.ToTime.UTC().AddDate(0, 0, 1))
 	} else if mode == "month" {
 		to := time.Now().Local()
 		to = CorrectTimeFilter(to)
 		from := to.AddDate(0, -1, 0)
 		from = CorrectTimeFilter(from)
-		qs = qs.Filter("time__gte", from.UTC()).Filter("time__lt", to.UTC().AddDate(0, 0, 1))
+		qs = qs.Filter("Time__gte", from.UTC()).Filter("Time__lt", to.UTC().AddDate(0, 0, 1))
 		filter.FromTime = from
 		filter.ToTime = to
 		this.Data["Filter"] = filter
@@ -425,19 +423,19 @@ func (this *MainController) View() {
 	//	qs.Filter("time__gt", "2019-11-01 00:00:00")
 	//	qs = qs.Filter("server_name", "s-rms-sql-01.global.bcs")
 	if filter.Inventory != "" {
-		qs = qs.Filter("inventory__contains", filter.Inventory)
+		qs = qs.Filter("Inventory__contains", filter.Inventory)
 	}
 	if filter.ServerName != "" {
-		qs = qs.Filter("server_name__contains", filter.ServerName)
+		qs = qs.Filter("ServerName__contains", filter.ServerName)
 	}
 	if filter.Allocation != "" {
-		qs = qs.Filter("allocation__contains", filter.Allocation)
+		qs = qs.Filter("Allocation__contains", filter.Allocation)
 	}
 	if filter.Owner != "" {
-		qs = qs.Filter("owner__contains", filter.Owner)
+		qs = qs.Filter("Owner__contains", filter.Owner)
 	}
 	if filter.Service != "" {
-		qs = qs.Filter("service__contains", filter.Service)
+		qs = qs.Filter("Service__contains", filter.Service)
 	}
 
 	num, err := qs.All(&records)
@@ -477,13 +475,13 @@ func (this *MainController) ViewTop() {
 
 	mode := this.Ctx.Input.Param(":Mode")
 	if mode == "" || mode == "filter" {
-		qs = qs.Filter("time__gte", filter.FromTime.UTC()).Filter("time__lt", filter.ToTime.UTC().AddDate(0, 0, 1))
+		qs = qs.Filter("Time__gte", filter.FromTime.UTC()).Filter("Time__lt", filter.ToTime.UTC().AddDate(0, 0, 1))
 	} else if mode == "month" {
 		to := time.Now().Local()
 		to = CorrectTimeFilter(to)
 		from := to.AddDate(0, -1, 0)
 		from = CorrectTimeFilter(from)
-		qs = qs.Filter("time__gte", from.UTC()).Filter("time__lt", to.UTC().AddDate(0, 0, 1))
+		qs = qs.Filter("Time__gte", from.UTC()).Filter("Time__lt", to.UTC().AddDate(0, 0, 1))
 		filter.FromTime = from
 		filter.ToTime = to
 		this.Data["Filter"] = filter
@@ -502,19 +500,19 @@ func (this *MainController) ViewTop() {
 	//	qs.Filter("time__gt", "2019-11-01 00:00:00")
 	//	qs = qs.Filter("server_name", "s-rms-sql-01.global.bcs")
 	if filter.Inventory != "" {
-		qs = qs.Filter("inventory__contains", filter.Inventory)
+		qs = qs.Filter("Inventory__contains", filter.Inventory)
 	}
 	if filter.ServerName != "" {
-		qs = qs.Filter("server_name__contains", strings.Split(filter.ServerName, " ")[0])
+		qs = qs.Filter("ServerName__contains", strings.Split(filter.ServerName, " ")[0])
 	}
 	if filter.Allocation != "" {
-		qs = qs.Filter("allocation__contains", filter.Allocation)
+		qs = qs.Filter("Allocation__contains", filter.Allocation)
 	}
 	if filter.Owner != "" {
-		qs = qs.Filter("owner__contains", filter.Owner)
+		qs = qs.Filter("Owner__contains", filter.Owner)
 	}
 	if filter.Service != "" {
-		qs = qs.Filter("service__contains", filter.Service)
+		qs = qs.Filter("Service__contains", filter.Service)
 	}
 
 	num, err := qs.All(&records)
@@ -539,13 +537,7 @@ func (this *MainController) ServerDetails() {
 
 	var records []*models.ReportServerRecord
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		redirect := "/user/login/details_" + this.Ctx.Input.Param(":Mode") + "_" + this.Ctx.Input.Param(":ServerName")
-		this.Redirect(redirect, 302)
-		//this.Redirect("/user/login/view_filter", 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeServerDetails) // получение деталей по серверу
 
 	p := this.Data["Filter"]
@@ -565,13 +557,13 @@ func (this *MainController) ServerDetails() {
 	qs = qs.OrderBy("time")
 
 	if mode == "" || mode == "filter" {
-		qs = qs.Filter("time__gte", filter.FromTime.UTC()).Filter("time__lt", filter.ToTime.UTC().AddDate(0, 0, 1))
+		qs = qs.Filter("Time__gte", filter.FromTime.UTC()).Filter("Time__lt", filter.ToTime.UTC().AddDate(0, 0, 1))
 	} else if mode == "month" {
 		to := time.Now().Local()
 		to = CorrectTimeFilter(to)
 		from := to.AddDate(0, -1, 0)
 		from = CorrectTimeFilter(from)
-		qs = qs.Filter("time__gte", from.UTC()).Filter("time__lt", to.UTC().AddDate(0, 0, 1))
+		qs = qs.Filter("Time__gte", from.UTC()).Filter("Time__lt", to.UTC().AddDate(0, 0, 1))
 		filter.FromTime = from
 		filter.ToTime = to
 		this.Data["Filter"] = filter
@@ -586,7 +578,7 @@ func (this *MainController) ServerDetails() {
 
 	//	qs = qs.Filter("server_name", filter.ServerName)
 
-	qs = qs.Filter("server_name__icontains", strings.Split(filter.ServerName, " ")[0])
+	qs = qs.Filter("ServerName__icontains", strings.Split(filter.ServerName, " ")[0])
 	num, err := qs.All(&records)
 
 	for i := range records {

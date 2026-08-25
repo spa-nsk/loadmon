@@ -82,7 +82,7 @@ func (this *MainController) RequestAPI() {
 			o := orm.NewOrm()
 			//o.Using("default")
 			cond := orm.NewCondition()
-			cond = cond.And("stat__ne", 666)
+			cond = cond.And("Stat__ne", 666)
 			nameFQDN := strings.TrimSpace(pRec["NameFQDN"].(string))
 			if nameFQDN != "*" {
 				if nameFQDN != "" {
@@ -127,14 +127,14 @@ func (this *MainController) RequestAPI() {
 				for n := range names {
 					s := strings.TrimSpace(names[n])
 					if s != "" {
-						cond = cond.Or("serial_num", s)
+						cond = cond.Or("SerialNum", s)
 					}
 				}
 			}
 
 			var records []*models.ServerHardware
 			qs := o.QueryTable("server_hardware")
-			qs = qs.OrderBy("serial_num")
+			qs = qs.OrderBy("SerialNum")
 
 			if SerialNum != "*" {
 				qs = qs.SetCond(cond)

@@ -69,10 +69,10 @@ func (s *serverdb) GetClusterSprRecords(in *pb.ClusterSprKey1, stream grpc.Serve
 	cond := orm.NewCondition()
 
 	if in.Vcenter != "all" {
-		cond = cond.And("v_center", in.Vcenter)
+		cond = cond.And("Vcenter", in.Vcenter)
 	}
 	if in.Datacenter != "all" {
-		cond = cond.And("v_datacenter", in.Datacenter)
+		cond = cond.And("Datacenter", in.Datacenter)
 	}
 
 	if in.Cluster != "all" {

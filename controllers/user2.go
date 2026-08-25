@@ -404,12 +404,8 @@ type user2 struct {
 func (this *MainController) Profile() {
 	this.activeContent("user/profile")
 
-	//******** This page requires login
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/home", 302)
-		return
-	}
 	RegisterRequest(this, LogTypeServicePage) // просмотр страницы профиля - отдельная запись типа "обновление профиля" пишется ниже только при успешном сохранении
 
 	this.Data["Filter"] = sess.(models.LoadFilter)
@@ -526,12 +522,8 @@ func (this *MainController) Profile() {
 func (this *MainController) Remove() {
 	this.activeContent("user/remove")
 
-	//******** This page requires login
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/home", 302)
-		return
-	}
 	RegisterRequest(this, LogTypeAdminAction) // административная операция - удаление учётной записи
 
 	this.Data["Filter"] = sess.(models.LoadFilter)

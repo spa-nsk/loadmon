@@ -218,7 +218,7 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 				email := fmt.Sprintf("%s@%s", ADCreds.EffectiveName, ADCreds.LogonDomainName)
 				m["username"] = email
 				users := make([]models.AuthUser, 0)
-				qs := o.QueryTable("users").OrderBy("email").Filter("email__icontains", ADCreds.EffectiveName)
+				qs := o.QueryTable("users").OrderBy("Email").Filter("Email__icontains", ADCreds.EffectiveName)
 				fmt.Println("Поиск пользователя: ", ADCreds.EffectiveName, " в базе пользователей")
 				qs.All(&users)
 				if len(users) == 1 {

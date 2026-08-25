@@ -13,6 +13,14 @@ import (
 )
 
 func init() {
+	// Централизованная проверка сессии ("авторизован ли пользователь") -
+	// заменяет собой ~40 ранее продублированных в отдельных хендлерах
+	// проверок `if this.GetSession("loadmon") == nil { this.Redirect(...) }`.
+	// Список путей, доступных без сессии (страницы входа/регистрации,
+	// технические эндпоинты и т.п.), и обоснование двух исключений (/api/,
+	// /sprsrv/itsystemcorrectpreview/) - см. controllers/auth_filter.go.
+	beego.InsertFilter("*", beego.BeforeRouter, controllers.AuthFilter)
+
 	beego.Router("/", &controllers.MainController{})
 	beego.Handler("/metrics", promhttp.Handler())
 	beego.Router("/user/login/:back", &controllers.MainController{}, "get,post:Login")

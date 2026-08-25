@@ -43,11 +43,7 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 	idStr := this.Ctx.Input.Param(":Id")
 	hostId, _ := strconv.ParseInt(idStr, 10, 64)
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_zabbixperfperiod_"+idStr, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewLoadTable) // график загрузки аппаратного сервера за период (по данным Zabbix)
 
 	this.activeContent("sprsrv/zabbixperfperiod")

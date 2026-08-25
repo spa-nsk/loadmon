@@ -377,11 +377,8 @@ func combineIntoWideRows(objectName, itSystem string, cpu, mem, diskRead, diskWr
 // справочник серверов без ошибки.
 func (this *MainController) AdminMetricsUnifiedExport() {
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/admin_metricsexport", 302)
-		return
-	}
 	m := sess.(models.LoadFilter).Map
 	priv, _ := m["privilage"].(int)
 	if priv != 3 {

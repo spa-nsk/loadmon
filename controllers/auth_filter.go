@@ -1,0 +1,101 @@
+package controllers
+
+import (
+	"context"
+	"strings"
+
+	beecontext "github.com/beego/beego/v2/server/web/context"
+)
+
+// publicPaths — маршруты, доступные без активной сессии ("loadmon"): страницы
+// самой аутентификации (вход/регистрация/восстановление пароля), служебные
+// технические эндпоинты (favicon, метрики Prometheus, pprof, SSO-хендшейк,
+// shutdown) и корень "/", у которого есть собственная, отличающаяся от общей
+// схемы, логика редиректа (см. MainController.Get()). Точное совпадение пути.
+var publicExactPaths = map[string]bool{
+	"/":              true,
+	"/user/logout":   true,
+	"/user/register": true,
+	"/user/forgot":   true,
+	"/notice":        true,
+	"/favicon.ico":   true,
+	"/sso":           true,
+	"/shutdown":      true,
+	"/metrics":       true,
+}
+
+// publicPrefixPaths — маршруты с динамическими параметрами в пути (:back,
+// :uuid и т.п.), которые нельзя перечислить точными строками, плюс два
+// осознанных исключения:
+//   - "/api/" — этот маршрут и сегодня не защищён сессией (проверка в
+//     controllers/api.go закомментирована) - сохраняем как есть, включение
+//     авторизации для внешнего API - отдельное решение, не часть этой правки.
+//   - "/sprsrv/itsystemcorrectpreview/" — AJAX-эндпоинт, отвечающий JSON
+//     (в т.ч. `{"found":false,"error":"не авторизован"}` при отсутствии
+//     сессии), а не HTTP-редиректом - общий фильтр с редиректом сломал бы
+//     клиентский JS, ожидающий JSON; проверка сессии остаётся внутри
+//     controllers/sprsrvupdatebase.go:SprITSystemCorrectPreview.
+var publicPrefixPaths = []string{
+	"/user/login/",
+	"/user/verify/",
+	"/user/reset/",
+	"/debug/pprof",
+	"/api/",
+	"/sprsrv/itsystemcorrectpreview/",
+}
+
+func isPublicPath(path string) bool {
+	if publicExactPaths[path] {
+		return true
+	}
+	for _, prefix := range publicPrefixPaths {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// AuthFilter — централизованная проверка сессии пользователя ("loadmon"),
+// регистрируется один раз как глобальный BeforeRouter-фильтр (см.
+// routers/routers.go, beego.InsertFilter("*", beego.BeforeRouter,
+// controllers.AuthFilter)) и заменяет собой ранее продублированный в ~40
+// хендлерах паттерн:
+//
+//	sess := this.GetSession("loadmon")
+//	if sess == nil {
+//	    this.Redirect("/user/login/<page>", 302)
+//	    return
+//	}
+//
+// Статические файлы (/static/...) сюда не попадают — beego обслуживает их
+// до выполнения BeforeRouter-фильтров (см. serverStaticRouter в
+// beego/v2/server/web/router.go), поэтому в publicPaths их указывать не
+// нужно.
+//
+// Редирект-цель "/user/login/<back>" вычисляется из текущего пути запроса
+// (сегменты через "_" вместо "/") — та же кодировка, что и раньше
+// применялась вручную в каждом хендлере; controllers/user2.go:Login()
+// декодирует её обратно ("_" -> "/") и возвращает пользователя на
+// исходную страницу после успешного входа.
+//
+// Обработчики, которые раньше сами делали проверку "sess == nil" и
+// использовали sess дальше по коду (например, для чтения privilage),
+// оставляют строку `sess := this.GetSession("loadmon")` — на момент вызова
+// хендлера фильтр уже гарантирует, что сессия существует, поэтому
+// повторная проверка на nil не нужна и убрана.
+func AuthFilter(ctx *beecontext.Context) {
+	path := ctx.Request.URL.Path
+
+	if isPublicPath(path) {
+		return
+	}
+
+	if ctx.Input.CruSession == nil || ctx.Input.CruSession.Get(context.Background(), "loadmon") == nil {
+		back := strings.ReplaceAll(strings.TrimPrefix(path, "/"), "/", "_")
+		if back == "" {
+			back = "filter" // на случай пути "/", который и так публичный (см. publicExactPaths) - защитная заглушка, а не рабочий путь
+		}
+		ctx.Redirect(302, "/user/login/"+back)
+	}
+}

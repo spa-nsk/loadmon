@@ -56,16 +56,20 @@
                 <input type="text" id="CPUModel" name="CPUModel" class="form-control" value="{{.HWConfigFilter.CPUModel}}">
             </div>
             <div class="col-6 col-md-3">
+                <label for="SerialNum" class="form-label">Серийный номер</label>
+                <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.HWConfigFilter.SerialNum}}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="ServerName" class="form-label">Имя сервера</label>
+                <input type="text" id="ServerName" name="ServerName" class="form-control" value="{{.HWConfigFilter.ServerName}}">
+            </div>
+            <div class="col-6 col-md-3">
                 <label for="DatacenterRoom" class="form-label">ЦОД</label>
                 <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.HWConfigFilter.DatacenterRoom}}">
             </div>
             <div class="col-6 col-md-3">
                 <label for="RackNum" class="form-label">Номер стойки</label>
                 <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.HWConfigFilter.RackNum}}">
-            </div>
-            <div class="col-6 col-md-3">
-                <label for="ServerName" class="form-label">Имя сервера</label>
-                <input type="text" id="ServerName" name="ServerName" class="form-control" value="{{.HWConfigFilter.ServerName}}">
             </div>
         </div>
         <div class="row mt-3">

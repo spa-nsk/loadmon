@@ -50,11 +50,8 @@ func (this *MainController) SprClusterList() {
 
 	Id := this.Ctx.Input.Param(":id")
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_clustersprlist_"+Id, 302)
-		return
-	}
 	RegisterRequest(this, LogTypeViewReference) // просмотр справочника кластеров
 
 	this.activeContent("sprsrv/clustersprlist")
@@ -341,11 +338,7 @@ func (this *MainController) SprClusterEdit() {
 
 	idStr := this.Ctx.Input.Param(":id")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_clusterspredit_"+idStr, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки кластера - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/clusterspredit")

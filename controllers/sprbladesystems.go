@@ -48,11 +48,8 @@ func (this *MainController) SprBladeSystems() {
 
 	Id := this.Ctx.Input.Param(":id")
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_bladesystemslist_"+Id, 302)
-		return
-	}
 	RegisterRequest(this, LogTypeViewReference) // просмотр справочника блейд-корзин
 
 	this.activeContent("sprsrv/bladesystemslist")
@@ -364,11 +361,7 @@ func (this *MainController) SprBladeSystemsEdit() {
 
 	idStr := this.Ctx.Input.Param(":id")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_bladesystemsedit_"+idStr, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки блейд-корзины - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/bladesystemsedit")

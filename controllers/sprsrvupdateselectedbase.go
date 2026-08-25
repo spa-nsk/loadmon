@@ -28,11 +28,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 
 	selected := this.Ctx.Input.Param(":selected")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_updateselectedbase_"+selected, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр формы группового редактирования - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/updateselectedbase")
@@ -61,7 +57,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 	// список выбранных серверов - показываем, что именно будет изменено
 	selectedRecords := make([]models.ServerSprRecords, 0, len(ids))
 	qs := o.QueryTable("server_spr_records")
-	qs = qs.Filter("id__in", ids).OrderBy("name")
+	qs = qs.Filter("Id__in", ids).OrderBy("Name")
 	qs.All(&selectedRecords)
 
 	this.Data["SelectedRecords"] = selectedRecords

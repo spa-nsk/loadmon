@@ -15,11 +15,8 @@ func (this *MainController) SprCluster() {
 	datacenter := this.Ctx.Input.Param(":Datacenter")
 	cluster := this.Ctx.Input.Param(":Cluster")
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_cluster"+"_"+vcenter+"_"+datacenter+"_"+cluster, 302)
-		return
-	}
 	RegisterRequest(this, LogTypeViewLoadTable) // просмотр списка кластеров/хостов с текущей загрузкой
 
 	this.activeContent("sprsrv/cluster")

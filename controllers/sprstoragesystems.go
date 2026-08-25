@@ -52,11 +52,8 @@ func (this *MainController) SprStorageSystems() {
 
 	Id := this.Ctx.Input.Param(":id")
 
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_storagesystemslist_"+Id, 302)
-		return
-	}
 	RegisterRequest(this, LogTypeViewReference) // просмотр справочника СХД
 
 	this.activeContent("sprsrv/storagesystemslist")
@@ -375,11 +372,7 @@ func (this *MainController) SprStorageSystemsEdit() {
 
 	idStr := this.Ctx.Input.Param(":id")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_storagesystemsedit_"+idStr, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки СХД - отдельная запись типа "изменение" пишется ниже при сохранении
 
 	this.activeContent("sprsrv/storagesystemsedit")

@@ -44,11 +44,7 @@ func (this *MainController) SprSrvVMPerfPeriod() {
 	cluster := this.Ctx.Input.Param(":Cluster")
 	vmname := this.Ctx.Input.Param(":VM")
 
-	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_vmperfperiod_"+vcenter+"_"+datacenter+"_"+cluster+"_"+vmname, 302)
-		return
-	}
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewLoadTable) // график загрузки ВМ по данным БД за период
 
 	this.activeContent("sprsrv/vmperfperiod")

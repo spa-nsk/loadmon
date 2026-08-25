@@ -275,7 +275,7 @@ func UpdateHWHostInfo() {
 		var records []*models.ServerSprRecords
 		qs := o.QueryTable("server_spr_records").OrderBy("name")
 		cond := orm.NewCondition()
-		cond1 := cond.And("type__ne", 1).AndCond(cond.Or("name__iexact", shortName).Or("name__iexact", serverName).Or("NameFQDN__iexact", shortName).Or("NameFQDN__iexact", serverName))
+		cond1 := cond.And("Type__ne", 1).AndCond(cond.Or("Name__iexact", shortName).Or("Name__iexact", serverName).Or("NameFQDN__iexact", shortName).Or("NameFQDN__iexact", serverName))
 		qs = qs.SetCond(cond1)
 		num, err := qs.All(&records)
 		if err != nil {
@@ -296,7 +296,7 @@ func UpdateHWHostInfo() {
 				}
 
 				qs = o.QueryTable("server_spr_records").OrderBy("name")
-				cond = orm.NewCondition().And("id__eq", srvHW.ServerId)
+				cond = orm.NewCondition().And("Id__eq", srvHW.ServerId)
 				qs = qs.SetCond(cond)
 				num, err = qs.All(&records)
 				if err != nil {
@@ -478,7 +478,7 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 		var records []*models.ServerSprRecords
 		qs := o.QueryTable("server_spr_records").OrderBy("name")
 		cond := orm.NewCondition()
-		cond1 := cond.And("type__ne", 1).AndCond(cond.Or("name__iexact", shortName).Or("name__iexact", serverName).Or("NameFQDN__iexact", shortName).Or("NameFQDN__iexact", serverName))
+		cond1 := cond.And("Type__ne", 1).AndCond(cond.Or("Name__iexact", shortName).Or("Name__iexact", serverName).Or("NameFQDN__iexact", shortName).Or("NameFQDN__iexact", serverName))
 		qs = qs.SetCond(cond1)
 		num, err := qs.All(&records)
 		if err != nil {
@@ -499,7 +499,7 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 				}
 
 				qs = o.QueryTable("server_spr_records").OrderBy("name")
-				cond = orm.NewCondition().And("id__eq", srvHW.ServerId)
+				cond = orm.NewCondition().And("Id__eq", srvHW.ServerId)
 				qs = qs.SetCond(cond)
 				num, err = qs.All(&records)
 				if err != nil {
