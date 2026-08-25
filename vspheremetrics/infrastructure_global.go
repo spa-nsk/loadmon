@@ -156,13 +156,33 @@ func GlobalInitVMInfrastructure() *VMInfrastructure {
 
 // GetGlobalVMInfrastructure возвращает глобальный экземпляр VMInfrastructure,
 // инициализируя его при первом обращении, если он ещё не создан.
+//
+// Обращение к infrastructureGlobal защищено infrastructureMutex (тем же,
+// которым SetGlobalVMInfrastructure/GlobalInitVMInfrastructure ограждают
+// запись) - до этой правки чтение здесь не блокировалось вовсе, хотя запись
+// в SetGlobalVMInfrastructure/GlobalInitVMInfrastructure идёт под Lock() из
+// фоновой горутины опроса vCenter - гонка данных, обнаруживаемая
+// `go test -race`. Это особенно важно для мест, которые берут снапшот один
+// раз и передают его дальше явным параметром (см. cmdb.UpdateServerInventory,
+// cmdb.ImportServerSprFromHWInfra, cmdb.UpdateHWHostInfoInfra) - без
+// блокировки на чтение сам захват "одного согласованного снапшота" не был
+// бы гарантирован на уровне памяти, даже если бизнес-логика вызывающего
+// кода уже берёт его один раз.
 func GetGlobalVMInfrastructure() *VMInfrastructure {
+	infrastructureMutex.RLock()
+	infra := infrastructureGlobal
+	infrastructureMutex.RUnlock()
 
-	if infrastructureGlobal == nil {
-		infrastructureGlobal = &VMInfrastructure{}
-		infrastructureGlobal.Init()
+	if infra == nil {
+		infrastructureMutex.Lock()
+		if infrastructureGlobal == nil {
+			infrastructureGlobal = &VMInfrastructure{}
+			infrastructureGlobal.Init()
+		}
+		infra = infrastructureGlobal
+		infrastructureMutex.Unlock()
 	}
-	return infrastructureGlobal
+	return infra
 }
 
 // DestroyGlobalVMInfrastructureObj освобождает ресурсы, удерживаемые глобальным экземпляром VMInfrastructure.

@@ -48,32 +48,34 @@
 
 <form role="form" id="MetricsExportForm" class="metricsexport-filter-bar mb-3 p-3 rounded border" method="GET">
     <div class="row g-3 align-items-end">
-        <div class="col-6 col-md-3">
-            <label for="filterFrom" class="form-label">Период с</label>
-            <input type="date" id="filterFrom" name="from" class="form-control" value="{{.FromDate}}">
+        <div class="col-6 col-md-6">
+            <!-- фактический фильтр, отправляемый на сервер - код ИТ-системы;
+                 подставляется либо выбором из выпадающего списка поля "ИТ
+                 система (название)" ниже, либо вводится вручную напрямую
+                 (см. initITSystemPicker ниже, код скопирован 1:1 из
+                 views/sprsrv/view2.tpl - образец для этого поля). -->
+            <label for="ITSystemKey" class="form-label">Код ИТ системы</label>
+            <input type="text" id="ITSystemKey" name="itsystem" class="form-control"
+                placeholder="код ИТ-системы, необязательно" value="{{.CurITSystem}}" autocomplete="off">
+            <div id="ITSystemKeyHint" class="form-text"></div>
         </div>
-        <div class="col-6 col-md-3">
-            <label for="filterTo" class="form-label">Период по</label>
-            <input type="date" id="filterTo" name="to" class="form-control" value="{{.ToDate}}">
+        <div class="col-6 col-md-6 position-relative">
+            <label for="ITSystemSearch" class="form-label">ИТ система (название)</label>
+            <input type="text" id="ITSystemSearch" class="form-control"
+                placeholder="Поиск по коду или названию..." autocomplete="off">
+            <div id="ITSystemSearchResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-md-6">
             <label for="filterName" class="form-label">Имя сервера/ВМ содержит</label>
             <input type="text" id="filterName" name="name" class="form-control"
                 placeholder="необязательно" value="{{.CurName}}">
         </div>
-        <div class="col-6 col-md-3 position-relative">
-            <label for="ITSystemSearch" class="form-label">ИТ система (код или название)</label>
-            <input type="text" id="ITSystemSearch" class="form-control"
-                placeholder="Поиск по коду или названию..." autocomplete="off">
-            <div id="ITSystemSearchResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
-            <!-- фактический фильтр, отправляемый на сервер - код ИТ-системы;
-                 подставляется либо выбором из выпадающего списка выше, либо
-                 вводится вручную напрямую (см. initITSystemPicker ниже, код
-                 скопирован 1:1 из views/sprsrv/view2.tpl - образец для этого
-                 поля). -->
-            <input type="text" id="ITSystemKey" name="itsystem" class="form-control form-control-sm mt-1"
-                placeholder="код ИТ-системы, необязательно" value="{{.CurITSystem}}" autocomplete="off">
-            <div id="ITSystemKeyHint" class="form-text"></div>
+        <div class="col-6 col-md-6">
+            <label class="form-label">Период дат</label>
+            <div class="d-flex gap-2">
+                <input type="date" id="filterFrom" name="from" class="form-control" value="{{.FromDate}}">
+                <input type="date" id="filterTo" name="to" class="form-control" value="{{.ToDate}}">
+            </div>
         </div>
     </div>
     <div class="row g-3 align-items-center mt-1">

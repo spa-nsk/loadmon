@@ -91,7 +91,7 @@ func (this *MainController) RequestAPI() {
 					for m := range names {
 						s := strings.TrimSpace(names[m])
 						if s != "" {
-							condName = condName.Or("name_f_q_d_n__icontains", s)
+							condName = condName.Or("NameFQDN__icontains", s)
 						}
 					}
 					cond = cond.AndCond(condName)
@@ -99,7 +99,7 @@ func (this *MainController) RequestAPI() {
 			}
 			var records []*models.ServerSprRecords
 			qs := o.QueryTable("server_spr_records")
-			qs = qs.OrderBy("active", "name_f_q_d_n")
+			qs = qs.OrderBy("active", "NameFQDN")
 
 			qs = qs.SetCond(cond)
 

@@ -68,7 +68,7 @@ func checkAndCorrectVmSpr(records []*models.VMSprRecord, vm vsphere.VMPoint) int
 		if err := o.Read(&vmspr, "Id"); err == nil {
 			var list []*models.ServerSprRecords
 			qs := o.QueryTable("server_spr_records")
-			qs = qs.OrderBy("v_m_spr_id")
+			qs = qs.OrderBy("VMSprId")
 			qs = qs.Filter("VMSprId", records[i].Id)
 			num, err := qs.All(&list)
 			for _, srv := range list {
@@ -329,11 +329,11 @@ func UpdateSprVM() {
 
 		qs = o.QueryTable("server_spr_records")
 		qs = qs.OrderBy("name") //сортировка по кратким именам серверов
-		//		qs = qs.Filter("type__eq", 1).Filter("v_m_spr_id__eq", VMSprId).Filter("name__icontains", vmName) // type == 1 виртуальные серверы + краткое имя без учета регистра
+		//		qs = qs.Filter("type__eq", 1).Filter("VMSprId__eq", VMSprId).Filter("name__icontains", vmName) // type == 1 виртуальные серверы + краткое имя без учета регистра
 
 		cond := orm.NewCondition()
-		cond1 := cond.And("type__eq", 1).And("v_m_spr_id__eq", VMSprId).AndCond(cond.Or("name__iexact", vmName).Or("name__iexact", vmHostName).Or("name_f_q_d_n__iexact", vmName).Or("name_f_q_d_n__iexact", vmHostName))
-		//cond1 := cond.And("type__eq", 1).AndCond(cond.And("name__iexact", vmName).Or("name__iexact", vmHostName).Or("name_f_q_d_n__iexact", vmName).Or("name_f_q_d_n__iexact", vmHostName))
+		cond1 := cond.And("type__eq", 1).And("VMSprId__eq", VMSprId).AndCond(cond.Or("name__iexact", vmName).Or("name__iexact", vmHostName).Or("NameFQDN__iexact", vmName).Or("NameFQDN__iexact", vmHostName))
+		//cond1 := cond.And("type__eq", 1).AndCond(cond.And("name__iexact", vmName).Or("name__iexact", vmHostName).Or("NameFQDN__iexact", vmName).Or("NameFQDN__iexact", vmHostName))
 		qs = qs.SetCond(cond1) // type == 1 виртуальные серверы + краткое имя без учета регистра
 
 		num, err := qs.All(&records)
