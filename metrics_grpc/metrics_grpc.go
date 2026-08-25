@@ -65,28 +65,17 @@ func UnlockBase() {
 }
 
 func init() {
+}
+
+func main() {
+
 	if _, err := config.ConfigData.LoadConfigData(); err != nil {
 		log.Printf("config: %v", err)
 	}
 	if err := config.ConfigData.InitParams(); err != nil {
 		log.Printf("InitParams: %v", err)
 	}
-}
 
-func main() {
-
-	config.DBInit()
-	/*
-		if len(os.Args) > 1 {
-			if os.Args[1] == "convert" {
-				fmt.Println("Конвертация данных начата")
-				cmdb.ConvertDatabase("default", "default-add")
-				fmt.Println("Конвертация данных завершена")
-			}
-		}
-	*/
-	//c := make(chan string)
-	//shedulerExit := make(chan bool)
 
 	httpKey := config.ConfigData.HttpKey
 	httpsKey := config.ConfigData.HttpsKey
@@ -104,6 +93,19 @@ func main() {
 
 	_ = s1
 	_ = s2
+	config.DBInit()
+	/*
+		if len(os.Args) > 1 {
+			if os.Args[1] == "convert" {
+				fmt.Println("Конвертация данных начата")
+				cmdb.ConvertDatabase("default", "default-add")
+				fmt.Println("Конвертация данных завершена")
+			}
+		}
+	*/
+	//c := make(chan string)
+	//shedulerExit := make(chan bool)
+
 	go func(){
 		ov := oneview.GetGlobalOVInfrastructure()
 		log.Println("Загрузка данных по конфигурациям серверов")
