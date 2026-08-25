@@ -31,12 +31,21 @@ import (
 //
 // Подход: для vc строится "живой" набор идентификаторов (по отдельному
 // govmomi-соединению и container view, т.е. без использования кэша) для
-// ВМ (UUID), хостов (MOID) и кластеров (Datacenter/Cluster), после чего
-// из соответствующих карт убираются все записи этого vCenter, ключ/UUID
-// которых не попал в "живой" набор. Если построить "живой" набор не
-// удалось (ошибка соединения/запроса) - сверка для этого vCenter в этом
-// цикле пропускается целиком, чтобы не удалить актуальные данные из-за
-// временной недоступности vCenter.
+// ВМ, хостов (MOID) и кластеров (Datacenter/Cluster), после чего из
+// соответствующих карт убираются все записи этого vCenter, ключ которых не
+// попал в "живой" набор. Если построить "живой" набор не удалось (ошибка
+// соединения/запроса) - сверка для этого vCenter в этом цикле пропускается
+// целиком, чтобы не удалить актуальные данные из-за временной
+// недоступности vCenter.
+//
+// ⚠️ ВМ сверяются по составному ключу "vCenter/Датацентр/Кластер/Имя" (тот
+// же формат, что использует VMMapList), а НЕ по UUID: в исходных данных
+// VMware встречаются виртуальные машины с дублирующимся UUID (известная,
+// пока не устранённая проблема данных), из-за чего UUID не может служить
+// надёжным уникальным идентификатором для сверки существования - при
+// коллизии UUID можно было бы случайно удалить ещё существующую ВМ только
+// потому, что другая ВМ с тем же UUID пропала. Уникальным для этой сверки
+// считается именно vCenter+Датацентр+Кластер+Имя.
 func (infra *VMInfrastructure) PruneStaleObjects(ctx context.Context, vc VCenter) error {
 	if infra.IsLockGetMetric() {
 		return nil
@@ -70,24 +79,36 @@ func (infra *VMInfrastructure) PruneStaleObjects(ctx context.Context, vc VCenter
 		liveHostKeys[vc.Hostname+"/"+ref.Value] = struct{}{}
 	}
 
-	// ---- живой набор ВМ (ключ совпадает с ключом VMUUIDMapList) ----
+	// ---- живой набор ВМ (ключ вида "vCenter/Датацентр/Кластер/Имя",
+	// совпадает с ключом VMMapList - см. комментарий к функции выше про
+	// дубли UUID) ----
 	vmRefs, err := v.Find(ctx, []string{"VirtualMachine"}, nil)
 	if err != nil {
 		log.Printf("PruneStaleObjects: ошибка списка ВМ %s: %v", vc.Hostname, err)
 		return err
 	}
-	liveVMUUIDKeys := make(map[string]struct{}, len(vmRefs))
+	liveVMNameKeys := make(map[string]struct{}, len(vmRefs))
 	if len(vmRefs) > 0 {
 		var vms []mo.VirtualMachine
-		if err := pc.Retrieve(ctx, vmRefs, []string{"config.uuid"}, &vms); err != nil {
-			log.Printf("PruneStaleObjects: ошибка чтения UUID ВМ %s: %v", vc.Hostname, err)
+		// "name" и "summary.runtime.host" достаточно, чтобы построить тот же
+		// ключ, что и при сборе метрик (см. loadvmmetrics.go: dcname/clname
+		// определяются не прямым обходом иерархии, а через уже
+		// заполненный на этом же цикле опроса infra.HostMapList по хосту
+		// ВМ) - используем тот же приём здесь, чтобы ключи гарантированно
+		// совпадали по формату.
+		if err := pc.Retrieve(ctx, vmRefs, []string{"name", "summary.runtime.host"}, &vms); err != nil {
+			log.Printf("PruneStaleObjects: ошибка чтения имён ВМ %s: %v", vc.Hostname, err)
 			return err
 		}
 		for _, vm := range vms {
-			if vm.Config == nil || vm.Config.Uuid == "" {
-				continue
+			if vm.Summary.Runtime.Host == nil {
+				continue // без хоста не определить датацентр/кластер - как и при сборе метрик, такую ВМ пропускаем
 			}
-			liveVMUUIDKeys[vc.Hostname+"/"+vm.Config.Uuid] = struct{}{}
+			hi, ok := infra.HostMapList.Get(vc.Hostname + "/" + vm.Summary.Runtime.Host.Value)
+			if !ok || hi == nil {
+				continue // хост этой ВМ ещё не в пуле - не можем построить ключ, пропускаем (сверка по ней в этом цикле не делается)
+			}
+			liveVMNameKeys[fmt.Sprintf("%s/%s/%s/%s", vc.Hostname, hi.Datacenter, hi.Cluster, vm.Name)] = struct{}{}
 		}
 	}
 
@@ -116,30 +137,29 @@ func (infra *VMInfrastructure) PruneStaleObjects(ctx context.Context, vc VCenter
 		log.Println("PruneStaleObjects: удалён отсутствующий в VMware host:", key)
 	}
 
-	// удаляем ВМ, отсутствующие в VMware
+	// удаляем ВМ, отсутствующие в VMware - сверка по имени
+	// (vCenter/Датацентр/Кластер/Имя), не по UUID, см. комментарий к функции.
 	for _, key := range infra.VMMapList.Keys() {
-		vmP, ok := infra.VMMapList.Get(key)
-		if !ok || vmP == nil || vmP.Vcenter != vc.Hostname {
-			continue
-		}
-		uuidKey := vc.Hostname + "/" + vmP.UUID
-		if _, ok := liveVMUUIDKeys[uuidKey]; ok {
-			continue
-		}
-		infra.VMMapList.Remove(key)
-		infra.VMUUIDMapList.Remove(uuidKey)
-		log.Println("PruneStaleObjects: удалена отсутствующая в VMware ВМ:", key)
-	}
-	// подчищаем VMUUIDMapList отдельно - на случай если ключ VMMapList уже
-	// был обновлён (переименование) до того, как объект пропал из VMware
-	for _, key := range infra.VMUUIDMapList.Keys() {
 		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
-		if _, ok := liveVMUUIDKeys[key]; ok {
+		if _, ok := liveVMNameKeys[key]; ok {
 			continue
 		}
-		infra.VMUUIDMapList.Remove(key)
+		vmP, ok := infra.VMMapList.Get(key)
+		infra.VMMapList.Remove(key)
+		if ok && vmP != nil {
+			uuidKey := vc.Hostname + "/" + vmP.UUID
+			// Удаляем запись в VMUUIDMapList, только если она всё ещё
+			// указывает именно на эту (устаревшую) ВМ - при дублирующихся
+			// UUID тот же ключ прямо сейчас может принадлежать другой,
+			// реально существующей ВМ (см. комментарий к функции выше), и
+			// её задевать нельзя.
+			if cur, curOk := infra.VMUUIDMapList.Get(uuidKey); curOk && cur == vmP {
+				infra.VMUUIDMapList.Remove(uuidKey)
+			}
+		}
+		log.Println("PruneStaleObjects: удалена отсутствующая в VMware ВМ:", key)
 	}
 
 	// удаляем кластеры, отсутствующие в VMware
