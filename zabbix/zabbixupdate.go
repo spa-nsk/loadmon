@@ -696,8 +696,8 @@ func Get10MinutesHistory() {
 		shortName := strings.Split(h.Host, ".")[0]
 		cond = cond.Or("name__icontains", shortName)
 		cond = cond.Or("name__icontains", h.Name)
-		cond = cond.Or("name_f_q_d_n__icontains", h.Host)
-		cond = cond.Or("name_f_q_d_n__icontains", h.Name)
+		cond = cond.Or("NameFQDN__icontains", h.Host)
+		cond = cond.Or("NameFQDN__icontains", h.Name)
 		qs = qs.SetCond(cond)
 
 		num, err := qs.All(&records)

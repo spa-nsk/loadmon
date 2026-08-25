@@ -57,7 +57,7 @@ func enrichServerViews(o orm.Ormer, list []models.ServerSprView) {
 
 		if rec.Type == 2 || rec.Type == 0 {
 			hw := models.ServerHardwareView{}
-			qs := o.QueryTable("server_hardware").OrderBy("server_id").Filter("server_id", rec.Id)
+			qs := o.QueryTable("server_hardware").OrderBy("ServerId").Filter("ServerId", rec.Id)
 			if err := qs.One(&hw.H); err == nil {
 				list[i].Hardware = &hw
 			}
@@ -376,7 +376,7 @@ func (this *MainController) SprSrvViewV2() {
 			for m := range names {
 				s := strings.TrimSpace(names[m])
 				if s != "" {
-					condName = condName.Or("name_f_q_d_n__icontains", s)
+					condName = condName.Or("NameFQDN__icontains", s)
 				}
 			}
 			cond = cond.AndCond(condName)

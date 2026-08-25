@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	models "loadmon/models"
+	vsphere "loadmon/vspheremetrics"
 	"strconv"
 	"strings"
 	"time"
@@ -573,6 +574,234 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 		}
 
 		ImportServerSprFromHW(&srvspr, srv) //заполняем данные в models.ServerSprRecords
+		srvspr.Name, _ = SplitNameFQDN(oneview.GetHWserverName(srv))
+		srvspr.NameFQDN = oneview.GetHWserverNameFQDN(srv)
+		serverName := srvspr.NameFQDN
+
+		fqdn, ip, errn := GetFQDNNameAndIP(srvspr.NameFQDN)
+		if errn == nil {
+			if srvspr.Type != 2 {
+				srvspr.IPAddress = ip
+			}
+			srvspr.NameFQDN = fqdn
+			serverName = fqdn
+			srvspr.Name, _ = SplitNameFQDN(fqdn)
+		}
+
+		if foundHwBySN {
+			_, err = trn.Update(&hw)
+			hwId = hw.Id
+			if err != nil {
+				fmt.Println("Ошибка обновления записи в ServerHardware", serverName, err)
+				trn.Rollback()
+				continue
+			}
+		} else {
+			hwId, err = trn.Insert(&hw)
+			if err != nil {
+				fmt.Println("Ошибка вставки записи в ServerHardware", serverName, err)
+				trn.Rollback()
+				continue
+			}
+		}
+
+		srvspr.HWSprId = hwId
+		if srvspr.Name != "" && srvspr.NameFQDN != "" { //если имя сервера не определено то не обновляем и не создаём новый
+			if foundSrvSpr {
+				srvspr.Stat = 1
+				_, err = trn.Update(&srvspr)
+				if err != nil {
+					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
+					trn.Rollback()
+					continue
+				}
+			} else {
+				srvspr.Stat = 1
+				serverId, err = trn.Insert(&srvspr)
+				if err != nil {
+					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
+					trn.Rollback()
+					continue
+				}
+			}
+		}
+		err = trn.Read(&hw, "Id")
+		if err != nil {
+			fmt.Println("Ошибка чтения ServerHardware по id ", hw.Id, err)
+			trn.Rollback()
+			continue
+		}
+
+		hw.ServerId = serverId
+		_, err = trn.Update(&hw)
+		if err != nil {
+			fmt.Println("Ошибка обновления записи в ServerHardware", serverName, err)
+			trn.Rollback()
+			continue
+		}
+
+		m := models.ServerHardwareComponents{ServerId: hw.Id, Type: 1}
+		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о оперативной памяти из базы (для последующего обновления данных )
+			fmt.Println("Ошибка удаления записей о оперативной памяти сервера: ", serverName, hw.SerialNum, err)
+			_ = nDel
+		}
+
+		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 1} //проверяем остались ли данные по памяти
+		if err := trn.Read(&m, "ServerId", "Type"); err != nil {      //нет записей по памяти
+			for idx, mem := range srv.Memory { //проходим в цикле по всем модулям памяти
+				ram := models.ServerHardwareComponents{ //формируем данные для записи по памяти
+					ServerId:        hw.Id,
+					Type:            1,
+					Vendor:          mem.Manufacturer,
+					Model:           fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa(mem.OperatingSpeedMHz),
+					CapacityGb:      float64(mem.CapacityMiB) / 1024.0,
+					SerialNum:       hw.SerialNum + "-" + strconv.Itoa(idx),
+					Slot:            mem.Name,
+					ContractDoc:     hw.ContractDoc,
+					DateContractDoc: hw.DateContractDoc,
+					Invoice:         hw.Invoice,
+					DateInvoice:     hw.DateInvoice,
+					ServiceContract: hw.ServiceContract,
+					DateService:     hw.DateService,
+					Time_Mfy:        hw.Time_Mfy,
+					Id_User:         hw.Id_User}
+				//вставить запись компонент
+
+				if _, err := trn.Insert(&ram); err != nil { //вставка записи о оперативной памяти
+					fmt.Println("Ошибка записи данных о памяти", err)
+				}
+			}
+		}
+
+		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
+		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о дисках из базы (для последующего обновления данных )
+			fmt.Println("Ошибка удаления записей о дисках сервера: ", serverName, hw.SerialNum, err)
+			_ = nDel
+		}
+
+		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 5}
+		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о контроллерах дисков из базы (для последующего обновления данных )
+			fmt.Println("Ошибка удаления записей о дисках сервера: ", serverName, hw.SerialNum, err)
+			_ = nDel
+		}
+
+		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
+		if err := trn.Read(&m, "ServerId", "Type"); err != nil { //проверяем есть ли записи по этому серверу
+			for _, storage := range srv.Controllers { //записей нет, записываем данные по физическим дискам
+				raid := models.ServerHardwareComponents{
+					ServerId:        hw.Id,
+					Type:            5,
+					Vendor:          "HPE",
+					Model:           storage.Model,
+					CapacityGb:      float64(storage.CacheMemorySizeMiB) / 1024.0,
+					SerialNum:       strings.TrimSpace(storage.SerialNumber),
+					Slot:            storage.Location, //формат строки расположения "ControllerPort:Box:Bay"
+					ContractDoc:     hw.ContractDoc,
+					DateContractDoc: hw.DateContractDoc,
+					Invoice:         hw.Invoice,
+					DateInvoice:     hw.DateInvoice,
+					ServiceContract: hw.ServiceContract,
+					DateService:     hw.DateService,
+					Time_Mfy:        hw.Time_Mfy,
+					Id_User:         hw.Id_User}
+				// Примечание про oneview2: у StorageController нет отдельного
+				// серийного номера кэш-модуля (в отличие от старого
+				// CacheModuleSerialNumber).
+				//вставить запись компонент
+				if _, err := trn.Insert(&raid); err != nil {
+					fmt.Println("Ошибка записи данных о диске", err)
+				}
+
+				for _, disk := range storage.Drives {
+					dsk := models.ServerHardwareComponents{
+						ServerId:        hw.Id,
+						Type:            2,
+						Vendor:          "HPE",
+						Model:           fmt.Sprintf("%.0fGb", float64(disk.CapacityMiB)/1024.0) + " " + disk.MediaType + " " + strings.TrimSpace(disk.Model) + " (" + strings.TrimSpace(disk.SerialNumber) + ")",
+						CapacityGb:      float64(disk.CapacityMiB) / 1000.0,
+						SerialNum:       strings.TrimSpace(disk.SerialNumber),
+						Slot:            disk.Location, //формат строки расположения "ControllerPort:Box:Bay"
+						ContractDoc:     hw.ContractDoc,
+						DateContractDoc: hw.DateContractDoc,
+						Invoice:         hw.Invoice,
+						DateInvoice:     hw.DateInvoice,
+						ServiceContract: hw.ServiceContract,
+						DateService:     hw.DateService,
+						Time_Mfy:        hw.Time_Mfy,
+						Id_User:         hw.Id_User}
+					switch disk.MediaType {
+					case "HDD":
+						dsk.SubType = 2
+					case "SSD":
+						dsk.SubType = 1
+					}
+					//вставить запись компонент
+					if _, err := trn.Insert(&dsk); err != nil {
+						fmt.Println("Ошибка записи данных о диске", err)
+					}
+				}
+			}
+		}
+		trn.Commit()
+	}
+}
+
+// UpdateHwSprHPServersInfra — самостоятельная переписанная версия
+// UpdateHwSprHPServers для использования в cmdb.UpdateServerInventory:
+// принимает снапшот инфраструктуры vSphere (infra) явным параметром и
+// передаёт его в ImportServerSprFromHWInfra вместо того, чтобы та брала
+// его самостоятельно на каждой итерации цикла по ov.Servers через
+// vsphere.GetGlobalVMInfrastructure().
+//
+// Зачем: при последовательном вызове HP OneView-стороны синхронизации
+// (эта функция) и VMware-стороны (cmdb.UpdateHWHostInfoInfra) в рамках
+// ОДНОГО цикла cmdb.UpdateServerInventory важно, чтобы обе стороны видели
+// ОДНО и то же согласованное состояние vSphere - иначе решение о демоции
+// роли гипервизора, принятое здесь по одному снапшоту, и последующее
+// решение UpdateHWHostInfoInfra о промоции/подтверждении роли, принятое по
+// другому (более позднему) снапшоту, могут разойтись в рамках одного и
+// того же цикла синхронизации (подробности - в комментарии к
+// ImportServerSprFromHWInfra, cmdb/initrec.go).
+//
+// UpdateHwSprHPServers выше НЕ вызывает эту функцию и не вызывается ею -
+// это две независимые функции с одинаковой логикой (кроме единственного
+// отличия - источника снапшота vSphere), чтобы существующий вызов
+// UpdateHwSprHPServers(ov) из UpdateHwSprHP() (metrics_grpc/metrics_grpc.go)
+// остался абсолютно нетронутым.
+func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfrastructure) {
+	o := orm.NewOrm()
+	for _, srv := range ov.Servers { //проходим по списку всех серверов
+
+		hw := models.ServerHardware{SerialNum: srv.Identity.SerialNumber}
+		srvspr := models.ServerSprRecords{}
+		foundHwBySN := false
+		foundSrvSpr := false
+		hwId := int64(0)     //создание переменных
+		serverId := int64(0) //
+
+		trn, err := o.Begin()
+		if err != nil {
+			fmt.Println("Ошибка начала транзакции ", err)
+			return
+		}
+		err = trn.Read(&hw, "SerialNum")
+		if err == nil {
+			foundHwBySN = true
+		}
+
+		ImportHWSprRecord(&hw, srv, ov) //заполняем данные в models.ServerHardware
+		if foundHwBySN {
+			srvspr.HWSprId = hw.Id
+
+			err := trn.Read(&srvspr, "HWSprId")
+			if err == nil {
+				foundSrvSpr = true
+				hw.ServerId = srvspr.Id
+				serverId = srvspr.Id
+			}
+		}
+
+		ImportServerSprFromHWInfra(&srvspr, srv, infra) //заполняем данные в models.ServerSprRecords, снапшот vSphere передан явным параметром
 		srvspr.Name, _ = SplitNameFQDN(oneview.GetHWserverName(srv))
 		srvspr.NameFQDN = oneview.GetHWserverNameFQDN(srv)
 		serverName := srvspr.NameFQDN

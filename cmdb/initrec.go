@@ -996,8 +996,99 @@ func ImportServerSprFromHW(srvspr *models.ServerSprRecords, srv *oneview.Server)
 	}
 
 	isHypervisorNow := false
-	if hi := vsphere.GetGlobalVMInfrastructure().HostBySNMapList; hi != nil {
-		if hs, ok := hi.Get(srv.Identity.SerialNumber); ok && hs != nil {
+	if infra := vsphere.GetGlobalVMInfrastructure(); infra != nil {
+		if hs, ok := infra.HostBySNMapList.Get(srv.Identity.SerialNumber); ok && hs != nil {
+			isHypervisorNow = true
+			srvspr.Type = 2
+			srvspr.Vcenter = hs.Vcenter
+			srvspr.Datacenter = hs.Datacenter
+			srvspr.Cluster = hs.Cluster
+			srvspr.ClusterId = hs.ClusterID
+		}
+	}
+	if !isHypervisorNow && srvspr.Type == 2 {
+		// передача владения - см. комментарий к функции выше
+		srvspr.Type = 0
+		srvspr.Vcenter = ""
+		srvspr.Datacenter = ""
+		srvspr.Cluster = ""
+		srvspr.ClusterId = ""
+		srvspr.OS = ""
+	}
+
+	srvspr.CPUCount = float64(len(srv.Processors))
+	if len(srv.Processors) > 0 {
+		srvspr.CPULogical = float64(len(srv.Processors)) * float64(srv.Processors[0].TotalCores)
+	}
+	srvspr.MemSize = float64(oneview.TotalMemoryMb(srv)) / 1024.0
+	if srvspr.Type == 0 { //физический сервер
+		srvspr.DiskSize = 0.0
+		srvspr.SerialNumber = srv.Identity.SerialNumber
+		for _, storage := range srv.Controllers {
+			for _, logical := range storage.Volumes {
+				srvspr.DiskSize += float64(logical.CapacityMiB) / 1024 //добавляем емкость всех Raid
+			}
+		}
+	}
+	if srv.Identity.PowerState == "on" || srv.Identity.PowerState == "On" {
+		srvspr.PowerState = 1
+	} else {
+		srvspr.PowerState = 2
+	}
+
+	if srvspr.OS == "Unknown" {
+		srvspr.OS = ""
+	}
+
+	if !isHypervisorNow {
+		if srv.Identity.OperatingSystem == "" || srv.Identity.OperatingSystem == "Unknown" {
+			//srvspr.OS = "" не трогаем данные введенные руками
+		} else {
+			srvspr.OS = srv.Identity.OperatingSystem
+		}
+	}
+	//else: гипервизор - OS обновляется по данным vSphere в другом месте (cmdb.UpdateHWHostInfo), OneView здесь её не трогает.
+
+	srvspr.Time_Mfy = time.Now().Local()
+}
+
+// ImportServerSprFromHWInfra — самостоятельная переписанная версия
+// ImportServerSprFromHW для использования в cmdb.UpdateServerInventory:
+// принимает снапшот инфраструктуры vSphere (infra) явным параметром, а не
+// берёт его самостоятельно через vsphere.GetGlobalVMInfrastructure().
+// ImportServerSprFromHW выше НЕ вызывает эту функцию и не вызывается ею —
+// это две независимые функции с одинаковой логикой, чтобы существующие
+// вызывающие места ImportServerSprFromHW (cmdb/insertHWSpr.go,
+// cmdb/checkserverspr.go) остались абсолютно нетронутыми.
+//
+// Зачем это понадобилось: при последовательном вызове HP OneView-стороны
+// синхронизации (UpdateHwSprHPServersInfra, эта функция) и VMware-стороны
+// (cmdb.UpdateHWHostInfoInfra) в рамках ОДНОГО цикла
+// cmdb.UpdateServerInventory каждая функция раньше брала СВОЙ отдельный
+// снапшот vsphere.GetGlobalVMInfrastructure() - если фоновый опрос vCenter
+// успевал подменить глобальный снапшот между этими двумя вызовами (или даже
+// в процессе перебора серверов HP OneView внутри одного вызова), решение о
+// демоции роли ("сервер больше не гипервизор", принятое здесь по снапшоту
+// T1) и последующее решение UpdateHWHostInfoInfra о промоции/подтверждении
+// роли (принятое по снапшоту T2) могли молча разойтись в рамках одного и
+// того же цикла синхронизации. Явная передача infra параметром гарантирует,
+// что оба шага видят ОДНО согласованное состояние vSphere. См.
+// cmdb.UpdateServerInventory, где снапшот берётся один раз и передаётся в
+// обе стороны.
+//
+// ВАЖНО про порядок строк ниже: определение демоции (srvspr.Type = 0 и
+// очистка Vcenter/Datacenter/Cluster/ClusterId/OS) выполняется в начале
+// функции и намеренно ДО блока "if srvspr.Type == 0 { ... }" и блока
+// заполнения OS - оба этих блока читают уже актуализированное здесь же
+// значение srvspr.Type. Перестановка блоков между собой изменит поведение.
+func ImportServerSprFromHWInfra(srvspr *models.ServerSprRecords, srv *oneview.Server, infra *vsphere.VMInfrastructure) {
+	if srvspr == nil || srv == nil {
+		return
+	}
+
+	isHypervisorNow := false
+	if infra != nil {
+		if hs, ok := infra.HostBySNMapList.Get(srv.Identity.SerialNumber); ok && hs != nil {
 			isHypervisorNow = true
 			srvspr.Type = 2
 			srvspr.Vcenter = hs.Vcenter
