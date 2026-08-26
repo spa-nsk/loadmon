@@ -171,7 +171,10 @@ func normalizeKey(s string) string {
 
 func mergeServer(dst *Server, src Server) {
 	mergeIdentity(&dst.Identity, src.Identity)
+	prevProcessors := append([]ProcessorInfo(nil), dst.Processors...)
 	dst.Processors = preferSlice(dst.Processors, src.Processors, processorsRicher)
+	mergeProcessorSpeedsFromOther(dst.Processors, prevProcessors)
+	mergeProcessorSpeedsFromOther(dst.Processors, src.Processors)
 	dst.Memory = preferSlice(dst.Memory, src.Memory, memoryRicher)
 	dst.Controllers = preferSlice(dst.Controllers, src.Controllers, controllersRicher)
 	dst.Devices = preferSlice(dst.Devices, src.Devices, devicesRicher)
@@ -256,6 +259,25 @@ func processorsRicher(v []ProcessorInfo) bool {
 		}
 	}
 	return false
+}
+
+func mergeProcessorSpeedsFromOther(picked, other []ProcessorInfo) {
+	for i := range picked {
+		if i >= len(other) {
+			return
+		}
+		o := other[i]
+		if picked[i].OperatingSpeedMHz == 0 {
+			if o.OperatingSpeedMHz > 0 {
+				picked[i].OperatingSpeedMHz = o.OperatingSpeedMHz
+			} else if o.MaxSpeedMHz > 0 {
+				picked[i].OperatingSpeedMHz = o.MaxSpeedMHz
+			}
+		}
+		if picked[i].MaxSpeedMHz == 0 && o.MaxSpeedMHz > 0 {
+			picked[i].MaxSpeedMHz = o.MaxSpeedMHz
+		}
+	}
 }
 
 func memoryRicher(v []MemoryModule) bool {

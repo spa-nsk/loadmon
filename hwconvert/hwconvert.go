@@ -8,6 +8,36 @@ import (
 	oneview "github.com/spa-nsk/oneview2"
 )
 
+// resolveProcessorSpeedMHz подставляет частоту CPU, когда OneView API 7400 (и ряд
+// других appliance-версий) отдаёт OperatingSpeedMHz/MaxSpeedMHz нулём в подресурсе
+// processors, хотя сводное поле processorSpeedMhz на server-hardware заполнено.
+func resolveProcessorSpeedMHz(operating, max, fallbackMHz int) (int, int) {
+	op, mx := operating, max
+	if op == 0 {
+		if mx > 0 {
+			op = mx
+		} else if fallbackMHz > 0 {
+			op = fallbackMHz
+		}
+	}
+	if mx == 0 && fallbackMHz > 0 {
+		mx = fallbackMHz
+	}
+	return op, mx
+}
+
+func processorSpeedFallbackMHz(processors []oneview.ProcessorInfo) int {
+	for _, p := range processors {
+		if p.OperatingSpeedMHz > 0 {
+			return p.OperatingSpeedMHz
+		}
+		if p.MaxSpeedMHz > 0 {
+			return p.MaxSpeedMHz
+		}
+	}
+	return 0
+}
+
 // ServerHardwareToMessage заполняет pb.ServerHardware из oneview2.Server.
 func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	if in == nil || out == nil {
@@ -23,14 +53,12 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	out.Base.Position = int32(in.Identity.Position)
 	out.Base.PowerState = in.Identity.PowerState
 	out.Base.ProcessorCount = int32(len(in.Processors))
+	speedFallback := processorSpeedFallbackMHz(in.Processors)
 	if len(in.Processors) > 0 {
 		p := in.Processors[0]
 		out.Base.ProcessorType = p.Model
 		out.Base.ProcessorCoreCount = int32(p.TotalCores)
-		speed := p.OperatingSpeedMHz
-		if speed == 0 {
-			speed = p.MaxSpeedMHz
-		}
+		speed, _ := resolveProcessorSpeedMHz(p.OperatingSpeedMHz, p.MaxSpeedMHz, speedFallback)
 		out.Base.ProcessorSpeedMhz = int32(speed)
 	}
 	out.Base.SerialNumber = in.Identity.SerialNumber
@@ -163,17 +191,18 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	out.BayInfo.BayPowerState = in.BayInfo.PowerState
 
 	for _, p := range in.Processors {
+		op, mx := resolveProcessorSpeedMHz(p.OperatingSpeedMHz, p.MaxSpeedMHz, speedFallback)
 		out.Processors = append(out.Processors, &pb.OVProcessorInfo{
-			ID:                  p.ID,
-			Socket:              p.Socket,
-			Model:               p.Model,
-			Manufacturer:        p.Manufacturer,
-			TotalCores:          int32(p.TotalCores),
-			TotalThreads:        int32(p.TotalThreads),
-			MaxSpeedMHz:         int32(p.MaxSpeedMHz),
-			OperatingSpeedMHz:   int32(p.OperatingSpeedMHz),
-			Health:              p.Health,
-			State:               p.State,
+			ID:                p.ID,
+			Socket:            p.Socket,
+			Model:             p.Model,
+			Manufacturer:      p.Manufacturer,
+			TotalCores:        int32(p.TotalCores),
+			TotalThreads:      int32(p.TotalThreads),
+			MaxSpeedMHz:       int32(mx),
+			OperatingSpeedMHz: int32(op),
+			Health:            p.Health,
+			State:             p.State,
 		})
 	}
 	for _, np := range in.NetworkPorts {
@@ -267,8 +296,13 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 		out.Identity.Platform = in.Base.Platform
 	}
 
+	baseSpeedFallback := 0
+	if in.Base != nil {
+		baseSpeedFallback = int(in.Base.ProcessorSpeedMhz)
+	}
 	if len(in.Processors) > 0 {
 		for _, p := range in.Processors {
+			op, mx := resolveProcessorSpeedMHz(int(p.OperatingSpeedMHz), int(p.MaxSpeedMHz), baseSpeedFallback)
 			out.Processors = append(out.Processors, oneview.ProcessorInfo{
 				ID:                p.ID,
 				Socket:            p.Socket,
@@ -276,8 +310,8 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 				Manufacturer:      p.Manufacturer,
 				TotalCores:        int(p.TotalCores),
 				TotalThreads:      int(p.TotalThreads),
-				MaxSpeedMHz:       int(p.MaxSpeedMHz),
-				OperatingSpeedMHz: int(p.OperatingSpeedMHz),
+				MaxSpeedMHz:       mx,
+				OperatingSpeedMHz: op,
 				Health:            p.Health,
 				State:             p.State,
 			})
