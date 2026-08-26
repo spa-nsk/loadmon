@@ -199,24 +199,33 @@ func TestDecodeSubDataDataWrapperNotSwallowed(t *testing.T) {
 // conventions-and-gotchas.md, инцидент 2026-08-26). Если в названии модели
 // есть частота в формате "@ X.XXGHz" (так HPE/Intel обычно её публикуют) -
 // используем её; иначе честно оставляем 0.
+//
+// На реальных данных строка "@ X.XXGHz" встречается в processorType БАЗОВОГО
+// ресурса (hw.ProcessorType), а не в поле Model самого подресурса processors -
+// там модель обычно без суффикса частоты. Тест проверяет оба варианта: когда
+// частота есть только в Model сокета, и когда она есть только в
+// hw.ProcessorType (реалистичный случай).
 func TestProcessorListSpeedFallback7400(t *testing.T) {
 	hw := &ServerHardware{
-		ProcessorType:      "INTEL(R) XEON(R) GOLD 5520+",
+		ProcessorType:      "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
 		ProcessorCount:     FlexInt(2),
 		ProcessorCoreCount: FlexInt(28),
 		ProcessorSpeedMhz:  FlexInt(4000), // ненадёжное generic-значение - не должно попасть в результат
 	}
 	socks := []rawProcessor{
-		{ID: "1", Socket: "CPU 1", Model: "INTEL(R) XEON(R) GOLD 5520+", TotalCores: 28, TotalThreads: 56},
+		// Реалистичный случай: Model сокета без частоты, частота есть
+		// только в hw.ProcessorType.
+		{ID: "1", Socket: "CPU 1", Model: "Intel(R) Xeon(R) Gold 5218R CPU", TotalCores: 20, TotalThreads: 40},
+		// Частота присутствует прямо в Model сокета.
 		{ID: "2", Socket: "CPU 2", Model: "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz", TotalCores: 20, TotalThreads: 40},
 	}
 	inv := processorsFrom(hw, socks)
 	if len(inv.Sockets) != 2 {
 		t.Fatalf("want 2 sockets, got %d", len(inv.Sockets))
 	}
-	// Сокет без частоты в названии модели - остаётся 0, а не 4000.
-	if s := inv.Sockets[0]; s.OperatingSpeedMHz != 0 || s.MaxSpeedMHz != 0 {
-		t.Errorf("socket 0 (no GHz in model): OperatingSpeedMHz=%d, MaxSpeedMHz=%d, want 0/0", s.OperatingSpeedMHz, s.MaxSpeedMHz)
+	// Сокет 0: частоты в Model нет, но берётся из hw.ProcessorType.
+	if s := inv.Sockets[0]; s.OperatingSpeedMHz != 2100 || s.MaxSpeedMHz != 2100 {
+		t.Errorf("socket 0 (GHz only in hw.ProcessorType): OperatingSpeedMHz=%d, MaxSpeedMHz=%d, want 2100/2100", s.OperatingSpeedMHz, s.MaxSpeedMHz)
 	}
 	// Сокет с "@ 2.10GHz" в названии модели - частота извлекается из строки.
 	if s := inv.Sockets[1]; s.OperatingSpeedMHz != 2100 || s.MaxSpeedMHz != 2100 {

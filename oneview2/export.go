@@ -418,17 +418,26 @@ func processorList(hw *ServerHardware, socks []rawProcessor) []ProcessorInfo {
 		// "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz" -> 2100 МГц, что
 		// совпадало с реальным correct-значением). Если частоты в названии
 		// нет - оставляем 0, это честнее, чем показывать выдуманное число.
+		//
+		// ВАЖНО: "@ X.XXGHz" на практике встречается в processorType
+		// БАЗОВОГО ресурса server-hardware (hw.ProcessorType), а не в поле
+		// Model самого подресурса processors - там модель обычно без
+		// суффикса частоты. Поэтому ищем частоту в обеих строках: сначала
+		// в Model сокета (на случай, если она там всё же есть), затем в
+		// hw.ProcessorType.
+		modelMHz := speedFromModelString(p.Model)
+		if modelMHz == 0 && hw != nil {
+			modelMHz = speedFromModelString(hw.ProcessorType)
+		}
 		if p.OperatingSpeedMHz == 0 {
 			if p.MaxSpeedMHz > 0 {
 				p.OperatingSpeedMHz = p.MaxSpeedMHz
-			} else if mhz := speedFromModelString(p.Model); mhz > 0 {
-				p.OperatingSpeedMHz = mhz
+			} else if modelMHz > 0 {
+				p.OperatingSpeedMHz = modelMHz
 			}
 		}
-		if p.MaxSpeedMHz == 0 {
-			if mhz := speedFromModelString(p.Model); mhz > 0 {
-				p.MaxSpeedMHz = mhz
-			}
+		if p.MaxSpeedMHz == 0 && modelMHz > 0 {
+			p.MaxSpeedMHz = modelMHz
 		}
 		out = append(out, p)
 	}
