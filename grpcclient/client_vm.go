@@ -44,6 +44,19 @@ func LoadVMListKeys(vcenter, datacenter, cluster, vmname string) []*pb.VMKeyRec 
 // таблицы). Используется вместе с LoadVMListKeys, чтобы не запрашивать
 // весь отфильтрованный список целиком, если реально отображается лишь
 // PageSize записей.
+//
+// В отличие от LoadVMList/GetVMByKey, эта функция используется там, где
+// показатели загрузки (CPUUsageMaximum/Average, MemUsage* и т.п.) реально
+// отображаются в таблице (controllers/sprsrvvm.go -> views/sprsrv/vmlist.tpl,
+// столбцы "Процессоры/Ядра"/"Память, ГБ" с "(NN%)") - поэтому после
+// GetVMPointRPC (которая сознательно не трогает Perf/агрегаты, см. её
+// комментарий) дополнительно вызывается CopyAndReCalcVMPerformance, как уже
+// сделано в LoadVMListFull для аналогичного случая на /sprsrv/cluster. Без
+// этого вызова колонки CPU/Память всегда показывали 0% (баг, воспроизводимый
+// стабильно на /sprsrv/vm/all/all/all для любой ВМ, независимо от реальной
+// загрузки — GetVMPointRPC оставляет CPUUsageMaximum/MemUsageMaximum в
+// нулевом значении Go по умолчанию, хотя сервер уже присылает и готовые
+// агрегаты, и сырой временной ряд vmp.Perf в том же ответе).
 func LoadVMByKeyRecs(keyRecs []*pb.VMKeyRec) []*vsphere.VMPoint {
 	vmlist := make([]*vsphere.VMPoint, 0, len(keyRecs))
 	if len(keyRecs) == 0 {
@@ -68,6 +81,7 @@ func LoadVMByKeyRecs(keyRecs []*pb.VMKeyRec) []*vsphere.VMPoint {
 				break
 			}
 			vm2 := GetVMPointRPC(vmp)
+			CopyAndReCalcVMPerformance(&vm2, vmp)
 			vmlist = append(vmlist, &vm2)
 		}
 	}
@@ -110,11 +124,14 @@ func LoadVMList(vcenter, datacenter, cluster, vmname string) []*vsphere.VMPoint 
 // показатели загрузки (CPUUsageMaximum/Average/Minimum, MemUsage*,
 // DiskUsage*, NetUsage* и т.п.) по точкам метрик, присланным сервером в
 // каждом vmp.Perf - через CopyAndReCalcVMPerformance, как это уже делает
-// GetVMByKeyWithPerf для одиночной ВМ. LoadVMList этого не делает
-// намеренно (см. комментарий там) - используется там, где отображаются
-// только идентификационные поля ВМ (например, /sprsrv/vm), без загрузки
-// лишних данных метрик. LoadVMListFull нужен там, где показатели загрузки
-// действительно отображаются (например, "Виртуальные машины кластера" на
+// GetVMByKeyWithPerf для одиночной ВМ (и, начиная с 2026-08-26,
+// LoadVMByKeyRecs - см. её комментарий, там был баг с постоянными 0% на
+// /sprsrv/vm по той же причине). LoadVMList этого по-прежнему не делает
+// намеренно - используется только устаревшим неподключённым к маршрутам
+// controllers/sprsrvvmold.go (SprSrvVMOld, см. kontext/05-conventions-and-
+// gotchas.md про мёртвый код). LoadVMListFull нужен там, где показатели
+// загрузки действительно отображаются (например, "Виртуальные машины
+// кластера" на
 // /sprsrv/cluster/... - раньше эти столбцы всегда показывали 0.00, так как
 // использовался LoadVMList без пересчёта).
 func LoadVMListFull(vcenter, datacenter, cluster, vmname string) []*vsphere.VMPoint {
@@ -217,8 +234,12 @@ func GetVMByKeyDirect(vcenter, datacenter, cluster, vmname string) (vsphere.VMPo
 // под vcenter/datacenter/cluster/vmname), но дополнительно заполняет
 // vm.Perf/vm.PerfCount - временной ряд метрик производительности. GetVMByKey
 // этого не делает: он строит доменный объект через GetVMPointRPC, которая
-// сознательно не трогает Perf (иначе он заполнялся бы дважды при массовой
-// загрузке списка ВМ, где Perf обычно не нужен - см. LoadVMList/LoadVMByKeyRecs).
+// сознательно не трогает Perf/агрегаты сама по себе (иначе они заполнялись
+// бы дважды в функциях, которые сами вызывают CopyAndReCalcVMPerformance
+// после неё - см. LoadVMListFull, LoadVMByKeyRecs). GetVMByKey и голый
+// LoadVMList (в отличие от LoadVMByKeyRecs) по-прежнему не пересчитывают
+// агрегаты - используются там, где реально нужны только идентификационные
+// поля ВМ, без показателей загрузки.
 // Использовать эту функцию там, где нужен именно временной ряд метрик одной
 // конкретной ВМ (например, графики загрузки).
 func GetVMByKeyWithPerf(vcenter, datacenter, cluster, vmname string) (vsphere.VMPoint, error) {
