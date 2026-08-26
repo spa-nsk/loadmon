@@ -398,6 +398,30 @@ func processorList(hw *ServerHardware, socks []rawProcessor) []ProcessorInfo {
 		if p.Model == "" && hw != nil {
 			p.Model = hw.ProcessorType
 		}
+		// На некоторых версиях appliance API (воспроизведено на API 7400)
+		// подресурс "processors" отдаёт OperatingSpeedMHz нулём для каждого
+		// сокета, хотя модель/ядра/потоки заполнены корректно - похоже, эта
+		// версия API просто не публикует динамическую частоту через этот
+		// подресурс. Тот же класс проблемы уже встречался и был исправлен
+		// для сводного поля hw.ProcessorSpeedMhz - см. hwconvert.go,
+		// ServerHardwareToMessage: `speed := p.OperatingSpeedMHz; if speed
+		// == 0 { speed = p.MaxSpeedMHz }`. Применяем такой же порядок
+		// фолбэков здесь: сперва MaxSpeedMHz этого же сокета (может быть
+		// заполнен, даже если OperatingSpeedMHz - нет), и только если и он
+		// нулевой - берём номинальную частоту из базового ресурса
+		// server-hardware (hw.ProcessorSpeedMhz), как уже делается чуть
+		// ниже для полностью отсутствующих сокетов (см. hw.ProcessorCount
+		// fallback).
+		if p.OperatingSpeedMHz == 0 {
+			if p.MaxSpeedMHz > 0 {
+				p.OperatingSpeedMHz = p.MaxSpeedMHz
+			} else if hw != nil {
+				p.OperatingSpeedMHz = hw.ProcessorSpeedMhz.Int()
+			}
+		}
+		if p.MaxSpeedMHz == 0 && hw != nil {
+			p.MaxSpeedMHz = hw.ProcessorSpeedMhz.Int()
+		}
 		out = append(out, p)
 	}
 	if len(out) > 0 {
