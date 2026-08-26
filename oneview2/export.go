@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -400,27 +402,33 @@ func processorList(hw *ServerHardware, socks []rawProcessor) []ProcessorInfo {
 		}
 		// На некоторых версиях appliance API (воспроизведено на API 7400)
 		// подресурс "processors" отдаёт OperatingSpeedMHz нулём для каждого
-		// сокета, хотя модель/ядра/потоки заполнены корректно - похоже, эта
-		// версия API просто не публикует динамическую частоту через этот
-		// подресурс. Тот же класс проблемы уже встречался и был исправлен
-		// для сводного поля hw.ProcessorSpeedMhz - см. hwconvert.go,
-		// ServerHardwareToMessage: `speed := p.OperatingSpeedMHz; if speed
-		// == 0 { speed = p.MaxSpeedMHz }`. Применяем такой же порядок
-		// фолбэков здесь: сперва MaxSpeedMHz этого же сокета (может быть
-		// заполнен, даже если OperatingSpeedMHz - нет), и только если и он
-		// нулевой - берём номинальную частоту из базового ресурса
-		// server-hardware (hw.ProcessorSpeedMhz), как уже делается чуть
-		// ниже для полностью отсутствующих сокетов (см. hw.ProcessorCount
-		// fallback).
+		// сокета, хотя модель/ядра/потоки заполнены корректно. Раньше здесь
+		// был фолбэк на сводное поле базового ресурса hw.ProcessorSpeedMhz -
+		// он был убран (2026-08-26), т.к. на реальном appliance это поле
+		// оказалось ненадёжным: для CPU без частоты в названии модели оно
+		// хранит одинаковое "круглое" значение (например, 4000 сразу у
+		// нескольких разных моделей CPU - Xeon Gold 5520+, Xeon Gold 6548N,
+		// AMD EPYC 9554), похожее на generic-заглушку OneView, а не реальную
+		// частоту - фолбэк на него подменял корректные показания (2800,
+		// 2200 и т.п.) одинаковым неверным числом у всех серверов. Вместо
+		// этого сначала пробуем сокетный MaxSpeedMHz (тот же сокет, более
+		// надёжный источник), а если и его нет - извлекаем частоту из
+		// строки модели/типа CPU по маске "@ X.XXGHz" (так HPE/Intel обычно
+		// публикуют базовую частоту в имени модели, см. hw.json пример:
+		// "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz" -> 2100 МГц, что
+		// совпадало с реальным correct-значением). Если частоты в названии
+		// нет - оставляем 0, это честнее, чем показывать выдуманное число.
 		if p.OperatingSpeedMHz == 0 {
 			if p.MaxSpeedMHz > 0 {
 				p.OperatingSpeedMHz = p.MaxSpeedMHz
-			} else if hw != nil {
-				p.OperatingSpeedMHz = hw.ProcessorSpeedMhz.Int()
+			} else if mhz := speedFromModelString(p.Model); mhz > 0 {
+				p.OperatingSpeedMHz = mhz
 			}
 		}
-		if p.MaxSpeedMHz == 0 && hw != nil {
-			p.MaxSpeedMHz = hw.ProcessorSpeedMhz.Int()
+		if p.MaxSpeedMHz == 0 {
+			if mhz := speedFromModelString(p.Model); mhz > 0 {
+				p.MaxSpeedMHz = mhz
+			}
 		}
 		out = append(out, p)
 	}
@@ -433,13 +441,14 @@ func processorList(hw *ServerHardware, socks []rawProcessor) []ProcessorInfo {
 		// занижалось.
 		if hw != nil {
 			if want := hw.ProcessorCount.Int(); want > len(out) {
+				mhz := speedFromModelString(hw.ProcessorType)
 				for i := len(out); i < want; i++ {
 					out = append(out, ProcessorInfo{
 						Socket:            fmt.Sprintf("%d", i+1),
 						Model:             hw.ProcessorType,
 						TotalCores:        hw.ProcessorCoreCount.Int(),
-						MaxSpeedMHz:       hw.ProcessorSpeedMhz.Int(),
-						OperatingSpeedMHz: hw.ProcessorSpeedMhz.Int(),
+						MaxSpeedMHz:       mhz,
+						OperatingSpeedMHz: mhz,
 					})
 				}
 			}
@@ -453,17 +462,39 @@ func processorList(hw *ServerHardware, socks []rawProcessor) []ProcessorInfo {
 	if n <= 0 {
 		return []ProcessorInfo{}
 	}
+	mhz := speedFromModelString(hw.ProcessorType)
 	for i := 0; i < n; i++ {
 		out = append(out, ProcessorInfo{
 			Socket:            fmt.Sprintf("%d", i+1),
 			Model:             hw.ProcessorType,
 			TotalCores:        hw.ProcessorCoreCount.Int(),
-			MaxSpeedMHz:       hw.ProcessorSpeedMhz.Int(),
-			OperatingSpeedMHz: hw.ProcessorSpeedMhz.Int(),
+			MaxSpeedMHz:       mhz,
+			OperatingSpeedMHz: mhz,
 		})
 	}
 	return out
 }
+
+// speedFromModelString извлекает базовую тактовую частоту процессора (МГц)
+// из строки модели/типа CPU вида "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz"
+// - в таком формате HPE/Intel обычно публикуют частоту прямо в имени модели.
+// Возвращает 0, если паттерн "@ X.XXGHz" не найден - в этом случае вызывающий
+// код должен оставить частоту нулевой, а не подставлять недостоверное
+// значение (см. комментарий в processorList о фолбэке на
+// hw.ProcessorSpeedMhz, убранном 2026-08-26).
+func speedFromModelString(model string) int {
+	m := modelSpeedRe.FindStringSubmatch(model)
+	if m == nil {
+		return 0
+	}
+	ghz, err := strconv.ParseFloat(m[1], 64)
+	if err != nil || ghz <= 0 {
+		return 0
+	}
+	return int(ghz*1000 + 0.5)
+}
+
+var modelSpeedRe = regexp.MustCompile(`@\s*([0-9]+(?:\.[0-9]+)?)\s*GHz`)
 
 func parseEmbeddedSubresources(hw *ServerHardware, exp *ServerExport) {
 	if hw == nil || hw.SubResources == nil {
