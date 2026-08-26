@@ -188,6 +188,34 @@ func TestDecodeSubDataDataWrapperNotSwallowed(t *testing.T) {
 	}
 }
 
+// TestProcessorListSpeedFallback7400: на appliance API 7400 подресурс processors
+// часто отдаёт модель/ядра, но OperatingSpeedMHz и MaxSpeedMHz = 0; частота
+// должна подставляться из processorSpeedMhz базового server-hardware.
+func TestProcessorListSpeedFallback7400(t *testing.T) {
+	hw := &ServerHardware{
+		ProcessorType:    "INTEL(R) XEON(R) GOLD 5520+",
+		ProcessorCount:     FlexInt(2),
+		ProcessorCoreCount: FlexInt(28),
+		ProcessorSpeedMhz:  FlexInt(4000),
+	}
+	socks := []rawProcessor{
+		{ID: "1", Socket: "CPU 1", Model: "INTEL(R) XEON(R) GOLD 5520+", TotalCores: 28, TotalThreads: 56},
+		{ID: "2", Socket: "CPU 2", Model: "INTEL(R) XEON(R) GOLD 5520+", TotalCores: 28, TotalThreads: 56},
+	}
+	inv := processorsFrom(hw, socks)
+	if len(inv.Sockets) != 2 {
+		t.Fatalf("want 2 sockets, got %d", len(inv.Sockets))
+	}
+	for i, s := range inv.Sockets {
+		if s.OperatingSpeedMHz != 4000 {
+			t.Errorf("socket %d: OperatingSpeedMHz=%d, want 4000", i, s.OperatingSpeedMHz)
+		}
+		if s.MaxSpeedMHz != 4000 {
+			t.Errorf("socket %d: MaxSpeedMHz=%d, want 4000", i, s.MaxSpeedMHz)
+		}
+	}
+}
+
 func TestFindServerHardwareByName(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
