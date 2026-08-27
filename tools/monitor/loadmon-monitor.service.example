@@ -1,0 +1,16 @@
+[Unit]
+Description=Loadmon availability monitor (metrics_grpc + server_web)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=loadmon
+Group=loadmon
+WorkingDirectory=/opt/loadmon-monitor
+ExecStart=/opt/loadmon-monitor/loadmon-monitor -config /opt/loadmon-monitor/conf/monitor.json
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
