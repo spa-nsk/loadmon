@@ -142,6 +142,7 @@ func SaveHostRecordOld(cl *vsphere.Cluster, clusterId int64, currentTime time.Ti
 				}
 				srvhw.Id_User = 0
 				srvhw.Time_Mfy = time.Now().Local()
+				srvhw.SourceUpdateType = models.SourceUpdateVMware // поля выше берутся из host.* (vSphere), не из hw.* (HP OneView)
 				if srvhw.SerialNum != "" {
 					srvhw.Id, err = o.Insert(&srvhw) //вставляем запись и запоминаем значение Id для повторного чтения
 					if err != nil {
@@ -162,6 +163,7 @@ func SaveHostRecordOld(cl *vsphere.Cluster, clusterId int64, currentTime time.Ti
 			serverSprRecord.HWSprId = srvhw.Id
 
 			serverSprRecord.Time_Mfy = time.Now().Local()
+			serverSprRecord.SourceUpdateType = models.SourceUpdateVMware
 			_, err = o.Update(&serverSprRecord) //обновляем данные в справочнике
 			_ = err
 

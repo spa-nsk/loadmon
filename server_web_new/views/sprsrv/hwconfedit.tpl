@@ -175,6 +175,15 @@
                         <label for="SourceUpdate" class="form-label">Источник данных</label>
                         <input type="text" id="SourceUpdate" name="SourceUpdate" class="form-control" value="{{.HW.SourceUpdate}}">
                     </div>
+                    <div class="col-12">
+                        <label class="form-label">Источник последнего обновления</label>
+                        <div>
+                            <span class="badge {{if eq .HW.SourceUpdateType 1}}text-bg-secondary{{else if eq .HW.SourceUpdateType 2}}text-bg-info{{else if eq .HW.SourceUpdateType 3}}text-bg-primary{{else if eq .HW.SourceUpdateType 4}}text-bg-warning{{else}}text-bg-light{{end}}">
+                                {{if eq .HW.SourceUpdateType 1}}Вручную{{else if eq .HW.SourceUpdateType 2}}VMware{{else if eq .HW.SourceUpdateType 3}}HPE OneView{{else if eq .HW.SourceUpdateType 4}}Zabbix{{else}}Не указано{{end}}
+                            </span>
+                            <span class="small text-muted ms-1">проставляется автоматически при синхронизации/сохранении, вручную не редактируется</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

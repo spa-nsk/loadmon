@@ -68,6 +68,7 @@ func insertNewHostSprRecord(hs vsphere.HostInfo, serialNum string, hw *oneview.S
 	srvspr.Cluster = hs.Cluster
 	srvspr.ClusterId = hs.ClusterID
 	srvspr.SerialNumber = serialNum
+	srvspr.SourceUpdateType = models.SourceUpdateVMware
 
 	if serialNum != "" {
 		hw2 := models.ServerHardware{SerialNum: serialNum}
@@ -291,6 +292,7 @@ func UpdateHWHostInfo() {
 					srvHW.PowerState = 2
 				}
 				srvHW.SourceUpdate = "Vmware " + hs.Vcenter + " " + hs.Datacenter + " " + hs.Cluster
+				srvHW.SourceUpdateType = models.SourceUpdateVMware
 				if _, err := o.Update(&srvHW); err != nil {
 					fmt.Println("Ошибка обновления справочника оборудования по серийному номеру:", serialNum, err)
 				}
@@ -383,11 +385,13 @@ func UpdateHWHostInfo() {
 				srvHW.SerialNum = serialNum
 			}
 			srvHW.SourceUpdate = "Vmware " + hs.Vcenter + " " + hs.Datacenter + " " + hs.Cluster
+			srvHW.SourceUpdateType = models.SourceUpdateVMware
 			if _, err := o.Update(&srvHW); err != nil {
 				fmt.Println("Ошибка обновления справочника конфигураций:", hs.Name, err)
 			}
 		}
 
+		srvspr.SourceUpdateType = models.SourceUpdateVMware
 		if _, err := o.Update(&srvspr); err != nil {
 			fmt.Println("Ошибка обновления записи справочника серверов:", hs.Name, err)
 		}
@@ -494,6 +498,7 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 					srvHW.PowerState = 2
 				}
 				srvHW.SourceUpdate = "Vmware " + hs.Vcenter + " " + hs.Datacenter + " " + hs.Cluster
+				srvHW.SourceUpdateType = models.SourceUpdateVMware
 				if _, err := o.Update(&srvHW); err != nil {
 					fmt.Println("Ошибка обновления справочника оборудования по серийному номеру:", serialNum, err)
 				}
@@ -586,11 +591,13 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 				srvHW.SerialNum = serialNum
 			}
 			srvHW.SourceUpdate = "Vmware " + hs.Vcenter + " " + hs.Datacenter + " " + hs.Cluster
+			srvHW.SourceUpdateType = models.SourceUpdateVMware
 			if _, err := o.Update(&srvHW); err != nil {
 				fmt.Println("Ошибка обновления справочника конфигураций:", hs.Name, err)
 			}
 		}
 
+		srvspr.SourceUpdateType = models.SourceUpdateVMware
 		if _, err := o.Update(&srvspr); err != nil {
 			fmt.Println("Ошибка обновления записи справочника серверов:", hs.Name, err)
 		}

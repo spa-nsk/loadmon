@@ -239,6 +239,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 
 			rec.Id_User = currentUserId
 			rec.Time_Mfy = now
+			rec.SourceUpdateType = models.SourceUpdateManual
 
 			if _, err := o.Update(&rec); err != nil {
 				lastErr = err

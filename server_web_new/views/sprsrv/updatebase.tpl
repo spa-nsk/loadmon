@@ -518,6 +518,15 @@
                     <label for="Details" class="form-label">Примечание</label>
                     <textarea name="Details" id="Details" class="form-control" rows="2">{{.record.Details}}</textarea>
                 </div>
+                <div class="col-12">
+                    <label class="form-label">Источник последнего обновления</label>
+                    <div>
+                        <span class="badge {{if eq .record.SourceUpdateType 1}}text-bg-secondary{{else if eq .record.SourceUpdateType 2}}text-bg-info{{else if eq .record.SourceUpdateType 3}}text-bg-primary{{else if eq .record.SourceUpdateType 4}}text-bg-warning{{else}}text-bg-light{{end}}">
+                            {{if eq .record.SourceUpdateType 1}}Вручную{{else if eq .record.SourceUpdateType 2}}VMware{{else if eq .record.SourceUpdateType 3}}HPE OneView{{else if eq .record.SourceUpdateType 4}}Zabbix{{else}}Не указано{{end}}
+                        </span>
+                        <span class="small text-muted ms-1">проставляется автоматически при синхронизации/сохранении, вручную не редактируется</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

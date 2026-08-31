@@ -68,6 +68,7 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 				hwAlter, _, _ = GetHostData(serialNumber)
 				if hwAlter != nil {
 					ImportServerSprFromHW(&s, hwAlter)
+					s.SourceUpdateType = models.SourceUpdateOneView
 					name = oneview.GetHWserverName(hwAlter)
 					nameFQDN = oneview.GetHWserverNameFQDN(hwAlter)
 					if hwAlter.Identity.PowerState == "On" { //проверяем включен ли сервер
@@ -92,6 +93,7 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 			if hw != nil {
 
 				ImportServerSprFromHW(&s, hw)
+				s.SourceUpdateType = models.SourceUpdateOneView
 
 				name = oneview.GetHWserverName(hw)
 				nameFQDN = oneview.GetHWserverNameFQDN(hw)
@@ -150,8 +152,10 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 		if foundHWSpr {
 			if hw != nil {
 				ImportHWSprRecord(&h, hw, ov)
+				h.SourceUpdateType = models.SourceUpdateOneView
 			} else if hwAlter != nil {
 				ImportHWSprRecord(&h, hwAlter, ov)
+				h.SourceUpdateType = models.SourceUpdateOneView
 			}
 			s.HWSprId = h.Id
 			h.ServerId = srv.Id

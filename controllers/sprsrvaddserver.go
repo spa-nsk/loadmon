@@ -133,6 +133,7 @@ func (this *MainController) SprAddServer() {
 		record.CreatorUser = currentUserId
 		record.Id_User = currentUserId
 		record.Time_Mfy = now
+		record.SourceUpdateType = models.SourceUpdateManual
 
 		switch record.Active {
 		case 1:

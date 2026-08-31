@@ -554,6 +554,7 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 		}
 
 		ImportHWSprRecord(&hw, srv, ov) //заполняем данные в models.ServerHardware
+		hw.SourceUpdateType = models.SourceUpdateOneView
 		if foundHwBySN {
 			//                 srvspr.Id = hw.ServerId
 			//
@@ -574,6 +575,7 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 		}
 
 		ImportServerSprFromHW(&srvspr, srv) //заполняем данные в models.ServerSprRecords
+		srvspr.SourceUpdateType = models.SourceUpdateOneView
 		srvspr.Name, _ = SplitNameFQDN(oneview.GetHWserverName(srv))
 		srvspr.NameFQDN = oneview.GetHWserverNameFQDN(srv)
 		serverName := srvspr.NameFQDN
@@ -790,6 +792,7 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 		}
 
 		ImportHWSprRecord(&hw, srv, ov) //заполняем данные в models.ServerHardware
+		hw.SourceUpdateType = models.SourceUpdateOneView
 		if foundHwBySN {
 			srvspr.HWSprId = hw.Id
 
@@ -802,6 +805,7 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 		}
 
 		ImportServerSprFromHWInfra(&srvspr, srv, infra) //заполняем данные в models.ServerSprRecords, снапшот vSphere передан явным параметром
+		srvspr.SourceUpdateType = models.SourceUpdateOneView
 		srvspr.Name, _ = SplitNameFQDN(oneview.GetHWserverName(srv))
 		srvspr.NameFQDN = oneview.GetHWserverNameFQDN(srv)
 		serverName := srvspr.NameFQDN

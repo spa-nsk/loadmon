@@ -220,6 +220,7 @@ func UpdateSprVMv2() {
 						srv.PowerState = 2
 						srv.Active = 2
 					}
+					srv.SourceUpdateType = models.SourceUpdateVMware
 					o.Update(&srv)
 				}
 			}
@@ -229,6 +230,7 @@ func UpdateSprVMv2() {
 			if err3 == nil {
 				srv.PowerState = 2
 				srv.Active = 2
+				srv.SourceUpdateType = models.SourceUpdateVMware
 				o.Update(&srv)
 			}
 		}
@@ -354,6 +356,7 @@ func UpdateSprVM() {
 			srvspr.Details = srvspr.Details + " Добавлен из Vsphere, пребуется правка"
 			srvspr.VMSprId = VMSprId
 			srvspr.Time_Mfy = time.Now() // время модификации
+			srvspr.SourceUpdateType = models.SourceUpdateVMware
 			serverId, err = o.Insert(&srvspr)
 			if err != nil {
 				fmt.Println("Ошибка записи в справочник виртуальных машин: ", err)
@@ -379,6 +382,7 @@ func UpdateSprVM() {
 			srvspr.Name = vm.Name
 			srvspr.VMSprId = VMSprId
 			srvspr.Time_Mfy = time.Now() // время модификации
+			srvspr.SourceUpdateType = models.SourceUpdateVMware
 			if _, err := o.Update(&srvspr); err != nil {
 				fmt.Println("Ошибка привязки виртуальной машины к справочнику серверов: ", srvspr.Name, err)
 			} else {
