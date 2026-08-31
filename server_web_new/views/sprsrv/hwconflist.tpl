@@ -71,6 +71,10 @@
                 <label for="RackNum" class="form-label">Номер стойки</label>
                 <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.HWConfigFilter.RackNum}}">
             </div>
+            <div class="col-6 col-md-3">
+                <label for="TechnicalNumberIT" class="form-label">Технический номер ИТ</label>
+                <input type="text" id="TechnicalNumberIT" name="TechnicalNumberIT" class="form-control" value="{{.HWConfigFilter.TechnicalNumberIT}}">
+            </div>
         </div>
         <div class="row mt-3">
             <div class="col-12 d-flex flex-wrap align-items-center gap-2">
@@ -136,7 +140,11 @@
                     <td class="text-end">{{$hw.MemoryMb}}</td>
                     <td>{{$hw.DatacenterRoom}} {{if ne $hw.RackNum ""}}/ {{$hw.RackNum}}{{end}}</td>
                     <td>
-                        {{if ne $hw.ServerName ""}}{{$hw.ServerName}}{{end}}
+                        {{if gt $hw.ServerId 0}}
+                            <a href="/sprsrv/updatebase/all/{{$hw.ServerId}}" target="_blank" title="Общие данные по серверу">{{if ne $hw.ServerName ""}}{{$hw.ServerName}}{{else}}{{$hw.ServerId}}{{end}}</a>
+                        {{else if ne $hw.ServerName ""}}
+                            {{$hw.ServerName}}
+                        {{end}}
                         {{if ne $hw.ServerNameFQDN ""}}<div class="small text-muted">{{$hw.ServerNameFQDN}}</div>{{end}}
                     </td>
                     <td id="hwRowMenu{{$hw.Id}}" class="d-none">

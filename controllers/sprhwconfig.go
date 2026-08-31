@@ -23,17 +23,18 @@ import (
 // связанному справочнику серверов (models.ServerSprRecords.Name/NameFQDN,
 // связь через ServerHardware.ServerId).
 type HWConfigFilter struct {
-	PowerState     string `form:"PowerState"`
-	Active         string `form:"Active"`
-	Vendor         string `form:"Vendor"`
-	Model          string `form:"Model"`
-	PartNum        string `form:"PartNum"`
-	FormFactor     string `form:"FormFactor"`
-	CPUModel       string `form:"CPUModel"`
-	SerialNum      string `form:"SerialNum"`
-	DatacenterRoom string `form:"DatacenterRoom"`
-	RackNum        string `form:"RackNum"`
-	ServerName     string `form:"ServerName"`
+	PowerState        string `form:"PowerState"`
+	Active            string `form:"Active"`
+	Vendor            string `form:"Vendor"`
+	Model             string `form:"Model"`
+	PartNum           string `form:"PartNum"`
+	FormFactor        string `form:"FormFactor"`
+	CPUModel          string `form:"CPUModel"`
+	SerialNum         string `form:"SerialNum"`
+	DatacenterRoom    string `form:"DatacenterRoom"`
+	RackNum           string `form:"RackNum"`
+	ServerName        string `form:"ServerName"`
+	TechnicalNumberIT string `form:"TechnicalNumberIT"`
 }
 
 func defaultHWConfigFilter() *HWConfigFilter {
@@ -149,6 +150,9 @@ func (this *MainController) SprHwConfig() {
 	}
 	if filter.RackNum != "" {
 		qs = qs.Filter("RackNum__icontains", filter.RackNum)
+	}
+	if filter.TechnicalNumberIT != "" {
+		qs = qs.Filter("TechnicalNumberIT__icontains", filter.TechnicalNumberIT)
 	}
 
 	// поиск по имени сервера ищет в связанном справочнике
