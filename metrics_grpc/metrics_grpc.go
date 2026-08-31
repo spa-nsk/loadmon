@@ -76,7 +76,6 @@ func main() {
 		log.Printf("InitParams: %v", err)
 	}
 
-
 	httpKey := config.ConfigData.HttpKey
 	httpsKey := config.ConfigData.HttpsKey
 	httpEnv := os.Getenv(httpKey)
@@ -106,7 +105,7 @@ func main() {
 	//c := make(chan string)
 	//shedulerExit := make(chan bool)
 
-	go func(){
+	go func() {
 		ov := oneview.GetGlobalOVInfrastructure()
 		log.Println("Загрузка данных по конфигурациям серверов")
 		srv, err := ov.LoadServerHardwareList()
@@ -114,6 +113,10 @@ func main() {
 			log.Println("Ошибка загрузки данных по конфигурациям серверов: ", err)
 		} else {
 			log.Println("Загрузка данных по конфигурациям серверов завершена. Всего серверов: ", len(srv))
+			log.Println("Обновление конфигураций серверов")
+			cmdb.UpdateServerInventory()
+			cmdb.ReconcileServerSprRecordsTypeAndState()
+			log.Println("Обновление конфигураций серверов завершено")
 		}
 	}()
 	//	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -190,7 +193,9 @@ func main() {
 					log.Println("Загрузка данных по конфигурациям серверов")
 					ov.LoadServerHardwareList()
 					log.Println(workStart.Format("2006-01-02 15:04:05"), "Обновление конфигураций серверов")
-					cmdb.UpdateHwSprHP()
+					//cmdb.UpdateHwSprHP()
+					cmdb.UpdateServerInventory()
+					cmdb.ReconcileServerSprRecordsTypeAndState()
 					log.Println(workStart.Format("2006-01-02 15:04:05"), "Обновление конфигураций серверов завершено")
 
 					cmdb.UpdateVolumeStorage() //убираем до лучших времен. Нужно переопределить список СХД |||| вернул но надо проверить и дорабатывать

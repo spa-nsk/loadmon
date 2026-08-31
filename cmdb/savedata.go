@@ -84,12 +84,15 @@ func UpdateHostSprRecord(hs vsphere.HostInfo, cl *vsphere.Cluster) (int64, error
 
 	CopyHostToSprSrv(hs, &srvspr)
 	srvspr.ClusterId = cl.ClusterID
+	srvspr.SourceUpdateType = models.SourceUpdateVMware
 	CopyHostToSprHW(hs, &hwspr)
+	hwspr.SourceUpdateType = models.SourceUpdateVMware
 
 	if hw != nil {
 		ImportHWSprRecord(&hwspr, hw, ov)
 		srvspr.SerialNumber = sn
 		hwspr.SerialNum = sn
+		hwspr.SourceUpdateType = models.SourceUpdateOneView // данные оборудования уточнены из HP OneView - более авторитетный источник, чем голый ESXi
 	}
 
 	if err == nil {
@@ -216,6 +219,7 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 			srvspr.HWSprId = hw2.Id
 			if hw != nil {
 				ImportHWSprRecord(&hw2, hw, ov)
+				hw2.SourceUpdateType = models.SourceUpdateOneView
 				num, err := o.Update(&hw2)
 				if err != nil || num < 1 {
 					fmt.Println("Ошибка обновления записи конфигурации сервера:", srvspr.Name, srvspr.NameFQDN, err)
@@ -224,6 +228,7 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 		} else {
 			if hw != nil {
 				ImportHWSprRecord(&hw2, hw, ov)
+				hw2.SourceUpdateType = models.SourceUpdateOneView
 				if srvspr.Active != 0 {
 					hw2.Active = srvspr.Active
 				}
@@ -239,6 +244,7 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 	}
 
 	srvspr.Time_Mfy = time.Now().Local()
+	srvspr.SourceUpdateType = models.SourceUpdateVMware
 
 	if !foundSrvSpr {
 		if Id, err := o.Insert(&srvspr); err != nil {
@@ -413,6 +419,7 @@ func SaveHostCMDBData(cl *vsphere.Cluster, clusterID int64, currentTime time.Tim
 				}
 				srvhw.Id_User = 0
 				srvhw.Time_Mfy = time.Now().Local()
+				srvhw.SourceUpdateType = models.SourceUpdateVMware // поля выше берутся из host.* (vSphere), не из hw.* (HP OneView)
 				if srvhw.SerialNum != "" {
 					srvhw.Id, err = o.Insert(&srvhw) //вставляем запись и запоминаем значение Id для повторного чтения
 					if err != nil {
@@ -433,6 +440,7 @@ func SaveHostCMDBData(cl *vsphere.Cluster, clusterID int64, currentTime time.Tim
 			serverSprRecord.HWSprId = srvhw.Id
 
 			serverSprRecord.Time_Mfy = time.Now().Local()
+			serverSprRecord.SourceUpdateType = models.SourceUpdateVMware
 			_, err = o.Update(&serverSprRecord) //обновляем данные в справочнике
 			_ = err
 
@@ -606,6 +614,7 @@ func SaveVMCMDBData(cl *vsphere.Cluster, clusterId int64, currentTime time.Time,
 		CopyVmToSprSrv(vm, &srvspr)
 		srvspr.VMSprId = VMSprId
 		srvspr.Time_Mfy = time.Now().Local() // время модификации
+		srvspr.SourceUpdateType = models.SourceUpdateVMware
 		if err != nil {
 			srvspr.Type = 1
 			srvspr.Stat = 1

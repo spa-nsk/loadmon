@@ -28,6 +28,7 @@ func InsertHWSpr(srv *oneview.Server, srvspr *models.ServerSprRecords, ov *onevi
 		hw.Active = srvspr.Active
 	}
 	hw.Time_Mfy = time.Now().Local()
+	hw.SourceUpdateType = models.SourceUpdateOneView
 	HWSprId, err := o.Insert(&hw)
 	if err != nil {
 		fmt.Println("Ошибка вставки записи конфигурации сервера:", srvspr.Name, srvspr.NameFQDN, err)
@@ -150,6 +151,7 @@ func InsertHWSpr(srv *oneview.Server, srvspr *models.ServerSprRecords, ov *onevi
 	// Примечание про oneview2: у Server/ServerIdentity нет поля Description
 	// (в отличие от старого Base.Description) - используем Product сервера.
 	hw.SourceUpdate = "HP OneView " + srv.Product
+	hw.SourceUpdateType = models.SourceUpdateOneView
 	if _, err := o.Update(&hw); err != nil {
 		fmt.Println("Ошибка обновления данных конфигурации серверов", err)
 	}

@@ -776,6 +776,7 @@ func Get10MinutesHistory() {
 		if err == nil {
 			hostdb.ServerId = srv.Id
 			srv.ZabbixHostId = hostdb.Id
+			srv.SourceUpdateType = models.SourceUpdateZabbix
 			_, err = trn.Update(&srv)
 			if err != nil {
 				fmt.Println("Ошибка обновления записи models.ServerSprRecords", srv.NameFQDN, h.Host)

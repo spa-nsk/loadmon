@@ -93,6 +93,33 @@ func (this *MainController) SprHwConfig() {
 			this.Data[keyFilter] = filter
 			return
 		}
+
+		// beego.ParseForm (beego/v2/server/web/context/form.go: formFirstValue)
+		// для строковых полей молча пропускает присвоение, если значение поля
+		// формы - пустая строка. Из-за этого при очистке текстового поля
+		// фильтра и нажатии "Просмотр" ParseForm никак не меняет
+		// соответствующее поле filter - а filter это не новый объект на
+		// каждый запрос, а указатель, сохранённый в сессии (m[keyFilter]
+		// выше), поэтому в нём остаётся прежнее (непустое) значение с
+		// прошлого поиска, и очищенное поле фильтра "само" заполняется
+		// обратно. Читаем эти строковые поля вручную через this.GetString -
+		// он корректно возвращает "" для пустого/отсутствующего поля - и
+		// присваиваем их filter напрямую, перекрывая то, что (не) сделал
+		// ParseForm. Тот же паттерн уже применён в controllers/sprsrvview2.go
+		// (см. kontext/05-conventions-and-gotchas.md). Select-поля
+		// (PowerState/Active/FormFactor) этой проблемы не имеют - они всегда
+		// отправляют непустое значение ("all"/"1"/"2"/...), даже когда выбран
+		// вариант "Все".
+		filter.Vendor = this.GetString("Vendor")
+		filter.Model = this.GetString("Model")
+		filter.PartNum = this.GetString("PartNum")
+		filter.CPUModel = this.GetString("CPUModel")
+		filter.SerialNum = this.GetString("SerialNum")
+		filter.DatacenterRoom = this.GetString("DatacenterRoom")
+		filter.RackNum = this.GetString("RackNum")
+		filter.ServerName = this.GetString("ServerName")
+		filter.TechnicalNumberIT = this.GetString("TechnicalNumberIT")
+
 		delete(m, keyFilter)
 		m[keyFilter] = filter
 
@@ -596,6 +623,7 @@ func (this *MainController) SprHwConfigEdit() {
 		rec.ServiceContract = this.GetString("ServiceContract")
 		rec.DateService = parseHWConfigDate(this.GetString("DateService"))
 		rec.SourceUpdate = this.GetString("SourceUpdate")
+		rec.SourceUpdateType = models.SourceUpdateManual
 
 		rec.Time_Mfy = time.Now().Local()
 
@@ -731,6 +759,7 @@ func (this *MainController) SprHwConfigBulkEdit() {
 			flash.Store(&this.Controller)
 		} else {
 			values["Time_Mfy"] = time.Now().Local()
+			values["SourceUpdateType"] = models.SourceUpdateManual
 			affected, err := o.QueryTable("server_hardware").Filter("Id__in", ids).Update(values)
 			if err != nil {
 				flash.Error("Ошибка группового сохранения: %v", err)

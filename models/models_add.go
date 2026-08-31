@@ -804,6 +804,11 @@ type ServerSprRecords struct {
 	Id_User          int64     `form:"Id_User" json:"Id_User"` //
 	Time_Mfy         time.Time `form:"Time_Mfy" json:"Time_Mfy"` //
 	Privilage        int       `form:"Privilage" json:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя) // TODO: comment truncated in screenshot
+	// SourceUpdateType - источник последнего обновления записи: 0 - не
+	// указано, 1 - добавлен/изменён вручную, 2 - VMware, 3 - HPE OneView,
+	// 4 - Zabbix. См. константы SourceUpdate* и комментарий к одноимённому
+	// полю в ServerHardware выше.
+	SourceUpdateType int `form:"SourceUpdateType" json:"SourceUpdateType"`
 }
 
 // ServerSprRecordsArch описывает запись/справочник БД loadmon, соответствующую сущности ServerSprRecordsArch.
@@ -1528,7 +1533,24 @@ type ServerHardware struct {
 	Id_User           int64     `form:"Id_User" csv:"-" json:"Id_User"` //
 	Time_Mfy          time.Time `form:"Time_Mfy" csv:"-" json:"Time_Mfy"` //
 	SourceUpdate      string    `form:"SourceUpdate" csv:"Источник данных" json:"SourceUpdate"` //
+	// SourceUpdateType - источник последнего обновления записи (числовой
+	// код, в отличие от свободного текстового SourceUpdate выше):
+	// 0 - не указано, 1 - добавлен/изменён вручную, 2 - VMware, 3 - HPE
+	// OneView, 4 - Zabbix. Проставляется в точках записи в cmdb (импорт из
+	// vSphere/OneView/Zabbix) и в контроллерах ручного редактирования
+	// (controllers/sprhwconfig.go) - см. kontext/05-conventions-and-gotchas.md.
+	SourceUpdateType int `form:"SourceUpdateType" csv:"Источник обновления (код)" json:"SourceUpdateType"`
 }
+
+// Коды источника обновления записей ServerHardware/ServerSprRecords -
+// значения поля SourceUpdateType.
+const (
+	SourceUpdateNone    = 0 // не указано
+	SourceUpdateManual  = 1 // добавлен/изменён вручную
+	SourceUpdateVMware  = 2 // VMware (vSphere)
+	SourceUpdateOneView = 3 // HPE OneView
+	SourceUpdateZabbix  = 4 // Zabbix
+)
 
 // Блок описания для cmdb
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------------

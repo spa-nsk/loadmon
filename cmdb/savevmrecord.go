@@ -200,6 +200,7 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 			srvSpr.Details = "Добавлен из Vsphere, требуется правка"
 			srvSpr.VMSprId = VMSprId
 			srvSpr.Time_Mfy = time.Now().Local() // время модификации
+			srvSpr.SourceUpdateType = models.SourceUpdateVMware
 			serverId, err = trn.Insert(&srvSpr)
 			if err != nil {
 				fmt.Println("Ошибка вставки в справочник серверов: ", err)
@@ -249,6 +250,7 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 			srvSpr.Type = 1
 			srvSpr.VMSprId = VMSprId
 			srvSpr.Time_Mfy = time.Now().Local() // время модификации
+			srvSpr.SourceUpdateType = models.SourceUpdateVMware
 			_, err = trn.Update(&srvSpr)         //обновление справочника серверов
 
 			if err != nil {
