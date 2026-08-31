@@ -277,6 +277,18 @@ func GetVMByKeyWithPerf(vcenter, datacenter, cluster, vmname string) (vsphere.VM
 
 // GetVM возвращает VM по её уникальному ключу key. Возвращает ошибку, если
 // подключиться к серверу не удалось или данные по ключу не найдены.
+//
+// Дополнительно вызывает CopyAndReCalcVMPerformance поверх GetVMPointRPC -
+// как и в LoadVMByKeyRecs/GetVMByKeyWithPerf, сам по себе GetVMPointRPC не
+// пересчитывает агрегаты CPUUsageMaximum/MemUsageMaximum и т.п. из vm.Perf
+// (см. их комментарии). Без этого вызова агрегаты оставались нулевыми, и
+// cmdb.SaveVMRecord (единственный вызывающий эту функцию) пропускал вставку
+// суточной записи в vm_record из-за проверки "Cpu_usage_maximum == 0 &&
+// Mem_usage_maximum == 0 => пропустить" - в результате на
+// /sprsrv/clusterperioddb для всех ВМ кластера показывалось "нет
+// сохранённых данных в БД (vm_record)" за весь период, хотя реальные данные
+// по загрузке были. Исправлено 2026-08-27 (тот же класс бага, что и в
+// LoadVMByKeyRecs, но в другой функции).
 func GetVM(key string) (vsphere.VMPoint, error) {
 	c, conn, ctx, cancel, err := dialAPI()
 	if err != nil {
@@ -284,9 +296,11 @@ func GetVM(key string) (vsphere.VMPoint, error) {
 	}
 	defer conn.Close()
 	defer cancel()
-	vm, err := c.GetVMByKey(ctx, &pb.VMReqKey{Key: key})
+	vmp, err := c.GetVMByKey(ctx, &pb.VMReqKey{Key: key})
 	if err == nil {
-		return GetVMPointRPC(vm), nil
+		vm := GetVMPointRPC(vmp)
+		CopyAndReCalcVMPerformance(&vm, vmp)
+		return vm, nil
 	}
 	return vsphere.VMPoint{}, errors.New("Данные по ключу не найдены.")
 }

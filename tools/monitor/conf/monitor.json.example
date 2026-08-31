@@ -1,0 +1,25 @@
+{
+	"check_interval_sec": 60,
+	"alert_cooldown_sec": 300,
+	"grpc": {
+		"addr": "127.0.0.1",
+		"port": 50063,
+		"timeout_sec": 10
+	},
+	"http": {
+		"url": "http://127.0.0.1:9001/metrics",
+		"timeout_sec": 10,
+		"expect_status": 200
+	},
+	"email": {
+		"smtp_host": "smtp.example.com",
+		"smtp_port": 587,
+		"username": "monitor@example.com",
+		"password": "secret",
+		"from": "loadmon-monitor@example.com",
+		"to": [
+			"admin@example.com"
+		],
+		"use_tls": true
+	}
+}
