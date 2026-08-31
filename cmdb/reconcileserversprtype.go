@@ -21,7 +21,9 @@ import (
 //   - Type 0 — аппаратный сервер без роли гипервизора (есть в OneView, но не
 //     хост в vSphere; хосты других вендоров могут быть только в VMware);
 //   - если сервер не найден ни в VMware, ни в OneView — Stat=0, PowerState=2,
-//     Active=2 (выведен из эксплуатации).
+//     Active=2 (выведен из эксплуатации), кроме записей с SourceUpdateType=1
+//     (вручную) в ServerSprRecords или связанном ServerHardware — их статус
+//     автоматической сверкой не затирается.
 //
 // Для проверки наличия используются прямые gRPC-запросы к metrics_grpc
 // (GetVMByKeyDirect, GetHostByKeyDirect, GetHostBySN) и индекс OneView
@@ -55,6 +57,9 @@ func reconcileServerSprRecord(o orm.Ormer, ov *oneview.Infrastructure, srv *mode
 	inOneView := hw != nil
 
 	if !inVMwareHost && !inVMwareVM && !inOneView {
+		if skipAbsentMarkDueToManualSource(o, srv) {
+			return
+		}
 		markServerSprAbsent(o, srv)
 		return
 	}
@@ -146,6 +151,24 @@ func serverSprSerial(srv *models.ServerSprRecords) string {
 		return s
 	}
 	return strings.TrimSpace(GetSNFromServerSprRecords(srv))
+}
+
+// skipAbsentMarkDueToManualSource сообщает, что запись не должна получать
+// Stat=0/PowerState=2/Active=2 при отсутствии в VMware и OneView: источник
+// последнего обновления — ручной ввод (SourceUpdateType=1) у самой записи
+// server_spr_records или у связанного server_hardware (HWSprId).
+func skipAbsentMarkDueToManualSource(o orm.Ormer, srv *models.ServerSprRecords) bool {
+	if srv.SourceUpdateType == models.SourceUpdateManual {
+		return true
+	}
+	if srv.HWSprId <= 0 {
+		return false
+	}
+	hw := models.ServerHardware{Id: srv.HWSprId}
+	if err := o.Read(&hw, "Id"); err != nil {
+		return false
+	}
+	return hw.SourceUpdateType == models.SourceUpdateManual
 }
 
 func markServerSprAbsent(o orm.Ormer, srv *models.ServerSprRecords) {
