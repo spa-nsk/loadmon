@@ -1,61 +1,46 @@
 <!-- Контроллер: controllers/sprutilization.go (SprUtilization). Оформление -
-     "grafana-style" stat-панели и bar gauge на чистом CSS (без ApexCharts
-     radialBar - он даёт наложение подписей на маленьких донатах), плюс
-     ApexCharts только для горизонтальных bar-графиков, где он ведёт себя
-     предсказуемо. Общий паттерн подключения ApexCharts/тёмной темы - как в
-     /sprsrv/zabbixperfperiod. -->
+     по образцу дашбордов Grafana/Zabbix (референсы присланы пользователем):
+     сплошные цветные "singlestat"-панели вместо тонких полосок прогресса
+     (.util-stat + renderSinglestat), heatmap-полоса заполненности СХД/LUN
+     в духе панели "Datastores - Usage Capacity" (.util-heatmap +
+     renderHeatmap), таблица рисков с заливкой всей ячейки severity-цветом
+     как в Zabbix "Detected problems" (.util-risk-cell-*). ApexCharts
+     оставлен только для горизонтальных bar-списков (кластеры/хосты/VM),
+     где он ведёт себя предсказуемо. Общий паттерн подключения ApexCharts/
+     тёмной темы - как в /sprsrv/zabbixperfperiod. -->
 
 <div class="hero-text mb-3">
     <h2>Утилизация виртуальной инфраструктуры</h2>
     <div class="text-muted">Сводная оценка загрузки кластеров, хостов, виртуальных машин, СХД и LUN по последним суточным данным. Риски перегруза и неиспользуемые ресурсы - в таблице рекомендаций внизу страницы.</div>
 </div>
 
-<div class="util-stat-row mb-3">
-    <div class="util-stat">
-        <div class="util-stat-label">Кластеров</div>
-        <div class="util-stat-value">{{.KPI.ClusterCount}}</div>
-    </div>
-    <div class="util-stat">
-        <div class="util-stat-label">Хостов</div>
-        <div class="util-stat-value">{{.KPI.HostCount}}</div>
-    </div>
-    <div class="util-stat">
-        <div class="util-stat-label">Виртуальных машин</div>
-        <div class="util-stat-value">{{.KPI.VMCount}}</div>
-    </div>
-    <div class="util-stat">
-        <div class="util-stat-label">СХД</div>
-        <div class="util-stat-value">{{.KPI.StorageSystemCount}}</div>
-    </div>
-    <div class="util-stat">
-        <div class="util-stat-label">LUN</div>
-        <div class="util-stat-value">{{.KPI.LUNCount}}</div>
-    </div>
-    <div class="util-stat util-stat-accent-danger">
-        <div class="util-stat-label">Риски перегруза</div>
-        <div class="util-stat-value">{{.KPI.OverloadedCount}}</div>
-    </div>
-    <div class="util-stat util-stat-accent-warning">
-        <div class="util-stat-label">Недоиспользуется</div>
-        <div class="util-stat-value">{{.KPI.UnderusedCount}}</div>
-    </div>
+<!-- Верхняя строка - "singlestat"-панели, как в grafana (сплошной цветной
+     фон вместо тонкой полоски прогресса - количества нейтральные тёмно-серые,
+     проценты загрузки и счётчики рисков красятся по порогу). Цвет проставляет
+     JS (renderSinglestat) - см. ниже. -->
+<div class="util-stat-row mb-3" id="utilStatCounts">
+    <div class="util-stat util-stat-neutral"><div class="util-stat-label">Кластеров</div><div class="util-stat-value">{{.KPI.ClusterCount}}</div></div>
+    <div class="util-stat util-stat-neutral"><div class="util-stat-label">Хостов</div><div class="util-stat-value">{{.KPI.HostCount}}</div></div>
+    <div class="util-stat util-stat-neutral"><div class="util-stat-label">Виртуальных машин</div><div class="util-stat-value">{{.KPI.VMCount}}</div></div>
+    <div class="util-stat util-stat-neutral"><div class="util-stat-label">СХД</div><div class="util-stat-value">{{.KPI.StorageSystemCount}}</div></div>
+    <div class="util-stat util-stat-neutral"><div class="util-stat-label">LUN</div><div class="util-stat-value">{{.KPI.LUNCount}}</div></div>
+    <div class="util-stat" id="utilStatOverload"><div class="util-stat-label">Риски перегруза</div><div class="util-stat-value">{{.KPI.OverloadedCount}}</div></div>
+    <div class="util-stat" id="utilStatUnderused"><div class="util-stat-label">Недоиспользуется</div><div class="util-stat-value">{{.KPI.UnderusedCount}}</div></div>
 </div>
 
+<div class="util-stat-row mb-3" id="utilStatLoad"></div>
+
 <div class="row g-3 mb-3">
-    <div class="col-12 col-xl-8">
+    <div class="col-12 col-xl-6">
         <div class="util-card">
-            <h6>Средняя загрузка, %</h6>
-            <div class="util-gauge-grid" id="utilGaugeGrid"></div>
+            <h6>СХД - заполненность, %</h6>
+            <div id="utilHeatmapStorage" class="util-heatmap"></div>
         </div>
     </div>
-    <div class="col-12 col-xl-4">
+    <div class="col-12 col-xl-6">
         <div class="util-card">
-            <h6>Хранилище</h6>
-            <div class="util-gauge-grid util-gauge-grid-single" id="utilGaugeStorage"></div>
-            <div class="util-storage-total">
-                <div class="util-stat-value">{{printf "%.1f" .KPI.TotalStorageRawTB}}&nbsp;ТБ</div>
-                <div class="util-stat-label">Суммарная ёмкость СХД (raw)</div>
-            </div>
+            <h6>LUN - заполненность, % (топ-30 самых занятых)</h6>
+            <div id="utilHeatmapLun" class="util-heatmap"></div>
         </div>
     </div>
 </div>
@@ -75,19 +60,13 @@
     </div>
     <div class="col-12 col-xl-6">
         <div class="util-card">
-            <h6>Заполненность СХД и LUN, %</h6>
-            <div id="utilBarStorage" class="util-chart-box"></div>
+            <h6>Перегруженные VM (CPU avg ≥ 85%)</h6>
+            <div id="utilBarVmTop" class="util-chart-box"></div>
         </div>
     </div>
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-xl-6">
-        <div class="util-card">
-            <h6>Перегруженные VM (CPU avg ≥ 85%)</h6>
-            <div id="utilBarVmTop" class="util-chart-box"></div>
-        </div>
-    </div>
     <div class="col-12 col-xl-6">
         <div class="util-card">
             <h6>Кандидаты на right-sizing / отключение (CPU max &lt; 5%)</h6>
@@ -199,54 +178,86 @@
 
     .util-chart-box { min-height: 320px; }
 
-    /* --- Bar gauge (полоска с подписью значения сверху, без наложения текста) --- */
-    .util-gauge-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem 1.5rem;
+    /* --- Singlestat-панели (сплошной цветной фон, крупное число) - в духе
+       grafana stat panel (см. пример "CPU Usage 14.55%" зелёным фоном) --- */
+    .util-stat-row + .util-stat-row { margin-top: -0.75rem; }
+
+    .util-stat {
+        background: var(--bs-secondary-bg);
+        padding: 0.7rem 1rem;
+        border-radius: 0.35rem;
+        color: #fff;
     }
 
-    .util-gauge-grid-single { grid-template-columns: 1fr; }
+    .util-stat-neutral { background: #3a3f4b; }
 
-    .util-gauge {
+    .util-stat-ok { background: #299a3e; }
+    .util-stat-watch { background: #d9822b; }
+    .util-stat-crit { background: #c4162a; }
+
+    .util-stat-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.85;
+        margin-bottom: 0.2rem;
+    }
+
+    .util-stat-value {
+        font-size: 1.7rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    /* --- Heatmap-полоса заполненности (в духе grafana "Datastores - Usage
+       Capacity": числа сверху цветом по порогу, вертикальный столбик снизу,
+       имя объекта под столбиком) --- */
+    .util-heatmap {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 0.5rem;
+        min-height: 220px;
+        padding-top: 0.5rem;
+    }
+
+    .util-heatmap-item {
         display: flex;
         flex-direction: column;
-        gap: 0.3rem;
+        align-items: center;
+        width: 2.4rem;
     }
 
-    .util-gauge-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        font-size: 0.8rem;
-    }
-
-    .util-gauge-name { color: var(--bs-secondary-color); }
-
-    .util-gauge-value {
+    .util-heatmap-pct {
+        font-size: 0.68rem;
         font-weight: 700;
-        color: var(--bs-emphasis-color);
-        font-variant-numeric: tabular-nums;
+        margin-bottom: 0.3rem;
+        white-space: nowrap;
     }
 
-    .util-gauge-track {
-        height: 0.55rem;
-        border-radius: 0.3rem;
+    .util-heatmap-bar {
+        width: 1.1rem;
+        height: 140px;
+        border-radius: 0.2rem;
         background: var(--bs-secondary-bg);
+        display: flex;
+        align-items: flex-end;
         overflow: hidden;
     }
 
-    .util-gauge-fill {
-        height: 100%;
-        border-radius: 0.3rem;
-        transition: width 0.3s ease;
-    }
+    .util-heatmap-fill { width: 100%; border-radius: 0.2rem 0.2rem 0 0; }
 
-    .util-storage-total {
-        text-align: center;
-        margin-top: 1.25rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--bs-border-color);
+    .util-heatmap-name {
+        font-size: 0.62rem;
+        color: var(--bs-secondary-color);
+        margin-top: 0.3rem;
+        max-width: 3.4rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        height: 3.4rem;
     }
 
     .util-legend-dot {
@@ -352,16 +363,11 @@
         border-bottom-width: 1px;
     }
 
-    .util-risk-badge {
-        display: inline-block;
-        padding: 0.15rem 0.55rem;
-        border-radius: 0.25rem;
-        font-size: 0.72rem;
-        font-weight: 600;
-    }
-
-    .util-risk-badge-danger { background: rgba(230, 73, 128, 0.15); color: #e64980; }
-    .util-risk-badge-warning { background: rgba(245, 159, 0, 0.15); color: #f59f00; }
+    /* Заливка всей ячейки цветом по severity - в духе таблицы "Detected
+       problems" в Zabbix, где цвет строки/ячейки сразу считывается взглядом,
+       без необходимости искать отдельный маленький бейдж */
+    .util-risk-cell-danger { background: #c4162a; color: #fff; font-weight: 600; }
+    .util-risk-cell-warning { background: #d9822b; color: #fff; font-weight: 600; }
 
     .util-gaps-list {
         padding-left: 1.1rem;
@@ -399,12 +405,6 @@
         return COLOR_NORMAL;
     }
 
-    function gaugeColor(pct) {
-        if (pct >= 80) return COLOR_DANGER;
-        if (pct <= 15) return COLOR_WARNING;
-        return COLOR_OK;
-    }
-
     function avg(list, field) {
         if (!list || !list.length) return 0;
         var sum = 0;
@@ -418,33 +418,67 @@
         el.innerHTML = '<div class="util-empty-state"><div>' + text + '</div></div>';
     }
 
-    // Простая CSS bar-gauge вместо ApexCharts radialBar - не даёт наложения
-    // подписи значения на график на маленьких размерах, читается однозначно.
-    function renderGauge(containerEl, name, pct) {
-        var clamped = Math.max(0, Math.min(100, pct));
-        var wrap = document.createElement('div');
-        wrap.className = 'util-gauge';
-        wrap.innerHTML =
-            '<div class="util-gauge-head"><span class="util-gauge-name">' + name + '</span><span class="util-gauge-value">' + pct.toFixed(1) + '%</span></div>' +
-            '<div class="util-gauge-track"><div class="util-gauge-fill" style="width:' + clamped + '%;background:' + gaugeColor(pct) + '"></div></div>';
-        containerEl.appendChild(wrap);
+    // Singlestat-панель со сплошной цветной заливкой по порогу значения -
+    // как "CPU Usage"/"RAM Usage" в примере grafana (зелёный/жёлтый/красный
+    // фон целиком, а не тонкая полоска прогресса).
+    function statClass(pct) {
+        if (pct >= 85) return 'util-stat-crit';
+        if (pct >= 65) return 'util-stat-watch';
+        return 'util-stat-ok';
     }
 
-    var loadGrid = document.getElementById('utilGaugeGrid');
-    if (loadGrid) {
-        renderGauge(loadGrid, 'Кластеры · CPU', avg(data.clusters, 'cpuPct'));
-        renderGauge(loadGrid, 'Кластеры · MEM', avg(data.clusters, 'memPct'));
-        renderGauge(loadGrid, 'Хосты · CPU', avg(data.hosts, 'cpuPct'));
-        renderGauge(loadGrid, 'Хосты · MEM', avg(data.hosts, 'memPct'));
-        renderGauge(loadGrid, 'VM · CPU', avg(data.vms, 'cpuPct'));
-        renderGauge(loadGrid, 'VM · MEM', avg(data.vms, 'memPct'));
+    function renderSinglestat(containerEl, name, pct) {
+        var div = document.createElement('div');
+        div.className = 'util-stat ' + statClass(pct);
+        div.innerHTML = '<div class="util-stat-label">' + name + '</div><div class="util-stat-value">' + pct.toFixed(1) + '%</div>';
+        containerEl.appendChild(div);
     }
 
-    var storageGrid = document.getElementById('utilGaugeStorage');
-    if (storageGrid) {
-        renderGauge(storageGrid, 'СХД занято', avg(data.storages, 'diskPct'));
-        renderGauge(storageGrid, 'LUN занято', avg(data.luns, 'diskPct'));
+    var loadRow = document.getElementById('utilStatLoad');
+    if (loadRow) {
+        renderSinglestat(loadRow, 'Кластеры · CPU', avg(data.clusters, 'cpuPct'));
+        renderSinglestat(loadRow, 'Кластеры · MEM', avg(data.clusters, 'memPct'));
+        renderSinglestat(loadRow, 'Хосты · CPU', avg(data.hosts, 'cpuPct'));
+        renderSinglestat(loadRow, 'Хосты · MEM', avg(data.hosts, 'memPct'));
+        renderSinglestat(loadRow, 'VM · CPU', avg(data.vms, 'cpuPct'));
+        renderSinglestat(loadRow, 'VM · MEM', avg(data.vms, 'memPct'));
+        renderSinglestat(loadRow, 'СХД занято', avg(data.storages, 'diskPct'));
+        renderSinglestat(loadRow, 'LUN занято', avg(data.luns, 'diskPct'));
     }
+
+    // Счётчики рисков в верхней строке красим по факту наличия (>0 - тревожный
+    // цвет, 0 - зелёный "всё ок"), как status-плитки в примерах grafana/zabbix.
+    (function () {
+        var overloadEl = document.getElementById('utilStatOverload');
+        var underusedEl = document.getElementById('utilStatUnderused');
+        var overloadCount = {{.KPI.OverloadedCount}};
+        var underusedCount = {{.KPI.UnderusedCount}};
+        if (overloadEl) overloadEl.classList.add(overloadCount > 0 ? 'util-stat-crit' : 'util-stat-ok');
+        if (underusedEl) underusedEl.classList.add(underusedCount > 0 ? 'util-stat-watch' : 'util-stat-ok');
+    })();
+
+    // Heatmap-полоса заполненности СХД/LUN - вертикальные столбики с числом
+    // сверху и именем снизу, цвет столбика по тому же порогу, что и
+    // singlestat-панели (в духе grafana "Datastores - Usage Capacity").
+    function renderHeatmap(elId, items, emptyText) {
+        var el = document.getElementById(elId);
+        if (!el) return;
+        if (!items.length) { emptyState(elId, emptyText); return; }
+        var html = '';
+        items.forEach(function (x) {
+            var pct = Math.max(0, Math.min(100, x.diskPct));
+            var color = pct >= 85 ? '#c4162a' : (pct >= 65 ? '#d9822b' : '#299a3e');
+            html += '<div class="util-heatmap-item">' +
+                '<div class="util-heatmap-pct" style="color:' + color + '">' + x.diskPct.toFixed(1) + '%</div>' +
+                '<div class="util-heatmap-bar"><div class="util-heatmap-fill" style="height:' + pct + '%;background:' + color + '"></div></div>' +
+                '<div class="util-heatmap-name" title="' + x.name + '">' + x.name + '</div>' +
+                '</div>';
+        });
+        el.innerHTML = html;
+    }
+
+    renderHeatmap('utilHeatmapStorage', (data.storages || []).slice().sort(function (a, b) { return b.diskPct - a.diskPct; }), 'Справочник СХД пуст');
+    renderHeatmap('utilHeatmapLun', (data.luns || []).slice().sort(function (a, b) { return b.diskPct - a.diskPct; }).slice(0, 30), 'Справочник LUN пуст');
 
     function horizontalBar(elId, items, opts) {
         // items: [{name, value, color}]
@@ -481,14 +515,6 @@
             .concat((data.hosts || []).map(function (x) { return { name: 'Хост · ' + x.name, value: x.cpuPct, color: statusColor(x.status) }; }));
         items.sort(function (a, b) { return b.value - a.value; });
         horizontalBar('utilBarClustersHosts', items.slice(0, 15), { unit: '%', emptyText: 'Нет суточных данных по кластерам/хостам за последние 7 дней' });
-    })();
-
-    // СХД и LUN по заполненности
-    (function () {
-        var items = (data.storages || []).map(function (x) { return { name: 'СХД · ' + x.name, value: x.diskPct, color: statusColor(x.status) }; })
-            .concat((data.luns || []).map(function (x) { return { name: 'LUN · ' + x.name, value: x.diskPct, color: statusColor(x.status) }; }));
-        items.sort(function (a, b) { return b.value - a.value; });
-        horizontalBar('utilBarStorage', items.slice(0, 15), { unit: '%', emptyText: 'Справочники СХД/LUN пусты' });
     })();
 
     // Перегруженные VM
@@ -571,13 +597,13 @@
         }
         risks.forEach(function (r) {
             var tr = document.createElement('tr');
-            var badgeClass = r.severity === 'danger' ? 'util-risk-badge-danger' : 'util-risk-badge-warning';
+            var cellClass = r.severity === 'danger' ? 'util-risk-cell-danger' : 'util-risk-cell-warning';
             var sevLabel = r.severity === 'danger' ? 'Перегруз' : 'Недоиспользование';
             tr.innerHTML = '<td>' + r.category + '</td>' +
                 '<td>' + r.object + '</td>' +
                 '<td>' + r.metric + '</td>' +
                 '<td>' + r.value.toFixed(1) + '</td>' +
-                '<td><span class="util-risk-badge ' + badgeClass + '">' + sevLabel + '</span></td>' +
+                '<td class="' + cellClass + '">' + sevLabel + '</td>' +
                 '<td class="text-muted small">' + r.recommendation + '</td>';
             tbody.appendChild(tr);
         });
