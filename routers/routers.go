@@ -106,6 +106,7 @@ func init() {
 	//beego.Router("/sprsrv/addsrvdoc/:Id", &controllers.MainController{}, "get,post:AddServerDocument") // метод AddServerDocument не реализован в controllers
 	//beego.Router("/sprsrv/csvdata", &controllers.MainController{}, "get:GetCSVListServer") // метод GetCSVListServer не реализован в controllers
 	beego.Router("/sprsrv/listclusterview", &controllers.MainController{}, "get,post:SprSrvListClusterView") // список кластеров vSphere по аналогии со списком ВМ (/sprsrv/vm)
+	beego.Router("/sprsrv/utilization", &controllers.MainController{}, "get,post:SprUtilization") // интерактивная сводная страница оценки утилизации виртуальной инфраструктуры (кластеры/хосты/VM/СХД/LUN), риски перегруза и рекомендации, см. controllers/sprutilization.go
 	beego.Router("/admin/userlog", &controllers.MainController{}, "get:ViewUserLog") // журнал действий пользователей (userlog) - доступ только для models.AuthUser.Priv == 3 (проверяется внутри контроллера)
 	beego.Router("/admin/metricsexport", &controllers.MainController{}, "get,post:AdminMetricsUnifiedExport") // единообразная выгрузка метрик утилизации (CPU/память/диск/сеть) по ВМ и Zabbix-серверам, ресемплированная на минутную сетку - доступ только для models.AuthUser.Priv == 3 (проверяется внутри контроллера), см. controllers/adminmetricsexport.go
 	beego.Router("/api/:json", &controllers.MainController{}, "get,post:RequestAPI")
