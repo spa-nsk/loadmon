@@ -107,6 +107,13 @@ func main() {
 	//c := make(chan string)
 	//shedulerExit := make(chan bool)
 
+	go itsystem.LoadITSystemSpr()
+
+	if config.ConfigData.WorkMode == "api" {
+		go grpcserver.StartServerAddr(config.ConfigData.GRPCSrvApiAddr, config.ConfigData.GRPCSrvApiPort) //grpc api
+		go grpcserver.StartDBServerAddr(config.ConfigData.GRPCSrvDBAddr, config.ConfigData.GRPCSrvDBPort) //grpc db
+	}
+
 	go func() {
 		ov := oneview.GetGlobalOVInfrastructure()
 		log.Println("Загрузка данных по конфигурациям серверов")
@@ -120,6 +127,7 @@ func main() {
 			cmdb.ReconcileServerSprRecordsTypeAndState()
 			log.Println("Обновление конфигураций серверов завершено")
 		}
+		cmdb.UpdateVolumeStorage() // вернул но надо проверить и дорабатывать
 	}()
 	//	runtime.GOMAXPROCS(runtime.NumCPU())
 	go func() {
@@ -264,19 +272,6 @@ func main() {
 	}()
 
 	if config.ConfigData.WorkMode == "api" {
-		go grpcserver.StartServerAddr(config.ConfigData.GRPCSrvApiAddr, config.ConfigData.GRPCSrvApiPort) //grpc api
-		go grpcserver.StartDBServerAddr(config.ConfigData.GRPCSrvDBAddr, config.ConfigData.GRPCSrvDBPort) //grpc db
-
-		go func() {
-			itsystem.LoadITSystemSpr()
-			log.Println("Обновление конфигураций серверов")
-			cmdb.UpdateHwSprHP()
-			log.Println("Обновление конфигураций серверов завершено")
-			//cmdb.UpdateSprVM() //проверить по новой логике
-			//cmdb.UpdateHWHostInfo() //проверить по новой логике
-			//zabbix.ZabbixUpdate() //перенести на новые серверы
-			cmdb.UpdateVolumeStorage() // вернул но надо проверить и дорабатывать
-		}()
 
 		if config.ConfigData.GRPCSwitchAddr != "" {
 			if err := grpcclient.RegisterWorkProcess(&config.ConfigData); err != nil {

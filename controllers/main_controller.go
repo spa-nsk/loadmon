@@ -74,6 +74,16 @@ func (this *MainController) activeContent(view string) {
 	this.TplName = view + ".tpl"
 	this.Data["domainname"] = "https://spa.usvc.global.bcs"
 	this.Data["StaticVer"] = staticAssetVersion // cache-busting для ссылок на /static/... (см. комментарий у staticAssetVersion)
+	// IsLocalAuth — режим авторизации из конфигурации (true - локальная
+	// логин/пароль, false - доменная Kerberos/SPNEGO, см. RequireLocalAuth
+	// выше и config.ConfigData.IsLocalAuth()). Кладётся в Data для ВСЕХ
+	// страниц (не только защищённых сессией), так как header.tpl - общий
+	// partial, используемый в т.ч. на странице логина (InSession == nil) -
+	// используется в header.tpl, чтобы скрывать пункты меню, не имеющие
+	// смысла при доменной авторизации (пункт "Общие", содержащий ручной
+	// вход/выход - при домене вход выполняется через SPNEGO прозрачно, без
+	// формы логина).
+	this.Data["IsLocalAuth"] = config.ConfigData.IsLocalAuth()
 	//this.Data["domainname"] = "yourdomainname"
 	//	_ = this.Render()
 

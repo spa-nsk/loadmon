@@ -140,13 +140,28 @@ func ClearMetricData() {
 
 	mode := 0
 
-	if now.Hour() > 23 {
-		mode = 1
+	// now.Hour() < 4 - недавно наступила полночь (планово вызывается около
+	// 02:59, через ~3 часа после ночного cmdb.SaveMetricData(), см.
+	// metrics_grpc/metrics_grpc.go) - к этому моменту данные за ПРОШЕДШИЕ
+	// сутки уже сохранены в БД (vm_record/host_record/cluster_record),
+	// поэтому можно безопасно очистить их из in-memory Perf. Если функция
+	// будет вызвана в другое время суток (например, вручную/из другого
+	// цикла) - очищаем текущие, ещё не сохранённые сутки.
+	//
+	// ИСПРАВЛЕНО 2026-09-01: было `now.Hour() > 23`, что для Go time.Time
+	// НИКОГДА не выполняется (Hour() всегда возвращает 0-23) - ветка mode=1
+	// была недостижимым мёртвым кодом, и функция всегда работала в режиме
+	// mode=2 ("вчера"). При фиксированном расписании (~02:59) это давало
+	// правильный результат случайно, но при изменении времени запуска в
+	// будущем привело бы к очистке не того периода без каких-либо ошибок в
+	// логах. См. kontext/05-conventions-and-gotchas.md.
+	if now.Hour() < 4 {
+		mode = 2
+		now = now.AddDate(0, 0, -1)
 		firstTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 		endTime = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 59, time.Local)
 	} else {
-		mode = 2
-		now = now.AddDate(0, 0, -1)
+		mode = 1
 		firstTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 		endTime = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 59, time.Local)
 	}

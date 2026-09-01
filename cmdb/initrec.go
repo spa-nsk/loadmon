@@ -11,6 +11,7 @@ package cmdb
 
 import (
 	"fmt"
+	"math"
 
 	// "loadmon/filefunction"
 	models "loadmon/models"
@@ -517,28 +518,39 @@ func importVMRecord(from *vsphere.VMPoint, to *models.VMRecord) {
 	from.PerfCount = (int64)(len(from.Perf))
 	vsphere.CalcVMAveragePerfomance(from)
 
-	if from.CPUUsageMinimum == 777777777.0 {
+	// Минимумы инициализируются "бесконечностью" (math.MaxFloat64, см.
+	// vspheremetrics/perf_clear.go, loadvmmetrics.go, addfunction.go) перед
+	// проходом по Perf, чтобы первое же реальное значение через math.Min его
+	// перекрыло; если у ВМ не было ни одного сэмпла Perf за период, минимум
+	// так и останется на этом "бесконечном" значении - здесь оно приводится
+	// к 0, чтобы не улетело в БД. ИСПРАВЛЕНО 2026-09-01: раньше сравнение шло
+	// с литералом 777777777.0 - устаревшим "sentinel"-значением, которое
+	// нигде в коде больше не присваивалось (актуальный sentinel уже давно
+	// math.MaxFloat64) - из-за этого сравнение никогда не срабатывало, и
+	// пустые ВМ по факту улетали в БД с математически бессмысленным
+	// "минимумом" ~1.8e308 вместо 0.
+	if from.CPUUsageMinimum == math.MaxFloat64 {
 		from.CPUUsageMinimum = 0.0
 	}
-	if from.MemUsageMinimum == 777777777.0 {
+	if from.MemUsageMinimum == math.MaxFloat64 {
 		from.MemUsageMinimum = 0.0
 	}
-	if from.DiskUsageMinimum == 777777777.0 {
+	if from.DiskUsageMinimum == math.MaxFloat64 {
 		from.DiskUsageMinimum = 0.0
 	}
-	if from.DiskTotalReadLatencyMinimum == 777777777.0 {
+	if from.DiskTotalReadLatencyMinimum == math.MaxFloat64 {
 		from.DiskTotalReadLatencyMinimum = 0.0
 	}
-	if from.DiskTotalWriteLatencyMinimum == 777777777.0 {
+	if from.DiskTotalWriteLatencyMinimum == math.MaxFloat64 {
 		from.DiskTotalWriteLatencyMinimum = 0.0
 	}
-	if from.DiskWriteMinimum == 777777777.0 {
+	if from.DiskWriteMinimum == math.MaxFloat64 {
 		from.DiskWriteMinimum = 0.0
 	}
-	if from.DiskReadMinimum == 777777777.0 {
+	if from.DiskReadMinimum == math.MaxFloat64 {
 		from.DiskReadMinimum = 0.0
 	}
-	if from.NetUsageMinimum == 777777777.0 {
+	if from.NetUsageMinimum == math.MaxFloat64 {
 		from.NetUsageMinimum = 0.0
 	}
 
@@ -605,28 +617,33 @@ func importHostRecord(from *vsphere.HostInfo, to *models.HostRecord) {
 		return
 	}
 
-	if from.CPUUsageMinimum == 7777777777.0 {
+	// Тот же приём и тот же баг, что и в importVMRecord выше (см. её
+	// комментарий) - только раньше здесь сравнивалось с 7777777777.0 (10
+	// семёрок вместо 9), тоже никогда не совпадавшим с реальным sentinel'ом
+	// math.MaxFloat64, устанавливаемым в vspheremetrics/perf_clear.go и
+	// perf_metrics.go. ИСПРАВЛЕНО 2026-09-01.
+	if from.CPUUsageMinimum == math.MaxFloat64 {
 		from.CPUUsageMinimum = 0.0
 	}
-	if from.MemUsageMinimum == 7777777777.0 {
+	if from.MemUsageMinimum == math.MaxFloat64 {
 		from.MemUsageMinimum = 0.0
 	}
-	if from.DiskUsageMinimum == 7777777777.0 {
+	if from.DiskUsageMinimum == math.MaxFloat64 {
 		from.DiskUsageMinimum = 0.0
 	}
-	if from.DiskTotalReadLatencyMinimum == 7777777777.0 {
+	if from.DiskTotalReadLatencyMinimum == math.MaxFloat64 {
 		from.DiskTotalReadLatencyMinimum = 0.0
 	}
-	if from.DiskTotalWriteLatencyMinimum == 7777777777.0 {
+	if from.DiskTotalWriteLatencyMinimum == math.MaxFloat64 {
 		from.DiskTotalWriteLatencyMinimum = 0.0
 	}
-	if from.DiskWriteMinimum == 7777777777.0 {
+	if from.DiskWriteMinimum == math.MaxFloat64 {
 		from.DiskWriteMinimum = 0.0
 	}
-	if from.DiskReadMinimum == 7777777777.0 {
+	if from.DiskReadMinimum == math.MaxFloat64 {
 		from.DiskReadMinimum = 0.0
 	}
-	if from.NetUsageMinimum == 7777777777.0 {
+	if from.NetUsageMinimum == math.MaxFloat64 {
 		from.NetUsageMinimum = 0.0
 	}
 
