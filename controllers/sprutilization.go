@@ -138,10 +138,32 @@ func (this *MainController) SprUtilization() {
 	}
 
 	// --- СХД и LUN - текущее состояние, суточной истории не ведётся ---
+	// Из общего количества строк в справочниках исключаем заведомо неактуальные
+	// записи, иначе счётчики "СХД"/"LUN" на странице выглядят завышенными за
+	// счёт демонтированного оборудования и удалённых томов:
+	//  - StorageSystems.Status: 0-не указано 1-используется 2-выключен
+	//    3-не используется 4-тестирование 5-приемка 6-демонтирован
+	//    (исключаем только 6 - демонтированное оборудование физически убрано)
+	//  - StorageVolumes.Status: 0-том выведен из работы или удалён
+	//    1-том в виртуализации 2-все остальные случаи (исключаем только 0)
+	var storagesAll []models.StorageSystems
+	o.QueryTable(new(models.StorageSystems)).All(&storagesAll)
 	var storages []models.StorageSystems
-	o.QueryTable(new(models.StorageSystems)).All(&storages)
+	for _, s := range storagesAll {
+		if s.Status == 6 {
+			continue
+		}
+		storages = append(storages, s)
+	}
+	var volumesAll []models.StorageVolumes
+	o.QueryTable(new(models.StorageVolumes)).All(&volumesAll)
 	var volumes []models.StorageVolumes
-	o.QueryTable(new(models.StorageVolumes)).All(&volumes)
+	for _, v := range volumesAll {
+		if v.Status == 0 {
+			continue
+		}
+		volumes = append(volumes, v)
+	}
 
 	kpi := utilKPI{
 		ClusterCount:       len(latestClusterByKey),
@@ -307,6 +329,13 @@ func (this *MainController) SprUtilization() {
 	var dataGaps []string
 	if kpi.ClusterCount == 0 && kpi.HostCount == 0 && kpi.VMCount == 0 {
 		dataGaps = append(dataGaps, "Не найдено ни одной суточной записи ClusterRecord/HostRecord/VMRecord за последние "+itoaCores(int32(utilLookbackDays))+" дней - проверьте, что cmdb.SaveMetricData() выполняется по расписанию")
+	} else if kpi.VMCount == 0 {
+		// Кластеры/хосты есть, а VM - нет: см. cmdb/savevmrecord.go:SaveVMRecord -
+		// строка with "if rec.Cpu_usage_maximum == 0.0 && rec.Mem_usage_maximum == 0.0 { continue }"
+		// молча пропускает запись vm_record, если импортированные из vspheremetrics
+		// метрики CPU/MEM у VM нулевые (например, пуст vm.Perf) - в отличие от
+		// SaveHostRecord/SaveClusterRecord, которые пишут запись безусловно.
+		dataGaps = append(dataGaps, "Кластеры и хосты собираются, а виртуальные машины - нет (VMRecord за последние "+itoaCores(int32(utilLookbackDays))+" дней не найдены): вероятная причина - в cmdb/savevmrecord.go:SaveVMRecord строка vm_record не пишется в БД, если у VM за сутки нулевые Cpu_usage_maximum и Mem_usage_maximum (обычно это означает, что vm.Perf пуст на момент сборки - проблема на стороне сбора performance-метрик по VM, не самой страницы утилизации)")
 	}
 	dataGaps = append(dataGaps,
 		"Нет истории по LUN/СХД (StorageSystems/StorageVolumes) - хранится только текущее состояние без суточных снимков, поэтому невозможно построить тренд роста занятого места на СХД аналогично vm_record/host_record",
