@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"loadmon/cmdb"
 	"loadmon/config"
@@ -18,6 +19,7 @@ import (
 	_ "loadmon/routers"
 	"loadmon/vspheremetrics"
 	"loadmon/zabbix"
+	"loadmon/zabbixmetrics"
 
 	"log"
 	"os"
@@ -120,6 +122,16 @@ func main() {
 		}
 	}()
 	//	runtime.GOMAXPROCS(runtime.NumCPU())
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		log.Printf("Сбор метрик Zabbix groupid=%d из %s каждые %s", zabbixmetrics.HostGroupID, zabbixmetrics.Endpoint, zabbixmetrics.Interval)
+		if err := zabbixmetrics.Run(ctx); err != nil && err != context.Canceled {
+			log.Printf("Ошибка сбора метрик zabbixmetrics: %v", err)
+		}
+	}()
+
 	log.Println("Используется : ", runtime.NumCPU(), " CPU", "Количество Goroutine: ", runtime.NumGoroutine()) //количество потоков на старте
 
 	fmt.Println("Запуск в режиме: ", config.ConfigData.WorkMode)
