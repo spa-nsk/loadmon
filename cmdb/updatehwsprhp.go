@@ -626,6 +626,19 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 					continue
 				}
 			}
+		} else {
+			// Имя сервера не определено (oneview.GetHWserverName/GetHWserverNameFQDN
+			// возвращают "" - как правило, у только что добавленного в OneView
+			// оборудования, на которое ещё не установлена ОС: srv.Identity.ServerName
+			// у него пусто, а особые случаи "имя через серийный номер"/"ILO-префикс"
+			// не сработали). Раньше это молча пропускалось без единой строки в
+			// логах - запись ServerHardware для сервера создавалась/обновлялась
+			// (см. выше), а связанная ServerSprRecords - нет, из-за чего новый
+			// физический сервер не появлялся в справочнике серверов и это было
+			// не отличить от прочих временных сетевых сбоев. См.
+			// kontext/05-conventions-and-gotchas.md.
+			fmt.Println("Пропуск ServerSprRecords: не удалось определить имя сервера из OneView (S/N",
+				hw.SerialNum, ", вероятно, только что добавлен и ещё не имеет ОС/hostname)")
 		}
 		err = trn.Read(&hw, "Id")
 		if err != nil {
@@ -856,6 +869,19 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 					continue
 				}
 			}
+		} else {
+			// Имя сервера не определено (oneview.GetHWserverName/GetHWserverNameFQDN
+			// возвращают "" - как правило, у только что добавленного в OneView
+			// оборудования, на которое ещё не установлена ОС: srv.Identity.ServerName
+			// у него пусто, а особые случаи "имя через серийный номер"/"ILO-префикс"
+			// не сработали). Раньше это молча пропускалось без единой строки в
+			// логах - запись ServerHardware для сервера создавалась/обновлялась
+			// (см. выше), а связанная ServerSprRecords - нет, из-за чего новый
+			// физический сервер не появлялся в справочнике серверов и это было
+			// не отличить от прочих временных сетевых сбоев. См.
+			// kontext/05-conventions-and-gotchas.md.
+			fmt.Println("Пропуск ServerSprRecords: не удалось определить имя сервера из OneView (S/N",
+				hw.SerialNum, ", вероятно, только что добавлен и ещё не имеет ОС/hostname)")
 		}
 		err = trn.Read(&hw, "Id")
 		if err != nil {

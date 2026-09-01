@@ -7,8 +7,18 @@ func ReCalcVMPerfomance(vmP *VMPoint, perf VMPerf) {
 		return
 	}
 
-	vmP.CPUBilling = vmP.CPUBilling + float64(perf.CPUUsage)*float64(vmP.CPUMhz)*float64(vmP.NumCores)/180.0 //утилизация процессора частота в мегагерцах умноженная процент утилизации и промежуток времени
-	vmP.MemBilling = vmP.MemBilling + float64(perf.MemUsage)*vmP.MemorySizeGB*1024.0/180.0                   // утилизация памяти мегабайт часах
+	// CPUBilling/MemBilling/DiskBilling/NetBilling: значение метрики за
+	// снимок умножается на реальный интервал опроса этого vCenter в
+	// секундах (billingIntervalSeconds, см. billing.go) и делится на 3600.
+	// ИЗМЕНЕНО 2026-09-01: раньше CPU/Mem использовали зашитый делитель
+	// /180.0 (расчёт на фиксированный трёхминутный интервал), Disk/Net были
+	// добавлены сразу с реальным интервалом - по просьбе пользователя все
+	// четыре формулы приведены к одному виду.
+	intervalSec := billingIntervalSeconds(vmP.Vcenter)
+	vmP.CPUBilling = vmP.CPUBilling + float64(perf.CPUUsage)*float64(vmP.CPUMhz)*float64(vmP.NumCores)*intervalSec/3600.0 //утилизация процессора частота в мегагерцах умноженная процент утилизации и промежуток времени
+	vmP.MemBilling = vmP.MemBilling + float64(perf.MemUsage)*vmP.MemorySizeGB*1024.0*intervalSec/3600.0                  // утилизация памяти мегабайт часах
+	vmP.DiskBilling = vmP.DiskBilling + perf.DiskUsage*intervalSec/3600.0
+	vmP.NetBilling = vmP.NetBilling + perf.NetUsage*intervalSec/3600.0
 
 	if vmP.CPUUsageMaximum < perf.CPUUsage {
 		vmP.CPUUsageMaximum = perf.CPUUsage

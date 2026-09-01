@@ -322,6 +322,7 @@
       </a>
     </div>
     <ul class="list-unstyled ps-0">
+      {{if .IsLocalAuth}}
       <li class="mb-1">
         <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
           data-bs-toggle="collapse" data-bs-target="#home-collapse" aria-expanded="true">
@@ -335,13 +336,14 @@
             </li>
             {{else}}
             <li>
-              <a href="/user/login/sprsrv_view2_all_0" 
+              <a href="/user/login/sprsrv_view2_all_0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded">Авторизоваться</a>
             </li>
             {{end}}
           </ul>
         </div>
       </li>
+      {{end}}
 {{if .InSession}}
       <li class="mb-1">
         <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"

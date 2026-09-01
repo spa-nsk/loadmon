@@ -43,7 +43,12 @@ func (cl *Cluster) AddHostPerfomance(hi HostInfo) {
 	cl.NetUsageMinimum = cl.NetUsageMinimum + hi.NetUsageMinimum
 	cl.CPUBilling = cl.CPUBilling + hi.CPUBilling
 	cl.DiskBilling = cl.DiskBilling + hi.DiskBilling
-	cl.MemBilling = cl.DiskBilling + hi.MemBilling
+	// ИСПРАВЛЕНО 2026-09-01: было `cl.DiskBilling + hi.MemBilling` - опечатка
+	// (использовалось cl.DiskBilling вместо cl.MemBilling), из-за которой
+	// MemBilling кластера портился значением DiskBilling. Сейчас безобидно
+	// (DiskBilling всегда 0.0, см. комментарий ниже про CalcPerfomance), но
+	// исправлено на будущее.
+	cl.MemBilling = cl.MemBilling + hi.MemBilling
 	cl.NetBilling = cl.NetBilling + hi.NetBilling
 	cl.CoreTransferRate = float64(cl.AllocatedCoreCount) / float64(cl.AllNumCPUCores)
 	cl.MemoryTransferRate = float64(cl.AllocatedMemorySizeGb) / float64(cl.AllMemorySizeGB)
@@ -108,6 +113,19 @@ func (cl *Cluster) CalcPerfomance() {
 	cl.DiskWriteMinimum = math.MaxFloat64
 	cl.DiskReadMinimum = math.MaxFloat64
 	cl.NetUsageMinimum = math.MaxFloat64
+
+	// ИСПРАВЛЕНО 2026-09-01: cl.*Billing ниже накапливаются через += по всем
+	// cl.Hosts при КАЖДОМ вызове CalcPerfomance - как и AllNumCPUPkgs и т.п.
+	// выше, без обнуления перед циклом они бы бесконечно росли при каждом
+	// повторном вызове для одного и того же объекта Cluster (а
+	// CalcPerfomance вызывается на живом, разделяемом объекте из
+	// ClusterMapList - см. grpcserver/handler_cluster.go,
+	// grpcserver/message_cluster.go - при каждом запросе метрик кластера по
+	// gRPC, в т.ч. из cmdb.SaveMetricData). Раньше обнуление отсутствовало.
+	cl.CPUBilling = 0.0
+	cl.DiskBilling = 0.0
+	cl.MemBilling = 0.0
+	cl.NetBilling = 0.0
 
 	for _, hs := range cl.Hosts {
 		if hs.PerfCount > maxCount {
