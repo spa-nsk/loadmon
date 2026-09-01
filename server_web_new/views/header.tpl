@@ -396,6 +396,21 @@
       </li>
       <li class="mb-1">
         <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
+          data-bs-toggle="collapse" data-bs-target="#utilization-collapse" aria-expanded="false">
+          Утилизация
+        </button>
+        <div class="collapse hide" id="utilization-collapse">
+          <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+            <li>
+              <a href="/sprsrv/utilization"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Утилизация виртуальной
+                инфраструктуры</a>
+            </li>
+          </ul>
+        </div>
+      </li>
+      <li class="mb-1">
+        <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
           data-bs-toggle="collapse" data-bs-target="#spr-collapse" aria-expanded="false">
           Справочники
         </button>
