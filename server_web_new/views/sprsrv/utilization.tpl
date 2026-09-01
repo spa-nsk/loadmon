@@ -98,7 +98,10 @@
 
 <div class="util-card mb-3">
     <h6>Риски и рекомендации по оптимизации</h6>
-    <div class="table-responsive">
+    {{if gt .RisksTotal .RisksShown}}
+    <div class="text-muted small mb-2">Показаны {{.RisksShown}} наиболее критичных записей из {{.RisksTotal}} - отсортировано по степени риска, затем по значению метрики.</div>
+    {{end}}
+    <div class="table-responsive util-risks-scroll">
         <table class="table table-sm align-middle mb-0 util-risks-table" id="utilRisksTable">
             <thead>
                 <tr>
@@ -168,6 +171,21 @@
         border-radius: 0.5rem;
         padding: 1rem 1.2rem;
         height: 100%;
+        /* изолируем каждую карточку в собственный слой отрисовки - защита от
+           артефактов перерисовки браузера (наложение старого кадра поверх
+           нового) при большом количестве DOM-узлов, которые JS вставляет
+           в соседние карточки (например, сотни строк в таблице рисков) */
+        contain: content;
+        position: relative;
+        z-index: 0;
+    }
+
+    /* таблица рисков может быть длинной даже после ограничения в 60 строк -
+       держим её в собственной прокручиваемой области фиксированной высоты,
+       а не даём карточке растягиваться на всю длину таблицы */
+    .util-risks-scroll {
+        max-height: 640px;
+        overflow-y: auto;
     }
 
     .util-card h6 {
