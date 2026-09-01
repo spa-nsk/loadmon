@@ -162,6 +162,17 @@ func (hs *HostInfo) HSClearPerfomance() {
 	hs.NetUsageMinimumTime = time.Time{}
 	hs.Perf = nil
 	hs.PerfCount = 0
+	// ИСПРАВЛЕНО 2026-09-01: в отличие от VMClearPerfomance/CLClearPerfomance
+	// (обе сбрасывают *Billing в 0), здесь сброс отсутствовал - Billing-поля
+	// хоста накапливались (SetHostMetric делает hs.CPUBilling = hs.CPUBilling
+	// + ...) без ограничения на протяжении всего времени жизни процесса,
+	// через каждый цикл опроса vCenter (HSClearPerfomance вызывается перед
+	// каждым циклом - см. loadinventory.go, infrastructure_lifecycle.go), а
+	// не только один раз. См. kontext/05-conventions-and-gotchas.md.
+	hs.CPUBilling = 0.0
+	hs.MemBilling = 0.0
+	hs.DiskBilling = 0.0
+	hs.NetBilling = 0.0
 }
 
 // ImportData заполняет поля HostInfo данными, полученными из govmomi (mo.HostSystem):

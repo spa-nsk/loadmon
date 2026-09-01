@@ -172,6 +172,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.ZabbixItem))
 	orm.RegisterModel(new(models.ZabbixKey))
 	orm.RegisterModel(new(models.ServerMetric))
+	orm.RegisterModel(new(models.ServerMetricRecord))
 
 	err := orm.RunSyncdb("default", false, false)
 

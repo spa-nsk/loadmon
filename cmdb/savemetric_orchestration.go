@@ -121,6 +121,15 @@ func SaveMetricData() {
 	// справочника серверов - см. комментарий к функции.
 	CheckServerSprRecordsExistence()
 
+	// Суточная агрегация поминутных метрик Zabbix (models.ServerMetric,
+	// таблица server_metric, заполняется пакетом zabbixmetrics) в
+	// models.ServerMetricRecord (server_metric_record) - по аналогии с
+	// SaveVMRecord/SaveHostRecord/SaveClusterRecord выше, но не привязана к
+	// конкретному кластеру/vCenter (метрики server_metric идут по всем
+	// хостам группы Zabbix сразу), поэтому вызывается один раз за цикл, а
+	// не внутри цикла по clList. См. cmdb/saveservermetricrecord.go.
+	SaveServerMetricRecord(currentTime)
+
 	//  for !atomic.CompareAndSwapInt32(&flDelOldVMMetrics, 1, 0) {
 	//      runtime.Gosched()
 	//  }

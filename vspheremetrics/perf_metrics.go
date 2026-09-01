@@ -129,8 +129,14 @@ func SetHostMetric(hi *HostInfo, perf HSPerf) {
 	hi.LockObject()
 	defer hi.UnLockObject()
 
-	hi.CPUBilling = hi.CPUBilling + float64(perf.CPUUsage)*float64(hi.CPUMhz)*float64(hi.NumCPUCores)/180.0 //утилизация процессора частота в мегагерцах умноженная процент утилизации и промежуток времени
-	hi.MemBilling = hi.MemBilling + float64(perf.MemUsage)*hi.MemorySizeGB*1024.0/180.0                     // утилизация памяти мегабайт часах
+	// CPUBilling/MemBilling/DiskBilling/NetBilling - см. комментарий в
+	// perf_recalc.go:ReCalcVMPerfomance. ИЗМЕНЕНО 2026-09-01: CPU/Mem
+	// переведены с зашитого /180.0 на реальный интервал опроса vCenter.
+	hiIntervalSec := billingIntervalSeconds(hi.Vcenter)
+	hi.CPUBilling = hi.CPUBilling + float64(perf.CPUUsage)*float64(hi.CPUMhz)*float64(hi.NumCPUCores)*hiIntervalSec/3600.0 //утилизация процессора частота в мегагерцах умноженная процент утилизации и промежуток времени
+	hi.MemBilling = hi.MemBilling + float64(perf.MemUsage)*hi.MemorySizeGB*1024.0*hiIntervalSec/3600.0                    // утилизация памяти мегабайт часах
+	hi.DiskBilling = hi.DiskBilling + perf.DiskUsage*hiIntervalSec/3600.0
+	hi.NetBilling = hi.NetBilling + perf.NetUsage*hiIntervalSec/3600.0
 
 	if hi.CPUUsageMaximum < perf.CPUUsage {
 		hi.CPUUsageMaximum = perf.CPUUsage
@@ -324,8 +330,14 @@ func SetVMMetric(vmP *VMPoint, perf VMPerf, cpuMhz float64) {
 	vmP.LockObject()
 	defer vmP.UnLockObject()
 	vmP.CPUMhz = cpuMhz
-	vmP.CPUBilling = vmP.CPUBilling + float64(perf.CPUUsage)*float64(cpuMhz)*float64(vmP.NumCores)/180.0 //утилизация процессора частота в мегагерцах умноженная процент утилизации и промежуток времени
-	vmP.MemBilling = vmP.MemBilling + float64(perf.MemUsage)*vmP.MemorySizeGB*1024.0/180.0               // утилизация памяти мегабайт часах
+	// CPUBilling/MemBilling/DiskBilling/NetBilling - см. комментарий в
+	// perf_recalc.go:ReCalcVMPerfomance. ИЗМЕНЕНО 2026-09-01: CPU/Mem
+	// переведены с зашитого /180.0 на реальный интервал опроса vCenter.
+	vmIntervalSec := billingIntervalSeconds(vmP.Vcenter)
+	vmP.CPUBilling = vmP.CPUBilling + float64(perf.CPUUsage)*float64(cpuMhz)*float64(vmP.NumCores)*vmIntervalSec/3600.0 //утилизация процессора частота в мегагерцах умноженная процент утилизации и промежуток времени
+	vmP.MemBilling = vmP.MemBilling + float64(perf.MemUsage)*vmP.MemorySizeGB*1024.0*vmIntervalSec/3600.0               // утилизация памяти мегабайт часах
+	vmP.DiskBilling = vmP.DiskBilling + perf.DiskUsage*vmIntervalSec/3600.0
+	vmP.NetBilling = vmP.NetBilling + perf.NetUsage*vmIntervalSec/3600.0
 
 	if vmP.CPUUsageMaximum < perf.CPUUsage {
 		vmP.CPUUsageMaximum = perf.CPUUsage
