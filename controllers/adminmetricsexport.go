@@ -49,18 +49,23 @@ const detailedPeriodLimit = 3 * 24 * time.Hour
 //     VMRecord.Id (детальные точки конкретного дня "подвешены" к суточной
 //     записи этого же дня).
 //  2. Аппаратные серверы, зарегистрированные в Zabbix
-//     (models.ServerSprRecords.Type == 0 && ZabbixHostId > 0) - в обоих
-//     режимах источник один - models.ZabbixItem (таблица zabbix_item, см.
-//     zabbix.Get10MinutesHistory): каждые 10 минут пересобирается
-//     10-минутное окно "сырой" истории (history.get) - то есть в отличие
-//     от ВМ, поминутные данные по Zabbix-серверам физически доступны в БД
-//     без отдельного срока хранения детализации. Классификация ключей на
-//     на шесть колонок широкой выгрузки - см. classifyZabbixMetric ниже; перевод единиц
-//     измерения - через уже существующие convertZabbixValue/displayUnit
-//     (controllers/sprsrvzabbixperfperiod.go). В "по дням" режиме те же
-//     "сырые" точки агрегируются (среднее) по календарным суткам -
-//     отдельной таблицы суточных Zabbix-метрик в проекте нет
-//     (models.ServerPerfZabbix существует, но нигде не заполняется).
+//     (models.ServerSprRecords.Type == 0 && ZabbixHostId > 0) - источник
+//     переведён с "сырых" данных Zabbix (models.ZabbixItem/ZabbixKey) на
+//     уже готовые метрики пакета zabbixmetrics (см. kontext/03-data-model.md):
+//     - "Подробный" режим (период ≤ detailedPeriodLimit) - models.ServerMetric
+//     (таблица server_metric, поминутные снимки CPU/RAM/диск/сеть по
+//     HostId == models.ZabbixHost.Id, заполняется пакетом zabbixmetrics
+//     independently от старого сборщика zabbix.Get10MinutesHistory).
+//     - "По дням" режим - models.ServerMetricRecord (таблица
+//     server_metric_record, суточная агрегация ServerMetric, строится
+//     cmdb.SaveServerMetricRecord - см. cmdb/saveservermetricrecord.go),
+//     поля *Average.
+//     В обоих случаях метрики уже сведены к одному числу на хост
+//     (zabbixmetrics сам агрегирует по хосту при сборе), поэтому в отличие
+//     от старой ZabbixItem-реализации здесь не нужны ни классификация
+//     "сырых" ключей (system.cpu.load/vfs.dev.read[...] и т.п.), ни свод
+//     нескольких дисков/интерфейсов по максимуму (mergeInstanceSeries) - на
+//     входе уже одна точка на момент времени на каждую из шести колонок.
 //
 // Оба источника после выбора режима сводятся к единой сетке через
 // resampleToMinuteGrid (подробный режим - последнее известное значение
@@ -191,101 +196,6 @@ func aggregateToDailyGrid(points []unifiedMetricPoint) []unifiedMetricPoint {
 		b := buckets[key]
 		result = append(result, unifiedMetricPoint{Timestamp: b.day, Value: b.sum / float64(b.n)})
 	}
-	return result
-}
-
-// zabbixMetric* - идентификаторы шести колонок широкой выгрузки, на которые
-// classifyZabbixMetric раскладывает "сырые" ключи Zabbix.
-const (
-	zabbixMetricCPU       = "cpu"
-	zabbixMetricMem       = "mem"
-	zabbixMetricDiskRead  = "disk_read"
-	zabbixMetricDiskWrite = "disk_write"
-	zabbixMetricNetRecv   = "net_recv"
-	zabbixMetricNetTrans  = "net_trans"
-)
-
-// classifyZabbixMetric определяет, к какой из шести колонок широкой выгрузки
-// относится "сырой" ключ Zabbix (models.ZabbixKey.Key) - по тем же точным
-// ключам, которые реально собирает сборщик (см. zabbix/zabbixupdate.go:
-// GetItemsFilterByHost/Get10MinutesHistory - "vfs.dev.read[...]"/
-// "vfs.dev.write[...]" для дисков, "net.if.in[...]"/"net.if.out[...]" для
-// сети, "system.cpu.load[,avg1]" и "vm.memory.util" для CPU/памяти).
-// Возвращает пустую строку для остальных собираемых ключей (system.cpu.num/
-// frequency, net.if.total, vfs.fs.size, vfs.dev.util/queue_size/await и
-// т.п.) - они не входят в шесть колонок широкой выгрузки и здесь
-// игнорируются.
-func classifyZabbixMetric(key string) string {
-	k := strings.ToLower(key)
-	switch {
-	case strings.HasPrefix(k, "system.cpu.load"):
-		return zabbixMetricCPU
-	case strings.HasPrefix(k, "vm.memory.util"):
-		return zabbixMetricMem
-	case strings.HasPrefix(k, "vfs.dev.read["):
-		return zabbixMetricDiskRead
-	case strings.HasPrefix(k, "vfs.dev.write["):
-		return zabbixMetricDiskWrite
-	case strings.HasPrefix(k, "net.if.in["):
-		return zabbixMetricNetRecv
-	case strings.HasPrefix(k, "net.if.out["):
-		return zabbixMetricNetTrans
-	default:
-		return ""
-	}
-}
-
-// mergeInstanceSeries приводит набор "сырых" временных рядов по экземплярам
-// метрики (byInstance - ключ карты, например имя диска или сетевого
-// интерфейса, для CPU/памяти обычно единственный ключ "") к единой сетке
-// (resampleToMinuteGrid в подробном режиме / aggregateToDailyGrid в режиме
-// "по дням" - см. detailed) отдельно для каждого экземпляра, а затем сводит
-// значения экземпляров, оказавшиеся на одной и той же точке сетки, по
-// policy: "max" (для диска/сети - берём самый нагруженный диск/интерфейс на
-// этот момент) или "avg" (для CPU/памяти - экземпляр обычно один, поэтому
-// вырождается в исходное значение). Если в какой-то момент времени данные
-// есть не у всех экземпляров (разные диски/интерфейсы могли появиться в
-// Zabbix в разное время), участвуют только те экземпляры, у которых на этот
-// момент значение уже известно (без фабрикации нулей).
-func mergeInstanceSeries(byInstance map[string][]unifiedMetricPoint, from, dateTo time.Time, detailed bool, policy string) []unifiedMetricPoint {
-	type acc struct {
-		sum    float64
-		n      int
-		max    float64
-		hasMax bool
-	}
-	merged := make(map[int64]*acc)
-	for _, points := range byInstance {
-		var resolved []unifiedMetricPoint
-		if detailed {
-			resolved = resampleToMinuteGrid(points, from, dateTo.Add(-time.Minute), 1)
-		} else {
-			resolved = aggregateToDailyGrid(points)
-		}
-		for _, p := range resolved {
-			key := p.Timestamp.UnixNano()
-			a, ok := merged[key]
-			if !ok {
-				a = &acc{}
-				merged[key] = a
-			}
-			a.sum += p.Value
-			a.n++
-			if !a.hasMax || p.Value > a.max {
-				a.max = p.Value
-				a.hasMax = true
-			}
-		}
-	}
-	result := make([]unifiedMetricPoint, 0, len(merged))
-	for key, a := range merged {
-		v := a.max
-		if policy == "avg" && a.n > 0 {
-			v = a.sum / float64(a.n)
-		}
-		result = append(result, unifiedMetricPoint{Timestamp: time.Unix(0, key), Value: v})
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Timestamp.Before(result[j].Timestamp) })
 	return result
 }
 
@@ -422,44 +332,60 @@ func (this *MainController) AdminMetricsUnifiedExport() {
 
 	// Справочник ИТ-систем для поля с поиском по коду/названию (тот же
 	// клиентский виджет, что и на /sprsrv/view2 и /sprsrv/updatebase - см.
-	// initITSystemPicker() в шаблоне, kontext/04-web-ui.md).
+	// initITSystemPicker() в шаблоне, kontext/04-web-ui.md). Это данные для
+	// самой формы фильтра (выпадающий список), а не строящаяся таблица -
+	// грузятся всегда, независимо от applied ниже.
 	this.Data["ITSystemSpr"] = itsystem.ImportITSystemSpr()
 
-	o := orm.NewOrm()
-
-	// ⚠️ Ранее здесь стоял qs.Filter("i_t_system_key", itSystemFilter) -
-	// beego ORM Filter() принимает имя ПОЛЯ структуры Go (как объявлено в
-	// models.ServerSprRecords - "ITSystemKey"), а не имя колонки БД в
-	// snake_case. Несуществующее имя поля приводило к ошибке ORM при
-	// каждом запросе с непустым фильтром по ИТ-системе (qs.All() возвращал
-	// err != nil) - именно из-за этого выгрузка не работала.
-	qs := o.QueryTable("server_spr_records").Filter("Active", 1)
-	if nameFilter != "" {
-		qs = qs.Filter("Name__icontains", nameFilter)
-	}
-	if itSystemFilter != "" {
-		qs = qs.Filter("ITSystemKey", itSystemFilter)
-	}
-	var candidates []*models.ServerSprRecords
-	_, err := qs.All(&candidates)
-	if err != nil {
-		flash := beego.NewFlash()
-		flash.Error("Ошибка чтения справочника серверов: " + err.Error())
-		flash.Store(&this.Controller)
-		this.Redirect("/admin/metricsexport", 302)
-		return
-	}
+	// Загрузка и построение таблицы (запрос справочника серверов + сбор
+	// widerows по каждому источнику) выполняется ТОЛЬКО после явного
+	// применения фильтра пользователем ("Показать"/"Сформировать выгрузку"),
+	// а не при первом открытии страницы или при каждом отображении формы -
+	// см. шаблон admin/metricsexport.tpl:metricsExportSubmit(), которая
+	// всегда добавляет скрытое поле applied=1 при отправке формы. Прямое
+	// открытие /admin/metricsexport без параметров (или после "Сбросить
+	// фильтр") не бьёт по БД вовсе.
+	exportRequested := this.GetString("export") == "xlsx"
+	applied := this.GetString("applied") == "1" || exportRequested
+	this.Data["FilterApplied"] = applied
 
 	rows := make([]wideMetricRow, 0, 1024)
-	for _, srv := range candidates {
-		if srv == nil {
-			continue
+	if applied {
+		o := orm.NewOrm()
+
+		// ⚠️ Ранее здесь стоял qs.Filter("i_t_system_key", itSystemFilter) -
+		// beego ORM Filter() принимает имя ПОЛЯ структуры Go (как объявлено в
+		// models.ServerSprRecords - "ITSystemKey"), а не имя колонки БД в
+		// snake_case. Несуществующее имя поля приводило к ошибке ORM при
+		// каждом запросе с непустым фильтром по ИТ-системе (qs.All() возвращал
+		// err != nil) - именно из-за этого выгрузка не работала.
+		qs := o.QueryTable("server_spr_records").Filter("Active", 1)
+		if nameFilter != "" {
+			qs = qs.Filter("Name__icontains", nameFilter)
 		}
-		switch {
-		case srv.Type == 1 && includeVM:
-			rows = append(rows, buildVMWideRows(o, srv, from, dateTo, detailed)...)
-		case srv.Type == 0 && srv.ZabbixHostId > 0 && includeZabbix:
-			rows = append(rows, buildZabbixWideRows(o, srv, from, dateTo, detailed)...)
+		if itSystemFilter != "" {
+			qs = qs.Filter("ITSystemKey", itSystemFilter)
+		}
+		var candidates []*models.ServerSprRecords
+		_, err := qs.All(&candidates)
+		if err != nil {
+			flash := beego.NewFlash()
+			flash.Error("Ошибка чтения справочника серверов: " + err.Error())
+			flash.Store(&this.Controller)
+			this.Redirect("/admin/metricsexport", 302)
+			return
+		}
+
+		for _, srv := range candidates {
+			if srv == nil {
+				continue
+			}
+			switch {
+			case srv.Type == 1 && includeVM:
+				rows = append(rows, buildVMWideRows(o, srv, from, dateTo, detailed)...)
+			case srv.Type == 0 && srv.ZabbixHostId > 0 && includeZabbix:
+				rows = append(rows, buildServerMetricWideRows(o, srv, from, dateTo, detailed)...)
+			}
 		}
 	}
 
@@ -470,7 +396,7 @@ func (this *MainController) AdminMetricsUnifiedExport() {
 		return rows[i].ObjectName < rows[j].ObjectName
 	})
 
-	if this.GetString("export") == "xlsx" {
+	if exportRequested {
 		// Экспорт - по всей отфильтрованной выборке, не по текущей странице
 		// просмотра (см. kontext/06-list-page-pattern.md, п.5).
 		RegisterRequest(this, LogTypeExport) // выгрузка единообразных метрик утилизации (администрирование)
@@ -619,88 +545,84 @@ func buildVMWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, dateTo tim
 	return combineIntoWideRows(srv.Name, srv.ITSystemKey, cpuPoints, memPoints, diskReadPoints, diskWritePoints, netRecvPoints, netTransPoints)
 }
 
-// buildZabbixWideRows строит широкие строки (CPU/RAM/диск чтение-запись/сеть
-// приём-передача) по данным models.ZabbixItem для сервера, зарегистрированного
-// в Zabbix (srv.ZabbixHostId - ссылка на models.ZabbixHost.Id).
-// classifyZabbixMetric раскладывает каждый "сырой" ключ по шести колонкам,
-// convertZabbixValue/displayUnit (controllers/sprsrvzabbixperfperiod.go)
-// переводят единицы измерения ("Bps"/"Bytes/sec" и т.п. -> МБ/с), а
-// mergeInstanceSeries сводит несколько дисков/интерфейсов на одну колонку по
-// максимуму на каждый момент времени (см. комментарий к wideMetricRow).
-func buildZabbixWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, dateTo time.Time, detailed bool) []wideMetricRow {
-	var items []*models.ZabbixItem
-	_, err := o.QueryTable("zabbix_item").
-		Filter("HostId", srv.ZabbixHostId).
-		Filter("Clock__gte", from).
-		Filter("Clock__lt", dateTo).
-		OrderBy("Clock").
-		All(&items)
-	if err != nil || len(items) == 0 {
+// buildServerMetricWideRows строит широкие строки (CPU/RAM/диск чтение-
+// запись/сеть приём-передача) для сервера, зарегистрированного в Zabbix
+// (srv.ZabbixHostId - ссылка на models.ZabbixHost.Id), из уже готовых
+// метрик пакета zabbixmetrics - НЕ из "сырых" models.ZabbixItem/ZabbixKey
+// (см. комментарий к AdminMetricsUnifiedExport выше):
+//
+//   - detailed == true (период ≤ detailedPeriodLimit): источник -
+//     models.ServerMetric (таблица server_metric, поминутные снимки,
+//     HostId == srv.ZabbixHostId). Метрики уже сведены к одному числу на
+//     хост (агрегация по дискам/интерфейсам сделана на стороне сборщика
+//     zabbixmetrics, см. kontext/03-data-model.md), поэтому в отличие от
+//     старой ZabbixItem-реализации здесь не нужен свод по максимуму
+//     нескольких экземпляров - сразу один ряд на метрику.
+//   - detailed == false (период длиннее): источник - models.ServerMetricRecord
+//     (таблица server_metric_record, суточная агрегация, строится
+//     cmdb.SaveServerMetricRecord) - поля *Average, одна точка на сутки.
+func buildServerMetricWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, dateTo time.Time, detailed bool) []wideMetricRow {
+	if srv.ZabbixHostId <= 0 {
 		return nil
 	}
 
-	keyIds := make(map[int64]struct{})
-	for _, it := range items {
-		if it != nil {
-			keyIds[it.KeyId] = struct{}{}
-		}
-	}
-	keys := make(map[int64]*models.ZabbixKey, len(keyIds))
-	for id := range keyIds {
-		var k models.ZabbixKey
-		k.Id = id
-		if err := o.Read(&k); err == nil {
-			keys[id] = &k
-		}
-	}
+	var cpuPoints, memPoints, diskReadPoints, diskWritePoints, netRecvPoints, netTransPoints []unifiedMetricPoint
 
-	cpuByInstance := make(map[string][]unifiedMetricPoint)
-	memByInstance := make(map[string][]unifiedMetricPoint)
-	diskReadByInstance := make(map[string][]unifiedMetricPoint)
-	diskWriteByInstance := make(map[string][]unifiedMetricPoint)
-	netRecvByInstance := make(map[string][]unifiedMetricPoint)
-	netTransByInstance := make(map[string][]unifiedMetricPoint)
-
-	for _, it := range items {
-		if it == nil {
-			continue
+	if detailed {
+		var samples []*models.ServerMetric
+		_, err := o.QueryTable(new(models.ServerMetric)).
+			Filter("HostId", srv.ZabbixHostId).
+			Filter("CollectedAt__gte", from).
+			Filter("CollectedAt__lt", dateTo).
+			OrderBy("CollectedAt").
+			All(&samples)
+		if err != nil || len(samples) == 0 {
+			return nil // за этот период нет поминутных снимков (например, zabbixmetrics ещё не собирал данные по этому хосту)
 		}
-		key, ok := keys[it.KeyId]
-		if !ok {
-			continue
+		for _, s := range samples {
+			if s == nil {
+				continue
+			}
+			cpuPoints = append(cpuPoints, unifiedMetricPoint{Timestamp: s.CollectedAt, Value: s.CPUUtilPercent})
+			memPoints = append(memPoints, unifiedMetricPoint{Timestamp: s.CollectedAt, Value: s.RAMUtilPercent})
+			diskReadPoints = append(diskReadPoints, unifiedMetricPoint{Timestamp: s.CollectedAt, Value: s.DiskReadMBps})
+			diskWritePoints = append(diskWritePoints, unifiedMetricPoint{Timestamp: s.CollectedAt, Value: s.DiskWriteMBps})
+			netRecvPoints = append(netRecvPoints, unifiedMetricPoint{Timestamp: s.CollectedAt, Value: s.NetRecvMBps})
+			netTransPoints = append(netTransPoints, unifiedMetricPoint{Timestamp: s.CollectedAt, Value: s.NetSentMBps})
 		}
-		metric := classifyZabbixMetric(key.Key)
-		if metric == "" {
-			continue // ключ не относится ни к одной из шести колонок широкой выгрузки
+		cpuPoints = resampleToMinuteGrid(cpuPoints, from, dateTo.Add(-time.Minute), 1)
+		memPoints = resampleToMinuteGrid(memPoints, from, dateTo.Add(-time.Minute), 1)
+		diskReadPoints = resampleToMinuteGrid(diskReadPoints, from, dateTo.Add(-time.Minute), 1)
+		diskWritePoints = resampleToMinuteGrid(diskWritePoints, from, dateTo.Add(-time.Minute), 1)
+		netRecvPoints = resampleToMinuteGrid(netRecvPoints, from, dateTo.Add(-time.Minute), 1)
+		netTransPoints = resampleToMinuteGrid(netTransPoints, from, dateTo.Add(-time.Minute), 1)
+	} else {
+		var recs []*models.ServerMetricRecord
+		_, err := o.QueryTable(new(models.ServerMetricRecord)).
+			Filter("HostId", srv.ZabbixHostId).
+			Filter("Date__gte", from).
+			Filter("Date__lt", dateTo).
+			OrderBy("Date").
+			All(&recs)
+		if err != nil || len(recs) == 0 {
+			return nil
 		}
-		v, err := strconv.ParseFloat(strings.TrimSpace(it.Value), 64)
-		if err != nil {
-			continue
+		for _, r := range recs {
+			if r == nil {
+				continue
+			}
+			cpuPoints = append(cpuPoints, unifiedMetricPoint{Timestamp: r.Date, Value: r.CPUUtilAverage})
+			memPoints = append(memPoints, unifiedMetricPoint{Timestamp: r.Date, Value: r.RAMUtilAverage})
+			diskReadPoints = append(diskReadPoints, unifiedMetricPoint{Timestamp: r.Date, Value: r.DiskReadMBpsAverage})
+			diskWritePoints = append(diskWritePoints, unifiedMetricPoint{Timestamp: r.Date, Value: r.DiskWriteMBpsAverage})
+			netRecvPoints = append(netRecvPoints, unifiedMetricPoint{Timestamp: r.Date, Value: r.NetRecvMBpsAverage})
+			netTransPoints = append(netTransPoints, unifiedMetricPoint{Timestamp: r.Date, Value: r.NetSentMBpsAverage})
 		}
-		v = convertZabbixValue(v, key.Units)
-		point := unifiedMetricPoint{Timestamp: it.Clock, Value: v}
-		switch metric {
-		case zabbixMetricCPU:
-			cpuByInstance[it.KeyParam] = append(cpuByInstance[it.KeyParam], point)
-		case zabbixMetricMem:
-			memByInstance[it.KeyParam] = append(memByInstance[it.KeyParam], point)
-		case zabbixMetricDiskRead:
-			diskReadByInstance[it.KeyParam] = append(diskReadByInstance[it.KeyParam], point)
-		case zabbixMetricDiskWrite:
-			diskWriteByInstance[it.KeyParam] = append(diskWriteByInstance[it.KeyParam], point)
-		case zabbixMetricNetRecv:
-			netRecvByInstance[it.KeyParam] = append(netRecvByInstance[it.KeyParam], point)
-		case zabbixMetricNetTrans:
-			netTransByInstance[it.KeyParam] = append(netTransByInstance[it.KeyParam], point)
-		}
+		// server_metric_record уже содержит одну строку на сутки - повторная
+		// агрегация (aggregateToDailyGrid) не нужна, в отличие от VM-ветки
+		// buildVMWideRows, где источник детальных vm_perf-точек может быть
+		// подневным только после явной агрегации.
 	}
-
-	cpuPoints := mergeInstanceSeries(cpuByInstance, from, dateTo, detailed, "avg")
-	memPoints := mergeInstanceSeries(memByInstance, from, dateTo, detailed, "avg")
-	diskReadPoints := mergeInstanceSeries(diskReadByInstance, from, dateTo, detailed, "max")
-	diskWritePoints := mergeInstanceSeries(diskWriteByInstance, from, dateTo, detailed, "max")
-	netRecvPoints := mergeInstanceSeries(netRecvByInstance, from, dateTo, detailed, "max")
-	netTransPoints := mergeInstanceSeries(netTransByInstance, from, dateTo, detailed, "max")
 
 	return combineIntoWideRows(srv.Name, srv.ITSystemKey, cpuPoints, memPoints, diskReadPoints, diskWritePoints, netRecvPoints, netTransPoints)
 }

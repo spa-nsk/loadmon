@@ -28,10 +28,7 @@
         (минутная сетка, значение "продлевается" от последнего известного замера), более
         длинный период - по дням (среднее за календарные сутки). Детальные метрики
         виртуальных машин хранятся только {{.DetailedPeriodLimitDays}} суток и не пишутся
-        для рабочих станций Windows - подробности в комментарии к
-        <code>AdminMetricsUnifiedExport</code> (controllers/adminmetricsexport.go) и в
-        kontext/03-data-model.md.
-    </p>
+        для рабочих станций Windows</p>
     {{if .Detailed}}
     <p class="small text-success mb-0">Выбранный период ({{.FromDate}} — {{.ToDate}}) уложится в подробный (минутный) режим выгрузки.</p>
     {{else}}
@@ -90,7 +87,7 @@
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="includeZabbix" name="includezabbix"
                     value="on" {{if .IncludeZabbix}}checked{{end}}>
-                <label class="form-check-label" for="includeZabbix">Аппаратные серверы в Zabbix (по данным zabbix_item)</label>
+                <label class="form-check-label" for="includeZabbix">Аппаратные серверы в Zabbix (по данным server_metric / server_metric_record)</label>
             </div>
         </div>
     </div>
@@ -142,7 +139,9 @@
     {{end}}
 </div>
 
-{{if .Rows}}
+{{if not .FilterApplied}}
+<p class="text-muted">Задайте параметры фильтра (при необходимости) и нажмите «Показать» или сразу «Сформировать выгрузку (XLSX)» - таблица не загружается автоматически при открытии страницы.</p>
+{{else if .Rows}}
     <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
         <thead>
             <tr>
@@ -234,6 +233,19 @@
             hidden.value = exportFormat;
             form.appendChild(hidden);
         }
+
+        // явный признак того, что пользователь применил фильтр (нажал "Показать"
+        // или "Сформировать выгрузку") - контроллер (AdminMetricsUnifiedExport)
+        // не строит таблицу/не обращается к БД, пока applied=1 не передан, чтобы
+        // страница не грузила данные молча при первом открытии
+        var appliedField = document.getElementById('appliedFieldHidden');
+        if (appliedField) appliedField.remove();
+        appliedField = document.createElement('input');
+        appliedField.type = 'hidden';
+        appliedField.id = 'appliedFieldHidden';
+        appliedField.name = 'applied';
+        appliedField.value = '1';
+        form.appendChild(appliedField);
 
         // смена фильтра всегда сбрасывает постраничный просмотр на 1-ю страницу
         var pageField = document.getElementById('pageFieldHidden');
