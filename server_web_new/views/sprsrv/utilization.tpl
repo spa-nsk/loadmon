@@ -1,74 +1,60 @@
 <!-- Контроллер: controllers/sprutilization.go (SprUtilization). Оформление -
-     собственный набор util-* стилей (карточки/дерево/бейджи), графики -
-     ApexCharts по общему паттерну /sprsrv/zabbixperfperiod (тёмная тема,
-     подключение apexcharts.min.js). -->
+     "grafana-style" stat-панели и bar gauge на чистом CSS (без ApexCharts
+     radialBar - он даёт наложение подписей на маленьких донатах), плюс
+     ApexCharts только для горизонтальных bar-графиков, где он ведёт себя
+     предсказуемо. Общий паттерн подключения ApexCharts/тёмной темы - как в
+     /sprsrv/zabbixperfperiod. -->
 
 <div class="hero-text mb-3">
     <h2>Утилизация виртуальной инфраструктуры</h2>
     <div class="text-muted">Сводная оценка загрузки кластеров, хостов, виртуальных машин, СХД и LUN по последним суточным данным. Риски перегруза и неиспользуемые ресурсы - в таблице рекомендаций внизу страницы.</div>
 </div>
 
-<div class="util-kpi-row mb-4">
-    <div class="util-kpi-card">
-        <div class="util-kpi-icon util-kpi-icon-cluster">⬡</div>
-        <div><div class="util-kpi-value">{{.KPI.ClusterCount}}</div><div class="util-kpi-label">Кластеров</div></div>
+<div class="util-stat-row mb-3">
+    <div class="util-stat">
+        <div class="util-stat-label">Кластеров</div>
+        <div class="util-stat-value">{{.KPI.ClusterCount}}</div>
     </div>
-    <div class="util-kpi-card">
-        <div class="util-kpi-icon util-kpi-icon-host">▤</div>
-        <div><div class="util-kpi-value">{{.KPI.HostCount}}</div><div class="util-kpi-label">Хостов</div></div>
+    <div class="util-stat">
+        <div class="util-stat-label">Хостов</div>
+        <div class="util-stat-value">{{.KPI.HostCount}}</div>
     </div>
-    <div class="util-kpi-card">
-        <div class="util-kpi-icon util-kpi-icon-vm">▣</div>
-        <div><div class="util-kpi-value">{{.KPI.VMCount}}</div><div class="util-kpi-label">Виртуальных машин</div></div>
+    <div class="util-stat">
+        <div class="util-stat-label">Виртуальных машин</div>
+        <div class="util-stat-value">{{.KPI.VMCount}}</div>
     </div>
-    <div class="util-kpi-card">
-        <div class="util-kpi-icon util-kpi-icon-storage">▦</div>
-        <div><div class="util-kpi-value">{{.KPI.StorageSystemCount}}</div><div class="util-kpi-label">СХД</div></div>
+    <div class="util-stat">
+        <div class="util-stat-label">СХД</div>
+        <div class="util-stat-value">{{.KPI.StorageSystemCount}}</div>
     </div>
-    <div class="util-kpi-card">
-        <div class="util-kpi-icon util-kpi-icon-lun">▥</div>
-        <div><div class="util-kpi-value">{{.KPI.LUNCount}}</div><div class="util-kpi-label">LUN</div></div>
+    <div class="util-stat">
+        <div class="util-stat-label">LUN</div>
+        <div class="util-stat-value">{{.KPI.LUNCount}}</div>
     </div>
-    <div class="util-kpi-card util-kpi-card-danger">
-        <div class="util-kpi-icon util-kpi-icon-danger">⚠</div>
-        <div><div class="util-kpi-value">{{.KPI.OverloadedCount}}</div><div class="util-kpi-label">Риски перегруза</div></div>
+    <div class="util-stat util-stat-accent-danger">
+        <div class="util-stat-label">Риски перегруза</div>
+        <div class="util-stat-value">{{.KPI.OverloadedCount}}</div>
     </div>
-    <div class="util-kpi-card util-kpi-card-warning">
-        <div class="util-kpi-icon util-kpi-icon-warning">↓</div>
-        <div><div class="util-kpi-value">{{.KPI.UnderusedCount}}</div><div class="util-kpi-label">Недоиспользуется</div></div>
+    <div class="util-stat util-stat-accent-warning">
+        <div class="util-stat-label">Недоиспользуется</div>
+        <div class="util-stat-value">{{.KPI.UnderusedCount}}</div>
     </div>
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-xl-4">
+    <div class="col-12 col-xl-8">
         <div class="util-card">
-            <h6>Средняя загрузка CPU</h6>
-            <div class="util-donut-row">
-                <div class="util-donut-item"><div id="utilDonutClusterCpu"></div><div class="util-donut-caption">Кластеры</div></div>
-                <div class="util-donut-item"><div id="utilDonutHostCpu"></div><div class="util-donut-caption">Хосты</div></div>
-                <div class="util-donut-item"><div id="utilDonutVmCpu"></div><div class="util-donut-caption">VM</div></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-xl-4">
-        <div class="util-card">
-            <h6>Средняя загрузка памяти</h6>
-            <div class="util-donut-row">
-                <div class="util-donut-item"><div id="utilDonutClusterMem"></div><div class="util-donut-caption">Кластеры</div></div>
-                <div class="util-donut-item"><div id="utilDonutHostMem"></div><div class="util-donut-caption">Хосты</div></div>
-                <div class="util-donut-item"><div id="utilDonutVmMem"></div><div class="util-donut-caption">VM</div></div>
-            </div>
+            <h6>Средняя загрузка, %</h6>
+            <div class="util-gauge-grid" id="utilGaugeGrid"></div>
         </div>
     </div>
     <div class="col-12 col-xl-4">
         <div class="util-card">
             <h6>Хранилище</h6>
-            <div class="util-donut-row">
-                <div class="util-donut-item"><div id="utilDonutStorage"></div><div class="util-donut-caption">СХД занято</div></div>
-                <div class="util-donut-item util-donut-item-text">
-                    <div class="util-kpi-value">{{printf "%.1f" .KPI.TotalStorageRawTB}}&nbsp;ТБ</div>
-                    <div class="util-donut-caption">Суммарная ёмкость СХД (raw)</div>
-                </div>
+            <div class="util-gauge-grid util-gauge-grid-single" id="utilGaugeStorage"></div>
+            <div class="util-storage-total">
+                <div class="util-stat-value">{{printf "%.1f" .KPI.TotalStorageRawTB}}&nbsp;ТБ</div>
+                <div class="util-stat-label">Суммарная ёмкость СХД (raw)</div>
             </div>
         </div>
     </div>
@@ -76,7 +62,7 @@
 
 <div class="util-card mb-3">
     <h6>Структура оборудования: vCenter → кластер → хост / VM</h6>
-    <div class="text-muted small mb-2">Цвет рамки узла отражает статус: <span class="util-legend-dot util-legend-danger"></span>перегруз, <span class="util-legend-dot util-legend-warning"></span>недоиспользование, <span class="util-legend-dot util-legend-normal"></span>норма.</div>
+    <div class="text-muted small mb-2"><span class="util-legend-dot util-legend-danger"></span>перегруз &nbsp;<span class="util-legend-dot util-legend-warning"></span>недоиспользование &nbsp;<span class="util-legend-dot util-legend-normal"></span>норма</div>
     <div id="utilTree" class="util-tree"></div>
 </div>
 
@@ -98,7 +84,7 @@
 <div class="row g-3 mb-3">
     <div class="col-12 col-xl-6">
         <div class="util-card">
-            <h6>Перегруженные VM (CPU avg ≥ {{printf "%.0f" 85.0}}%)</h6>
+            <h6>Перегруженные VM (CPU avg ≥ 85%)</h6>
             <div id="utilBarVmTop" class="util-chart-box"></div>
         </div>
     </div>
@@ -128,7 +114,6 @@
         </table>
     </div>
     <div id="utilRisksEmpty" class="util-empty-state d-none">
-        <div class="util-empty-icon">✓</div>
         <div>Рисков перегруза или существенного недоиспользования по текущим данным не выявлено.</div>
     </div>
 </div>
@@ -142,88 +127,108 @@
 <script src="/static/js/apexcharts.min.js?v={{.StaticVer}}"></script>
 
 <style>
-    .util-kpi-row {
+    /* --- Верхняя строка stat-панелей (в духе Grafana stat panel) --- */
+    .util-stat-row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.75rem;
-    }
-
-    .util-kpi-card {
-        background-color: var(--bs-tertiary-bg);
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1px;
+        background: var(--bs-border-color);
         border: 1px solid var(--bs-border-color);
-        border-radius: 0.75rem;
-        padding: 0.9rem 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        border-radius: 0.5rem;
+        overflow: hidden;
     }
 
-    .util-kpi-card-danger { border-color: rgba(230, 73, 128, 0.45); }
-    .util-kpi-card-warning { border-color: rgba(245, 159, 0, 0.45); }
-
-    .util-kpi-icon {
-        width: 2.4rem;
-        height: 2.4rem;
-        border-radius: 0.6rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        flex-shrink: 0;
-        background: var(--bs-secondary-bg);
-        color: var(--bs-emphasis-color);
+    .util-stat {
+        background: var(--bs-tertiary-bg);
+        padding: 0.85rem 1rem;
+        border-left: 3px solid transparent;
     }
 
-    .util-kpi-icon-danger { background: rgba(230, 73, 128, 0.15); color: #e64980; }
-    .util-kpi-icon-warning { background: rgba(245, 159, 0, 0.15); color: #f59f00; }
+    .util-stat-accent-danger { border-left-color: #e64980; }
+    .util-stat-accent-warning { border-left-color: #f59f00; }
 
-    .util-kpi-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        line-height: 1.15;
-    }
-
-    .util-kpi-label {
+    .util-stat-label {
         color: var(--bs-secondary-color);
-        font-size: 0.78rem;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
+
+    .util-stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--bs-emphasis-color);
     }
 
     .util-card {
         background-color: var(--bs-tertiary-bg);
         border: 1px solid var(--bs-border-color);
-        border-radius: 0.75rem;
-        padding: 1.1rem 1.2rem;
+        border-radius: 0.5rem;
+        padding: 1rem 1.2rem;
         height: 100%;
     }
 
     .util-card h6 {
         color: var(--bs-emphasis-color);
         font-weight: 600;
-        margin-bottom: 0.85rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 0.9rem;
     }
 
     .util-chart-box { min-height: 320px; }
 
-    .util-donut-row {
-        display: flex;
-        justify-content: space-around;
-        text-align: center;
-        flex-wrap: wrap;
+    /* --- Bar gauge (полоска с подписью значения сверху, без наложения текста) --- */
+    .util-gauge-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem 1.5rem;
     }
 
-    .util-donut-item { flex: 1 1 0; min-width: 90px; }
+    .util-gauge-grid-single { grid-template-columns: 1fr; }
 
-    .util-donut-item-text {
+    .util-gauge {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        gap: 0.3rem;
     }
 
-    .util-donut-caption {
-        color: var(--bs-secondary-color);
-        font-size: 0.78rem;
-        margin-top: -0.25rem;
+    .util-gauge-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 0.8rem;
+    }
+
+    .util-gauge-name { color: var(--bs-secondary-color); }
+
+    .util-gauge-value {
+        font-weight: 700;
+        color: var(--bs-emphasis-color);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .util-gauge-track {
+        height: 0.55rem;
+        border-radius: 0.3rem;
+        background: var(--bs-secondary-bg);
+        overflow: hidden;
+    }
+
+    .util-gauge-fill {
+        height: 100%;
+        border-radius: 0.3rem;
+        transition: width 0.3s ease;
+    }
+
+    .util-storage-total {
+        text-align: center;
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--bs-border-color);
     }
 
     .util-legend-dot {
@@ -231,7 +236,6 @@
         width: 0.6rem;
         height: 0.6rem;
         border-radius: 50%;
-        margin: 0 0.3rem 0 0.6rem;
     }
 
     .util-legend-danger { background: #e64980; }
@@ -240,46 +244,46 @@
 
     /* --- Дерево структуры оборудования --- */
     .util-tree {
-        display: flex;
-        flex-direction: column;
-        gap: 0.9rem;
-        max-height: 520px;
+        max-height: 480px;
         overflow-y: auto;
-        padding-right: 0.25rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.4rem;
     }
 
     .util-tree-cluster {
-        border: 1px solid var(--bs-border-color);
-        border-left: 4px solid #4dabf7;
-        border-radius: 0.6rem;
-        padding: 0.7rem 0.9rem;
-        background: var(--bs-secondary-bg);
+        border-bottom: 1px solid var(--bs-border-color);
+        padding: 0.6rem 0.8rem;
     }
 
-    .util-tree-cluster.util-status-overload { border-left-color: #e64980; }
-    .util-tree-cluster.util-status-underused { border-left-color: #f59f00; }
+    .util-tree-cluster:last-child { border-bottom: none; }
 
     .util-tree-cluster-head {
         display: flex;
         flex-wrap: wrap;
         align-items: baseline;
         gap: 0.5rem;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.45rem;
+        padding-left: 0.6rem;
+        border-left: 3px solid #4dabf7;
     }
+
+    .util-tree-cluster.util-status-overload .util-tree-cluster-head { border-left-color: #e64980; }
+    .util-tree-cluster.util-status-underused .util-tree-cluster-head { border-left-color: #f59f00; }
 
     .util-tree-cluster-name {
         font-weight: 600;
         color: var(--bs-emphasis-color);
+        font-size: 0.9rem;
     }
 
     .util-tree-vcenter {
         color: var(--bs-secondary-color);
-        font-size: 0.78rem;
+        font-size: 0.75rem;
     }
 
     .util-tree-metrics {
         margin-left: auto;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         color: var(--bs-secondary-color);
         white-space: nowrap;
     }
@@ -289,28 +293,23 @@
     .util-tree-children {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.4rem;
+        gap: 0.35rem;
+        padding-left: 0.6rem;
     }
 
     .util-chip {
-        font-size: 0.74rem;
+        font-size: 0.72rem;
         border: 1px solid var(--bs-border-color);
-        border-radius: 1rem;
-        padding: 0.2rem 0.6rem;
-        background: var(--bs-tertiary-bg);
+        border-left: 3px solid #4dabf7;
+        border-radius: 0.25rem;
+        padding: 0.2rem 0.55rem;
+        background: var(--bs-secondary-bg);
         color: var(--bs-emphasis-color);
         white-space: nowrap;
     }
 
-    .util-chip-host { border-left: 3px solid #4dabf7; }
-    .util-chip-overload { border-color: #e64980; color: #e64980; }
-    .util-chip-underused { border-color: #f59f00; color: #f59f00; }
-
-    .util-chip-vm-count {
-        font-size: 0.74rem;
-        color: var(--bs-secondary-color);
-        align-self: center;
-    }
+    .util-chip-overload { border-left-color: #e64980; color: #e64980; }
+    .util-chip-underused { border-left-color: #f59f00; color: #f59f00; }
 
     /* --- Пустые состояния графиков --- */
     .util-empty-state {
@@ -318,40 +317,28 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-        min-height: 220px;
+        min-height: 200px;
         color: var(--bs-secondary-color);
         text-align: center;
         font-size: 0.85rem;
         padding: 1rem;
     }
 
-    .util-empty-icon {
-        width: 2.2rem;
-        height: 2.2rem;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--bs-secondary-bg);
-        font-size: 1.1rem;
-    }
-
     /* --- Таблица рисков --- */
     .util-risks-table thead th {
         color: var(--bs-secondary-color);
         font-weight: 600;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         text-transform: uppercase;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.03em;
         border-bottom-width: 1px;
     }
 
     .util-risk-badge {
         display: inline-block;
         padding: 0.15rem 0.55rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.72rem;
         font-weight: 600;
     }
 
@@ -394,6 +381,12 @@
         return COLOR_NORMAL;
     }
 
+    function gaugeColor(pct) {
+        if (pct >= 80) return COLOR_DANGER;
+        if (pct <= 15) return COLOR_WARNING;
+        return COLOR_OK;
+    }
+
     function avg(list, field) {
         if (!list || !list.length) return 0;
         var sum = 0;
@@ -404,30 +397,36 @@
     function emptyState(elId, text) {
         var el = document.getElementById(elId);
         if (!el) return;
-        el.innerHTML = '<div class="util-empty-state"><div class="util-empty-icon">–</div><div>' + text + '</div></div>';
+        el.innerHTML = '<div class="util-empty-state"><div>' + text + '</div></div>';
     }
 
-    function donut(elId, pct, captionElSelector) {
-        var el = document.getElementById(elId);
-        if (!el) return;
-        var color = pct >= 80 ? COLOR_DANGER : (pct <= 15 ? COLOR_WARNING : COLOR_OK);
-        new ApexCharts(el, {
-            chart: { type: 'radialBar', height: 130, background: 'transparent' },
-            theme: { mode: apexTheme },
-            series: [Math.round(pct * 10) / 10],
-            colors: [color],
-            plotOptions: { radialBar: { hollow: { size: '55%' }, dataLabels: { value: { fontSize: '0.95rem', formatter: function (v) { return v + '%'; } } } } },
-            labels: ['']
-        }).render();
+    // Простая CSS bar-gauge вместо ApexCharts radialBar - не даёт наложения
+    // подписи значения на график на маленьких размерах, читается однозначно.
+    function renderGauge(containerEl, name, pct) {
+        var clamped = Math.max(0, Math.min(100, pct));
+        var wrap = document.createElement('div');
+        wrap.className = 'util-gauge';
+        wrap.innerHTML =
+            '<div class="util-gauge-head"><span class="util-gauge-name">' + name + '</span><span class="util-gauge-value">' + pct.toFixed(1) + '%</span></div>' +
+            '<div class="util-gauge-track"><div class="util-gauge-fill" style="width:' + clamped + '%;background:' + gaugeColor(pct) + '"></div></div>';
+        containerEl.appendChild(wrap);
     }
 
-    donut('utilDonutClusterCpu', avg(data.clusters, 'cpuPct'));
-    donut('utilDonutHostCpu', avg(data.hosts, 'cpuPct'));
-    donut('utilDonutVmCpu', avg(data.vms, 'cpuPct'));
-    donut('utilDonutClusterMem', avg(data.clusters, 'memPct'));
-    donut('utilDonutHostMem', avg(data.hosts, 'memPct'));
-    donut('utilDonutVmMem', avg(data.vms, 'memPct'));
-    donut('utilDonutStorage', avg(data.storages, 'diskPct'));
+    var loadGrid = document.getElementById('utilGaugeGrid');
+    if (loadGrid) {
+        renderGauge(loadGrid, 'Кластеры · CPU', avg(data.clusters, 'cpuPct'));
+        renderGauge(loadGrid, 'Кластеры · MEM', avg(data.clusters, 'memPct'));
+        renderGauge(loadGrid, 'Хосты · CPU', avg(data.hosts, 'cpuPct'));
+        renderGauge(loadGrid, 'Хосты · MEM', avg(data.hosts, 'memPct'));
+        renderGauge(loadGrid, 'VM · CPU', avg(data.vms, 'cpuPct'));
+        renderGauge(loadGrid, 'VM · MEM', avg(data.vms, 'memPct'));
+    }
+
+    var storageGrid = document.getElementById('utilGaugeStorage');
+    if (storageGrid) {
+        renderGauge(storageGrid, 'СХД занято', avg(data.storages, 'diskPct'));
+        renderGauge(storageGrid, 'LUN занято', avg(data.luns, 'diskPct'));
+    }
 
     function horizontalBar(elId, items, opts) {
         // items: [{name, value, color}]
@@ -479,7 +478,7 @@
         var items = (data.vms || []).filter(function (x) { return x.status === 'overload'; })
             .sort(function (a, b) { return b.cpuPct - a.cpuPct; }).slice(0, 15)
             .map(function (x) { return { name: x.name, value: x.cpuPct, color: COLOR_DANGER }; });
-        horizontalBar('utilBarVmTop', items, { unit: '%', emptyText: 'Перегруженных VM (CPU avg ≥ 85%) не обнаружено - хороший знак' });
+        horizontalBar('utilBarVmTop', items, { unit: '%', emptyText: 'Перегруженных VM (CPU avg ≥ 85%) не обнаружено' });
     })();
 
     // Простаивающие VM
@@ -494,7 +493,7 @@
     (function () {
         var el = document.getElementById('utilTree');
         if (!el) return;
-        var clusters = data.clusters || [];
+        var clusters = (data.clusters || []).slice();
         if (!clusters.length) {
             emptyState('utilTree', 'Нет суточных данных ClusterRecord за последние 7 дней - структуру построить не из чего');
             return;
@@ -519,12 +518,12 @@
 
         var html = '';
         clusters.sort(function (a, b) { return b.cpuPct - a.cpuPct; }).forEach(function (c) {
-            var hosts = (hostsByCluster[c.name] || []).sort(function (a, b) { return b.cpuPct - a.cpuPct; });
+            var hosts = (hostsByCluster[c.name] || []).slice().sort(function (a, b) { return b.cpuPct - a.cpuPct; });
             var vmCount = vmCountByCluster[c.name] || 0;
 
             html += '<div class="util-tree-cluster ' + statusClass(c.status, 'util-status') + '">';
             html += '  <div class="util-tree-cluster-head">';
-            html += '    <span class="util-tree-cluster-name">⬡ ' + c.name + '</span>';
+            html += '    <span class="util-tree-cluster-name">' + c.name + '</span>';
             html += '    <span class="util-tree-vcenter">' + (c.parent || '') + '</span>';
             html += '    <span class="util-tree-metrics">CPU <b>' + c.cpuPct.toFixed(0) + '%</b> · MEM <b>' + c.memPct.toFixed(0) + '%</b> · хостов <b>' + hosts.length + '</b> · VM <b>' + vmCount + '</b></span>';
             html += '  </div>';
@@ -533,7 +532,7 @@
                 html += '<span class="util-chip">нет данных по хостам</span>';
             } else {
                 hosts.forEach(function (h) {
-                    html += '<span class="util-chip util-chip-host ' + statusClass(h.status, 'util-chip') + '">▤ ' + h.name + ' · ' + h.cpuPct.toFixed(0) + '%/' + h.memPct.toFixed(0) + '%</span>';
+                    html += '<span class="util-chip ' + statusClass(h.status, 'util-chip') + '">' + h.name + ' — ' + h.cpuPct.toFixed(0) + '% / ' + h.memPct.toFixed(0) + '%</span>';
                 });
             }
             html += '  </div>';
