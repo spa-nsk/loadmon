@@ -3,8 +3,8 @@ module loadmon
 go 1.25.0
 
 require (
-	github.com/HewlettPackard/oneview-golang v11.3.0+incompatible
 	github.com/beego/beego/v2 v2.3.10
+	github.com/go-sql-driver/mysql v1.9.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/jcmturner/goidentity/v6 v6.0.1
 	github.com/jcmturner/gokrb5/v8 v8.4.4
@@ -26,10 +26,10 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blend/go-sdk v1.20240719.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/docker/machine v0.16.2 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect

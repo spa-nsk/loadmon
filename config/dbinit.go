@@ -167,9 +167,11 @@ func DBInit() {
 	orm.RegisterModel(new(models.RolePersonalItem))
 	orm.RegisterModel(new(models.CompetenceCenter))
 	orm.RegisterModel(new(models.RoleCompetenceCenter))
+	//zabbix
 	orm.RegisterModel(new(models.ZabbixHost))
 	orm.RegisterModel(new(models.ZabbixItem))
 	orm.RegisterModel(new(models.ZabbixKey))
+	orm.RegisterModel(new(models.ServerMetric))
 
 	err := orm.RunSyncdb("default", false, false)
 
