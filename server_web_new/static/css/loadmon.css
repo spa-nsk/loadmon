@@ -29,7 +29,9 @@
 .cluster-filter-bar,
 .vm-filter-bar,
 .zabbix-filter-bar,
-.metricsexport-filter-bar {
+.metricsexport-filter-bar,
+.viewexport-toolbar-bar,
+.deactivated-filter-bar {
     position: sticky;
     top: 0;
     z-index: 5;
@@ -42,7 +44,9 @@
 .cluster-filter-bar.cluster-filter-bar-unpinned,
 .vm-filter-bar.vm-filter-bar-unpinned,
 .zabbix-filter-bar.zabbix-filter-bar-unpinned,
-.metricsexport-filter-bar.metricsexport-filter-bar-unpinned {
+.metricsexport-filter-bar.metricsexport-filter-bar-unpinned,
+.viewexport-toolbar-bar.viewexport-toolbar-bar-unpinned,
+.deactivated-filter-bar.deactivated-filter-bar-unpinned {
     position: static;
     box-shadow: none;
 }

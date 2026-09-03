@@ -103,6 +103,16 @@ func (this *MainController) activeContent(view string) {
 		this.Data["Podrazdelenie"] = m["podrazdelenie"]  // 0 - не указано 1 - ДАТИ 2 - СТО
 		this.Data["SearchString"] = m["SprSearchString"] //тип строки для фильтра справочника
 		this.Data["SearchField"] = m["SprSearchField"]   //стока фильтра справочника
+
+		// Пункты подменю "Администрирование → Выгрузка по View" - кладутся в
+		// Data для ВСЕХ страниц (как и Privilage выше), так как header.tpl -
+		// общий partial: сама видимость пункта админского меню в header.tpl
+		// уже скрыта под {{if eq .Privilage 3}}, поэтому парсить список тут
+		// не вредно и для обычных пользователей (админ.конфиг короткий, cм.
+		// viewExportModes() в controllers/adminviewexport.go - список
+		// режимов теперь читается из app.conf, ключ viewexportmodes, а не
+		// хранится отдельной страницей выбора).
+		this.Data["ViewExportModes"] = viewExportModes()
 	}
 }
 

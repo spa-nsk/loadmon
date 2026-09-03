@@ -161,14 +161,21 @@ func (this *MainController) AdminDeactivatedServersList() {
 // "включен и активен" (PowerState==1 && Active==1) - то есть недостаточно
 // просто открыть форму, нужно явно подтвердить оба значения.
 //
-// SourceUpdateType самой записи ServerSprRecords этой формой НЕ
-// редактируется (наследуется - остаётся тем, что было) - согласно общей
-// договорённости не затирать источник записи в формах редактирования
-// (см. kontext/05-conventions-and-gotchas.md, раздел SourceUpdateType).
-// При каскадном обновлении связанных записей текущее значение
+// SourceUpdateType записи ServerSprRecords в этой форме РЕДАКТИРУЕМ (по
+// прямой просьбе пользователя - обычная договорённость "формы
+// редактирования не трогают SourceUpdateType", см.
+// kontext/05-conventions-and-gotchas.md, здесь сознательно нарушена, так
+// как страница именно для РУЧНОГО разбора ошибочных авто-обновлений, и
+// администратору может быть нужно поправить и сам признак источника, не
+// только PowerState/Active). Поле - как и PowerState/Active - работает по
+// принципу "пусто = не менять": select на форме включает отдельный пункт
+// "не менять" (пустое значение), собственно "не указано" (0) - это уже
+// самостоятельный вариант выбора, а не отсутствие выбора. При каскадном
+// обновлении связанных записей ИТОГОВОЕ (после применения формы) значение
 // SourceUpdateType записи ServerSprRecords переносится ("наследуется") на
 // связанную models.ServerHardware, чтобы источник был согласован между
-// связанными записями.
+// связанными записями - это касается только каскада на ServerHardware, у
+// самой ServerSprRecords значение теперь может быть изменено явно.
 //
 // Связанные записи, которые правятся при фактическом возврате в работу
 // (Stat стал 1):
@@ -234,11 +241,20 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 	// умолчанию предзаполнен на "включен"/"активен" - см. шаблон), но 0
 	// ("не указано"/"не менять") по-прежнему поддержан на случай, если
 	// администратор хочет поменять только часть выбранных записей.
+	//
+	// SourceUpdateType - отдельный принцип "пусто = не менять": в отличие от
+	// PowerState/Active (где 0 совмещает роль "не менять" и "не указано"),
+	// у SourceUpdateType 0 - самостоятельное значение "не указано" (см.
+	// models.SourceUpdateType* константы), поэтому "не менять" на форме -
+	// это ПУСТАЯ строка, а не "0", и распознаётся отдельно (sourceUpdateTypeSet).
 	powerState, _ := strconv.Atoi(this.GetString("PowerState"))
 	active, _ := strconv.Atoi(this.GetString("Active"))
+	sourceUpdateTypeStr := strings.TrimSpace(this.GetString("SourceUpdateType"))
+	sourceUpdateTypeSet := sourceUpdateTypeStr != ""
+	sourceUpdateType, _ := strconv.Atoi(sourceUpdateTypeStr)
 
-	if powerState == 0 && active == 0 {
-		flash.Error("Не выбрано ни одного значения (PowerState/Active) - нечего применять")
+	if powerState == 0 && active == 0 && !sourceUpdateTypeSet {
+		flash.Error("Не выбрано ни одного значения (PowerState/Active/SourceUpdateType) - нечего применять")
 		flash.Store(&this.Controller)
 		return
 	}
@@ -282,10 +298,12 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 			rec.Stat = 1 // возврат в учёт - см. комментарий к функции выше
 		}
 
+		if sourceUpdateTypeSet {
+			rec.SourceUpdateType = sourceUpdateType
+		}
+
 		rec.Id_User = currentUserId
 		rec.Time_Mfy = now
-		// SourceUpdateType самой записи НЕ трогаем - наследуется как есть
-		// (см. комментарий к функции выше и kontext/05-conventions-and-gotchas.md).
 
 		if _, err := o.Update(&rec); err != nil {
 			lastErr = err
@@ -310,7 +328,7 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 					prevHwActive := hw.Active
 					hw.PowerState = rec.PowerState
 					hw.Active = rec.Active
-					hw.SourceUpdateType = rec.SourceUpdateType // наследуется от ServerSprRecords, см. комментарий к функции выше
+					hw.SourceUpdateType = rec.SourceUpdateType // синхронизируется с итоговым (после формы) значением ServerSprRecords, см. комментарий к функции выше
 					hw.Id_User = currentUserId
 					hw.Time_Mfy = now
 					if prevHwActive != hw.Active {

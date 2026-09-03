@@ -12,7 +12,8 @@
         значениями PowerState/Active. При фактическом возврате в учёт также
         обновляются связанные записи: у виртуальных машин - признак включения
         (Vm_PowerState), у аппаратных серверов - PowerState/Active и источник
-        обновления (SourceUpdateType наследуется от записи справочника серверов).
+        обновления (SourceUpdateType синхронизируется с итоговым значением записи
+        справочника серверов, после применения формы ниже).
     </p>
 </div>
 
@@ -71,6 +72,17 @@
                 <option value="2">Выведен из эксплуатации</option>
             </select>
         </div>
+        <div class="col-6 col-md-4">
+            <label for="SourceUpdateType" class="form-label">Источник (SourceUpdateType)</label>
+            <select id="SourceUpdateType" name="SourceUpdateType" class="form-select">
+                <option value="" selected>не менять</option>
+                <option value="0">не указано</option>
+                <option value="1">Вручную</option>
+                <option value="2">VMware</option>
+                <option value="3">HPE OneView</option>
+                <option value="4">Zabbix</option>
+            </select>
+        </div>
         <div class="col-12 col-md-4">
             <button type="submit" class="btn btn-success rounded-pill px-3">Применить</button>
             <a href="/admin/deactivatedservers" class="btn btn-outline-secondary rounded-pill px-3">Отмена</a>
@@ -79,9 +91,11 @@
     <div class="row mt-2">
         <div class="col-12">
             <span class="text-muted small">
-                SourceUpdateType записи справочника серверов этой формой не меняется
-                (наследуется как есть) - при возврате в учёт связанного аппаратного
-                сервера то же значение SourceUpdateType переносится и на него.
+                "Не менять" у поля "Источник" оставляет SourceUpdateType записи как
+                есть; при выборе конкретного значения оно применится к выбранным
+                записям. При фактическом возврате в учёт (Stat стал 1) связанного
+                аппаратного сервера ИТОГОВОЕ значение SourceUpdateType переносится и
+                на него.
             </span>
         </div>
     </div>

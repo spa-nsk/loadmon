@@ -462,9 +462,21 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Список серверов,
                 выведенных из учёта</a>
             </li>
-            <li>
-              <a href="/admin/viewexport"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка по View</a>
+            <li class="mb-1">
+              <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
+                data-bs-toggle="collapse" data-bs-target="#viewexport-collapse" aria-expanded="false">
+                Выгрузка по View
+              </button>
+              <div class="collapse hide" id="viewexport-collapse">
+                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                  {{range $m := .ViewExportModes}}
+                  <li>
+                    <a href="/admin/viewexport/{{$m.Name}}"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">{{$m.Title}}</a>
+                  </li>
+                  {{end}}
+                </ul>
+              </div>
             </li>
           </ul>
         </div>
