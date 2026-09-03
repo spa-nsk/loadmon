@@ -13,25 +13,102 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
-// ClearStatusVolumeStorage сброс статуса томов
-func ClearStatusVolumeStorage() {
-	var volumes []*models.StorageVolumes
-	fmt.Println("Обнуление статуса томов")
-	o := orm.NewOrm()
-	qs := o.QueryTable("storage_volumes")
-	qs = qs.OrderBy("Id")
-	num, err := qs.All(&volumes)
-	if num > 0 && err == nil {
-		for _, vol := range volumes {
-			voln := models.StorageVolumes{Id: vol.Id}
-			err := o.Read(&voln, "Id")
-			if err == nil {
-				voln.Status = 0
-				o.Update(&voln)
-			}
-		}
+// deactivateAbsentStorageVolumes деактивирует (Status=0) записи StorageVolumes
+// с данной StorageSystemsId и SourceUpdateType==StorageSourceUpdateStorageAPI,
+// которых НЕТ в touchedIds - то есть тома, реально не найденные при ТОЛЬКО
+// ЧТО завершившемся УСПЕШНОМ опросе конкретной СХД (см. вызовы в
+// UpdateVolumeStorage ниже - вызывается только когда pollOK==true для этой
+// СХД). Тома с SourceUpdateType, отличным от StorageSourceUpdateStorageAPI
+// (например, StorageSourceUpdateManual, если такой когда-нибудь появится),
+// сознательно не трогаются - тот же принцип разделения по источнику, что и
+// у ServerSprRecords/ServerHardware.SourceUpdateType.
+func deactivateAbsentStorageVolumes(o orm.Ormer, storageSystemsId int64, touchedIds []int64) {
+	touched := make(map[int64]bool, len(touchedIds))
+	for _, id := range touchedIds {
+		touched[id] = true
 	}
-	fmt.Println("Статусы томов обновлены")
+
+	var volumes []*models.StorageVolumes
+	_, err := o.QueryTable("storage_volumes").
+		Filter("StorageSystemsId", storageSystemsId).
+		Filter("SourceUpdateType", models.StorageSourceUpdateStorageAPI).
+		All(&volumes)
+	if err != nil {
+		fmt.Println("Ошибка чтения томов для деактивации, StorageSystemsId=", storageSystemsId, err)
+		return
+	}
+
+	deactivated := 0
+	for _, vol := range volumes {
+		if vol == nil || touched[vol.Id] || vol.Status == 0 {
+			continue
+		}
+		vol.Status = 0
+		if _, err := o.Update(vol, "Status"); err != nil {
+			fmt.Println("Ошибка деактивации тома Id=", vol.Id, err)
+			continue
+		}
+		deactivated++
+	}
+	if deactivated > 0 {
+		fmt.Println("Деактивировано (Status=0) томов, не найденных при опросе СХД, StorageSystemsId=", storageSystemsId, ":", deactivated)
+	}
+}
+
+// storageAPIWriteMode определяет, как опрос API конкретной СХД должен
+// поступить с уже НАЙДЕННОЙ (по StorageName/UID/VirtualName) записью
+// StorageVolumes - правило приоритета источников (2026-09-03, см.
+// kontext/05-conventions-and-gotchas.md, раздел про СХД):
+//   - vSphere-скан (SourceUpdateType==StorageSourceUpdateVMware) имеет
+//     приоритет - опрос СХД такую запись целиком не перезаписывает
+//     (Status/CapacityGb/FreeSpaceGb/PercentUsed остаются от VMware), а
+//     только дополняет идентификационные поля (StorageSystemsId/
+//     ShortName/StorageName) - см. storageAPIWriteSupplement.
+//   - Запись, заведённая вручную (StorageSourceUpdateManual), опросом СХД
+//     вообще не трогается - см. storageAPIWriteSkip.
+//   - Новая запись либо запись, ранее принадлежавшая самой СХД
+//     (StorageSourceUpdateStorageAPI/None), пишется как раньше целиком -
+//     storageAPIWriteFull.
+type storageAPIWriteMode int
+
+const (
+	storageAPIWriteFull       storageAPIWriteMode = iota // пишем полностью (новая запись либо запись самой СХД)
+	storageAPIWriteSupplement                             // запись принадлежит vSphere - только дополняем
+	storageAPIWriteSkip                                   // запись заведена вручную - не трогаем
+)
+
+// storageAPIWriteModeFor вычисляет режим записи для найденной (или не
+// найденной) записи StorageVolumes - см. storageAPIWriteMode.
+func storageAPIWriteModeFor(existing models.StorageVolumes, foundLUN bool) storageAPIWriteMode {
+	if !foundLUN {
+		return storageAPIWriteFull
+	}
+	switch existing.SourceUpdateType {
+	case models.StorageSourceUpdateManual:
+		return storageAPIWriteSkip
+	case models.StorageSourceUpdateVMware:
+		return storageAPIWriteSupplement
+	default:
+		return storageAPIWriteFull
+	}
+}
+
+// recordStorageSystemScanResult сохраняет в самой записи StorageSystems
+// результат последней попытки её опроса (LastScanTime/LastScanOK/
+// LastScanError) - см. комментарий у этих полей в models/models_add.go.
+// Ошибка отдельно логируется, но не прерывает основной цикл
+// UpdateVolumeStorage - запись результата опроса вспомогательна.
+func recordStorageSystemScanResult(o orm.Ormer, shd *models.StorageSystems, pollErr error) {
+	shd.LastScanTime = time.Now().Local()
+	shd.LastScanOK = pollErr == nil
+	if pollErr != nil {
+		shd.LastScanError = pollErr.Error()
+	} else {
+		shd.LastScanError = ""
+	}
+	if _, err := o.Update(shd, "LastScanTime", "LastScanOK", "LastScanError"); err != nil {
+		fmt.Println("Ошибка сохранения результата опроса СХД Id=", shd.Id, err)
+	}
 }
 
 // UpdateVolumeStorage() функция обновления информации о томах СХД
@@ -80,21 +157,35 @@ func UpdateVolumeStorage() {
 
 			fmt.Println(time.Now().Local().Format(fmtdate), "Запрос к СХД:", shd.InventoryNum, shd.Model, shd.ShortName, shd.IpAddress, shd.ApiType)
 
+			// pollErr - ошибка уровня "не удалось получить актуальный список
+			// томов этой СХД целиком" (соединение/авторизация/список LUN) -
+			// в отличие от ошибки обновления/вставки ОТДЕЛЬНОГО тома (та не
+			// прерывает обработку остальных и не считается сбоем всего
+			// опроса, как и раньше). Именно pollErr решает, будет ли вызвана
+			// deactivateAbsentStorageVolumes ниже - если опрос СХД не
+			// удался, тома этой СХД НЕ трогаются вовсе (остаются с тем
+			// статусом, что был), а не бланкетно обнуляются, как раньше в
+			// ClearStatusVolumeStorage (удалена, см.
+			// kontext/05-conventions-and-gotchas.md).
+			var pollErr error
+			touchedIds := make([]int64, 0)
+
 			switch shd.ApiType {
 			case 1: //VNX CLI
-				luns, err := storages.GetLunsCmd(shd.IpAddress)
-				if err != nil {
-					fmt.Println("Ошибка GetLunsCmd :", err)
+				luns, lunsErr := storages.GetLunsCmd(shd.IpAddress)
+				pollErr = lunsErr
+				if lunsErr != nil {
+					fmt.Println("Ошибка GetLunsCmd :", lunsErr)
 				} else {
 					fmt.Println("Получены данные ", len(luns), "LUN")
 				}
 
-				hbas, err := storages.GetHBAInfoCmd(shd.IpAddress)
+				hbas, hbaErr := storages.GetHBAInfoCmd(shd.IpAddress)
 
-				if err != nil {
-					fmt.Println("Ошибка GetHBAInfoCmd :", err)
+				if hbaErr != nil {
+					fmt.Println("Ошибка GetHBAInfoCmd :", hbaErr)
 					if ferr == nil {
-						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, err)
+						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, hbaErr)
 					}
 				} else {
 					fmt.Println("Получены данные ", len(hbas), "HBA")
@@ -127,6 +218,25 @@ func UpdateVolumeStorage() {
 						}
 					}
 
+					mode := storageAPIWriteModeFor(voln, foundLUN)
+					if mode == storageAPIWriteSkip {
+						continue // запись заведена вручную - опрос СХД её не трогает
+					}
+					if mode == storageAPIWriteSupplement {
+						// запись принадлежит vSphere-скану - приоритет у него,
+						// СХД только дополняет идентификацию
+						voln.StorageSystemsId = shd.Id
+						voln.ShortName = shd.ShortName
+						voln.StorageName = strings.TrimSpace(lun.Name)
+						voln.Time_Mfy = time.Now().Local()
+						if _, updErr := o.Update(&voln, "StorageSystemsId", "ShortName", "StorageName", "Time_Mfy"); updErr != nil {
+							fmt.Println("Ошибка дополнения данных тома (приоритет vSphere):", lun.Name, updErr)
+						} else {
+							touchedIds = append(touchedIds, voln.Id)
+						}
+						continue
+					}
+
 					voln.StorageSystemsId = shd.Id
 					voln.Status = 2
 					voln.UID = strings.ToUpper(lun.UID)
@@ -134,21 +244,26 @@ func UpdateVolumeStorage() {
 					voln.StorageName = strings.TrimSpace(lun.Name)
 					voln.CapacityGb = lun.UserCapacityGBs
 					voln.Time_Mfy = time.Now().Local()
+					voln.SourceUpdateType = models.StorageSourceUpdateStorageAPI
 
+					var updErr error
 					if foundLUN {
-						_, err = o.Update(&voln)
-						if err != nil {
-							fmt.Println("Ошибка обновления данных тома:", lun.Name, strings.ToUpper(lun.UID), err)
+						_, updErr = o.Update(&voln)
+						if updErr != nil {
+							fmt.Println("Ошибка обновления данных тома:", lun.Name, strings.ToUpper(lun.UID), updErr)
 						}
 					} else {
 						if voln.UID == "" {
 							fmt.Println("Ошибка при вставке VNX UID пустой", voln.StorageName, strings.ToUpper(voln.UID))
 						}
-						_, err = o.Insert(&voln)
-						if err != nil {
-							fmt.Println("Ошибка вставки данных тома:", lun.Name, strings.ToUpper(lun.UID), err)
+						_, updErr = o.Insert(&voln)
+						if updErr != nil {
+							fmt.Println("Ошибка вставки данных тома:", lun.Name, strings.ToUpper(lun.UID), updErr)
 						}
 
+					}
+					if updErr == nil {
+						touchedIds = append(touchedIds, voln.Id)
 					}
 				}
 				for _, hba := range hbas {
@@ -158,10 +273,10 @@ func UpdateVolumeStorage() {
 					}
 				}
 			case 2: //Unity Rest
-				mapHosts := make(map[string]string, 0)             //карта по именам lun в качестве ключа, значение имена хостов
-				hosts, err := storages.GetHostsRest(shd.IpAddress) //запрашиваем список хостов
+				mapHosts := make(map[string]string, 0)                  //карта по именам lun в качестве ключа, значение имена хостов
+				hosts, hostsErr := storages.GetHostsRest(shd.IpAddress) //запрашиваем список хостов
 
-				if err == nil {
+				if hostsErr == nil {
 					for _, host := range hosts {
 						for _, lunId := range host.HostLUNs {
 							keyLun := strings.ToUpper(lunId.LUN.Name)
@@ -178,12 +293,13 @@ func UpdateVolumeStorage() {
 					}
 				} else {
 					if ferr == nil {
-						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, err)
+						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, hostsErr)
 					}
 				}
-				luns, err := storages.GetLunsRest(shd.IpAddress)
-				if err != nil {
-					fmt.Println("Ошибка GetLunsRest :", err)
+				luns, lunsErr := storages.GetLunsRest(shd.IpAddress)
+				pollErr = lunsErr
+				if lunsErr != nil {
+					fmt.Println("Ошибка GetLunsRest :", lunsErr)
 				} else {
 					fmt.Println("Получены данные ", len(luns), "LUN")
 				}
@@ -219,6 +335,29 @@ func UpdateVolumeStorage() {
 						}
 					}
 
+					mode := storageAPIWriteModeFor(voln, foundLUN)
+					if mode == storageAPIWriteSkip {
+						continue // запись заведена вручную - опрос СХД её не трогает
+					}
+					if mode == storageAPIWriteSupplement {
+						// запись принадлежит vSphere-скану - приоритет у него,
+						// СХД только дополняет идентификацию и список хостов
+						voln.StorageSystemsId = shd.Id
+						voln.ShortName = shd.ShortName
+						voln.StorageName = strings.TrimSpace(lun.Name)
+						voln.Annotation = lun.Description
+						if foundHostNames {
+							voln.Server = listHostName
+						}
+						voln.Time_Mfy = time.Now().Local()
+						if _, updErr := o.Update(&voln, "StorageSystemsId", "ShortName", "StorageName", "Annotation", "Server", "Time_Mfy"); updErr != nil {
+							fmt.Println("Ошибка дополнения данных тома (приоритет vSphere):", lun.Name, updErr)
+						} else {
+							touchedIds = append(touchedIds, voln.Id)
+						}
+						continue
+					}
+
 					voln.StorageSystemsId = shd.Id
 					voln.Status = 2
 					voln.UID = strings.ToUpper(lun.Wwn)
@@ -230,48 +369,60 @@ func UpdateVolumeStorage() {
 						voln.Server = listHostName
 					}
 					voln.Time_Mfy = time.Now().Local()
+					voln.SourceUpdateType = models.StorageSourceUpdateStorageAPI
 
+					var updErr error
 					if foundLUN {
 						if voln.UID == "" {
 							fmt.Println("Ошибка при обновлении Unity UID пустой", voln.StorageName, voln.UID)
 						}
-						_, err = o.Update(&voln)
-						if err != nil {
-							fmt.Println("Ошибка обновления данных тома:", lun.Name, strings.ToUpper(lun.Wwn), err)
+						_, updErr = o.Update(&voln)
+						if updErr != nil {
+							fmt.Println("Ошибка обновления данных тома:", lun.Name, strings.ToUpper(lun.Wwn), updErr)
 						}
 					} else {
 						if voln.UID == "" {
 							fmt.Println("Ошибка при вставке Unity UID пустой", voln.StorageName, voln.UID)
 						}
-						_, err = o.Insert(&voln)
-						if err != nil {
-							fmt.Println("Ошибка вставки данных тома:", lun.Name, strings.ToUpper(lun.Wwn), err)
+						_, updErr = o.Insert(&voln)
+						if updErr != nil {
+							fmt.Println("Ошибка вставки данных тома:", lun.Name, strings.ToUpper(lun.Wwn), updErr)
 						}
+					}
+					if updErr == nil {
+						touchedIds = append(touchedIds, voln.Id)
 					}
 				}
 			case 3: //Dorado rest
-				err = UpdateHuaweyVolume(shd)
-				if err != nil {
+				touchedIds, pollErr = UpdateHuaweyVolume(shd)
+				if pollErr != nil {
 					if ferr == nil {
-						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, err)
+						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, pollErr)
 					}
 				}
 			case 4: //OceanStor
-				err = UpdateHuaweyVolume(shd)
-				if err != nil {
+				touchedIds, pollErr = UpdateHuaweyVolume(shd)
+				if pollErr != nil {
 					if ferr == nil {
-						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, err)
+						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, pollErr)
 					}
 				}
 			case 5: //Lenovo Rest
-				err = UpdateLenovoVolume(shd)
-				if err != nil {
+				touchedIds, pollErr = UpdateLenovoVolume(shd)
+				if pollErr != nil {
 					if ferr == nil {
-						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, err)
+						fmt.Fprintf(file, "%s %s %s\n", shd.ShortName, shd.IpAddress, pollErr)
 					}
 				}
 			default:
 				fmt.Println("СХД:", shd.InventoryNum, shd.IpAddress, shd.ApiType, "не обработано")
+				pollErr = fmt.Errorf("неизвестный ApiType=%d", shd.ApiType)
+			}
+
+			recordStorageSystemScanResult(o, shd, pollErr)
+			logStorageAvailability(o, shd, pollErr) // история опроса - см. cmdb/storageeventlog.go
+			if pollErr == nil {
+				deactivateAbsentStorageVolumes(o, shd.Id, touchedIds)
 			}
 		}
 	}
@@ -332,6 +483,15 @@ func UpdateVolumeStorage() {
 			_, err = o.Update(&volumes)
 			if err != nil {
 				fmt.Println("Ошибка обновления :", volumes.ShortName, " ", err)
+			}
+
+			// том активен (найден в текущем скане какого-либо источника), но
+			// ни по имени, ни по WWN не удалось привязать его ни к одной
+			// известной СХД - логируем (с дедупликацией по ключу тома, см.
+			// cmdb/storageeventlog.go:logUnknownLun), чтобы это было видно, а
+			// не терялось молча
+			if volumes.StorageSystemsId == 0 && volumes.Status != 0 {
+				logUnknownLun(o, &volumes)
 			}
 		}
 	}

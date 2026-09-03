@@ -429,6 +429,10 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник СХД</a>
             </li>
             <li>
+              <a href="/sprsrv/storagevolumeslist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник томов</a>
+            </li>
+            <li>
               <a href="/sprsrv/bladesystemslist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Блейд-корзины</a>
             </li>
@@ -451,6 +455,11 @@
               <a href="/admin/userlog"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Журнал действий
                 пользователей</a>
+            </li>
+            <li>
+              <a href="/admin/storageeventlog"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Журнал событий
+                СХД</a>
             </li>
             <li>
               <a href="/admin/metricsexport"
@@ -489,6 +498,11 @@
     <p class="text-muted mb-1">
       Добро пожаловать:<br>{{.First}} {{.Last}}<br>{{.Username}}
     </p>
+    <p class="text-muted mb-1">
+      Режим: <span class="badge {{if eq .Privilage 3}}text-bg-danger{{else if eq .Privilage 1}}text-bg-warning{{else}}text-bg-secondary{{end}}">
+        {{if eq .Privilage 3}}Администрирование{{else if eq .Privilage 1}}Редактирование{{else}}Просмотр{{end}}
+      </span>
+    </p>
     {{end}}
 
     <p class="text-muted mb-1">
@@ -497,8 +511,14 @@
     <p class="text-muted mb-1">
       <a href="http://www.bcs.ru">BCS</a> <a href="https://confluence.bcs.ru/pages/viewpage.action?pageId=670280406" target="_blank">ДАТИ ФГ БКС</a>
     </p>
-    <p class="text-muted mb-0">
+    <p class="text-muted mb-1">
       <a href="https://confluence.bcs.ru/display/~SemenovPA" target="_blank">Семенов Павел</a>
+    </p>
+    <p class="text-muted mb-0 d-flex align-items-center justify-content-center gap-1">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4.5 3.5l4.8 8.5-4.8 8.5h3.4l3.1-5.5 3.1 5.5h3.4l-4.8-8.5 4.8-8.5h-3.4l-3.1 5.5-3.1-5.5H4.5z" fill="#D97757"/>
+      </svg>
+      <span>Claude 2026</span>
     </p>
 
     <div class="theme-toggle-wrap">

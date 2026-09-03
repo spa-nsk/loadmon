@@ -49,10 +49,24 @@ func LoadStorageSpr() (map[string]*models.StorageSystems, map[string]*models.Sto
 
 // SaveStorageVolumes сохраняет в справочнике StorageVolumes сведения о хранилищах
 // (датасторах) указанного кластера vSphere, создавая либо обновляя записи по UID тома.
+//
+// Перед скан ом ЭТОГО кластера сбрасывает Status=0 у ранее сохранённых
+// vSphere-датасторов именно этого кластера (resetClusterStorageVolumesStatus)
+// - функция вызывается только ПОСЛЕ успешного сохранения записи кластера
+// (см. cmdb/savemetric_orchestration.go:saveClusterData, вызов идёт сразу за
+// успешным SaveClusterRecord), поэтому это корректный, локально
+// подтверждённый "mark and sweep": сбрасываем статус только того, что
+// прямо сейчас будет заново просканировано, а не всех датасторов БД разом
+// (как раньше делала общая cmdb.ClearStatusVolumeStorage - удалена, см.
+// kontext/05-conventions-and-gotchas.md, раздел про СХД). Датастор, реально
+// не найденный в текущем списке ds, останется со Status=0 - датастор,
+// найденный - будет переустановлен в 1 через ImportStorage ниже.
 func SaveStorageVolumes(cl *vsphere.Cluster) {
 	ds := grpcclient.GetClusterStorages(cl.Vcenter, cl.Datacenter, cl.Name)
 
 	o := orm.NewOrm()
+
+	resetClusterStorageVolumesStatus(o, cl)
 
 	for _, st := range ds {
 
@@ -69,6 +83,13 @@ func SaveStorageVolumes(cl *vsphere.Cluster) {
 		err = trn.Read(&volume, "UID")
 		if err == nil {
 			foundVolume = true
+		}
+		if foundVolume && volume.SourceUpdateType == models.StorageSourceUpdateManual {
+			// запись заведена вручную - приоритет источников (2026-09-03):
+			// автообновление (в т.ч. приоритетное vSphere) её не трогает, см.
+			// kontext/05-conventions-and-gotchas.md, раздел про СХД
+			trn.Rollback()
+			continue
 		}
 		ImportStorageCL(cl, &volume)
 		ImportStorage(st, &volume)
@@ -92,6 +113,26 @@ func SaveStorageVolumes(cl *vsphere.Cluster) {
 			fmt.Println("Ошибка завершения транзакции", err)
 			trn.Rollback()
 		}
+	}
+}
+
+// resetClusterStorageVolumesStatus сбрасывает Status=0 у vSphere-датасторов
+// (SourceUpdateType == StorageSourceUpdateVMware) конкретного кластера,
+// сейчас находящихся в Status=1 - подготовка к их пересбору в
+// SaveStorageVolumes. Тома других источников (StorageSourceUpdateStorageAPI,
+// StorageSourceUpdateManual) этим кластером не затрагиваются - см. подробный
+// комментарий у SaveStorageVolumes выше. Один SQL UPDATE через QuerySeter,
+// без построчного Read+Update.
+func resetClusterStorageVolumesStatus(o orm.Ormer, cl *vsphere.Cluster) {
+	_, err := o.QueryTable("storage_volumes").
+		Filter("Vcenter", cl.Vcenter).
+		Filter("Datacenter", cl.Datacenter).
+		Filter("Cluster", cl.Name).
+		Filter("SourceUpdateType", models.StorageSourceUpdateVMware).
+		Filter("Status", 1).
+		Update(orm.Params{"Status": 0})
+	if err != nil {
+		fmt.Println("Ошибка сброса статуса датасторов кластера перед пересканом:", cl.Vcenter, cl.Datacenter, cl.Name, err)
 	}
 }
 
@@ -125,6 +166,7 @@ func ImportStorage(from *vsphere.Datastore, to *models.StorageVolumes) {
 	to.FreeSpaceGb = from.FreeSpaceGb
 	to.PercentUsed = from.PercentUsed
 	to.Time_Mfy = time.Now().Local()
+	to.SourceUpdateType = models.StorageSourceUpdateVMware
 }
 
 // SaveClusterRecord создаёт запись метрик кластера ClusterRecord за текущий период и

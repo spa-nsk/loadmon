@@ -16,16 +16,22 @@ import (
 // UpdateLenovoVolume подключается к СХД Lenovo, получает список томов, групп хостов и
 // их привязку к кластерам, после чего обновляет либо создаёт соответствующие записи
 // StorageVolumes в базе данных CMDB.
-func UpdateLenovoVolume(shd *models.StorageSystems) error {
+//
+// Возвращает список Id обновлённых/вставленных за этот вызов записей
+// StorageVolumes и ошибку уровня подключения/авторизации - см. комментарий у
+// UpdateHuaweyVolume (тот же принцип, используется тем же вызывающим кодом
+// cmdb.UpdateVolumeStorage).
+func UpdateLenovoVolume(shd *models.StorageSystems) ([]int64, error) {
 	key := "monitor"
 	c, err := lenovostorage.NewSession(shd.IpAddress, true, key, datamap.GetKeyData(key))
 	if err != nil {
 		fmt.Println("Ошибка авторизации", err)
-		return err
+		return nil, err
 	}
 	volumes, err := c.GetVolumes()
 	if err != nil {
 		fmt.Println("Error GetVolumes")
+		return nil, err
 	}
 
 	cluster := make(map[string][]string, 0)
@@ -58,6 +64,8 @@ func UpdateLenovoVolume(shd *models.StorageSystems) error {
 	}
 
 	o := orm.NewOrm()
+
+	touchedIds := make([]int64, 0, len(volumes))
 
 	for _, volume := range volumes {
 		uid := vspheremetrics.VmfsStrLunToUID(volume.WorldWideName)
@@ -100,6 +108,26 @@ func UpdateLenovoVolume(shd *models.StorageSystems) error {
 			}
 		}
 
+		// приоритет источников (2026-09-03): vSphere-запись СХД не
+		// перезаписывает целиком, только дополняет; ручную запись не трогает
+		// вовсе - см. storageAPIWriteModeFor в cmdb/volumestorage.go
+		mode := storageAPIWriteModeFor(voln, foundLUN)
+		if mode == storageAPIWriteSkip {
+			continue
+		}
+		if mode == storageAPIWriteSupplement {
+			voln.StorageSystemsId = shd.Id
+			voln.ShortName = shd.ShortName
+			voln.StorageName = strings.TrimSpace(volume.Name)
+			voln.Time_Mfy = time.Now().Local()
+			if _, updErr := o.Update(&voln, "StorageSystemsId", "ShortName", "StorageName", "Time_Mfy"); updErr != nil {
+				fmt.Println("Ошибка дополнения данных тома (приоритет vSphere):", volume.Name, updErr)
+			} else {
+				touchedIds = append(touchedIds, voln.Id)
+			}
+			continue
+		}
+
 		voln.StorageSystemsId = shd.Id
 		voln.Status = 2
 		voln.UID = uid
@@ -107,11 +135,13 @@ func UpdateLenovoVolume(shd *models.StorageSystems) error {
 		voln.StorageName = strings.TrimSpace(volume.Name)
 		voln.CapacityGb = float64(capacity)
 		voln.Time_Mfy = time.Now().Local()
+		voln.SourceUpdateType = models.StorageSourceUpdateStorageAPI
 
 		if foundLUN {
 			_, err = o.Update(&voln)
 			if err != nil {
 				fmt.Println("Ошибка обновления данных тома:", volume.Name, uid, err)
+				continue
 			}
 		} else {
 			if voln.UID == "" {
@@ -120,8 +150,10 @@ func UpdateLenovoVolume(shd *models.StorageSystems) error {
 			_, err = o.Insert(&voln)
 			if err != nil {
 				fmt.Println("Ошибка вставки данных тома:", volume.Name, uid, err)
+				continue
 			}
 		}
+		touchedIds = append(touchedIds, voln.Id)
 	}
-	return nil
+	return touchedIds, nil
 }
