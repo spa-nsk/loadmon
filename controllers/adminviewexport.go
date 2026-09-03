@@ -200,29 +200,6 @@ func runViewExportQuery(name string) (*viewExportResult, error) {
 	return result, nil
 }
 
-// AdminViewExportMenu отображает список доступных режимов "Выгрузка по View"
-// (пункт меню Администрирование → Выгрузка по View) - просто список ссылок
-// на /admin/viewexport/:name, отдельной логики выборки здесь нет.
-//
-// Доступ - только models.AuthUser.Priv == 3.
-//
-// Маршрут: /admin/viewexport.
-func (this *MainController) AdminViewExportMenu() {
-
-	sess := this.GetSession("loadmon")
-	m := sess.(models.LoadFilter).Map
-	priv, _ := m["privilage"].(int)
-	if priv != 3 {
-		this.Redirect("/sprsrv/view2/all/0", 302)
-		return
-	}
-
-	this.activeContent("admin/viewexportmenu")
-	this.Data["Modes"] = viewExportModes()
-
-	RegisterRequest(this, LogTypeAdminAction) // просмотр списка режимов выгрузки по View (администрирование)
-}
-
 // AdminViewExport отображает постранично результат SQL-запроса режима :name
 // (файл <viewExportSQLDir()>/<name>.sql, см. runViewExportQuery) либо, при
 // export=csv/xlsx, отдаёт результат целиком (без пагинации) файлом на
