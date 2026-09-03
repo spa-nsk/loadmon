@@ -457,6 +457,15 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка метрик
                 утилизации</a>
             </li>
+            <li>
+              <a href="/admin/deactivatedservers"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Список серверов,
+                выведенных из учёта</a>
+            </li>
+            <li>
+              <a href="/admin/viewexport"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка по View</a>
+            </li>
           </ul>
         </div>
       </li>

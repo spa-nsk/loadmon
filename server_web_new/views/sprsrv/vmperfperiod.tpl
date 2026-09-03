@@ -100,8 +100,11 @@
         var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
 
         // цвета: минимум/среднее/максимум - холодная-нейтральная-тёплая
-        // гамма, "текущее значение" (raw, из VMPerfRecord) - отдельным
-        // контрастным цветом, отображается только точками без линии
+        // гамма, "текущее значение" (raw, из VMPerfRecord, только за
+        // последние 3 суток - см. vmPerfRetention в
+        // cmdb/savemetric_orchestration.go) - отдельным контрастным цветом,
+        // сплошной линией поверх агрегатов (тот же общий график/ось времени,
+        // просто более частые точки на своём хвосте периода)
         var colorMin = '#4dabf7';
         var colorAvg = '#7950f2';
         var colorMax = '#e64980';
@@ -156,8 +159,15 @@
                 colors.push(colorMax); strokeCurves.push('smooth'); strokeWidths.push(1.5);
             }
             if (hasRaw) {
-                series.push({ name: 'Текущее значение', type: 'scatter', data: toXY(chart.raw) });
-                colors.push(colorRaw); strokeCurves.push('straight'); strokeWidths.push(0);
+                // Раньше здесь был type: 'scatter' + strokeWidths: 0 - точки
+                // без соединяющей линии, из-за чего на плотных данных
+                // VMPerf (частые замеры за последние 3 суток) визуально
+                // получался "набор жирных точек", а не график. Меняем на
+                // обычную линию (как у Min/Avg/Max), чтобы этот "хвост"
+                // периода смотрелся продолжением общего графика, а не
+                // отдельным облаком точек.
+                series.push({ name: 'Текущее значение', type: 'line', data: toXY(chart.raw) });
+                colors.push(colorRaw); strokeCurves.push('straight'); strokeWidths.push(2);
             }
 
             var options = {
@@ -173,8 +183,9 @@
                 colors: colors,
                 stroke: { curve: strokeCurves, width: strokeWidths },
                 // градиентная заливка под линиями минимума/среднего/максимума -
-                // облегчает восприятие тренда; для точек "текущее значение"
-                // (scatter) заливка не применяется
+                // облегчает восприятие тренда; для линии "текущее значение"
+                // (line) заливка не применяется - у неё и так свой цвет,
+                // заливка только мешала бы читать пересечение с агрегатами
                 fill: {
                     type: series.map(function (s) { return s.type === 'area' ? 'gradient' : 'solid'; }),
                     gradient: {
@@ -184,7 +195,7 @@
                         stops: [0, 90, 100]
                     }
                 },
-                markers: { size: series.map(function (s) { return s.type === 'scatter' ? 3 : 0; }), hover: { sizeOffset: 2 } },
+                markers: { size: 0, hover: { sizeOffset: 3 } },
                 dataLabels: { enabled: false },
                 legend: { show: true, labels: { colors: 'var(--bs-emphasis-color)' } },
                 xaxis: {
