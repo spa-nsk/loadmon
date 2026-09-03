@@ -294,8 +294,15 @@
     white-space: nowrap;
 }
 
-.ctx-menu a.ctx-menu-item:hover {
-    background-color: var(--bs-secondary-bg);
+.ctx-menu a.ctx-menu-item:hover,
+.ctx-menu a.ctx-menu-item:focus {
+    /* Синяя подсветка при наведении - единая для ВСЕХ вариантов
+       контекстного меню в проекте (см. #rowContextMenu/#vmRowContextMenu
+       выше - тот же var(--bs-primary)/#fff). Раньше здесь стоял
+       var(--bs-secondary-bg) (серый) - расхождение с остальными меню,
+       исправлено по замечанию пользователя ("везде синий"). */
+    background-color: var(--bs-primary);
+    color: #fff;
 }
 
 /* ---------------------------------------------------------------------- */
