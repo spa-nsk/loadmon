@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
@@ -413,18 +414,59 @@ func (this *MainController) SprStorageSystemsEdit() {
 		rec.PartNum = this.GetString("PartNum")
 		rec.SerialNum = this.GetString("SerialNum")
 		rec.Firmware = this.GetString("Firmware")
-		rec.TypeWork, _ = strconv.Atoi(this.GetString("TypeWork"))
-		rec.Status, _ = strconv.Atoi(this.GetString("Status"))
-		rec.Power, _ = strconv.Atoi(this.GetString("Power"))
-		rec.ApiType, _ = strconv.Atoi(this.GetString("ApiType"))
 
-		rec.Size, _ = strconv.Atoi(this.GetString("Size"))
-		rec.Used, _ = strconv.Atoi(this.GetString("Used"))
+		// Числовые поля формы - раньше ошибки strconv.Atoi/ParseFloat
+		// молча игнорировались (значение по умолчанию 0), из-за чего
+		// опечатка в поле формы тихо превращала его в 0 без единого
+		// сообщения пользователю. Теперь каждая ошибка разбора собирается
+		// в parseErrors и показывается одним flash.Error - запись НЕ
+		// сохраняется, пока в форме есть хотя бы одно нечисловое значение
+		// в числовом поле (см. блок ниже, после заполнения rec).
+		var parseErrors []string
+		parseIntField := func(label, formName string) int {
+			s := strings.TrimSpace(this.GetString(formName))
+			if s == "" {
+				return 0
+			}
+			v, err := strconv.Atoi(s)
+			if err != nil {
+				parseErrors = append(parseErrors, fmt.Sprintf("%s: %q - не целое число", label, s))
+				return 0
+			}
+			return v
+		}
+		parseFloatField := func(label, formName string) float64 {
+			s := strings.TrimSpace(this.GetString(formName))
+			if s == "" {
+				return 0
+			}
+			v, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				parseErrors = append(parseErrors, fmt.Sprintf("%s: %q - не число", label, s))
+				return 0
+			}
+			return v
+		}
+
+		rec.TypeWork = parseIntField("Тип использования", "TypeWork")
+		rec.Status = parseIntField("Состояние", "Status")
+		rec.Power = parseIntField("Питание", "Power")
+		rec.ApiType = parseIntField("Тип API", "ApiType")
+
+		rec.Size = parseIntField("Максимальное количество дисков", "Size")
+		rec.Used = parseIntField("Установлено дисков", "Used")
 		rec.IpAddress = this.GetString("IpAddress")
 		rec.IpAddressNext = this.GetString("IpAddressNext")
-		rec.TotalSizeRAW, _ = strconv.ParseFloat(this.GetString("TotalSizeRAW"), 64)
-		rec.UsedPercent, _ = strconv.ParseFloat(this.GetString("UsedPercent"), 64)
+		rec.TotalSizeRAW = parseFloatField("Размер дисков (сырой)", "TotalSizeRAW")
+		rec.UsedPercent = parseFloatField("Использовано, %", "UsedPercent")
 		rec.WWNMask = this.GetString("WWNMask")
+
+		if len(parseErrors) > 0 {
+			flash.Error("Не удалось сохранить - проверьте числовые поля: %s", strings.Join(parseErrors, "; "))
+			flash.Store(&this.Controller)
+			this.Data["ST"] = rec
+			return
+		}
 
 		rec.Ad = this.GetString("Ad") == "on"
 		rec.Ldaps = this.GetString("Ldaps") == "on"
@@ -454,6 +496,12 @@ func (this *MainController) SprStorageSystemsEdit() {
 		rec.Time_Mfy = time.Now().Local()
 
 		if isNew {
+			// SourceUpdateType проставляется Manual только при создании
+			// новой записи (тот же принцип, что и для ServerSprRecords -
+			// см. kontext/05-conventions-and-gotchas.md) - при ОБЫЧНОМ
+			// редактировании существующей записи поле не трогаем.
+			rec.SourceUpdateType = models.StorageSourceUpdateManual
+
 			if _, err := o.Insert(&rec); err != nil {
 				flash.Error("Ошибка создания записи: %v", err)
 				flash.Store(&this.Controller)

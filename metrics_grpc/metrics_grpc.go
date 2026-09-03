@@ -184,6 +184,7 @@ func main() {
 	defer tickerZabbix.Stop()
 
 	cmdb.ClearOldMetric()
+	cmdb.ClearOldStorageEventLog() // журнал событий СХД - ретеншен 3 суток, см. cmdb/storageeventlog.go
 	zabbix.Get10MinutesHistory()
 
 	go func() {
@@ -223,8 +224,15 @@ func main() {
 
 			case <-ticker4.C:
 				//c <- "start" // запустить сохранение кластеров
+				// cmdb.ClearStatusVolumeStorage() убрана (бланкетно сбрасывала
+				// Status=0 у ВСЕХ StorageVolumes, включая тома, привязанные к
+				// СХД-API, а не только к vSphere-датасторам этого цикла - см.
+				// kontext/05-conventions-and-gotchas.md, раздел про СХД).
+				// Сброс/пересбор статуса vSphere-датасторов теперь выполняет
+				// сам cmdb.SaveStorageVolumes (через cmdb.SaveMetricData),
+				// локально по каждому успешно пересканированному кластеру -
+				// см. cmdb/savestorage.go:resetClusterStorageVolumesStatus.
 				go func() {
-					cmdb.ClearStatusVolumeStorage()
 					cmdb.SaveMetricData()
 				}()
 
@@ -232,21 +240,22 @@ func main() {
 				//c <- "start"                             // запустить сохранение кластеров
 				ticker4 = time.NewTicker(time.Hour * time.Duration(24)) //инициировать запуск каждые 24 часа
 				go func() {
-					cmdb.ClearStatusVolumeStorage()
 					cmdb.SaveMetricData()
 				}()
 
 			case <-ticker9.C:
 				go func() {
-					cmdb.ClearMetricData() // запустить очистку метрик
-					cmdb.ClearOldMetric()  // и из базы
+					cmdb.ClearMetricData()         // запустить очистку метрик
+					cmdb.ClearOldMetric()          // и из базы
+					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
 				}()
 
 			case <-timer2.C:
 				ticker9 = time.NewTicker(time.Hour * time.Duration(24)) //инициировать запуск каждые 24 часа
 				go func() {
-					cmdb.ClearMetricData() // запустить очистку метрик
-					cmdb.ClearOldMetric()  // и из базы
+					cmdb.ClearMetricData()         // запустить очистку метрик
+					cmdb.ClearOldMetric()          // и из базы
+					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
 				}()
 
 			case <-tickerZabbix.C:

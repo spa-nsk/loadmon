@@ -1366,7 +1366,39 @@ type StorageSystems struct {
 	ServiceContract string    `form:"ServiceContract"` //данные по сервисному контракту, уровень сервиса
 	Id_User         int64     `form:"Id_User"` //
 	Time_Mfy        time.Time `form:"Time_Mfy"` //
+	// SourceUpdateType - источник последнего обновления ЗАПИСИ СПРАВОЧНИКА СХД
+	// (значения StorageSourceUpdate* ниже). На практике сама запись
+	// StorageSystems заводится и правится ТОЛЬКО вручную через
+	// /sprsrv/storagesystemsedit (controllers/sprstoragesystems.go) - никакой
+	// автоматический код не создаёт и не правит StorageSystems - поэтому
+	// сейчас это поле всегда StorageSourceUpdateManual. Заведено по аналогии
+	// с ServerSprRecords.SourceUpdateType и на будущее (если появится
+	// автоматическое обнаружение/регистрация СХД).
+	SourceUpdateType int `form:"SourceUpdateType"`
+	// LastScanTime/LastScanOK/LastScanError - результат последней попытки
+	// опроса ЭТОЙ КОНКРЕТНОЙ СХД автосинхронизацией томов
+	// (cmdb.UpdateVolumeStorage, см. cmdb/volumestorage.go). Используется,
+	// чтобы при опросе НЕ деактивировать тома СХД, которая в данном цикле
+	// была недоступна (сеть/таймаут/ошибка авторизации) - раньше это не
+	// отслеживалось вовсе, и статус томов сбрасывался вслепую для всех СХД
+	// разом (см. kontext/05-conventions-and-gotchas.md, раздел про СХД).
+	LastScanTime  time.Time `orm:"null" form:"-"`
+	LastScanOK    bool      `form:"-"`
+	LastScanError string    `orm:"size(1024)" form:"-"`
 }
+
+// Коды источника обновления записей StorageSystems/StorageVolumes - значения
+// поля SourceUpdateType у этих двух моделей. Отдельный набор констант от
+// SourceUpdate*/ServerHardware/ServerSprRecords (там же есть значение с тем
+// же числом, но другим смыслом - VMware/OneView/Zabbix относятся к
+// серверам, а не к СХД) - чтобы не создавать ложное ощущение общего enum
+// между несвязанными таблицами.
+const (
+	StorageSourceUpdateNone       = 0 // не указано
+	StorageSourceUpdateManual     = 1 // добавлено/изменено вручную (/sprsrv/storagesystemsedit)
+	StorageSourceUpdateVMware     = 2 // vSphere (датастор кластера, cmdb.SaveStorageVolumes/ImportStorage)
+	StorageSourceUpdateStorageAPI = 3 // API самой СХД (EMC VNX/Unity, Huawei Dorado/OceanStor, Lenovo - cmdb.UpdateVolumeStorage)
+)
 
 // TableName возвращает имя таблицы БД для модели StorageSystems (используется beego ORM).
 func (a *StorageSystems) TableName() string {
@@ -1405,6 +1437,20 @@ type StorageVolumes struct {
 	Annotation       string    `form:"Annotation"` //Описание
 	Id_User          int64     `form:"Id_User"` //
 	Time_Mfy         time.Time `form:"Time_Mfy"` //
+	// SourceUpdateType - источник последнего обновления записи тома
+	// (значения StorageSourceUpdate* у StorageSystems выше). Проставляется
+	// автосинхронизацией (StorageSourceUpdateVMware из
+	// cmdb.SaveStorageVolumes/ImportStorage, StorageSourceUpdateStorageAPI
+	// из cmdb.UpdateVolumeStorage) - записи с этим полем ИСКЛЮЧАЮТСЯ из
+	// автоматической деактивации (Status=0) при отсутствии тома в
+	// очередном скане ДРУГОГО источника (см. cmdb/volumestorage.go,
+	// cmdb/savestorage.go, kontext/05-conventions-and-gotchas.md) - тот же
+	// принцип разделения по источнику, что уже применяется к
+	// ServerSprRecords/ServerHardware. У StorageVolumes сейчас нет CRUD-UI
+	// (наполняется только кодом), поэтому StorageSourceUpdateManual пока не
+	// используется на практике, но зарезервировано на случай появления
+	// ручного ввода тома.
+	SourceUpdateType int `form:"SourceUpdateType"`
 }
 
 // TableName возвращает имя таблицы БД для модели StorageVolumes (используется beego ORM).
@@ -1420,6 +1466,53 @@ func (u *StorageVolumes) TableIndex() [][]string {
 		[]string{"VirtualName"},
 		[]string{"StorageName"},
 		[]string{"ShortName"},
+	}
+}
+
+// StorageEventLog - журнал событий по СХД (2026-09-03, по прямому запросу
+// пользователя): доступность опроса конкретной СХД (успех/ошибка каждой
+// попытки - в отличие от StorageSystems.LastScanTime/LastScanOK/
+// LastScanError, которые хранят только ПОСЛЕДНЕЕ значение и не дают
+// истории) и обнаружение LUN, не привязанного ни к одной известной СХД
+// (см. cmdb.logUnknownLun, cmdb/volumestorage.go). Хранится ограниченное
+// время - StorageEventLogRetention (3 суток), очищается
+// cmdb.ClearOldStorageEventLog по тому же паттерну порционного удаления,
+// что и cmdb.ClearOldMetric (cmdb/savemetric_orchestration.go).
+type StorageEventLog struct {
+	Id        int64
+	Time      time.Time `orm:"index"` // время события
+	EventType int       // StorageEventAvailability / StorageEventUnknownLun
+	// StorageSystemsId - Id СХД для событий доступности (StorageEventAvailability);
+	// 0 для событий "неизвестный LUN" (StorageEventUnknownLun), поскольку
+	// сама суть события в том, что СХД для этого LUN не определена.
+	StorageSystemsId int64
+	// Key - для StorageEventAvailability: ShortName опрошенной СХД; для
+	// StorageEventUnknownLun: UID/StorageName/VirtualName тома - используется
+	// как ключ дедупликации (cmdb.logUnknownLun не создаёт повторную запись
+	// для уже залогированного в пределах срока хранения LUN).
+	Key string `orm:"index"`
+	OK      bool   // для StorageEventAvailability: успех/неуспех опроса; для StorageEventUnknownLun не используется
+	Message string `orm:"size(1024)"` // текст ошибки опроса / детали неизвестного LUN
+}
+
+// Коды событий StorageEventLog.EventType.
+const (
+	StorageEventAvailability = 1 // результат очередной попытки опроса конкретной СХД
+	StorageEventUnknownLun   = 2 // обнаружен LUN, не привязанный ни к одной известной СХД
+)
+
+// TableName возвращает имя таблицы БД для модели StorageEventLog (используется beego ORM).
+func (a *StorageEventLog) TableName() string {
+	return "storage_event_log"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели StorageEventLog в beego ORM.
+func (u *StorageEventLog) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Time"},
+		[]string{"EventType"},
+		[]string{"StorageSystemsId"},
+		[]string{"Key"},
 	}
 }
 
