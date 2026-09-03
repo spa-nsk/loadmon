@@ -27,10 +27,33 @@ var (
 // единообразной выгрузки метрик опирается на эту же границу в 3 суток.
 const vmPerfRetention = time.Hour * 24 * 3
 
+// serverMetricRetention - срок хранения поминутных снимков server_metric
+// (models.ServerMetric, "сырые" детальные метрики аппаратных серверов из
+// Zabbix, заполняется пакетом zabbixmetrics) - по требованию 1 месяц (30
+// суток). За более давние периоды доступна только суточная агрегация
+// server_metric_record (models.ServerMetricRecord,
+// cmdb/saveservermetricrecord.go), хранящаяся без отдельного ограничения
+// времени.
+//
+// ⚠️ Это значение СОЗНАТЕЛЬНО отличается от detailedPeriodLimit
+// (controllers/adminmetricsexport.go, 3 суток) и от vmPerfRetention (см.
+// выше, тоже 3 суток) - detailedPeriodLimit остаётся 3 суток и по-прежнему
+// определяет, когда единообразная выгрузка метрик переключается с
+// "подробного" (поминутного) режима на "по дням": для периодов длиннее 3
+// суток выгрузка использует server_metric_record, даже если "сырые" данные
+// в server_metric на самом деле ещё физически есть (хранятся до 30 суток).
+// Это не ошибка - для vm_perf принцип "retention == detailedPeriodLimit"
+// работает, потому что оба значения равны; для server_metric эти два срока
+// осознанно разведены, и наличие "сырых" данных дольше 3 суток пока не
+// используется выгрузкой напрямую (при необходимости - отдельная доработка
+// adminmetricsexport.go, а не этой константы).
+const serverMetricRetention = time.Hour * 24 * 30
+
 // ClearOldMetric удаляет из таблиц vm_perf (детальные метрики ВМ, срок
-// хранения - vmPerfRetention, см. выше), cluster_perf и insight_vm_perf
-// записи метрик производительности старше срока хранения, порциями по 1000
-// строк.
+// хранения - vmPerfRetention, см. выше), server_metric (детальные метрики
+// аппаратных серверов из Zabbix, срок хранения - serverMetricRetention, см.
+// выше), cluster_perf и insight_vm_perf записи метрик производительности
+// старше срока хранения, порциями по 1000 строк.
 func ClearOldMetric() {
 
 	currentTime := time.Now().Local() //запоминаем текущее время
@@ -51,6 +74,21 @@ func ClearOldMetric() {
 		}
 	}
 	fmt.Println("Удалено :", count, "записей старее", vmPerfRetention.String(), "из таблицы vm_perf")
+	count = int64(0)
+	for {
+		res, err := o.Raw("DELETE FROM server_metric WHERE id IN (SELECT id FROM server_metric WHERE collected_at <=? LIMIT 1000)", currentTime.Add(-serverMetricRetention)).Exec()
+		if err != nil {
+			fmt.Println("Ошибка удаления старых записей из таблицы server_metric", err)
+			break
+		} else {
+			num, _ := res.RowsAffected()
+			count += num
+			if num == 0 {
+				break
+			}
+		}
+	}
+	fmt.Println("Удалено :", count, "записей старее", serverMetricRetention.String(), "из таблицы server_metric")
 	count = int64(0)
 	for {
 		res, err := o.Raw("DELETE FROM cluster_perf WHERE id IN (SELECT id FROM cluster_perf WHERE start <=? LIMIT 1000)", currentTime.Add(-time.Hour*24)).Exec()

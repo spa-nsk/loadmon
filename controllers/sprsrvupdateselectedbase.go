@@ -239,7 +239,18 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 
 			rec.Id_User = currentUserId
 			rec.Time_Mfy = now
-			rec.SourceUpdateType = models.SourceUpdateManual
+			// SourceUpdateType намеренно НЕ трогаем здесь - см.
+			// kontext/05-conventions-and-gotchas.md (раздел SourceUpdateType,
+			// уточнение "массовые формы не проставляют"). Поле помечает
+			// записи, внесённые вручную и отсутствующие в
+			// VMware/OneView/Zabbix, чтобы код автообновления из этих систем
+			// их игнорировал и не портил (например, не проставлял Stat=0/
+			// PowerState=2/Active=2 записи, которой в источнике нет).
+			// Массовое редактирование через эту форму задевает лишь узкий
+			// набор полей у уже существующих записей произвольного
+			// происхождения - простановка Manual здесь могла бы ошибочно
+			// "рассекретить" от автообновления запись, которая на самом
+			// деле числится в одной из автоматических систем.
 
 			if _, err := o.Update(&rec); err != nil {
 				lastErr = err

@@ -623,8 +623,11 @@ func (this *MainController) SprHwConfigEdit() {
 		rec.ServiceContract = this.GetString("ServiceContract")
 		rec.DateService = parseHWConfigDate(this.GetString("DateService"))
 		rec.SourceUpdate = this.GetString("SourceUpdate")
-		rec.SourceUpdateType = models.SourceUpdateManual
-
+		if id == 0 {
+			// запись с Id=0 - "шаблон" для новых серверов, в неё SourceUpdate
+			// не пишем, чтобы не затирать шаблон при ручном редактировании
+			rec.SourceUpdateType = models.SourceUpdateManual
+		}
 		rec.Time_Mfy = time.Now().Local()
 
 		if isNew {
@@ -759,7 +762,18 @@ func (this *MainController) SprHwConfigBulkEdit() {
 			flash.Store(&this.Controller)
 		} else {
 			values["Time_Mfy"] = time.Now().Local()
-			values["SourceUpdateType"] = models.SourceUpdateManual
+			// SourceUpdateType намеренно НЕ трогаем здесь - см.
+			// kontext/05-conventions-and-gotchas.md (раздел SourceUpdateType,
+			// уточнение "массовые формы не проставляют"). Поле помечает
+			// записи, внесённые вручную и отсутствующие в
+			// VMware/OneView/Zabbix, чтобы код автообновления из этих систем
+			// их игнорировал и не портил (например, не проставлял Stat=0/
+			// PowerState=2/Active=2 записи, которой в источнике нет).
+			// Массовое редактирование через эту форму задевает лишь узкий
+			// набор полей у произвольного набора записей - простановка
+			// Manual здесь могла бы ошибочно "рассекретить" от
+			// автообновления запись, которая на самом деле числится в одной
+			// из автоматических систем.
 			affected, err := o.QueryTable("server_hardware").Filter("Id__in", ids).Update(values)
 			if err != nil {
 				flash.Error("Ошибка группового сохранения: %v", err)

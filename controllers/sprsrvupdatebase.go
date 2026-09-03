@@ -215,7 +215,10 @@ func (this *MainController) SprSrvUpdateBase() {
 
 		record.Id_User = currentUserId
 		record.Time_Mfy = now
-		record.SourceUpdateType = models.SourceUpdateManual
+
+		if id == 0 { //для серверов созданных вручную (Id=0) SourceUpdateType всегда SourceUpdateManual, чтобы не затирать шаблон при ручном редактировании
+			record.SourceUpdateType = models.SourceUpdateManual
+		}
 
 		if _, err := o.Update(&record); err != nil {
 			flash.Error("Ошибка сохранения записи: %v", err)
