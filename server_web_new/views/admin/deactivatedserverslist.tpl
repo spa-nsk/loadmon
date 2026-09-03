@@ -36,43 +36,46 @@
 <blockquote class="blockquote">{{.flash.notice}}</blockquote>
 {{end}}
 
-<form role="form" id="DeactivatedServersForm" method="POST" class="deactivated-filter-bar mb-3 p-3 rounded border">
-    <div class="row g-3 align-items-end">
-        <div class="col-6 col-md-4">
-            <label for="filterName" class="form-label">Имя сервера содержит</label>
-            <input type="text" id="filterName" name="name" class="form-control"
-                placeholder="необязательно" value="{{.CurName}}">
+<form role="form" id="DeactivatedServersForm" method="POST">
+    <div class="deactivated-filter-bar mb-3 p-3 rounded border">
+        <div class="row g-3 align-items-end">
+            <div class="col-6 col-md-4">
+                <label for="filterName" class="form-label">Имя сервера содержит</label>
+                <input type="text" id="filterName" name="name" class="form-control"
+                    placeholder="необязательно" value="{{.CurName}}">
+            </div>
+            <div class="col-6 col-md-4">
+                <label for="filterType" class="form-label">Тип</label>
+                <select id="filterType" name="type" class="form-select">
+                    <option value="all" {{if or (eq .CurType "") (eq .CurType "all")}}selected{{end}}>Все типы</option>
+                    <option value="0" {{if eq .CurType "0"}}selected{{end}}>Аппаратный сервер</option>
+                    <option value="1" {{if eq .CurType "1"}}selected{{end}}>Виртуальный сервер</option>
+                    <option value="2" {{if eq .CurType "2"}}selected{{end}}>Гипервизор</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-4">
+                <button type="button" class="btn btn-primary rounded-pill px-3" onclick="deactivatedServersFind()">Найти</button>
+            </div>
         </div>
-        <div class="col-6 col-md-4">
-            <label for="filterType" class="form-label">Тип</label>
-            <select id="filterType" name="type" class="form-select">
-                <option value="all" {{if or (eq .CurType "") (eq .CurType "all")}}selected{{end}}>Все типы</option>
-                <option value="0" {{if eq .CurType "0"}}selected{{end}}>Аппаратный сервер</option>
-                <option value="1" {{if eq .CurType "1"}}selected{{end}}>Виртуальный сервер</option>
-                <option value="2" {{if eq .CurType "2"}}selected{{end}}>Гипервизор</option>
-            </select>
+        {{if .Rows}}
+        <div class="row mt-3">
+            <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <button type="submit" name="RestoreSelectedBTN" value="1" class="btn btn-outline-warning rounded-pill px-3"
+                    title="Применить возврат в учёт ко всем строкам с отмеченным чекбоксом">
+                    Восстановить выделенные
+                </button>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="deactFilterStickyToggle" onchange="deactToggleFilterSticky(this.checked)">
+                    <label class="form-check-label small text-muted" for="deactFilterStickyToggle">Закреплять фильтр вверху экрана</label>
+                </div>
+            </div>
         </div>
-        <div class="col-6 col-md-4">
-            <button type="button" class="btn btn-primary rounded-pill px-3" onclick="deactivatedServersFind()">Найти</button>
-        </div>
+        {{end}}
     </div>
     <input type="hidden" name="page" id="pageFieldHidden" value="{{.Page}}">
 
     {{if .Rows}}
-    <div class="row mt-3">
-        <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <button type="submit" name="RestoreSelectedBTN" value="1" class="btn btn-outline-warning rounded-pill px-3"
-                title="Применить возврат в учёт ко всем строкам с отмеченным чекбоксом">
-                Восстановить выделенные
-            </button>
-            <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" id="deactFilterStickyToggle" onchange="deactToggleFilterSticky(this.checked)">
-                <label class="form-check-label small text-muted" for="deactFilterStickyToggle">Закреплять фильтр вверху экрана</label>
-            </div>
-        </div>
-    </div>
-
-    <table class="table table-bordered table-striped table-hover align-middle spr-classic-table mt-3">
+    <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
         <thead>
             <tr>
                 <th class="text-center">Выбор</th>
