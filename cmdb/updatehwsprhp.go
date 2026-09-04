@@ -5,7 +5,6 @@ import (
 	"fmt"
 	models "loadmon/models"
 	vsphere "loadmon/vspheremetrics"
-	"strconv"
 	"strings"
 	"time"
 
@@ -512,21 +511,16 @@ func UpdateCMDBHwSprHP() {
 // UpdateHwSprHPBladeSystem синхронизирует справочник блейд-корзин (BladeSystems) и их
 // компонентов с данными корзин, полученными из HP OneView.
 //
-// Примечание про oneview2: старая версия строила этот справочник по глобальному
-// списку ov.AllEnclosureBySN, где каждая корзина (Enclosure) содержала типизированные
-// списки DeviceBays/InterconnectBays/ManagerBays/PowerSupplyBays/FanBays с детальными
-// полями (модель, серийный номер, прошивка и т.д.). В oneview2 такого глобального
-// индекса корзин нет вовсе (см. loadmon/oneview2/global.go - Infrastructure хранит
-// только серверы), а низкоуровневый клиентский API (loadmon/oneview2/resources.go,
-// Client.ListEnclosures) возвращает Enclosure, в котором эти списки - это
-// []map[string]any (сырой JSON), без типизированных полей вроде InterconnectUri/
-// FqdnHostName/BayNumber. Восстановление этой функциональности потребовало бы
-// самостоятельного разбора сырого JSON по каждому типу отсека - отдельная задача,
-// выходящая за рамки миграции на новые типы. Пока функция ничего не делает; данные
-// по компонентам блейд-корзин (interconnect/менеджмент/питание/охлаждение) в CMDB
-// не обновляются.
+// ИСПРАВЛЕНО 2026-09-04 (была пустым no-op стабом после миграции на
+// oneview2, см. историю этого комментария в git/CHANGELOG) - реализация
+// вынесена в cmdb/syncbladesystemcomponents.go:SyncBladeSystemsFromOneView
+// (отдельный файл, так как потребовалось собственное подключение к HP
+// OneView через низкоуровневый Client.ListEnclosures - Infrastructure сама
+// по себе хранит только серверы, не корзины целиком). См. подробный
+// комментарий там же, включая явное предупреждение о неподтверждённых
+// именах ключей сырых JSON-полей interconnect/manager/power/fan bay.
 func UpdateHwSprHPBladeSystem(ov *oneview.Infrastructure) {
-	_ = ov
+	SyncBladeSystemsFromOneView(ov)
 }
 
 // UpdateHwSprHPServers синхронизирует справочники конфигураций оборудования
@@ -655,108 +649,10 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 			continue
 		}
 
-		m := models.ServerHardwareComponents{ServerId: hw.Id, Type: 1}
-		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о оперативной памяти из базы (для последующего обновления данных )
-			fmt.Println("Ошибка удаления записей о оперативной памяти сервера: ", serverName, hw.SerialNum, err)
-			_ = nDel
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 1} //проверяем остались ли данные по памяти
-		if err := trn.Read(&m, "ServerId", "Type"); err != nil {      //нет записей по памяти
-			for idx, mem := range srv.Memory { //проходим в цикле по всем модулям памяти
-				ram := models.ServerHardwareComponents{ //формируем данные для записи по памяти
-					ServerId:        hw.Id,
-					Type:            1,
-					Vendor:          mem.Manufacturer,
-					Model:           fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa(mem.OperatingSpeedMHz),
-					CapacityGb:      float64(mem.CapacityMiB) / 1024.0,
-					SerialNum:       hw.SerialNum + "-" + strconv.Itoa(idx),
-					Slot:            mem.Name,
-					ContractDoc:     hw.ContractDoc,
-					DateContractDoc: hw.DateContractDoc,
-					Invoice:         hw.Invoice,
-					DateInvoice:     hw.DateInvoice,
-					ServiceContract: hw.ServiceContract,
-					DateService:     hw.DateService,
-					Time_Mfy:        hw.Time_Mfy,
-					Id_User:         hw.Id_User}
-				//вставить запись компонент
-
-				if _, err := trn.Insert(&ram); err != nil { //вставка записи о оперативной памяти
-					fmt.Println("Ошибка записи данных о памяти", err)
-				}
-			}
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
-		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о дисках из базы (для последующего обновления данных )
-			fmt.Println("Ошибка удаления записей о дисках сервера: ", serverName, hw.SerialNum, err)
-			_ = nDel
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 5}
-		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о контроллерах дисков из базы (для последующего обновления данных )
-			fmt.Println("Ошибка удаления записей о дисках сервера: ", serverName, hw.SerialNum, err)
-			_ = nDel
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
-		if err := trn.Read(&m, "ServerId", "Type"); err != nil { //проверяем есть ли записи по этому серверу
-			for _, storage := range srv.Controllers { //записей нет, записываем данные по физическим дискам
-				raid := models.ServerHardwareComponents{
-					ServerId:        hw.Id,
-					Type:            5,
-					Vendor:          "HPE",
-					Model:           storage.Model,
-					CapacityGb:      float64(storage.CacheMemorySizeMiB) / 1024.0,
-					SerialNum:       strings.TrimSpace(storage.SerialNumber),
-					Slot:            storage.Location, //формат строки расположения "ControllerPort:Box:Bay"
-					ContractDoc:     hw.ContractDoc,
-					DateContractDoc: hw.DateContractDoc,
-					Invoice:         hw.Invoice,
-					DateInvoice:     hw.DateInvoice,
-					ServiceContract: hw.ServiceContract,
-					DateService:     hw.DateService,
-					Time_Mfy:        hw.Time_Mfy,
-					Id_User:         hw.Id_User}
-				// Примечание про oneview2: у StorageController нет отдельного
-				// серийного номера кэш-модуля (в отличие от старого
-				// CacheModuleSerialNumber).
-				//вставить запись компонент
-				if _, err := trn.Insert(&raid); err != nil {
-					fmt.Println("Ошибка записи данных о диске", err)
-				}
-
-				for _, disk := range storage.Drives {
-					dsk := models.ServerHardwareComponents{
-						ServerId:        hw.Id,
-						Type:            2,
-						Vendor:          "HPE",
-						Model:           fmt.Sprintf("%.0fGb", float64(disk.CapacityMiB)/1024.0) + " " + disk.MediaType + " " + strings.TrimSpace(disk.Model) + " (" + strings.TrimSpace(disk.SerialNumber) + ")",
-						CapacityGb:      float64(disk.CapacityMiB) / 1000.0,
-						SerialNum:       strings.TrimSpace(disk.SerialNumber),
-						Slot:            disk.Location, //формат строки расположения "ControllerPort:Box:Bay"
-						ContractDoc:     hw.ContractDoc,
-						DateContractDoc: hw.DateContractDoc,
-						Invoice:         hw.Invoice,
-						DateInvoice:     hw.DateInvoice,
-						ServiceContract: hw.ServiceContract,
-						DateService:     hw.DateService,
-						Time_Mfy:        hw.Time_Mfy,
-						Id_User:         hw.Id_User}
-					switch disk.MediaType {
-					case "HDD":
-						dsk.SubType = 2
-					case "SSD":
-						dsk.SubType = 1
-					}
-					//вставить запись компонент
-					if _, err := trn.Insert(&dsk); err != nil {
-						fmt.Println("Ошибка записи данных о диске", err)
-					}
-				}
-			}
-		}
+		// Полная пересборка всех компонентов сервера - вынесена в
+		// cmdb/syncserverhardwarecomponents.go (2026-09-04), см. комментарий
+		// там.
+		SyncServerHardwareComponents(trn, &hw, srv)
 		trn.Commit()
 	}
 }
@@ -898,108 +794,10 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 			continue
 		}
 
-		m := models.ServerHardwareComponents{ServerId: hw.Id, Type: 1}
-		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о оперативной памяти из базы (для последующего обновления данных )
-			fmt.Println("Ошибка удаления записей о оперативной памяти сервера: ", serverName, hw.SerialNum, err)
-			_ = nDel
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 1} //проверяем остались ли данные по памяти
-		if err := trn.Read(&m, "ServerId", "Type"); err != nil {      //нет записей по памяти
-			for idx, mem := range srv.Memory { //проходим в цикле по всем модулям памяти
-				ram := models.ServerHardwareComponents{ //формируем данные для записи по памяти
-					ServerId:        hw.Id,
-					Type:            1,
-					Vendor:          mem.Manufacturer,
-					Model:           fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa(mem.OperatingSpeedMHz),
-					CapacityGb:      float64(mem.CapacityMiB) / 1024.0,
-					SerialNum:       hw.SerialNum + "-" + strconv.Itoa(idx),
-					Slot:            mem.Name,
-					ContractDoc:     hw.ContractDoc,
-					DateContractDoc: hw.DateContractDoc,
-					Invoice:         hw.Invoice,
-					DateInvoice:     hw.DateInvoice,
-					ServiceContract: hw.ServiceContract,
-					DateService:     hw.DateService,
-					Time_Mfy:        hw.Time_Mfy,
-					Id_User:         hw.Id_User}
-				//вставить запись компонент
-
-				if _, err := trn.Insert(&ram); err != nil { //вставка записи о оперативной памяти
-					fmt.Println("Ошибка записи данных о памяти", err)
-				}
-			}
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
-		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о дисках из базы (для последующего обновления данных )
-			fmt.Println("Ошибка удаления записей о дисках сервера: ", serverName, hw.SerialNum, err)
-			_ = nDel
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 5}
-		if nDel, err := trn.Delete(&m, "ServerId", "Type"); err != nil { //удаляем записи о контроллерах дисков из базы (для последующего обновления данных )
-			fmt.Println("Ошибка удаления записей о дисках сервера: ", serverName, hw.SerialNum, err)
-			_ = nDel
-		}
-
-		m = models.ServerHardwareComponents{ServerId: hw.Id, Type: 2}
-		if err := trn.Read(&m, "ServerId", "Type"); err != nil { //проверяем есть ли записи по этому серверу
-			for _, storage := range srv.Controllers { //записей нет, записываем данные по физическим дискам
-				raid := models.ServerHardwareComponents{
-					ServerId:        hw.Id,
-					Type:            5,
-					Vendor:          "HPE",
-					Model:           storage.Model,
-					CapacityGb:      float64(storage.CacheMemorySizeMiB) / 1024.0,
-					SerialNum:       strings.TrimSpace(storage.SerialNumber),
-					Slot:            storage.Location, //формат строки расположения "ControllerPort:Box:Bay"
-					ContractDoc:     hw.ContractDoc,
-					DateContractDoc: hw.DateContractDoc,
-					Invoice:         hw.Invoice,
-					DateInvoice:     hw.DateInvoice,
-					ServiceContract: hw.ServiceContract,
-					DateService:     hw.DateService,
-					Time_Mfy:        hw.Time_Mfy,
-					Id_User:         hw.Id_User}
-				// Примечание про oneview2: у StorageController нет отдельного
-				// серийного номера кэш-модуля (в отличие от старого
-				// CacheModuleSerialNumber).
-				//вставить запись компонент
-				if _, err := trn.Insert(&raid); err != nil {
-					fmt.Println("Ошибка записи данных о диске", err)
-				}
-
-				for _, disk := range storage.Drives {
-					dsk := models.ServerHardwareComponents{
-						ServerId:        hw.Id,
-						Type:            2,
-						Vendor:          "HPE",
-						Model:           fmt.Sprintf("%.0fGb", float64(disk.CapacityMiB)/1024.0) + " " + disk.MediaType + " " + strings.TrimSpace(disk.Model) + " (" + strings.TrimSpace(disk.SerialNumber) + ")",
-						CapacityGb:      float64(disk.CapacityMiB) / 1000.0,
-						SerialNum:       strings.TrimSpace(disk.SerialNumber),
-						Slot:            disk.Location, //формат строки расположения "ControllerPort:Box:Bay"
-						ContractDoc:     hw.ContractDoc,
-						DateContractDoc: hw.DateContractDoc,
-						Invoice:         hw.Invoice,
-						DateInvoice:     hw.DateInvoice,
-						ServiceContract: hw.ServiceContract,
-						DateService:     hw.DateService,
-						Time_Mfy:        hw.Time_Mfy,
-						Id_User:         hw.Id_User}
-					switch disk.MediaType {
-					case "HDD":
-						dsk.SubType = 2
-					case "SSD":
-						dsk.SubType = 1
-					}
-					//вставить запись компонент
-					if _, err := trn.Insert(&dsk); err != nil {
-						fmt.Println("Ошибка записи данных о диске", err)
-					}
-				}
-			}
-		}
+		// Полная пересборка всех компонентов сервера - вынесена в
+		// cmdb/syncserverhardwarecomponents.go (2026-09-04), см. комментарий
+		// там.
+		SyncServerHardwareComponents(trn, &hw, srv)
 		trn.Commit()
 	}
 }

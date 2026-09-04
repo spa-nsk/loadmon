@@ -462,6 +462,16 @@
                 СХД</a>
             </li>
             <li>
+              <a href="/admin/hardwareeventlog"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Журнал изменений
+                конфигурации</a>
+            </li>
+            <li>
+              <a href="/admin/serverspreventlog"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Журнал изменений
+                карточек серверов</a>
+            </li>
+            <li>
               <a href="/admin/metricsexport"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка метрик
                 утилизации</a>

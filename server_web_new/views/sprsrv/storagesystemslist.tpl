@@ -124,6 +124,7 @@
                 <td>{{$st.DatacenterRoom}} {{if ne $st.RackNum ""}}/ {{$st.RackNum}}{{end}}</td>
                 <td id="stRowMenu{{$st.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemsedit/{{$st.Id}}" target="_blank">Редактировать</a>
+                    <a class="ctx-menu-item" href="/sprsrv/storagesystemconfigview/{{$st.Id}}" target="_blank">Конфигурация СХД</a>
                 </td>
             </tr>
             {{else}}

@@ -531,3 +531,104 @@ func (this *MainController) SprStorageSystemsEdit() {
 	this.Data["DateInvoiceStr"] = formatStorageSystemsDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatStorageSystemsDate(rec.DateService)
 }
+
+// StorageEnclosureWithDisks - одна полка/сторадж-процессор (models.StorageEnclosure)
+// вместе со списком принадлежащих ей дисков (models.StorageDisk,
+// StorageEnclosureId == Enclosure.Id) - для карточки просмотра конфигурации
+// СХД (/sprsrv/storagesystemconfigview).
+type StorageEnclosureWithDisks struct {
+	Enclosure models.StorageEnclosure
+	Disks     []models.StorageDisk
+}
+
+// SprStorageSystemConfigView отображает read-only карточку конфигурации
+// ОДНОЙ СХД (models.StorageSystems) по Id: сама СХД, сторадж-процессоры
+// (models.StorageEnclosure с EnclosureType == StorageEnclosureTypeManagement -
+// полки управления/контроллеров), полки данных (EnclosureType ==
+// StorageEnclosureTypeData) со своими дисками (models.StorageDisk,
+// сгруппированы по StorageEnclosureId) и диски без привязки к известной
+// полке отдельным списком (StorageEnclosureId == 0 или не найден среди
+// прочитанных полок - бывает у СХД, где диски синхронизируются, а
+// hardware-инвентарь полок для этого вендора не реализован, см.
+// cmdb/syncstoragehardware.go).
+//
+// Все данные - результат автосинхронизации (cmdb.SyncStorageHardwareForSystem,
+// см. kontext/05-conventions-and-gotchas.md), редактирования тут нет - по
+// аналогии с /sprsrv/storagevolumeview у StorageVolumes.
+//
+// Открывается по правому клику на строке /sprsrv/storagesystemslist
+// ("Конфигурация СХД" в контекстном меню).
+//
+// Маршрут: /sprsrv/storagesystemconfigview/:id
+func (this *MainController) SprStorageSystemConfigView() {
+
+	idStr := this.Ctx.Input.Param(":id")
+
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
+	RegisterRequest(this, LogTypeViewReference) // просмотр конфигурации СХД
+
+	this.activeContent("sprsrv/storagesystemconfigview")
+	this.Data["Id"] = idStr
+
+	flash := beego.NewFlash()
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		flash.Error("Некорректный идентификатор записи: %s", idStr)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	o := orm.NewOrm()
+
+	var shd models.StorageSystems
+	if err := o.QueryTable("storage_systems").Filter("Id", id).One(&shd); err != nil {
+		flash.Error("СХД с Id=%d не найдена: %v", id, err)
+		flash.Store(&this.Controller)
+		return
+	}
+	this.Data["SHD"] = shd
+
+	var enclosures []models.StorageEnclosure
+	if _, err := o.QueryTable("storage_enclosure").Filter("StorageSystemsId", id).OrderBy("EnclosureType", "SlotNumber", "Name").All(&enclosures); err != nil {
+		flash.Notice("Ошибка чтения списка полок: %v", err)
+		flash.Store(&this.Controller)
+	}
+
+	var disks []models.StorageDisk
+	if _, err := o.QueryTable("storage_disk").Filter("StorageSystemsId", id).OrderBy("StorageEnclosureId", "SlotNumber").All(&disks); err != nil {
+		flash.Notice("Ошибка чтения списка дисков: %v", err)
+		flash.Store(&this.Controller)
+	}
+
+	disksByEnclosure := make(map[int64][]models.StorageDisk, len(enclosures))
+	var unassignedDisks []models.StorageDisk
+	knownEnclosure := make(map[int64]struct{}, len(enclosures))
+	for _, e := range enclosures {
+		knownEnclosure[e.Id] = struct{}{}
+	}
+	for _, d := range disks {
+		if _, ok := knownEnclosure[d.StorageEnclosureId]; ok && d.StorageEnclosureId != 0 {
+			disksByEnclosure[d.StorageEnclosureId] = append(disksByEnclosure[d.StorageEnclosureId], d)
+		} else {
+			unassignedDisks = append(unassignedDisks, d)
+		}
+	}
+
+	var processors []StorageEnclosureWithDisks // сторадж-процессоры (полки управления/контроллеров)
+	var dataShelves []StorageEnclosureWithDisks // полки с данными
+	for _, e := range enclosures {
+		item := StorageEnclosureWithDisks{Enclosure: e, Disks: disksByEnclosure[e.Id]}
+		if e.EnclosureType == models.StorageEnclosureTypeManagement {
+			processors = append(processors, item)
+		} else {
+			dataShelves = append(dataShelves, item)
+		}
+	}
+
+	this.Data["Processors"] = processors
+	this.Data["DataShelves"] = dataShelves
+	this.Data["UnassignedDisks"] = unassignedDisks
+	this.Data["EnclosureCount"] = len(enclosures)
+	this.Data["DiskCount"] = len(disks)
+}

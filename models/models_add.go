@@ -1516,6 +1516,123 @@ func (u *StorageEventLog) TableIndex() [][]string {
 	}
 }
 
+// HardwareEventLog - журнал изменений аппаратной конфигурации серверов и
+// блейд-корзин (таблица hardware_event_log, добавлена 2026-09-04). Пишется
+// при обнаружении расхождения между уже сохранённой конфигурацией и свежими
+// данными синхронизации из HP OneView (cmdb/syncserverhardwarecomponents.go,
+// cmdb/syncbladesystemcomponents.go, cmdb/initrec.go). Модель по структуре
+// повторяет StorageEventLog (см. выше) - один плоский журнал с
+// EventType/Key/Message вместо нормализованной таблицы изменений, тот же
+// приём, что и для событий СХД.
+type HardwareEventLog struct {
+	Id   int64
+	Time time.Time `orm:"index"` // время обнаружения изменения
+	// EventType - HardwareEventComponentAdded/Removed/Changed/
+	// HardwareEventFieldChanged (см. константы ниже).
+	EventType int `orm:"index"`
+	// EntityKind - человекочитаемый тип изменившейся сущности: "Server",
+	// "BladeSystem" или название типа компонента (RAM/Disk/Network/...).
+	EntityKind string
+	// ServerId/BladeSystemId - Id родительской сущности (сервера или
+	// блейд-корзины), к которой относится изменение; один из них 0.
+	ServerId      int64 `orm:"index"`
+	BladeSystemId int64 `orm:"index"`
+	// Key - серийный номер/слот компонента либо серийный номер сервера/
+	// корзины - для идентификации ЧТО именно изменилось в списке за период.
+	Key string `orm:"index"`
+	// FieldName/OldValue/NewValue - для HardwareEventFieldChanged (точечное
+	// изменение поля ServerHardware/BladeSystems); для добавления/удаления/
+	// замены компонента (HardwareEventComponentAdded/Removed/Changed) не
+	// используются, вся суть - в Message.
+	FieldName string
+	OldValue  string `orm:"size(512)"`
+	NewValue  string `orm:"size(512)"`
+	Message   string `orm:"size(1024)"` // человекочитаемое описание изменения
+}
+
+// Коды событий HardwareEventLog.EventType.
+const (
+	HardwareEventComponentAdded   = 1 // новый компонент, которого не было в предыдущем цикле опроса
+	HardwareEventComponentRemoved = 2 // компонент, присутствовавший ранее, пропал из свежих данных
+	HardwareEventComponentChanged = 3 // компонент с тем же ключом (серийник/слот), но изменившимися характеристиками
+	HardwareEventFieldChanged     = 4 // изменилось скалярное поле ServerHardware/BladeSystems (модель, статус, прошивка и т.п.)
+)
+
+// TableName возвращает имя таблицы БД для модели HardwareEventLog (используется beego ORM).
+func (a *HardwareEventLog) TableName() string {
+	return "hardware_event_log"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели HardwareEventLog в beego ORM.
+func (u *HardwareEventLog) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Time"},
+		[]string{"EventType"},
+		[]string{"ServerId"},
+		[]string{"BladeSystemId"},
+		[]string{"Key"},
+	}
+}
+
+// ServerSprEventLog - журнал изменений карточки сервера
+// (models.ServerSprRecords), таблица server_spr_event_log, добавлена
+// 2026-09-04 по запросу "сделай аналогичную историю изменений карточки
+// серверов... с сохранением даты изменений и авторов". По структуре
+// повторяет HardwareEventLog/StorageEventLog (см. выше) - один плоский
+// журнал, а не нормализованная таблица истории. В отличие от
+// HardwareEventLog уведомления по email НЕ отправляются (прямое указание
+// пользователя) и в журнал пишутся только изменения, сделанные вручную
+// через веб-форму (controllers/sprsrvupdatebase.go, sprsrvaddserver.go) -
+// у них есть осмысленный "автор" (UserId); автоматические обновления карточки
+// из VMware/OneView/Zabbix уже отражаются полем
+// ServerSprRecords.SourceUpdateType и не дублируются здесь, чтобы не
+// заспамить журнал каждым циклом синхронизации записями без автора.
+type ServerSprEventLog struct {
+	Id   int64
+	Time time.Time `orm:"index"` // время сохранения формы
+	// EventType - ServerSprEventCreated/ServerSprEventFieldChanged (см.
+	// константы ниже).
+	EventType int `orm:"index"`
+	ServerId  int64 `orm:"index"` // Id изменённой записи ServerSprRecords
+	// Key - имя сервера (ServerSprRecords.Name) на момент записи события -
+	// для читаемости журнала, даже если имя потом снова изменится.
+	Key string `orm:"index"`
+	// FieldName/OldValue/NewValue - для ServerSprEventFieldChanged; для
+	// ServerSprEventCreated не используются (вся суть - в Message).
+	FieldName string
+	OldValue  string `orm:"size(512)"`
+	NewValue  string `orm:"size(512)"`
+	// UserId - Id автора изменения (models.AuthUser.Id, 0 - не определён).
+	UserId int64 `orm:"index"`
+	// UserName - имя автора, сохранённое НА МОМЕНТ записи события (снимок,
+	// а не ссылка) - чтобы история оставалась читаемой, даже если
+	// пользователя потом переименуют или удалят из models.AuthUser.
+	UserName string
+	Message  string `orm:"size(1024)"`
+}
+
+// Коды событий ServerSprEventLog.EventType.
+const (
+	ServerSprEventCreated      = 1 // запись карточки сервера создана вручную
+	ServerSprEventFieldChanged = 2 // изменилось поле карточки сервера
+)
+
+// TableName возвращает имя таблицы БД для модели ServerSprEventLog (используется beego ORM).
+func (a *ServerSprEventLog) TableName() string {
+	return "server_spr_event_log"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели ServerSprEventLog в beego ORM.
+func (u *ServerSprEventLog) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Time"},
+		[]string{"EventType"},
+		[]string{"ServerId"},
+		[]string{"Key"},
+		[]string{"UserId"},
+	}
+}
+
 // Datastore описывает запись/справочник БД loadmon, соответствующую сущности Datastore.
 type Datastore struct {
 	Id               int64   `form:"Id"`
@@ -1633,6 +1750,23 @@ type ServerHardware struct {
 	// vSphere/OneView/Zabbix) и в контроллерах ручного редактирования
 	// (controllers/sprhwconfig.go) - см. kontext/05-conventions-and-gotchas.md.
 	SourceUpdateType int `form:"SourceUpdateType" csv:"Источник обновления (код)" json:"SourceUpdateType"`
+
+	// Поля ниже (2026-09-04) - расширение таблицы под "полноценный сбор
+	// конфигураций серверов из oneview2": раньше oneview2.Server.Identity
+	// нёс эти данные (health-статус, версия BIOS, платформа, модель и
+	// прошивка контроллера управления iLO/OA и т.д.), но они нигде не
+	// сохранялись - см. cmdb/initrec.go:ImportHWSprRecord, где они теперь
+	// проставляются.
+	Status            string `form:"Status" csv:"Состояние (health)" json:"Status"`                     // identity.Status - health-статус OneView (OK/Warning/Critical/...)
+	RomVersion        string `form:"RomVersion" csv:"Версия BIOS/ROM" json:"RomVersion"`                 // identity.RomVersion
+	Platform          string `form:"Platform" csv:"Платформа" json:"Platform"`                           // identity.Platform
+	ShortModel        string `form:"ShortModel" csv:"Короткая модель" json:"ShortModel"`                 // identity.ShortModel
+	AssetTag          string `form:"AssetTag" csv:"Метка актива (OneView)" json:"AssetTag"`              // identity.AssetTag
+	OperatingSystem   string `form:"OperatingSystem" csv:"ОС (по данным OneView)" json:"OperatingSystem"` // identity.OperatingSystem - НЕ обязательно совпадает с фактической ОС, см. комментарий в cmdb/initrec.go:ImportServerSprFromHW про ненадёжность этого поля у OneView
+	MpModel           string `form:"MpModel" csv:"Модель контроллера управления" json:"MpModel"`         // identity.MpModel - модель iLO/OA
+	MpFirmwareVersion string `form:"MpFirmwareVersion" csv:"Прошивка контроллера управления" json:"MpFirmwareVersion"` // identity.MpFirmwareVersion
+	MpIPAddress       string `form:"MpIPAddress" csv:"IP контроллера управления" json:"MpIPAddress"`     // identity.MpIPAddress - адрес iLO/OA
+	MpHostName        string `form:"MpHostName" csv:"Имя контроллера управления" json:"MpHostName"`      // identity.MpHostName
 }
 
 // Коды источника обновления записей ServerHardware/ServerSprRecords -
@@ -2272,7 +2406,7 @@ type ServerHardwareComponents struct {
 	ServerId        int64     `form:"ServerId"` //ссылка на сервер из справочника серверов (для компонент серверов)
 	BladeSystemId   int64     `form:"BladeSystemId"` //ссылка блэйд-шасси в справочнике (для компонент блэйд шасси)
 	StorageId       int64     `form:"StorageId"` //ссылка СХД в справочнике (для компонент СХД таких как диски ...)
-	Type            int       `form:"Type"` //тип компонент 1 память, 2 диск, 3 сетевой контроллер, 4 FC контроллер, 5 RAID контроллер, 6 interconnect blade, 7 managment card blade, 8 // TODO: comment truncated in screenshot
+	Type            int       `form:"Type"` //тип компонент: 1 память, 2 диск, 3 сетевой контроллер, 4 FC контроллер, 5 RAID контроллер, 6 interconnect blade, 7 managment card blade, 9 прочее PCI-устройство, 10 компонент прошивки, 11 процессор, 12 блок питания blade, 13 вентиляторный модуль blade (типы 9-13 заведены 2026-09-04, см. cmdb/syncserverhardwarecomponents.go и cmdb/syncbladesystemcomponents.go; тип 8 - не используется, см. models/models_add.go doc-комментарий выше о происхождении этого файла из транскрипции скриншотов)
 	SubType         int       `form:"SubType"` //для дисков 1-SSD 2-SAS 3-SATA
 	Vendor          string    `form:"Vendor"` //производитель
 	Model           string    `form:"Model"` //модель

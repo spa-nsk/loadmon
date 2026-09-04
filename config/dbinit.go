@@ -131,6 +131,8 @@ func DBInit() {
 	orm.RegisterModel(new(models.SANSystem))
 	orm.RegisterModel(new(models.StorageVolumes))
 	orm.RegisterModel(new(models.StorageEventLog))
+	orm.RegisterModel(new(models.HardwareEventLog))
+	orm.RegisterModel(new(models.ServerSprEventLog))
 
 	orm.RegisterModel(new(models.MembersFG))
 	orm.RegisterModel(new(models.Counterparty))

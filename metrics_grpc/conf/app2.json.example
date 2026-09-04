@@ -31,5 +31,14 @@
 		{"Hostname":"127.0.0.1:8989","Username":"vcsim@local","Password":"password","Wait":60}],
 	"ConfigOV": [
   		{"Domain":"local","Login":"Administrator","Password":"admin","Endpoint":"http://127.0.0.1:8300","Version":300,"OperationTimeoutSec":120},
-  		{"Domain":"Local","Login":"Administrator","Password":"admin","Endpoint":"http://127.0.0.1:8740","Version":7400,"OperationTimeoutSec":120}]
+  		{"Domain":"Local","Login":"Administrator","Password":"admin","Endpoint":"http://127.0.0.1:8740","Version":7400,"OperationTimeoutSec":120}],
+	"SmtpHost": "smtp.example.local",
+	"SmtpPort": 25,
+	"SmtpUseAuth": false,
+	"SmtpUsername": "",
+	"SmtpPassword": "",
+	"SmtpUseTLS": false,
+	"SmtpFrom": "loadmon@example.local",
+	"NotifyRecipients": ["cmdb-team@example.local"],
+	"NotifyOnHardwareChange": false
 }

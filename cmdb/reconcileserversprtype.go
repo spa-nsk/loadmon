@@ -49,11 +49,11 @@ func ReconcileServerSprRecordsTypeAndState() {
 
 func reconcileServerSprRecord(o orm.Ormer, ov *oneview.Infrastructure, srv *models.ServerSprRecords) {
 	host := lookupVMwareHost(srv)
-	vmFound, vmPower := lookupVMwareVM(o, srv)
+	vm := lookupVMwareVM(o, srv)
 	hw := lookupOneViewServer(ov, srv)
 
 	inVMwareHost := host != nil
-	inVMwareVM := vmFound
+	inVMwareVM := vm != nil
 	inOneView := hw != nil
 
 	if !inVMwareHost && !inVMwareVM && !inOneView {
@@ -65,7 +65,7 @@ func reconcileServerSprRecord(o orm.Ormer, ov *oneview.Infrastructure, srv *mode
 	}
 
 	expectedType := expectedServerSprType(inVMwareHost, inVMwareVM)
-	fields := applyExpectedServerSprState(o, srv, expectedType, host, vmPower, hw)
+	fields := applyExpectedServerSprState(o, srv, expectedType, host, vm, hw)
 	if len(fields) == 0 {
 		return
 	}
@@ -105,22 +105,41 @@ func lookupVMwareHost(srv *models.ServerSprRecords) *vsphere.HostInfo {
 	return nil
 }
 
-func lookupVMwareVM(o orm.Ormer, srv *models.ServerSprRecords) (found bool, poweredOn bool) {
+// vmPlacement - результат поиска ВМ в vSphere для reconcile: факт наличия,
+// состояние питания и место размещения (vCenter/Датацентр/Кластер),
+// взятое из уже прочитанного models.VMSprRecord - используется, чтобы
+// заполнить (а не затереть, см. историю бага ниже) Vcenter/Datacenter/
+// Cluster/ClusterId в самой ServerSprRecords для записей Type=1.
+type vmPlacement struct {
+	poweredOn bool
+	vcenter   string
+	datacenter string
+	cluster   string
+	clusterId string
+}
+
+func lookupVMwareVM(o orm.Ormer, srv *models.ServerSprRecords) *vmPlacement {
 	if srv.VMSprId <= 0 {
-		return false, false
+		return nil
 	}
 	vmSpr := models.VMSprRecord{Id: srv.VMSprId}
 	if err := o.Read(&vmSpr); err != nil {
-		return false, false
+		return nil
 	}
 	if vmSpr.Vcenter == "" || vmSpr.Cluster == "" || vmSpr.Vm_Name == "" {
-		return false, false
+		return nil
 	}
 	vm, err := grpcclient.GetVMByKeyDirect(vmSpr.Vcenter, vmSpr.Datacenter, vmSpr.Cluster, vmSpr.Vm_Name)
 	if err != nil {
-		return false, false
+		return nil
 	}
-	return true, vm.PowerState
+	return &vmPlacement{
+		poweredOn: vm.PowerState,
+		vcenter:   vmSpr.Vcenter,
+		datacenter: vmSpr.Datacenter,
+		cluster:   vmSpr.Cluster,
+		clusterId: vmSpr.ClusterId,
+	}
 }
 
 func lookupOneViewServer(ov *oneview.Infrastructure, srv *models.ServerSprRecords) *oneview.Server {
@@ -197,7 +216,7 @@ func applyExpectedServerSprState(
 	srv *models.ServerSprRecords,
 	expectedType int,
 	host *vsphere.HostInfo,
-	vmPoweredOn bool,
+	vm *vmPlacement,
 	hw *oneview.Server,
 ) []string {
 	var fields []string
@@ -214,9 +233,20 @@ func applyExpectedServerSprState(
 		fields = appendHypervisorFields(srv, host, fields)
 		srv.PowerState = powerStateFromBool(host != nil && host.PowerState)
 	case 1:
-		clearHypervisorPlacement(srv, &fields)
-		srv.PowerState = powerStateFromBool(vmPoweredOn)
-		updateVMSprPowerState(o, srv, vmPoweredOn)
+		// (2026-09-04) Раньше здесь безусловно вызывался
+		// clearHypervisorPlacement - функция, написанная для случая "сервер
+		// перестал быть гипервизором", случайно вызывалась и для ВМ, из-за
+		// чего Vcenter/Datacenter/Cluster/ClusterId каждой ВМ затирались на
+		// каждом цикле сверки почти сразу после того, как их заполнял
+		// первичный импорт - отсюда жалоба "в ServerSprRecords появились ВМ
+		// с пустыми vcenter/datacenter/cluster". Для ВМ место размещения
+		// нужно ЗАПОЛНЯТЬ (из vmPlacement, полученного в lookupVMwareVM по
+		// уже привязанному VMSprRecord), как для гипервизоров -
+		// appendHypervisorFields, а не очищать.
+		fields = appendVMFields(srv, vm, fields)
+		poweredOn := vm != nil && vm.poweredOn
+		srv.PowerState = powerStateFromBool(poweredOn)
+		updateVMSprPowerState(o, srv, poweredOn)
 	case 0:
 		clearHypervisorPlacement(srv, &fields)
 		srv.PowerState = powerStateFromOneView(hw)
@@ -275,6 +305,35 @@ func appendHypervisorFields(srv *models.ServerSprRecords, host *vsphere.HostInfo
 	if host.ProductFullName != "" && srv.OS != host.ProductFullName {
 		srv.OS = host.ProductFullName
 		fields = append(fields, "OS")
+	}
+	return fields
+}
+
+// appendVMFields заполняет Vcenter/Datacenter/Cluster/ClusterId записи
+// ServerSprRecords (Type=1) местом размещения ВМ, найденным в
+// lookupVMwareVM (vmPlacement, взято из уже привязанного VMSprRecord) -
+// аналог appendHypervisorFields для гипервизоров. До 2026-09-04 вместо
+// этого вызывался clearHypervisorPlacement, который эти поля затирал - см.
+// комментарий в applyExpectedServerSprState.
+func appendVMFields(srv *models.ServerSprRecords, vm *vmPlacement, fields []string) []string {
+	if vm == nil {
+		return fields
+	}
+	if srv.Vcenter != vm.vcenter {
+		srv.Vcenter = vm.vcenter
+		fields = append(fields, "Vcenter")
+	}
+	if srv.Datacenter != vm.datacenter {
+		srv.Datacenter = vm.datacenter
+		fields = append(fields, "Datacenter")
+	}
+	if srv.Cluster != vm.cluster {
+		srv.Cluster = vm.cluster
+		fields = append(fields, "Cluster")
+	}
+	if srv.ClusterId != vm.clusterId {
+		srv.ClusterId = vm.clusterId
+		fields = append(fields, "ClusterId")
 	}
 	return fields
 }
