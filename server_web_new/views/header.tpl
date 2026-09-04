@@ -471,6 +471,11 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Список серверов,
                 выведенных из учёта</a>
             </li>
+            <li>
+              <a href="/admin/infrastructure"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Архитектура
+                инфраструктуры</a>
+            </li>
             <li class="mb-1">
               <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
                 data-bs-toggle="collapse" data-bs-target="#viewexport-collapse" aria-expanded="false">
@@ -515,10 +520,10 @@
       <a href="https://confluence.bcs.ru/display/~SemenovPA" target="_blank">Семенов Павел</a>
     </p>
     <p class="text-muted mb-0 d-flex align-items-center justify-content-center gap-1">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M4.5 3.5l4.8 8.5-4.8 8.5h3.4l3.1-5.5 3.1 5.5h3.4l-4.8-8.5 4.8-8.5h-3.4l-3.1 5.5-3.1-5.5H4.5z" fill="#D97757"/>
+      <svg width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M12 1.5c.6 3.6 1.4 6.1 2.5 7.4 1.2 1.3 3.5 2.2 6.9 2.6-3.4.5-5.7 1.4-6.9 2.7-1.1 1.3-1.9 3.8-2.5 7.3-.6-3.5-1.4-6-2.5-7.3-1.2-1.3-3.5-2.2-6.9-2.7 3.4-.4 5.7-1.3 6.9-2.6 1.1-1.3 1.9-3.8 2.5-7.4z" fill="#D97757"/>
       </svg>
-      <span>Claude 2026</span>
+      <span style="color:#D97757;">Claude 2026</span>
     </p>
 
     <div class="theme-toggle-wrap">

@@ -374,3 +374,79 @@
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Canvas-диаграмма инфраструктуры (/admin/infrastructure)                */
+/* ---------------------------------------------------------------------- */
+
+.infra-canvas-shell {
+    background: var(--bs-body-bg);
+}
+
+.infra-canvas-viewport {
+    overflow: auto;
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    min-height: 520px;
+}
+
+#infra-canvas {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
+
+.infra-canvas-toolbar {
+    background: var(--bs-tertiary-bg);
+}
+
+.infra-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+}
+
+.infra-legend-item img {
+    width: 22px;
+    height: 22px;
+}
+
+.infra-slot-sample {
+    display: inline-block;
+    width: 18px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px dashed #94a3b8;
+}
+
+.infra-slot-sample.empty {
+    background: #334155;
+}
+
+.infra-canvas-viewport {
+    cursor: crosshair;
+}
+
+.infra-canvas-tooltip {
+    position: absolute;
+    z-index: 20;
+    max-width: 320px;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.5rem;
+    background: rgba(15, 23, 42, 0.95);
+    color: #e2e8f0;
+    border: 1px solid #475569;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+.infra-canvas-tooltip .infra-tooltip-title {
+    margin-bottom: 0.25rem;
+    color: #38bdf8;
+}
+
+.infra-canvas-tooltip .infra-tooltip-body div {
+    line-height: 1.35;
+    color: #cbd5e1;
+}
