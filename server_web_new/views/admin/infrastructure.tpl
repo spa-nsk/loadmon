@@ -2,7 +2,7 @@
     <h2>Архитектура инфраструктуры</h2>
     <p class="text-muted small mb-0">
         Интерактивная canvas-диаграмма на основе данных VMware, HP OneView, СХД и Zabbix (только активное оборудование).
-        Отрисовка выполняется WASM-модулем <code>go-canvas</code>.
+        Клик по слоту, серверу, СХД или кластеру — подсказка с деталями.
     </p>
 </div>
 
@@ -21,6 +21,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" type="button" data-infra-page="2">Мониторинг</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" type="button" data-infra-page="3">Кластеры vSphere</button>
+        </li>
     </ul>
 
     <div class="infra-canvas-toolbar d-flex flex-wrap align-items-center gap-3 px-3 py-2 border-top border-bottom">
@@ -35,8 +38,12 @@
         <div class="ms-auto small text-muted" id="infraCanvasStatus">Загрузка canvas…</div>
     </div>
 
-    <div class="infra-canvas-viewport">
-        <canvas id="infra-canvas" width="1280" height="760"></canvas>
+    <div class="infra-canvas-viewport position-relative">
+        <canvas id="infra-canvas" width="1280" height="720"></canvas>
+        <div id="infra-canvas-tooltip" class="infra-canvas-tooltip d-none" role="tooltip">
+            <div class="infra-tooltip-title fw-semibold"></div>
+            <div class="infra-tooltip-body small"></div>
+        </div>
     </div>
 </div>
 
@@ -47,15 +54,37 @@
 (function () {
     const statusEl = document.getElementById('infraCanvasStatus');
     const tabs = document.querySelectorAll('#infraPageTabs [data-infra-page]');
+    const viewport = document.querySelector('.infra-canvas-viewport');
+    const canvas = document.getElementById('infra-canvas');
+    const tooltip = document.getElementById('infra-canvas-tooltip');
 
     function setStatus(text) {
         if (statusEl) statusEl.textContent = text;
+    }
+
+    function hideTooltip() {
+        if (tooltip) tooltip.classList.add('d-none');
+    }
+
+    function resizeCanvas() {
+        if (!viewport || !canvas) return;
+        const w = Math.max(640, viewport.clientWidth - 4);
+        const h = Math.max(360, Math.floor(w * 9 / 16));
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        if (typeof window.resizeInfraCanvas === 'function') {
+            window.resizeInfraCanvas(w, h);
+        } else {
+            canvas.width = w;
+            canvas.height = h;
+        }
     }
 
     tabs.forEach(function (btn) {
         btn.addEventListener('click', function () {
             tabs.forEach(function (b) { b.classList.remove('active'); });
             btn.classList.add('active');
+            hideTooltip();
             const page = parseInt(btn.getAttribute('data-infra-page'), 10) || 0;
             if (typeof window.setInfraCanvasPage === 'function') {
                 window.setInfraCanvasPage(page);
@@ -63,13 +92,18 @@
         });
     });
 
-    let raw = document.getElementById('infra-canvas-data');
-    try {
-        window.infraCanvasData = JSON.parse(raw ? raw.textContent : '{}');
-    } catch (e) {
-        window.infraCanvasData = {};
-        setStatus('Ошибка разбора JSON данных');
+    if (viewport) {
+        viewport.addEventListener('click', function (ev) {
+            if (ev.target !== canvas) hideTooltip();
+        });
     }
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') hideTooltip();
+    });
+
+    window.addEventListener('resize', function () {
+        resizeCanvas();
+    });
 
     if (!WebAssembly || !WebAssembly.instantiateStreaming) {
         setStatus('WebAssembly не поддерживается браузером');
@@ -80,7 +114,8 @@
     WebAssembly.instantiateStreaming(fetch('/static/infracanvas/infracanvas.wasm'), go.importObject)
         .then(function (result) {
             go.run(result.instance);
-            setStatus('Canvas готов');
+            resizeCanvas();
+            setStatus('Canvas готов — кликните элемент для подсказки');
         })
         .catch(function (err) {
             console.error(err);

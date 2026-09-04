@@ -423,3 +423,30 @@
 .infra-slot-sample.empty {
     background: #334155;
 }
+
+.infra-canvas-viewport {
+    cursor: crosshair;
+}
+
+.infra-canvas-tooltip {
+    position: absolute;
+    z-index: 20;
+    max-width: 320px;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.5rem;
+    background: rgba(15, 23, 42, 0.95);
+    color: #e2e8f0;
+    border: 1px solid #475569;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+.infra-canvas-tooltip .infra-tooltip-title {
+    margin-bottom: 0.25rem;
+    color: #38bdf8;
+}
+
+.infra-canvas-tooltip .infra-tooltip-body div {
+    line-height: 1.35;
+    color: #cbd5e1;
+}

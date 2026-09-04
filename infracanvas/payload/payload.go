@@ -8,6 +8,7 @@ type CanvasData struct {
 	Hardware       HardwarePage   `json:"hardware"`
 	Virtualization VirtualPage    `json:"virtualization"`
 	Monitoring     MonitoringPage `json:"monitoring"`
+	ClusterMap     ClusterMapPage `json:"clusterMap"`
 }
 
 type PageMeta struct {

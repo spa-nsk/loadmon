@@ -18,6 +18,7 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 			{ID: "hardware", Title: "Аппаратная часть"},
 			{ID: "virtualization", Title: "Виртуализация"},
 			{ID: "monitoring", Title: "Мониторинг"},
+			{ID: "clusterMap", Title: "Кластеры vSphere"},
 		},
 	}
 
@@ -283,12 +284,146 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 	data.Monitoring = payload.MonitoringPage{
 		ZabbixHostCount: int(zabbixCount),
 		LinkedServers:   int(linkedZabbix),
-		StorageOnline:     onlineStorage,
-		StorageOffline:    offlineStorage,
-		AvgUsedPercent:    avgUsed,
+		StorageOnline:   onlineStorage,
+		StorageOffline:  offlineStorage,
+		AvgUsedPercent:  avgUsed,
 	}
 
+	data.ClusterMap = buildClusterMapPage(o, sprRows)
+
 	return data, nil
+}
+
+func buildClusterMapPage(o orm.Ormer, sprRows []models.ServerSprRecords) payload.ClusterMapPage {
+	var clusterRows []models.ClusterSprRecords
+	_, _ = o.QueryTable(new(models.ClusterSprRecords)).Filter("Stat", 1).All(&clusterRows)
+
+	type clusterKey struct {
+		vc, dc, name string
+	}
+	hostCount := map[clusterKey]int{}
+	vmCount := map[clusterKey]int{}
+	typeWorkByKey := map[clusterKey]int{}
+
+	for _, s := range sprRows {
+		if strings.TrimSpace(s.Cluster) == "" {
+			continue
+		}
+		k := clusterKey{
+			vc:   strings.TrimSpace(s.Vcenter),
+			dc:   strings.TrimSpace(s.Datacenter),
+			name: strings.TrimSpace(s.Cluster),
+		}
+		switch s.Type {
+		case 1:
+			vmCount[k]++
+		case 2:
+			hostCount[k]++
+		}
+	}
+
+	vcMap := map[string]map[string][]payload.ClusterNode{}
+	dcSet := map[string]struct{}{}
+	for _, cl := range clusterRows {
+		k := clusterKey{
+			vc:   strings.TrimSpace(cl.Vcenter),
+			dc:   strings.TrimSpace(cl.Datacenter),
+			name: strings.TrimSpace(cl.Name),
+		}
+		if k.name == "" {
+			continue
+		}
+		if k.vc == "" {
+			k.vc = "—"
+		}
+		if k.dc == "" {
+			k.dc = "—"
+		}
+		typeWorkByKey[k] = cl.TypeWork
+		if _, ok := vcMap[k.vc]; !ok {
+			vcMap[k.vc] = map[string][]payload.ClusterNode{}
+		}
+		node := payload.ClusterNode{
+			Name:      k.name,
+			VMCount:   vmCount[k],
+			HostCount: hostCount[k],
+			TypeWork:  cl.TypeWork,
+		}
+		vcMap[k.vc][k.dc] = append(vcMap[k.vc][k.dc], node)
+		dcSet[k.vc+"/"+k.dc] = struct{}{}
+	}
+
+	// Кластеры из sprRows, которых нет в справочнике.
+	seen := map[clusterKey]bool{}
+	for _, cl := range clusterRows {
+		seen[clusterKey{cl.Vcenter, cl.Datacenter, cl.Name}] = true
+	}
+	for k, vms := range vmCount {
+		if seen[k] {
+			continue
+		}
+		vc := k.vc
+		if vc == "" {
+			vc = "—"
+		}
+		dc := k.dc
+		if dc == "" {
+			dc = "—"
+		}
+		if _, ok := vcMap[vc]; !ok {
+			vcMap[vc] = map[string][]payload.ClusterNode{}
+		}
+		vcMap[vc][dc] = append(vcMap[vc][dc], payload.ClusterNode{
+			Name:      k.name,
+			VMCount:   vms,
+			HostCount: hostCount[k],
+			TypeWork:  typeWorkByKey[k],
+		})
+		dcSet[vc+"/"+dc] = struct{}{}
+	}
+
+	vcenters := make([]payload.VcenterGroup, 0, len(vcMap))
+	totalClusters := 0
+	totalHosts := 0
+	totalVMs := 0
+	vcNames := make([]string, 0, len(vcMap))
+	for name := range vcMap {
+		vcNames = append(vcNames, name)
+	}
+	sort.Strings(vcNames)
+	for _, vcName := range vcNames {
+		dcMap := vcMap[vcName]
+		dcNames := make([]string, 0, len(dcMap))
+		for dcName := range dcMap {
+			dcNames = append(dcNames, dcName)
+		}
+		sort.Strings(dcNames)
+		dcs := make([]payload.DatacenterGroup, 0, len(dcNames))
+		for _, dcName := range dcNames {
+			clusters := dcMap[dcName]
+			sort.Slice(clusters, func(i, j int) bool {
+				return clusters[i].Name < clusters[j].Name
+			})
+			totalClusters += len(clusters)
+			for _, c := range clusters {
+				totalHosts += c.HostCount
+				totalVMs += c.VMCount
+			}
+			dcs = append(dcs, payload.DatacenterGroup{Name: dcName, Clusters: clusters})
+		}
+		vcenters = append(vcenters, payload.VcenterGroup{Name: vcName, Datacenters: dcs})
+	}
+
+	return payload.ClusterMapPage{
+		Vcenters: vcenters,
+		Stats: payload.ClusterStats{
+			VcenterCount:    len(vcenters),
+			DatacenterCount: len(dcSet),
+			ClusterCount:    totalClusters,
+			HostCount:       totalHosts,
+			VMCount:         totalVMs,
+		},
+	}
 }
 
 func parseStartUnit(s string) int {

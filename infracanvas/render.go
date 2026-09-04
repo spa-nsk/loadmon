@@ -159,12 +159,14 @@ func drawBladeChassis(gc *draw2dimg.GraphicContext, x, y, maxW float64, ch paylo
 		row := i / 2
 		cx := sx + float64(col)*slotW
 		cy := sy + float64(row)*slotH
+		slotW2 := slotW - 6
+		slotH2 := slotH - 2
 		if slot.Occupied {
 			c := colBladeOff
 			if slot.PowerOn {
 				c = colBladeOn
 			}
-			fillRect(gc, cx, cy, slotW-6, slotH-2, c)
+			fillRect(gc, cx, cy, slotW2, slotH2, c)
 			label := fmt.Sprintf("%d", slot.Num)
 			if slot.ServerName != "" {
 				if len(slot.ServerName) > 14 {
@@ -174,12 +176,27 @@ func drawBladeChassis(gc *draw2dimg.GraphicContext, x, y, maxW float64, ch paylo
 				}
 			}
 			drawText(gc, cx+3, cy+10, label, color.RGBA{15, 23, 42, 255}, 8)
+			pwr := "Выключен"
+			if slot.PowerOn {
+				pwr = "Включен"
+			}
+			addHit(cx, cy, slotW2, slotH2, slot.ServerName,
+				fmt.Sprintf("Слот %d • %s", slot.Num, ch.Name),
+				"Модель: "+slot.Model,
+				"Питание: "+pwr,
+			)
 		} else {
-			fillRect(gc, cx, cy, slotW-6, slotH-2, colEmpty)
-			strokeRect(gc, cx, cy, slotW-6, slotH-2, 0.8, colMuted)
+			fillRect(gc, cx, cy, slotW2, slotH2, colEmpty)
+			strokeRect(gc, cx, cy, slotW2, slotH2, 0.8, colMuted)
 			drawText(gc, cx+3, cy+10, fmt.Sprintf("%d", slot.Num), colMuted, 8)
+			addHit(cx, cy, slotW2, slotH2, fmt.Sprintf("Слот %d (пусто)", slot.Num),
+				ch.Name,
+				"Слот свободен",
+			)
 		}
 	}
+	addHit(x, y, maxW, 36, ch.Name, ch.Model, "S/N: "+ch.SerialNum,
+		fmt.Sprintf("Слотов: %d", ch.SlotCount))
 	return y + boxH
 }
 
@@ -188,8 +205,9 @@ func slotCol(i int) int {
 }
 
 func drawRackServerBar(gc *draw2dimg.GraphicContext, x, y, w float64, srv payload.RackServer) {
-	fillRect(gc, x, y, w, 24, color.RGBA{49, 46, 129, 255})
-	strokeRect(gc, x, y, w, 24, 1, colRackSrv)
+	const barH = 24.0
+	fillRect(gc, x, y, w, barH, color.RGBA{49, 46, 129, 255})
+	strokeRect(gc, x, y, w, barH, 1, colRackSrv)
 	label := srv.Name
 	if srv.Model != "" {
 		label += " • " + srv.Model
@@ -197,6 +215,16 @@ func drawRackServerBar(gc *draw2dimg.GraphicContext, x, y, w float64, srv payloa
 	drawText(gc, x+8, y+16, label, colText, 10)
 	uLabel := fmt.Sprintf("U%d×%dU", srv.StartUnit, srv.SizeUnit)
 	drawText(gc, x+w-72, y+16, uLabel, colMuted, 9)
+	pwr := "Выключен"
+	if srv.PowerOn {
+		pwr = "Включен"
+	}
+	addHit(x, y, w, barH, srv.Name,
+		"Модель: "+srv.Model,
+		"S/N: "+srv.SerialNum,
+		uLabel,
+		"Питание: "+pwr,
+	)
 }
 
 func drawStoragePanel(gc *draw2dimg.GraphicContext, x, y, w, h float64, items []payload.Storage) {
@@ -221,6 +249,20 @@ func drawStoragePanel(gc *draw2dimg.GraphicContext, x, y, w, h float64, items []
 		if st.UsedPercent > 0 {
 			drawUsageBar(gc, x+20, curY+58, w-56, st.UsedPercent)
 		}
+		pwr := "Выключена"
+		if st.PowerOn {
+			pwr = "Включена"
+		}
+		loc := st.Room
+		if st.RackNum != "" {
+			loc += ", стойка " + st.RackNum
+		}
+		addHit(x+12, curY, w-24, boxH, st.ShortName,
+			meta, disks, size,
+			fmt.Sprintf("Утилизация: %.1f%%", st.UsedPercent),
+			"Питание: "+pwr,
+			"Размещение: "+loc,
+		)
 		curY += boxH + 10
 	}
 	if len(items) == 0 {
