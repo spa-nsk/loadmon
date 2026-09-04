@@ -41,7 +41,7 @@ func CollectStorageMetrics() {
 		if shd == nil || shd.Id <= 0 {
 			continue
 		}
-		row := collectStorageMetricForSystem(shd, collectedAt)
+		row := safeCollectStorageMetricForSystem(shd, collectedAt)
 		if row != nil {
 			rows = append(rows, row)
 		}
@@ -52,6 +52,37 @@ func CollectStorageMetrics() {
 	if err := models.ReplaceStorageMetrics(context.Background(), rows); err != nil {
 		log.Println("cmdb.CollectStorageMetrics: ошибка записи storage_metric:", err)
 	}
+}
+
+// safeCollectStorageMetricForSystem оборачивает collectStorageMetricForSystem
+// в defer/recover (2026-09-03). Опрос СХД делает сетевые вызовы через
+// сторонние клиентские библиотеки (github.com/lovi-cloud/go-dorado-sdk для
+// Huawei, loadmon/lenovostorage для Lenovo, emcstorage для Unity), качество
+// обработки ошибок в которых мы не контролируем - при неожиданном/битом
+// HTTP-ответе они могут паниковать (например, nil pointer при разборе
+// пустого/HTML вместо JSON тела). CollectStorageMetrics вызывается из
+// metrics_grpc.go через `go cmdb.CollectStorageMetrics()` - непойманная
+// паника в горутине убивает ВЕСЬ процесс metrics_grpc целиком (Go не
+// изолирует панику одной горутины от остальных - это и давало эффект
+// "metrics_grpc падает по исключениям при опросе метрик СХД", тяжело
+// диагностируемый, так как трассировка уходит вглубь чужой библиотеки).
+// Теперь паника при опросе ОДНОЙ СХД лишь логируется (с Id/ShortName/
+// ApiType и текстом паники в PollError) и не мешает опросу остальных.
+func safeCollectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.Time) (row *models.StorageMetric) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("cmdb.CollectStorageMetrics: ПАНИКА при опросе СХД Id=%d ShortName=%s ApiType=%d: %v", shd.Id, shd.ShortName, shd.ApiType, r)
+			row = &models.StorageMetric{
+				StorageSystemsId: shd.Id,
+				CollectedAt:      collectedAt,
+				ShortName:        shd.ShortName,
+				UsedPercent:      shd.UsedPercent,
+				PollOK:           false,
+				PollError:        fmt.Sprintf("паника при опросе: %v", r),
+			}
+		}
+	}()
+	return collectStorageMetricForSystem(shd, collectedAt)
 }
 
 // collectStorageMetricForSystem собирает метрики ОДНОЙ СХД по её ApiType.
