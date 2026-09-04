@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"loadmon/lenovostorage"
+	"log"
 	models "loadmon/models"
 	"loadmon/storages"
 	datamap "loadmon/utilities"
@@ -27,10 +28,21 @@ import (
 //     сырая ёмкость СХД (StorageSystems.TotalSizeRAW/UsedPercent) из
 //     GetSystem - см. syncHuaweiSystemTotals. Это ограничение конкретного
 //     SDK, а не пропуск вендора.
-func SyncStorageHardwareForSystem(o orm.Ormer, shd *models.StorageSystems) error {
+func SyncStorageHardwareForSystem(o orm.Ormer, shd *models.StorageSystems) (err error) {
 	if shd == nil || shd.Id <= 0 || shd.Power != 1 {
 		return nil
 	}
+	// defer/recover (2026-09-03) - см. подробный комментарий у
+	// safeCollectStorageMetricForSystem в cmdb/collectstoragemetrics.go:
+	// та же категория риска (сторонние SDK, сетевые вызовы), тот же эффект
+	// без recover - паника в вызывающей горутине UpdateVolumeStorage убивает
+	// весь процесс metrics_grpc, а не только опрос одной СХД.
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("cmdb.SyncStorageHardwareForSystem: ПАНИКА при синхронизации hardware СХД Id=%d ShortName=%s ApiType=%d: %v", shd.Id, shd.ShortName, shd.ApiType, r)
+			err = fmt.Errorf("паника при синхронизации hardware: %v", r)
+		}
+	}()
 	switch shd.ApiType {
 	case 1:
 		return syncVNXHardware(o, shd)

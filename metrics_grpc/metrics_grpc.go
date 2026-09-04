@@ -275,7 +275,19 @@ func main() {
 				zabbix.Get10MinutesHistory()
 
 			case <-tickerStorageMetrics.C:
-				go cmdb.CollectStorageMetrics()
+				// Доп. страховка (2026-09-03) поверх recover() внутри самой
+				// cmdb.CollectStorageMetrics/cmdb.SyncStorageHardwareForSystem
+				// (см. комментарии там) - непойманная паника в этой горутине
+				// иначе убивает ВЕСЬ процесс metrics_grpc, а не только опрос
+				// одной СХД.
+				go func() {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Println("metrics_grpc: ПАНИКА в cmdb.CollectStorageMetrics:", r)
+						}
+					}()
+					cmdb.CollectStorageMetrics()
+				}()
 
 			case <-ticker.C:
 				go func() {
