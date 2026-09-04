@@ -23,6 +23,7 @@ require (
 	golang.org/x/net v0.57.0
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
+	loadmon/infracanvas/payload v0.0.0
 )
 
 require (
@@ -66,3 +67,5 @@ require (
 replace github.com/beego/beego/v2 => ./beego/v2
 
 replace github.com/spa-nsk/oneview2 => ./oneview2
+
+replace loadmon/infracanvas/payload => ./infracanvas/payload

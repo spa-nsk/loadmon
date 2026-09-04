@@ -374,3 +374,52 @@
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Canvas-диаграмма инфраструктуры (/admin/infrastructure)                */
+/* ---------------------------------------------------------------------- */
+
+.infra-canvas-shell {
+    background: var(--bs-body-bg);
+}
+
+.infra-canvas-viewport {
+    overflow: auto;
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    min-height: 520px;
+}
+
+#infra-canvas {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
+
+.infra-canvas-toolbar {
+    background: var(--bs-tertiary-bg);
+}
+
+.infra-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+}
+
+.infra-legend-item img {
+    width: 22px;
+    height: 22px;
+}
+
+.infra-slot-sample {
+    display: inline-block;
+    width: 18px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px dashed #94a3b8;
+}
+
+.infra-slot-sample.empty {
+    background: #334155;
+}
