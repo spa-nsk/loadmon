@@ -4,18 +4,26 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	models "loadmon/models"
+	"loadmon/lenovostorage"
 	"loadmon/storages"
+	datamap "loadmon/utilities"
 
 	"github.com/beego/beego/v2/client/orm"
+	"github.com/lovi-cloud/go-dorado-sdk/dorado"
 )
 
 // storageMetricRetention — срок хранения поминутных метрик СХД (storage_metric).
 const storageMetricRetention = time.Hour * 24 * 3
 
-// CollectStorageMetrics собирает поминутные метрики всех активных СХД.
+// CollectStorageMetrics собирает поминутные метрики всех активных СХД -
+// обязательно по КАЖДОЙ записи справочника storage_systems (Power==1),
+// вне зависимости от вендора/ApiType (см. collectStorageMetricForSystem -
+// явная ветка на каждый ApiType 1-5, без "default: ничего не делаем").
 func CollectStorageMetrics() {
 	o := orm.NewOrm()
 	var systems []*models.StorageSystems
@@ -46,46 +54,201 @@ func CollectStorageMetrics() {
 	}
 }
 
+// collectStorageMetricForSystem собирает метрики ОДНОЙ СХД по её ApiType.
+// Явная ветка на каждый известный ApiType (1-5) - по требованию
+// "обязательна обработка всех СХД разных вендоров, представленных в
+// справочнике СХД" (2026-09-03): раньше был switch{case 2: Unity;
+// default: ничего}, из-за чего VNX/Dorado/OceanStor/Lenovo молча
+// пропускались без единой пометки. Теперь для каждого вендора либо
+// собираются реальные данные там, где это позволяют доступные клиентские
+// библиотеки (Unity KPI, Huawei/Lenovo - % использования пулов), либо явно
+// фиксируется, что живого API метрик для этого вендора в проекте пока нет
+// (row.PollError, row.PollOK=true - это не ошибка опроса, а
+// задокументированное ограничение).
 func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.Time) *models.StorageMetric {
 	row := &models.StorageMetric{
 		StorageSystemsId: shd.Id,
 		CollectedAt:      collectedAt,
 		ShortName:        shd.ShortName,
-		UsedPercent:      shd.UsedPercent,
+		UsedPercent:      shd.UsedPercent, // дефолт - статическое значение из справочника, ниже может быть заменено живым
+		PollOK:           true,
 	}
 
 	switch shd.ApiType {
-	case 2: // Unity REST
+	case 1: // VNX CLI - в проекте нет клиента для VNX KPI/performance API,
+		// живых метрик не существует технически (см. storages/vnxcli.go -
+		// только листинг LUN/дисков/HBA, без perf-эндпоинтов). UsedPercent
+		// остаётся статическим значением из справочника СХД (row.UsedPercent
+		// выше) - это не сбой опроса, поэтому PollOK=true, PollError пуст.
+
+	case 2: // Unity REST - живые KPI, см. storages/unity_hardware.go.
+		var failed []string
 		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.sp.*.utilization"); ok {
 			row.CPUUtilPercent = v
+		} else {
+			failed = append(failed, "CPUUtilPercent")
 		}
 		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.pool.*.percentUsed"); ok {
 			row.UsedPercent = v
+		} else {
+			failed = append(failed, "UsedPercent")
 		}
 		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.ioRate.read"); ok {
 			row.ReadIOPS = v
+		} else {
+			failed = append(failed, "ReadIOPS")
 		}
 		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.ioRate.write"); ok {
 			row.WriteIOPS = v
+		} else {
+			failed = append(failed, "WriteIOPS")
 		}
 		row.TotalIOPS = row.ReadIOPS + row.WriteIOPS
 		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.throughput.read"); ok {
 			row.ReadMBps = v / (1024 * 1024)
+		} else {
+			failed = append(failed, "ReadMBps")
 		}
 		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.throughput.write"); ok {
 			row.WriteMBps = v / (1024 * 1024)
+		} else {
+			failed = append(failed, "WriteMBps")
 		}
 		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.sp.*.responseTime.read"); ok {
 			row.ReadLatencyMs = v
+		} else {
+			failed = append(failed, "ReadLatencyMs")
 		}
 		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.sp.*.responseTime.write"); ok {
 			row.WriteLatencyMs = v
+		} else {
+			failed = append(failed, "WriteLatencyMs")
 		}
+		if len(failed) > 0 {
+			row.PollOK = false
+			row.PollError = "не удалось получить: " + strings.Join(failed, ", ")
+			log.Println("cmdb.collectStorageMetricForSystem: частичный сбой опроса KPI Unity", shd.ShortName, shd.IpAddress, "-", row.PollError)
+		}
+
+	case 3, 4: // Huawei Dorado / OceanStor REST.
+		if v, err := collectHuaweiUsedPercent(shd); err == nil {
+			row.UsedPercent = v
+		} else {
+			row.PollOK = false
+			row.PollError = "UsedPercent (пулы): " + err.Error()
+			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса пулов Huawei", shd.ShortName, shd.IpAddress, "-", err)
+		}
+		// IOPS/throughput/latency/CPU - недоступны: используемый SDK
+		// (github.com/lovi-cloud/go-dorado-sdk) не содержит performance/KPI
+		// эндпоинтов, только LUN/host/pool/system - см. ревью в этой сессии.
+
+	case 5: // Lenovo (SANtricity REST).
+		if v, err := collectLenovoUsedPercent(shd); err == nil {
+			row.UsedPercent = v
+		} else {
+			row.PollOK = false
+			row.PollError = "UsedPercent (пулы): " + err.Error()
+			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса пулов Lenovo", shd.ShortName, shd.IpAddress, "-", err)
+		}
+		// IOPS/throughput/latency/CPU - недоступны: пакет loadmon/lenovostorage
+		// не реализует statistics/analysed-performance эндпоинты SANtricity API.
+
 	default:
-		// VNX/Huawei/Lenovo — пока только UsedPercent из справочника СХД.
+		row.PollOK = false
+		row.PollError = fmt.Sprintf("неизвестный ApiType=%d", shd.ApiType)
+		log.Println("cmdb.collectStorageMetricForSystem: неизвестный ApiType у СХД", shd.ShortName, shd.ApiType)
 	}
 
 	return row
+}
+
+// collectHuaweiUsedPercent возвращает средний % использования пулов СХД
+// Huawei Dorado/OceanStor (взвешенно по ёмкости пула, если она известна,
+// иначе простое среднее) через client.LocalDevice.GetStoragePools -
+// единственный доступный в подключённом SDK источник живой утилизации для
+// этого вендора (без per-LUN/per-контроллер KPI).
+func collectHuaweiUsedPercent(shd *models.StorageSystems) (float64, error) {
+	key := "spaview"
+	keypass := datamap.GetKeyData(key)
+	remoteIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+	localIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+
+	client, err := dorado.NewClient(localIps, remoteIps, key, keypass, "", nil)
+	if err != nil {
+		return 0, fmt.Errorf("подключение: %w", err)
+	}
+
+	pools, err := client.LocalDevice.GetStoragePools(context.Background(), nil)
+	if err != nil {
+		return 0, fmt.Errorf("список пулов: %w", err)
+	}
+	if len(pools) == 0 {
+		return 0, fmt.Errorf("СХД не вернула ни одного пула")
+	}
+
+	var usedSum, totalSum float64
+	var haveCapacity bool
+	var simpleSum float64
+	var simpleCount int
+	for _, p := range pools {
+		pctStr := strings.TrimSpace(p.USERCONSUMEDCAPACITYPERCENTAGE)
+		pct, perr := strconv.ParseFloat(pctStr, 64)
+		if perr != nil {
+			continue
+		}
+		simpleSum += pct
+		simpleCount++
+
+		totalStr := strings.TrimSpace(p.USERTOTALCAPACITY)
+		total, terr := strconv.ParseFloat(totalStr, 64)
+		if terr == nil && total > 0 {
+			usedSum += pct * total
+			totalSum += total
+			haveCapacity = true
+		}
+	}
+	if haveCapacity && totalSum > 0 {
+		return usedSum / totalSum, nil
+	}
+	if simpleCount > 0 {
+		return simpleSum / float64(simpleCount), nil
+	}
+	return 0, fmt.Errorf("не удалось разобрать процент использования ни одного пула")
+}
+
+// collectLenovoUsedPercent возвращает % использования СХД Lenovo как
+// UsedSpace/TotalRaidedSpace, просуммированные по всем storage-pools
+// (session.GetStoragePools - поля в байтах строками, см.
+// lenovostorage/services.go:StoragePool).
+func collectLenovoUsedPercent(shd *models.StorageSystems) (float64, error) {
+	key := "monitor"
+	session, err := lenovostorage.NewSession(shd.IpAddress, true, key, datamap.GetKeyData(key))
+	if err != nil {
+		return 0, fmt.Errorf("авторизация: %w", err)
+	}
+
+	pools, err := session.GetStoragePools()
+	if err != nil {
+		return 0, fmt.Errorf("список пулов: %w", err)
+	}
+	if len(pools) == 0 {
+		return 0, fmt.Errorf("СХД не вернула ни одного пула")
+	}
+
+	var usedSum, totalSum float64
+	for _, p := range pools {
+		used, uerr := strconv.ParseFloat(strings.TrimSpace(p.UsedSpace), 64)
+		total, terr := strconv.ParseFloat(strings.TrimSpace(p.TotalRaidedSpace), 64)
+		if uerr != nil || terr != nil || total <= 0 {
+			continue
+		}
+		usedSum += used
+		totalSum += total
+	}
+	if totalSum <= 0 {
+		return 0, fmt.Errorf("не удалось разобрать ёмкость ни одного пула")
+	}
+	return usedSum / totalSum * 100, nil
 }
 
 // ClearOldStorageMetric удаляет поминутные метрики СХД старше storageMetricRetention.

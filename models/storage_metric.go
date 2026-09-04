@@ -24,6 +24,20 @@ type StorageMetric struct {
 	WriteMBps      float64 `form:"WriteMBps" orm:"digits(16);decimals(6)"`
 	ReadLatencyMs  float64 `form:"ReadLatencyMs" orm:"digits(16);decimals(6)"`
 	WriteLatencyMs float64 `form:"WriteLatencyMs" orm:"digits(16);decimals(6)"`
+
+	// PollOK/PollError (2026-09-03) - отличают "реальный ноль" от "опрос
+	// метрики не удался": раньше при сбое отдельного KPI-запроса
+	// (cmdb.collectStorageMetricForSystem) поле просто оставалось нулевым
+	// без единой пометки - min/avg в суточной агрегации
+	// (cmdb.SaveStorageMetricRecord) искажались фантомными нулями от
+	// сбойных опросов, неотличимыми от настоящего нуля IOPS/латентности.
+	// PollOK=false - хотя бы один запрос метрики к СХД в этом цикле не
+	// удался (см. PollError - через ";" перечислены названия несобранных
+	// метрик/причина). Пустой PollError при PollOK=true для источников без
+	// живого API метрик (VNX CLI) означает "опрос не выполнялся, доступна
+	// только статическая UsedPercent из справочника СХД" - это НЕ ошибка.
+	PollOK    bool   `form:"PollOK"`
+	PollError string `form:"PollError" orm:"size(512)"`
 }
 
 func (m *StorageMetric) TableName() string { return "storage_metric" }

@@ -1,18 +1,32 @@
 package cmdb
 
 import (
+	"context"
 	"fmt"
-	"loadmon/storages"
+	"loadmon/lenovostorage"
 	models "loadmon/models"
+	"loadmon/storages"
+	datamap "loadmon/utilities"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	"github.com/lovi-cloud/go-dorado-sdk/dorado"
 )
 
 // SyncStorageHardwareForSystem синхронизирует полки и диски одной СХД после
-// успешного опроса томов (вызывается из UpdateVolumeStorage).
+// успешного опроса томов (вызывается из UpdateVolumeStorage) - обязательно
+// по КАЖДОМУ вендору, представленному в справочнике СХД (2026-09-03):
+//   - VNX (1) и Unity (2) - полная инвентаризация полок и дисков.
+//   - Lenovo (5) - полная инвентаризация полок/дисков через GetGraph
+//     (Tray/Drive), см. syncLenovoHardware.
+//   - Dorado/OceanStor (3, 4) - используемый SDK НЕ даёт листинг физических
+//     дисков/полок (нет соответствующих методов - см. ревью в этой сессии),
+//     поэтому вместо полного hardware-инвентаря обновляется только сводная
+//     сырая ёмкость СХД (StorageSystems.TotalSizeRAW/UsedPercent) из
+//     GetSystem - см. syncHuaweiSystemTotals. Это ограничение конкретного
+//     SDK, а не пропуск вендора.
 func SyncStorageHardwareForSystem(o orm.Ormer, shd *models.StorageSystems) error {
 	if shd == nil || shd.Id <= 0 || shd.Power != 1 {
 		return nil
@@ -22,6 +36,10 @@ func SyncStorageHardwareForSystem(o orm.Ormer, shd *models.StorageSystems) error
 		return syncVNXHardware(o, shd)
 	case 2:
 		return syncUnityHardware(o, shd)
+	case 3, 4:
+		return syncHuaweiSystemTotals(o, shd)
+	case 5:
+		return syncLenovoHardware(o, shd)
 	default:
 		return nil
 	}
@@ -91,6 +109,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		return err
 	}
 	inUse := 0
+	var totalCapacityGb float64
 	for _, d := range disks {
 		key := "disk:" + firstNonEmptyStr(d.WWN, d.EmcSerialNumber, d.ID)
 		status := models.StorageHWStatusActive
@@ -100,6 +119,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 			inUse++
 		}
 		capGb := float64(d.Size) / (1024 * 1024 * 1024)
+		totalCapacityGb += capGb
 		id, err := upsertStorageDisk(o, shd.Id, models.StorageDisk{
 			ExternalKey:      key,
 			SlotNumber:       int(d.SlotNumber),
@@ -121,7 +141,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 
 	deactivateAbsentStorageEnclosures(o, shd.Id, touchedEnc)
 	deactivateAbsentStorageDisks(o, shd.Id, touchedDisk)
-	updateStorageSystemsDiskStats(o, shd, len(disks), inUse)
+	updateStorageSystemsDiskStats(o, shd, len(disks), inUse, totalCapacityGb)
 	return nil
 }
 
@@ -134,6 +154,7 @@ func syncVNXHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	touchedEnc := make([]int64, 0)
 	touchedDisk := make([]int64, 0)
 	inUse := 0
+	var totalCapacityGb float64
 
 	for _, d := range disks {
 		if d == nil {
@@ -172,6 +193,7 @@ func syncVNXHardware(o orm.Ormer, shd *models.StorageSystems) error {
 			status = 2
 		}
 		capGb := float64(d.Capacity) / (1024 * 1024 * 1024)
+		totalCapacityGb += capGb
 		id, err := upsertStorageDisk(o, shd.Id, models.StorageDisk{
 			StorageEnclosureId: encId,
 			ExternalKey:        key,
@@ -196,7 +218,7 @@ func syncVNXHardware(o orm.Ormer, shd *models.StorageSystems) error {
 
 	deactivateAbsentStorageEnclosures(o, shd.Id, touchedEnc)
 	deactivateAbsentStorageDisks(o, shd.Id, touchedDisk)
-	updateStorageSystemsDiskStats(o, shd, len(disks), inUse)
+	updateStorageSystemsDiskStats(o, shd, len(disks), inUse, totalCapacityGb)
 	return nil
 }
 
@@ -276,13 +298,151 @@ func deactivateAbsentStorageDisks(o orm.Ormer, storageID int64, touched []int64)
 	}
 }
 
-func updateStorageSystemsDiskStats(o orm.Ormer, shd *models.StorageSystems, total, inUse int) {
+// updateStorageSystemsDiskStats записывает в запись справочника СХД
+// (models.StorageSystems) фактические данные, собранные при синхронизации
+// физических дисков: количество дисков (Size), число задействованных
+// (Used) и, по прямому запросу пользователя (2026-09-03), суммарную СЫРУЮ
+// ёмкость всех собранных дисков (TotalSizeRAW, Гб) - раньше это поле
+// заполнялось только вручную через /sprsrv/storagesystemsedit, теперь при
+// успешной синхронизации дисков (VNX/Unity/Lenovo) автоматически
+// проставляется суммой CapacityGb по факту опроса СХД - "установка данных
+// в справочник по итоговому сырому месту".
+func updateStorageSystemsDiskStats(o orm.Ormer, shd *models.StorageSystems, total, inUse int, totalCapacityGb float64) {
 	if total <= 0 {
 		return
 	}
 	shd.Size = total
 	shd.Used = inUse
-	_, _ = o.Update(shd, "Size", "Used")
+	shd.TotalSizeRAW = totalCapacityGb
+	_, _ = o.Update(shd, "Size", "Used", "TotalSizeRAW")
+}
+
+// syncHuaweiSystemTotals обновляет сводную сырую ёмкость и % использования
+// СХД Huawei Dorado/OceanStor из GetSystem() - единственное, что доступно
+// для этого вендора в подключённом SDK без per-диск/per-полка листинга (см.
+// комментарий у SyncStorageHardwareForSystem). TOTALCAPACITY у Huawei API
+// приходит в Мб (см. GetDoradoLun/GetHuaweyVolume - там же встречается тот
+// же паттерн перевода capacity/sectorsize в Гб), поэтому переводится в Гб
+// делением на 1024.
+func syncHuaweiSystemTotals(o orm.Ormer, shd *models.StorageSystems) error {
+	key := "spaview"
+	keypass := datamap.GetKeyData(key)
+	remoteIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+	localIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+
+	client, err := dorado.NewClient(localIps, remoteIps, key, keypass, "", nil)
+	if err != nil {
+		return err
+	}
+
+	sys, err := client.LocalDevice.GetSystem(context.Background())
+	if err != nil {
+		return err
+	}
+	if sys == nil {
+		return fmt.Errorf("СХД %s не вернула данные GetSystem", shd.ShortName)
+	}
+
+	totalMb, tErr := strconv.ParseFloat(strings.TrimSpace(sys.TOTALCAPACITY), 64)
+	usedMb, uErr := strconv.ParseFloat(strings.TrimSpace(sys.USEDCAPACITY), 64)
+	if tErr != nil {
+		return fmt.Errorf("не удалось разобрать TOTALCAPACITY=%q: %w", sys.TOTALCAPACITY, tErr)
+	}
+
+	shd.TotalSizeRAW = totalMb / 1024
+	if uErr == nil && totalMb > 0 {
+		shd.UsedPercent = usedMb / totalMb * 100
+		_, err = o.Update(shd, "TotalSizeRAW", "UsedPercent")
+	} else {
+		_, err = o.Update(shd, "TotalSizeRAW")
+	}
+	return err
+}
+
+// syncLenovoHardware синхронизирует полки (Graph.Tray) и диски
+// (Graph.Drive) СХД Lenovo одним вызовом session.GetGraph() -
+// единственным доступным в пакете loadmon/lenovostorage источником
+// per-диск/per-полка данных (нет отдельных GetDrives()/GetTrays()). Тот же
+// mark-and-sweep паттерн (upsert по ExternalKey + деактивация
+// нетронутых), что и syncVNXHardware/syncUnityHardware.
+func syncLenovoHardware(o orm.Ormer, shd *models.StorageSystems) error {
+	key := "monitor"
+	session, err := lenovostorage.NewSession(shd.IpAddress, true, key, datamap.GetKeyData(key))
+	if err != nil {
+		return err
+	}
+
+	graph, err := session.GetGraph()
+	if err != nil {
+		return err
+	}
+
+	encByRef := map[string]int64{}
+	touchedEnc := make([]int64, 0, len(graph.Tray))
+	for _, tray := range graph.Tray {
+		key := "lenovo:tray:" + tray.TrayRef
+		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
+			EnclosureType:    models.StorageEnclosureTypeData,
+			ExternalKey:      key,
+			Name:             firstNonEmptyStr(tray.PhysicalLocation.Label, fmt.Sprintf("Tray %d", tray.TrayId)),
+			Vendor:           tray.VendorName,
+			Model:            tray.PartNumber,
+			SerialNum:        tray.SerialNumber,
+			SlotNumber:       tray.PhysicalLocation.Slot,
+			HealthStatus:     0,
+			Status:           models.StorageHWStatusActive,
+			SourceUpdateType: models.StorageSourceUpdateStorageAPI,
+			Time_Mfy:         time.Now().Local(),
+		})
+		if err != nil {
+			return err
+		}
+		encByRef[tray.TrayRef] = id
+		touchedEnc = append(touchedEnc, id)
+	}
+
+	touchedDisk := make([]int64, 0, len(graph.Drive))
+	inUse := 0
+	var totalCapacityGb float64
+	for _, d := range graph.Drive {
+		key := "lenovo:drive:" + firstNonEmptyStr(d.WorldWideName, d.SerialNumber, d.DriveRef)
+		status := models.StorageHWStatusActive
+		if !d.Available && !d.HotSpare {
+			// диск занят в volume group - "в использовании"
+			inUse++
+		} else {
+			status = 2 // spare/свободен, тот же код, что и у VNX/Unity
+		}
+		capGb, cErr := strconv.ParseFloat(strings.TrimSpace(d.RawCapacity), 64)
+		if cErr == nil {
+			capGb = capGb / (1024 * 1024 * 1024)
+		} else {
+			capGb = 0
+		}
+		totalCapacityGb += capGb
+		id, err := upsertStorageDisk(o, shd.Id, models.StorageDisk{
+			StorageEnclosureId: encByRef[d.PhysicalLocation.TrayRef],
+			ExternalKey:        key,
+			SlotNumber:         d.PhysicalLocation.Slot,
+			Vendor:             d.Manufacturer,
+			Model:              d.ProductID,
+			DiskType:           d.InterfaceType.DriveType,
+			SerialNum:          d.SerialNumber,
+			CapacityGb:         capGb,
+			Status:             status,
+			SourceUpdateType:   models.StorageSourceUpdateStorageAPI,
+			Time_Mfy:           time.Now().Local(),
+		})
+		if err != nil {
+			return err
+		}
+		touchedDisk = append(touchedDisk, id)
+	}
+
+	deactivateAbsentStorageEnclosures(o, shd.Id, touchedEnc)
+	deactivateAbsentStorageDisks(o, shd.Id, touchedDisk)
+	updateStorageSystemsDiskStats(o, shd, len(graph.Drive), inUse, totalCapacityGb)
+	return nil
 }
 
 func unityDiskTechnologyLabel(code int) string {
