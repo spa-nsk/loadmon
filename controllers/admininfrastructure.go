@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	models "loadmon/models"
@@ -25,19 +26,33 @@ func (this *MainController) AdminInfrastructure() {
 	flash := beego.NewFlash()
 	RegisterRequest(this, LogTypeAdminAction)
 
+	// InfraJSON передаётся в шаблон в base64 (см. infrastructure.tpl -
+	// значение кладётся в data-атрибут, а не в текст <script>) и
+	// раскодируется уже в JS/WASM (infracanvas/main.go:loadData) через
+	// atob()+JSON.parse. Раньше сырой JSON вставлялся прямо в текст
+	// <script type="application/json">{{.InfraJSON}}</script> - Beego
+	// рендерит шаблоны через html/template, который экранирует кавычки в
+	// HTML-сущности (&#34; и т.п.); `<script>` в HTML5 - RAWTEXT-элемент, то
+	// есть браузер НЕ декодирует HTML-сущности в его содержимом, поэтому
+	// WASM получал в textContent заведомо битый JSON (буквально "&#34;"
+	// вместо кавычек) и json.Unmarshal ничего не парсил (ошибка к тому же
+	// была молча проигнорирована - `_ = json.Unmarshal(...)`, из-за чего
+	// страница выглядела "рабочей", но без единой карточки данных). Base64
+	// в атрибуте полностью обходит эту проблему - алфавит base64 не требует
+	// HTML-экранирования.
 	data, err := buildInfrastructureCanvasData()
 	if err != nil {
 		log.Printf("AdminInfrastructure: build data: %v", err)
 		flash.Error("Не удалось загрузить данные инфраструктуры: " + err.Error())
-		this.Data["InfraJSON"] = "{}"
+		this.Data["InfraJSON"] = base64.StdEncoding.EncodeToString([]byte("{}"))
 	} else {
 		raw, err := json.Marshal(data)
 		if err != nil {
 			log.Printf("AdminInfrastructure: marshal: %v", err)
 			flash.Error("Ошибка сериализации данных инфраструктуры")
-			this.Data["InfraJSON"] = "{}"
+			this.Data["InfraJSON"] = base64.StdEncoding.EncodeToString([]byte("{}"))
 		} else {
-			this.Data["InfraJSON"] = string(raw)
+			this.Data["InfraJSON"] = base64.StdEncoding.EncodeToString(raw)
 		}
 	}
 

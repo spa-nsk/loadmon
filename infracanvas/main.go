@@ -56,17 +56,35 @@ func applyCanvasSize(canvasEl js.Value) {
 	cvs.Set(canvasEl, w, h)
 }
 
+// loadData читает данные инфраструктуры из data-атрибута
+// data-payload-b64 элемента #infra-canvas-data (см.
+// server_web_new/views/admin/infrastructure.tpl) - значение приходит в
+// base64, а не сырым JSON текстом внутри <script>, потому что html/template
+// на Go-стороне (Beego) экранирует спецсимволы для HTML-контекста, а
+// <script> - RAWTEXT-элемент, в котором браузер эти HTML-сущности не
+// декодирует обратно; из-за этого раньше сюда приходил битый JSON (см.
+// controllers/admininfrastructure.go). Ошибки декодирования/парсинга
+// логируются в консоль браузера через console.error - раньше ошибка
+// json.Unmarshal отбрасывалась молча (`_ = json.Unmarshal(...)`), из-за
+// чего страница выглядела "рабочей", но без данных, без единой подсказки
+// в консоли.
 func loadData() {
 	doc := js.Global().Get("document")
 	el := doc.Call("getElementById", "infra-canvas-data")
 	if el.IsNull() || el.IsUndefined() {
 		return
 	}
-	raw := el.Get("textContent").String()
+	b64 := el.Call("getAttribute", "data-payload-b64").String()
+	if b64 == "" {
+		return
+	}
+	raw := js.Global().Call("atob", b64).String()
 	if raw == "" {
 		return
 	}
-	_ = json.Unmarshal([]byte(raw), &state.data)
+	if err := json.Unmarshal([]byte(raw), &state.data); err != nil {
+		js.Global().Get("console").Call("error", fmt.Sprintf("infracanvas: ошибка разбора данных: %v", err))
+	}
 }
 
 func registerPageBridge() {

@@ -423,6 +423,9 @@ func UpdateVolumeStorage() {
 			logStorageAvailability(o, shd, pollErr) // история опроса - см. cmdb/storageeventlog.go
 			if pollErr == nil {
 				deactivateAbsentStorageVolumes(o, shd.Id, touchedIds)
+				if hwErr := SyncStorageHardwareForSystem(o, shd); hwErr != nil {
+					fmt.Println("Ошибка синхронизации hardware СХД Id=", shd.Id, hwErr)
+				}
 			}
 		}
 	}

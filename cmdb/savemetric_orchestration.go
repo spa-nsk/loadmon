@@ -89,6 +89,7 @@ func ClearOldMetric() {
 		}
 	}
 	fmt.Println("Удалено :", count, "записей старее", serverMetricRetention.String(), "из таблицы server_metric")
+	ClearOldStorageMetric()
 	count = int64(0)
 	for {
 		res, err := o.Raw("DELETE FROM cluster_perf WHERE id IN (SELECT id FROM cluster_perf WHERE start <=? LIMIT 1000)", currentTime.Add(-time.Hour*24)).Exec()
@@ -167,6 +168,9 @@ func SaveMetricData() {
 	// хостам группы Zabbix сразу), поэтому вызывается один раз за цикл, а
 	// не внутри цикла по clList. См. cmdb/saveservermetricrecord.go.
 	SaveServerMetricRecord(currentTime)
+
+	// Суточная агрегация поминутных метрик СХД (storage_metric → storage_metric_record).
+	SaveStorageMetricRecord(currentTime)
 
 	//  for !atomic.CompareAndSwapInt32(&flDelOldVMMetrics, 1, 0) {
 	//      runtime.Gosched()
