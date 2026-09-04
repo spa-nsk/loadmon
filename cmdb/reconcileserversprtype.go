@@ -226,6 +226,25 @@ func applyExpectedServerSprState(
 		fields = append(fields, "PowerState")
 	}
 
+	// (2026-09-04) Раньше при обнаружении сервера (host/VM/OneView найден -
+	// иначе выполнение сюда не доходит, см. markServerSprAbsent в вызывающей
+	// reconcileServerSprRecord) обновлялся только PowerState - Stat/Active
+	// оставались как есть. Из-за этого запись, ранее помеченная
+	// отсутствующей (Stat=0/Active=2 - см. markServerSprAbsent), при
+	// повторном обнаружении сервера так и оставалась со Stat=0/Active=2,
+	// хотя PowerState уже корректно менялся на 1/2 - получалась
+	// недопустимая комбинация (PowerState=1 при Stat=0), которой не должно
+	// быть по правилу: найден+включен -> Stat=1/PowerState=1/Active=1;
+	// найден+выключен -> Stat=1/PowerState=2/Active∈{0,1,2} (не форсируем).
+	if srv.Stat != 1 {
+		srv.Stat = 1
+		fields = append(fields, "Stat")
+	}
+	if srv.PowerState == 1 && srv.Active != 1 {
+		srv.Active = 1
+		fields = append(fields, "Active")
+	}
+
 	return uniqueFields(fields)
 }
 

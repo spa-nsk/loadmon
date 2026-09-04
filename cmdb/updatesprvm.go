@@ -2,7 +2,6 @@ package cmdb
 
 import (
 	"fmt"
-	"loadmon/grpcclient"
 	models "loadmon/models"
 	_ "loadmon/routers"
 	vsphere "loadmon/vspheremetrics"
@@ -167,74 +166,6 @@ func checkAndCorrectVM(records []*models.ServerSprRecords, vm vsphere.VMPoint) i
 		}
 	}
 	return records[idx].Id
-}
-
-// UpdateSprVMv2 обновляет справочник виртуальных машин (vm_spr_record) и связанные с ним
-// записи серверов, запрашивая актуальное состояние ВМ через grpcclient (IP-адрес, сеть,
-// состояние включения).
-func UpdateSprVMv2() {
-	fmt.Println("Обновление справочника виртуальных машин")
-	//LockBase()
-	// UnlockBase()
-
-	Infra := vsphere.GetGlobalVMInfrastructure()
-	if Infra == nil {
-		log.Println("Ошибка сохранения данных по виртуальным машинам: Инфраструктура не инициализирована")
-		return
-	}
-	//currentTime := time.Now().In(LocalTimezone)
-	o := orm.NewOrm()
-	//o.Using("default")
-	var vmRecs []*models.VMSprRecord
-	qs := o.QueryTable("vm_spr_record")
-	//  qs = qs.Filter("Vm_PowerState", true)
-	vmCount, vmErr := qs.All(&vmRecs)
-	_ = vmCount
-	_ = vmErr
-	for _, rec := range vmRecs {
-		key := fmt.Sprintf("%s/%s/%s/%s", rec.Vcenter, rec.Datacenter, rec.Cluster, rec.Vm_Name)
-		//vm, ok := Infra.VMMapList.Get(key)
-		vm, err2 := grpcclient.GetVM(key)
-
-		data := models.VMSprRecord{Id: rec.Id}
-		err := o.Read(&data, "Id")
-
-		srv := models.ServerSprRecords{Id: data.ServerId}
-		err3 := o.Read(&srv, "Id")
-
-		//if ok {
-		if err2 == nil {
-			if err == nil {
-				data.Vm_IpAddress = vm.IPAddress
-				data.Vm_Network = vm.Network
-				data.Vm_PowerState = vm.PowerState
-				o.Update(&data)
-				fmt.Println("Обновлены данные:", rec.Vcenter, rec.Datacenter, rec.Cluster, rec.Vm_Name, data.Vm_Network)
-				if err3 == nil {
-					srv.IPAddress = vm.IPAddress
-					srv.Network = vm.Network
-					if vm.PowerState {
-						srv.PowerState = 1
-						srv.Active = 1
-					} else {
-						srv.PowerState = 2
-						srv.Active = 2
-					}
-					srv.SourceUpdateType = models.SourceUpdateVMware
-					o.Update(&srv)
-				}
-			}
-		} else {
-			data.Vm_PowerState = false
-			o.Update(&data)
-			if err3 == nil {
-				srv.PowerState = 2
-				srv.Active = 2
-				srv.SourceUpdateType = models.SourceUpdateVMware
-				o.Update(&srv)
-			}
-		}
-	}
 }
 
 // UpdateSprVM обновляет справочник виртуальных машин (vm_spr_record) и связанные с ним

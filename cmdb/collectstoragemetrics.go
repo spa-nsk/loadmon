@@ -32,6 +32,15 @@ func CollectStorageMetrics() {
 		return
 	}
 	if len(systems) == 0 {
+		// (2026-09-04) Раньше здесь был молчаливый return - если ни у одной
+		// СХД в справочнике не выставлен Power=1 (поле по умолчанию 0,
+		// проставляется только вручную на форме редактирования, см.
+		// controllers/sprstoragesystems.go), CollectStorageMetrics каждую
+		// минуту ничего не находил и тихо выходил - ни одной ошибки в
+		// логе, ни одной записи в storage_metric НИКОГДА, что выглядело
+		// неотличимо от "опрос не работает". Теперь при пустой выборке
+		// это явно логируется.
+		log.Println("cmdb.CollectStorageMetrics: нет ни одной СХД с Power=1 в storage_systems - опрос метрик пропущен")
 		return
 	}
 

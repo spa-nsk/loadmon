@@ -232,13 +232,26 @@ func ClearClusterMetricData(cluster string) {
 
 	mode := 0
 
-	if now.Hour() > 23 {
-		mode = 1
+	// ИСПРАВЛЕНО 2026-09-04: было `now.Hour() > 23`, что для Go time.Time
+	// НИКОГДА не выполняется (Hour() всегда 0-23) - та же тавтология, что
+	// уже была исправлена 2026-09-01 в ClearMetricData (см.
+	// kontext/05-conventions-and-gotchas.md). ClearClusterMetricData
+	// вызывается прямо из cmdb.SaveMetricData (см. вызов
+	// ClearClusterMetricData(cl.Name) выше в этом файле), а SaveMetricData
+	// по расписанию всегда запускается в 23:59:59 (см. FirstTime в
+	// metrics_grpc/metrics_grpc.go) - то есть now.Hour() в момент вызова
+	// всегда 23, и функция систематически чистила cluster_perf ЗА ВЧЕРА
+	// вместо ЗА СЕГОДНЯ для кластера, у которого не оказалось данных на
+	// этом прогоне. Условие приведено к тому же виду, что и в
+	// ClearMetricData: "недавно наступила полночь" (now.Hour() < 4) -
+	// чистим вчера, иначе - сегодня.
+	if now.Hour() < 4 {
+		mode = 2
+		now = now.AddDate(0, 0, -1)
 		firstTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 		endTime = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 59, time.Local)
 	} else {
-		mode = 2
-		now = now.AddDate(0, 0, -1)
+		mode = 1
 		firstTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 		endTime = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 59, time.Local)
 	}
@@ -251,36 +264,6 @@ func ClearClusterMetricData(cluster string) {
 	if err != nil || s.State != 0 {
 		fmt.Print("Очистка метрик завершилась с ошибкой:", err, s.Details, "\n")
 	}
-}
-
-// инициализация и перезагрузка метрик
-func InitPerfMetricAndReloadConfig() {
-	//приостановить сбор метрик
-	//перезагрузить конфигурацию
-	//возобновить сбор метрик
-	//удалить метрики за прошлые сутки
-	//произвести необходимые обновления данных
-	fmtdate := "02.01.2006 15:04:05.000"
-	now := time.Now().Local()
-
-	if now.Hour() > 23 {
-		firstTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
-		endTime := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 59, time.Local)
-		fmt.Print("(1) Очистка метрик с ", firstTime.Format(fmtdate), " по ", endTime.Format(fmtdate), "\n")
-		grpcclient.ClearMetric("all", firstTime, endTime)
-	} else {
-		now = now.AddDate(0, 0, -1)
-		firstTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
-		endTime := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 59, time.Local)
-		fmt.Print("(2) Очистка метрик с ", firstTime.Format(fmtdate), " по ", endTime.Format(fmtdate), "\n")
-		grpcclient.ClearMetric("all", firstTime, endTime)
-	}
-
-	/*
-		firstTime := time.Date(now.Year(), now.Month(), now.Day(), 9, 7, 0, 0, time.Local)
-		endTime := time.Date(now.Year(), now.Month(), now.Day(), 10, 11, 0, 0, time.Local)
-		grpcclient.ClearMetric(firstTime, endTime)
-	*/
 }
 
 // InitPerfMetricPeriodAndReloadConfig очищает метрики производительности по всем кластерам

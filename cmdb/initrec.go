@@ -68,6 +68,12 @@ func CopyVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 
 	if from.PowerState {
 		to.PowerState = 1
+		// (2026-09-04) ВМ реально найдена в vSphere (иначе эта функция не
+		// вызывалась бы) и включена - форсируем Active=1, иначе после
+		// возврата из "выведена из эксплуатации" (Active=2) могла остаться
+		// недопустимая комбинация Stat=1/PowerState=1/Active=2. Для
+		// выключенной ВМ Active намеренно не трогаем (допустимы 0/1/2).
+		to.Active = 1
 	} else {
 		to.PowerState = 2
 	}
@@ -142,8 +148,20 @@ func UpdateVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 	to.TagDescription = from.TagDescription
 
 	to.Type = 1
+	// (2026-09-04) Раньше Stat здесь не проставлялся вовсе - вызывающий код
+	// (cmdb/updatesprvm.go:UpdatePowerStateForServers-путь через
+	// UpdateVmToSprSrv) применяет эту функцию и к УЖЕ СУЩЕСТВУЮЩИМ записям,
+	// в т.ч. ранее помеченным отсутствующими (Stat=0/Active=2). Функция
+	// вызывается только когда ВМ реально найдена в vSphere (см.
+	// updatesprvm.go), поэтому Stat=1 корректно проставлять безусловно -
+	// иначе повторно обнаруженная ВМ так и оставалась со старым Stat=0,
+	// хотя PowerState ниже уже обновлялся на актуальное значение.
+	to.Stat = 1
 	if from.PowerState {
 		to.PowerState = 1
+		// См. аналогичный комментарий в CopyVmToSprSrv - форсируем Active=1
+		// при найденной и включённой ВМ, иначе Active не трогаем.
+		to.Active = 1
 	} else {
 		to.PowerState = 2
 	}
@@ -217,6 +235,16 @@ func CopyHostToSprSrv(from vsphere.HostInfo, to *models.ServerSprRecords) {
 	to.Type = 2
 	if from.PowerState /*|| from.InMaintenanceMode*/ {
 		to.PowerState = 1
+		// (2026-09-04) CopyHostToSprSrv вызывается только для хостов,
+		// реально найденных в vSphere (см. вызовы в savedata.go/
+		// savehostrecord.go) - Stat=1 проставляется отдельно вызывающей
+		// стороной. Раньше Active здесь не трогался вовсе - если запись
+		// раньше была выведена из эксплуатации (Active=2), а хост опять
+		// стал включён, получалась недопустимая комбинация Stat=1/
+		// PowerState=1/Active=2. По правилу "найден и включён" -> Active=1
+		// обязательно; для выключенного хоста Active намеренно не
+		// трогаем (допустимы 0/1/2).
+		to.Active = 1
 	} else {
 		to.PowerState = 2
 	}

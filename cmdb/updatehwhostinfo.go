@@ -336,6 +336,15 @@ func UpdateHWHostInfo() {
 		srvspr.NameFQDN = serverName
 		srvspr.Type = 2 // host vmware - см. комментарий к функции про единственную ответственность этой стороны синхронизации
 		srvspr.Stat = 1 // используется - хост реально присутствует в vSphere прямо сейчас (раньше здесь Stat не трогался при обновлении уже существующей записи)
+		// (2026-09-04) Active раньше вообще не проставлялся в этой функции -
+		// если запись была ранее выведена из эксплуатации (Active=2), а
+		// хост затем снова появился в vSphere включённым, получалась
+		// недопустимая комбинация Stat=1/PowerState=1/Active=2. По правилу
+		// "найден и включён" -> Active=1 обязательно; при выключенном хосте
+		// Active намеренно не трогаем (допустимы 0/1/2).
+		if srvspr.PowerState == 1 {
+			srvspr.Active = 1
+		}
 		srvspr.CPUCount = float64(hs.NumCPUPkgs)
 		srvspr.CPULogical = float64(hs.NumCPUCores)
 		srvspr.MemSize = float64(hs.MemorySizeGB)
@@ -542,6 +551,12 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 		srvspr.NameFQDN = serverName
 		srvspr.Type = 2 // host vmware - см. комментарий к функции про единственную ответственность этой стороны синхронизации
 		srvspr.Stat = 1 // используется - хост реально присутствует в vSphere прямо сейчас
+		// (2026-09-04) См. аналогичный комментарий выше по файлу - Active
+		// раньше не проставлялся здесь вовсе; форсируем Active=1 при
+		// найденном и включённом хосте (иначе Active не трогаем).
+		if srvspr.PowerState == 1 {
+			srvspr.Active = 1
+		}
 		srvspr.CPUCount = float64(hs.NumCPUPkgs)
 		srvspr.CPULogical = float64(hs.NumCPUCores)
 		srvspr.MemSize = float64(hs.MemorySizeGB)

@@ -77,7 +77,16 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 						s.Stat = 1
 
 					} else {
+						// (2026-09-04) Раньше здесь Stat не проставлялся -
+						// сервер реально НАЙДЕН (hwAlter != nil), просто
+						// выключен, но Stat оставался прежним значением
+						// (часто 0 от прошлой пометки "не найден"), что
+						// давало недопустимую комбинацию Stat=0/PowerState=2
+						// у фактически существующего сервера. По правилу
+						// "найден, но выключен" -> Stat=1/PowerState=2
+						// (Active намеренно не трогаем - допустимы 0/1/2).
 						s.PowerState = 2
+						s.Stat = 1
 					}
 					s.Name = name
 					s.NameFQDN = nameFQDN
@@ -103,7 +112,12 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 					s.Active = 1
 					s.Stat = 1
 				} else {
+					// (2026-09-04) См. аналогичный комментарий выше в ветке
+					// с serialNumber - сервер найден (hw != nil), просто
+					// выключен, поэтому Stat=1 нужно проставлять и здесь, а
+					// не оставлять прежнее значение.
 					s.PowerState = 2
+					s.Stat = 1
 				}
 				s.Name = name
 				s.NameFQDN = nameFQDN
@@ -188,6 +202,14 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 				s.NameFQDN = host.Name
 				if host.PowerState {
 					s.PowerState = 1
+				} else {
+					// (2026-09-04) Раньше при выключенном хосте PowerState
+					// не трогался вовсе и оставался прежним значением
+					// (например, 1 от предыдущего опроса, когда хост ещё
+					// был включён) - запись могла остаться со Stat=1/
+					// PowerState=1, хотя хост сейчас выключен. По правилу
+					// "найден, но выключен" -> PowerState=2 всегда.
+					s.PowerState = 2
 				}
 			}
 		}
