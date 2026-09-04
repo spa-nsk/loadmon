@@ -255,6 +255,17 @@ func UpdatePowerStateForServers() {
 
 		if serverSpr.Stat == 0 || serverSpr.Stat == 666 {
 			serverSpr.Active = 2
+		} else if serverSpr.PowerState == 1 {
+			// (2026-09-04) Раньше при найденном и включённом сервере Active
+			// не форсировался - если запись ранее была выведена из
+			// эксплуатации (Active=2) и здесь только обновлялся PowerState
+			// на 1 (без изменения Stat, который проставляют другие функции
+			// синхронизации - updatehwhostinfo.go/updatehwsprhp.go),
+			// получалась недопустимая комбинация Stat=1/PowerState=1/
+			// Active=2. По правилу "найден и включён" -> Active=1
+			// обязательно. Для найденного, но выключенного (Stat=1/
+			// PowerState=2) Active намеренно не трогаем - допустимы 0/1/2.
+			serverSpr.Active = 1
 		}
 		_, err = trn.Update(&serverSpr)
 		if err != nil {
