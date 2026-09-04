@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"fmt"
-	"loadmon/cmdb"
+	"loadmon/auditlog"
 	"loadmon/itsystem"
 	"loadmon/models"
 	"strconv"
@@ -86,8 +86,8 @@ func (this *MainController) SprSrvUpdateBase() {
 	}
 
 	// before - снимок ДО правки формой ниже, нужен только для diff'а при
-	// сохранении (см. cmdb.LogServerSprRecordChange, вызов перед o.Update
-	// ниже) - история изменений карточки сервера
+	// сохранении (см. auditlog.LogServerSprRecordChange, вызов перед
+	// o.Update ниже) - история изменений карточки сервера
 	// (models.ServerSprEventLog, добавлено 2026-09-04 по запросу "сделай
 	// аналогичную историю изменений карточки серверов... с сохранением
 	// даты изменений и авторов").
@@ -102,8 +102,8 @@ func (this *MainController) SprSrvUpdateBase() {
 	// пользователя. Id_User/CreatorUser - это Id пользователя
 	// (models.AuthUser), сам шаблон к БД доступа не имеет, поэтому имя
 	// резолвится здесь.
-	this.Data["ModifiedByName"] = cmdb.ResolveUserDisplayName(o, record.Id_User)
-	this.Data["CreatedByName"] = cmdb.ResolveUserDisplayName(o, record.CreatorUser)
+	this.Data["ModifiedByName"] = auditlog.ResolveUserDisplayName(o, record.Id_User)
+	this.Data["CreatedByName"] = auditlog.ResolveUserDisplayName(o, record.CreatorUser)
 
 	if this.Ctx.Input.Method() == "POST" {
 
@@ -246,8 +246,8 @@ func (this *MainController) SprSrvUpdateBase() {
 			// изменение, которое на самом деле не применилось. Уведомления
 			// по email для этого журнала не отправляются (прямое указание
 			// пользователя, см. cmdb/serversprchangelog.go).
-			cmdb.LogServerSprRecordChange(o, &before, &record)
-			this.Data["ModifiedByName"] = cmdb.ResolveUserDisplayName(o, record.Id_User)
+			auditlog.LogServerSprRecordChange(o, &before, &record)
+			this.Data["ModifiedByName"] = auditlog.ResolveUserDisplayName(o, record.Id_User)
 
 			flash.Notice("Данные сервера \"%s\" сохранены", record.Name)
 			flash.Store(&this.Controller)

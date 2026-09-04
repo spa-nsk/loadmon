@@ -77,7 +77,7 @@ func componentSummary(c models.ServerHardwareComponents) string {
 // изменения. entityKind - "Server" или "BladeSystem" (для отображения в
 // журнале), serverId/bladeSystemId - один из них >0, другой 0.
 // entitySerial - серийный номер родителя (для читаемого Message).
-func diffAndLogComponents(o orm.Ormer, entityKind string, serverId, bladeSystemId int64, entitySerial string, t int, oldRows, newRows []models.ServerHardwareComponents) {
+func diffAndLogComponents(o orm.QueryExecutor, entityKind string, serverId, bladeSystemId int64, entitySerial string, t int, oldRows, newRows []models.ServerHardwareComponents) {
 	if len(oldRows) == 0 && len(newRows) == 0 {
 		return
 	}
@@ -131,7 +131,7 @@ func diffAndLogComponents(o orm.Ormer, entityKind string, serverId, bladeSystemI
 // поля (см. cmdb/insertHWSpr.go, cmdb/updatehwsprhp.go,
 // cmdb/syncbladesystemcomponents.go). Пустой diff (oldValue==newValue) не
 // логируется - вызывающий код не обязан сам это проверять.
-func logHardwareFieldChange(o orm.Ormer, entityKind string, serverId, bladeSystemId int64, key, fieldName, oldValue, newValue string) {
+func logHardwareFieldChange(o orm.QueryExecutor, entityKind string, serverId, bladeSystemId int64, key, fieldName, oldValue, newValue string) {
 	if oldValue == newValue {
 		return
 	}
@@ -147,7 +147,7 @@ func logHardwareFieldChange(o orm.Ormer, entityKind string, serverId, bladeSyste
 // (best-effort, не блокирует синхронизацию при ошибке SMTP) отправка
 // email-уведомления, если это включено в конфигурации
 // (config.ConfigData.NotifyOnHardwareChange, см. cmdb/notify.go).
-func logHardwareEvent(o orm.Ormer, entry *models.HardwareEventLog) {
+func logHardwareEvent(o orm.QueryExecutor, entry *models.HardwareEventLog) {
 	if _, err := o.Insert(entry); err != nil {
 		fmt.Println("Ошибка записи журнала изменений аппаратной конфигурации:", entry.Message, err)
 	}

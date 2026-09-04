@@ -59,7 +59,7 @@ const (
 // компонентов на каждом цикле синхронизации (сервер физически не может сам
 // сообщить diff, поэтому полная пересборка дешевле и надёжнее точечного
 // UPDATE по совпадению серийника слота).
-func SyncServerHardwareComponents(o orm.Ormer, hw *models.ServerHardware, srv *oneview.Server) {
+func SyncServerHardwareComponents(o orm.QueryExecutor, hw *models.ServerHardware, srv *oneview.Server) {
 	if hw == nil || hw.Id <= 0 || srv == nil {
 		return
 	}
@@ -223,8 +223,8 @@ func SyncServerHardwareComponents(o orm.Ormer, hw *models.ServerHardware, srv *o
 			Type:      ServerHWComponentProcessor,
 			Vendor:    p.Manufacturer,
 			Model:     fmt.Sprintf("%s (%d ядер/%d потоков, %d МГц)", p.Model, p.TotalCores, p.TotalThreads, speed),
-			SerialNum: hw.SerialNum + "-cpu-" + strconv.Itoa(p.Socket),
-			Slot:      fmt.Sprintf("Сокет %d", p.Socket),
+			SerialNum: firstNonEmpty(strings.TrimSpace(p.ID), hw.SerialNum+"-cpu-"+p.Socket),
+			Slot:      fmt.Sprintf("Сокет %s", p.Socket),
 		})
 	}
 	syncType(ServerHWComponentProcessor, cpus)

@@ -37,7 +37,7 @@ func serverSprEventTypeLabel(t int) string {
 // hardwareeventlog, доступен только пользователям с models.AuthUser.Priv
 // == 3 (администратор). В отличие от HardwareEventLog email-уведомления НЕ
 // отправляются (прямое указание пользователя) и хранится дольше -
-// cmdb.ServerSprEventLogRetention (180 суток), поскольку это аудит именно
+// auditlog.ServerSprEventLogRetention (180 суток), поскольку это аудит именно
 // РУЧНЫХ правок с автором, а не каждый цикл автосинхронизации.
 //
 // Маршрут: /admin/serverspreventlog

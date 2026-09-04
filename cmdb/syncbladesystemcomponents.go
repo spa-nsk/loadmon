@@ -103,7 +103,7 @@ func bladeSystemNameFromEnclosure(name string) string {
 	return name
 }
 
-func syncOneEnclosure(o orm.Ormer, enc *oneview.Enclosure) {
+func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure) {
 	if enc == nil || strings.TrimSpace(enc.Name) == "" {
 		return
 	}
@@ -142,7 +142,7 @@ func syncOneEnclosure(o orm.Ormer, enc *oneview.Enclosure) {
 
 	if found {
 		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "Model", prev.Model, bls.Model)
-		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "Type", strconv.Itoa(prev.Type), strconv.Itoa(bls.Type))
+		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "Type", prev.Type, bls.Type)
 		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "SerialNum", prev.SerialNum, bls.SerialNum)
 		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "Size", strconv.Itoa(prev.Size), strconv.Itoa(bls.Size))
 		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "Used", strconv.Itoa(prev.Used), strconv.Itoa(bls.Used))
@@ -169,7 +169,7 @@ func syncOneEnclosure(o orm.Ormer, enc *oneview.Enclosure) {
 // (interconnect/management/питание/охлаждение) - тот же приём "удалить всё
 // по (BladeSystemId, Type), записать заново", что и
 // cmdb/syncserverhardwarecomponents.go для компонентов сервера.
-func syncBladeSystemComponents(o orm.Ormer, bladeSystemId int64, enc *oneview.Enclosure) {
+func syncBladeSystemComponents(o orm.QueryExecutor, bladeSystemId int64, enc *oneview.Enclosure) {
 	// syncType - тот же приём diff+delete+insert, что и
 	// cmdb/syncserverhardwarecomponents.go:SyncServerHardwareComponents
 	// (2026-09-04) - перед перезаписью читает предыдущий набор строк этого
