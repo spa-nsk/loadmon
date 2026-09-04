@@ -250,18 +250,24 @@ func main() {
 
 			case <-ticker9.C:
 				go func() {
-					cmdb.ClearMetricData()         // запустить очистку метрик
-					cmdb.ClearOldMetric()          // и из базы
-					cmdb.ClearOldStorageMetric()
+					cmdb.ClearMetricData() // запустить очистку метрик
+					// cmdb.ClearOldMetric() сама вызывает cmdb.ClearOldStorageMetric()
+					// (см. cmdb/savemetric_orchestration.go) - раньше он ещё раз
+					// вызывался и тут, т.е. дважды подряд на каждый цикл (не баг,
+					// вторая итерация ничего не находит, но лишняя работа/шум в логе)
+					cmdb.ClearOldMetric()          // и из базы (включая storage_metric)
 					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
 				}()
 
 			case <-timer2.C:
 				ticker9 = time.NewTicker(time.Hour * time.Duration(24)) //инициировать запуск каждые 24 часа
 				go func() {
-					cmdb.ClearMetricData()         // запустить очистку метрик
-					cmdb.ClearOldMetric()          // и из базы
-					cmdb.ClearOldStorageMetric()
+					cmdb.ClearMetricData() // запустить очистку метрик
+					// cmdb.ClearOldMetric() сама вызывает cmdb.ClearOldStorageMetric()
+					// (см. cmdb/savemetric_orchestration.go) - раньше он ещё раз
+					// вызывался и тут, т.е. дважды подряд на каждый цикл (не баг,
+					// вторая итерация ничего не находит, но лишняя работа/шум в логе)
+					cmdb.ClearOldMetric()          // и из базы (включая storage_metric)
 					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
 				}()
 
