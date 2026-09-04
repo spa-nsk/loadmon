@@ -157,6 +157,18 @@ func UpdateVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 	// иначе повторно обнаруженная ВМ так и оставалась со старым Stat=0,
 	// хотя PowerState ниже уже обновлялся на актуальное значение.
 	to.Stat = 1
+	// (2026-09-04) Раньше эта функция (в отличие от CopyVmToSprSrv для НОВЫХ
+	// записей) не трогала Vcenter/Datacenter/Cluster/ClusterId вовсе - для
+	// уже существующей записи это не затирало их, но и не давало
+	// исправиться, если поля ранее оказались пустыми/устаревшими (миграция
+	// ВМ между кластерами, или баг в cmdb/reconcileserversprtype.go, из-за
+	// которого эти поля обнулялись на каждом цикле сверки - см. комментарий
+	// в reconcileserversprtype.go:applyExpectedServerSprState). Приводим к
+	// единообразию с CopyVmToSprSrv.
+	to.Vcenter = from.Vcenter
+	to.Datacenter = from.Datacenter
+	to.Cluster = from.Cluster
+	to.ClusterId = from.ClusterID
 	if from.PowerState {
 		to.PowerState = 1
 		// См. аналогичный комментарий в CopyVmToSprSrv - форсируем Active=1
@@ -930,6 +942,17 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.Server, ov *onevie
 
 	o := orm.NewOrm()
 
+	// prev - снимок ДО перезаписи полей ниже, нужен только чтобы после
+	// заполнения залогировать реально изменившиеся поля в
+	// hardware_event_log (см. cmdb/hardwareeventlog.go, 2026-09-04, по
+	// запросу "фиксировать изменение конфигурации... в отдельном логе").
+	// Для НОВОЙ записи (h.Id==0, ещё не читана из БД вызывающим кодом)
+	// снимок не используется - иначе каждое поле только что созданного
+	// сервера выглядело бы как "изменившееся с пустого", что не является
+	// изменением конфигурации в смысле этой задачи.
+	wasExisting := h.Id > 0
+	prev := *h
+
 	identity := srv.Identity
 	h.SerialNum = identity.SerialNumber
 	h.VirtualSerialNum = identity.VirtualSerialNumber
@@ -1000,7 +1023,48 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.Server, ov *onevie
 	h.CPUCount = len(srv.Processors)
 	h.MemoryMb = oneview.TotalMemoryMb(srv) //размер памяти в мб
 	h.PartNum = identity.PartNumber
+
+	// (2026-09-04) Раньше эти поля identity читались только частично
+	// (Serial/VirtualSerial/PowerState/Model/PartNum) - данные о состоянии
+	// здоровья, версии BIOS, платформе и контроллере управления (iLO/OA) от
+	// OneView были доступны, но нигде не сохранялись. См. новые поля в
+	// models.ServerHardware (models/models_add.go).
+	h.Status = identity.Status
+	h.RomVersion = identity.RomVersion
+	h.Platform = identity.Platform
+	h.ShortModel = identity.ShortModel
+	h.AssetTag = identity.AssetTag
+	h.OperatingSystem = identity.OperatingSystem
+	h.MpModel = identity.MpModel
+	h.MpFirmwareVersion = identity.MpFirmwareVersion
+	h.MpIPAddress = identity.MpIPAddress
+	h.MpHostName = identity.MpHostName
+
 	h.Time_Mfy = time.Now().Local()
+
+	if wasExisting {
+		key := firstNonEmpty(h.SerialNum, prev.SerialNum)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "Vendor/Model", prev.Vendor+" "+prev.Model, h.Vendor+" "+h.Model)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "SerialNum", prev.SerialNum, h.SerialNum)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "Status", prev.Status, h.Status)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "RomVersion", prev.RomVersion, h.RomVersion)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "Platform", prev.Platform, h.Platform)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "AssetTag", prev.AssetTag, h.AssetTag)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "OperatingSystem", prev.OperatingSystem, h.OperatingSystem)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "MpModel", prev.MpModel, h.MpModel)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "MpFirmwareVersion", prev.MpFirmwareVersion, h.MpFirmwareVersion)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "MpIPAddress", prev.MpIPAddress, h.MpIPAddress)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "MpHostName", prev.MpHostName, h.MpHostName)
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "BladeSystemId/BladeNum", fmt.Sprintf("%d/%d", prev.BladeSystemId, prev.BladeNum), fmt.Sprintf("%d/%d", h.BladeSystemId, h.BladeNum))
+		if prev.CPUModel != h.CPUModel || prev.CPUCount != h.CPUCount || prev.CorePerCPU != h.CorePerCPU || prev.CoreMHz != h.CoreMHz {
+			logHardwareFieldChange(o, "Server", h.Id, 0, key, "CPU",
+				fmt.Sprintf("%s x%d, %d ядер, %d МГц", prev.CPUModel, prev.CPUCount, prev.CorePerCPU, prev.CoreMHz),
+				fmt.Sprintf("%s x%d, %d ядер, %d МГц", h.CPUModel, h.CPUCount, h.CorePerCPU, h.CoreMHz))
+		}
+		if prev.MemoryMb != h.MemoryMb {
+			logHardwareFieldChange(o, "Server", h.Id, 0, key, "MemoryMb", strconv.Itoa(prev.MemoryMb), strconv.Itoa(h.MemoryMb))
+		}
+	}
 }
 
 // ImportServerSprFromHW переносит данные о процессорах, памяти, дисковой ёмкости,

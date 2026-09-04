@@ -455,3 +455,90 @@ func (this *MainController) SprBladeSystemsEdit() {
 	this.Data["DateInvoiceStr"] = formatBladeSystemsDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatBladeSystemsDate(rec.DateService)
 }
+
+// BladeSystemServerRow - одна строка списка /sprsrv/bladesystemserverslist
+// (models.ServerHardware, привязанный к корзине через BladeSystemId),
+// дополненная именем сервера из справочника серверов (models.ServerSprRecords,
+// ServerHardware.ServerId) - расшифровка нужна, потому что сама
+// ServerHardware имени не хранит (только конфигурацию).
+type BladeSystemServerRow struct {
+	models.ServerHardware
+	ServerName string // ServerSprRecords.Name (или NameFQDN, если короткое имя пусто) по ServerId, "" если запись оборудования ни с одним сервером не связана
+}
+
+// SprBladeSystemServersList отображает read-only список серверов
+// (models.ServerHardware), физически установленных в ОДНОЙ блейд-корзине
+// (models.BladeSystems, BladeSystemId), отсортированный по номеру слота
+// (BladeNum) - связка "блейд-сервер <-> блейд-корзина с фиксацией позиции"
+// уже существует в схеме (ServerHardware.BladeSystemId/BladeNum,
+// проставляется при синхронизации с HP OneView, см.
+// cmdb/initrec.go:ImportHWSprRecord) - этот список делает её видимой в
+// веб-интерфейсе.
+//
+// Открывается по правому клику на строке /sprsrv/bladesystemslist
+// ("Серверы в корзине" в контекстном меню).
+//
+// Маршрут: /sprsrv/bladesystemserverslist/:id (:id - Id записи models.BladeSystems)
+func (this *MainController) SprBladeSystemServersList() {
+
+	idStr := this.Ctx.Input.Param(":id")
+
+	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
+	RegisterRequest(this, LogTypeViewReference) // просмотр серверов в блейд-корзине
+
+	this.activeContent("sprsrv/bladesystemserverslist")
+	this.Data["Id"] = idStr
+
+	flash := beego.NewFlash()
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		flash.Error("Некорректный идентификатор записи: %s", idStr)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	o := orm.NewOrm()
+
+	var bls models.BladeSystems
+	if err := o.QueryTable("blade_systems").Filter("Id", id).One(&bls); err != nil {
+		flash.Error("Блейд-корзина с Id=%d не найдена: %v", id, err)
+		flash.Store(&this.Controller)
+		return
+	}
+	this.Data["BS"] = bls
+
+	var hwList []models.ServerHardware
+	if _, err := o.QueryTable("server_hardware").Filter("BladeSystemId", id).OrderBy("BladeNum").All(&hwList); err != nil {
+		flash.Error("Ошибка чтения списка серверов: %v", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	serverIds := make([]int64, 0, len(hwList))
+	for _, hw := range hwList {
+		if hw.ServerId != 0 {
+			serverIds = append(serverIds, hw.ServerId)
+		}
+	}
+	nameById := make(map[int64]string, len(serverIds))
+	if len(serverIds) > 0 {
+		var srvsprs []models.ServerSprRecords
+		if _, err := o.QueryTable("server_spr_records").Filter("Id__in", serverIds).All(&srvsprs); err == nil {
+			for _, s := range srvsprs {
+				name := s.Name
+				if name == "" {
+					name = s.NameFQDN
+				}
+				nameById[s.Id] = name
+			}
+		}
+	}
+
+	rows := make([]BladeSystemServerRow, 0, len(hwList))
+	for _, hw := range hwList {
+		rows = append(rows, BladeSystemServerRow{ServerHardware: hw, ServerName: nameById[hw.ServerId]})
+	}
+	this.Data["Servers"] = rows
+	this.Data["ServersCount"] = len(rows)
+}

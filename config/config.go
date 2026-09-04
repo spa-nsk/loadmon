@@ -70,6 +70,52 @@ type JsonConfig struct {
 	OneViewCollectTimeoutSec int
 	// GrpcHardwareTimeoutSec — таймаут gRPC-запросов к инвентарю оборудования OneView (сек).
 	GrpcHardwareTimeoutSec int
+
+	// --- Уведомления по электронной почте (SMTP) - добавлено 2026-09-04
+	// по запросу "реализовать возможность отправки уведомлений по
+	// электронной почте через smtp, параметры хранить в файле
+	// конфигурации" (см. cmdb/notify.go). Параметры хранятся в том же
+	// app2.json, что и остальная конфигурация приложения (см. пример
+	// значений в conf/app2.json.example) - отдельный файл конфигурации
+	// заводить не стали, чтобы не плодить второй механизм конфигурации
+	// (в проекте уже есть beego conf/app.conf для фреймворка и app2.json
+	// для бизнес-логики - см. kontext/05-conventions-and-gotchas.md).
+	SmtpHost string // адрес SMTP-сервера, например "smtp.company.local"
+	SmtpPort int     // порт SMTP-сервера (обычно 25/465/587); 0 -> defaultSmtpPort (25)
+	// SmtpUseAuth - использовать ли SMTP AUTH (PLAIN) с SmtpUsername/
+	// SmtpPassword; false - анонимная отправка без авторизации (типично
+	// для внутренних релеев без аутентификации).
+	SmtpUseAuth  bool
+	SmtpUsername string
+	SmtpPassword string
+	// SmtpUseTLS - обернуть соединение в STARTTLS перед AUTH/DATA (для
+	// серверов, требующих шифрование, обычно порт 587).
+	SmtpUseTLS bool
+	SmtpFrom   string // адрес отправителя в заголовке From
+	// NotifyRecipients - список адресов, на которые отправляются
+	// уведомления об изменении аппаратной конфигурации серверов/корзин
+	// (см. NotifyOnHardwareChange ниже и cmdb/notify.go). Пусто -
+	// уведомления не отправляются, даже если NotifyOnHardwareChange=true.
+	NotifyRecipients []string
+	// NotifyOnHardwareChange - включает отправку email при каждой новой
+	// записи в hardware_event_log (см. cmdb/hardwareeventlog.go). По
+	// умолчанию false - чтобы не начать рассылку писем на существующих
+	// инсталляциях без явного включения в app2.json.
+	NotifyOnHardwareChange bool
+}
+
+// defaultSmtpPort - порт SMTP по умолчанию, если SmtpPort не задан в
+// app2.json (0).
+const defaultSmtpPort = 25
+
+// SmtpPortOrDefault возвращает SmtpPort из конфигурации, подставляя
+// defaultSmtpPort, если он не задан (0) - тот же приём, что и
+// OneViewOperationTimeout/OneViewCollectTimeout ниже для таймаутов.
+func (s *JsonConfig) SmtpPortOrDefault() int {
+	if s.SmtpPort <= 0 {
+		return defaultSmtpPort
+	}
+	return s.SmtpPort
 }
 
 // EndpointRecord содержит адреса gRPC API/DB-сервера и карты соответствия

@@ -185,10 +185,24 @@ func main() {
 
 	tickerStorageMetrics := time.NewTicker(time.Minute)
 	defer tickerStorageMetrics.Stop()
+	// (2026-09-04) Сбор поминутных метрик производительности СХД
+	// (cmdb.CollectStorageMetrics - KPI/IOPS/латентность/UsedPercent в
+	// storage_metric) отключён по запросу - оставлен только сбор
+	// конфигурации СХД (справочник storage_systems/storage_volumes,
+	// инвентарь storage_enclosure/storage_disk через
+	// cmdb.UpdateVolumeStorage/cmdb.SyncStorageHardwareForSystem, тикер
+	// ticker8 выше по коду - не трогается этой правкой). Тикер немедленно
+	// останавливается сразу после создания, поэтому case ниже
+	// (<-tickerStorageMetrics.C) больше никогда не сработает - код опроса
+	// метрик намеренно оставлен нетронутым, чтобы включить обратно
+	// сбор было можно одной строкой (удалить Stop() ниже).
+	tickerStorageMetrics.Stop()
 
 	cmdb.ClearOldMetric()
 	cmdb.ClearOldStorageMetric()
-	cmdb.ClearOldStorageEventLog() // журнал событий СХД - ретеншен 3 суток, см. cmdb/storageeventlog.go
+	cmdb.ClearOldStorageEventLog()  // журнал событий СХД - ретеншен 3 суток, см. cmdb/storageeventlog.go
+	cmdb.ClearOldHardwareEventLog()  // журнал изменений конфигурации серверов/корзин - ретеншен 30 суток, см. cmdb/hardwareeventlog.go
+	cmdb.ClearOldServerSprEventLog() // журнал ручных изменений карточек серверов - ретеншен 180 суток, см. cmdb/serversprchangelog.go
 	zabbix.Get10MinutesHistory()
 
 	go func() {
@@ -255,8 +269,10 @@ func main() {
 					// (см. cmdb/savemetric_orchestration.go) - раньше он ещё раз
 					// вызывался и тут, т.е. дважды подряд на каждый цикл (не баг,
 					// вторая итерация ничего не находит, но лишняя работа/шум в логе)
-					cmdb.ClearOldMetric()          // и из базы (включая storage_metric)
-					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
+					cmdb.ClearOldMetric()            // и из базы (включая storage_metric)
+					cmdb.ClearOldStorageEventLog()   // и журнала событий СХД (ретеншен 3 суток)
+					cmdb.ClearOldHardwareEventLog()  // и журнала изменений конфигурации (ретеншен 30 суток)
+					cmdb.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
 				}()
 
 			case <-timer2.C:
@@ -267,8 +283,10 @@ func main() {
 					// (см. cmdb/savemetric_orchestration.go) - раньше он ещё раз
 					// вызывался и тут, т.е. дважды подряд на каждый цикл (не баг,
 					// вторая итерация ничего не находит, но лишняя работа/шум в логе)
-					cmdb.ClearOldMetric()          // и из базы (включая storage_metric)
-					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
+					cmdb.ClearOldMetric()            // и из базы (включая storage_metric)
+					cmdb.ClearOldStorageEventLog()   // и журнала событий СХД (ретеншен 3 суток)
+					cmdb.ClearOldHardwareEventLog()  // и журнала изменений конфигурации (ретеншен 30 суток)
+					cmdb.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
 				}()
 
 			case <-tickerZabbix.C:

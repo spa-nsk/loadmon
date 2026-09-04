@@ -33,5 +33,14 @@
 	"ConfigOV": [
 		{"Domain":"example.local","Login":"user","Password":"change-me","Endpoint":"https://oneview.example.local","Version":3800},
 		{"Domain":"example.local","Login":"user","Password":"change-me","Endpoint":"https://oneview-slow.example.local","Version":7400,"OperationTimeoutSec":120}
-	]
+	],
+	"SmtpHost": "smtp.example.local",
+	"SmtpPort": 25,
+	"SmtpUseAuth": false,
+	"SmtpUsername": "",
+	"SmtpPassword": "",
+	"SmtpUseTLS": false,
+	"SmtpFrom": "loadmon@example.local",
+	"NotifyRecipients": ["cmdb-team@example.local"],
+	"NotifyOnHardwareChange": false
 }

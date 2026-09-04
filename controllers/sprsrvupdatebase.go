@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"loadmon/cmdb"
 	"loadmon/itsystem"
 	"loadmon/models"
 	"strconv"
@@ -84,9 +85,25 @@ func (this *MainController) SprSrvUpdateBase() {
 		return
 	}
 
+	// before - снимок ДО правки формой ниже, нужен только для diff'а при
+	// сохранении (см. cmdb.LogServerSprRecordChange, вызов перед o.Update
+	// ниже) - история изменений карточки сервера
+	// (models.ServerSprEventLog, добавлено 2026-09-04 по запросу "сделай
+	// аналогичную историю изменений карточки серверов... с сохранением
+	// даты изменений и авторов").
+	before := record
+
 	// справочник ИТ-систем для select ITSystemKey (тот же источник, что и в
 	// фильтре /sprsrv/view2)
 	this.Data["ITSystemSpr"] = itsystem.ImportITSystemSpr()
+
+	// Дата создания/изменения и автор последних изменений - показываются в
+	// карточке (updatebase.tpl) как read-only справка, по прямому запросу
+	// пользователя. Id_User/CreatorUser - это Id пользователя
+	// (models.AuthUser), сам шаблон к БД доступа не имеет, поэтому имя
+	// резолвится здесь.
+	this.Data["ModifiedByName"] = cmdb.ResolveUserDisplayName(o, record.Id_User)
+	this.Data["CreatedByName"] = cmdb.ResolveUserDisplayName(o, record.CreatorUser)
 
 	if this.Ctx.Input.Method() == "POST" {
 
@@ -224,6 +241,14 @@ func (this *MainController) SprSrvUpdateBase() {
 			flash.Error("Ошибка сохранения записи: %v", err)
 			flash.Store(&this.Controller)
 		} else {
+			// История изменений карточки (models.ServerSprEventLog) -
+			// пишется ПОСЛЕ успешного сохранения, чтобы не логировать
+			// изменение, которое на самом деле не применилось. Уведомления
+			// по email для этого журнала не отправляются (прямое указание
+			// пользователя, см. cmdb/serversprchangelog.go).
+			cmdb.LogServerSprRecordChange(o, &before, &record)
+			this.Data["ModifiedByName"] = cmdb.ResolveUserDisplayName(o, record.Id_User)
+
 			flash.Notice("Данные сервера \"%s\" сохранены", record.Name)
 			flash.Store(&this.Controller)
 			RegisterRequest(this, 6) //изменение данных справочника

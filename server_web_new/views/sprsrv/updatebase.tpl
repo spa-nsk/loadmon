@@ -274,6 +274,18 @@
     {{end}}
 </div>
 
+{{if not .IsNew}}
+<div class="text-muted small mb-3">
+    Дата создания: {{if .record.TimeCreate.IsZero}}&mdash;{{else}}{{.record.TimeCreate.Format "2006-01-02 15:04:05"}}{{end}}{{if .CreatedByName}} ({{.CreatedByName}}){{end}}
+    &middot;
+    Дата изменения: {{if .record.Time_Mfy.IsZero}}&mdash;{{else}}{{.record.Time_Mfy.Format "2006-01-02 15:04:05"}}{{end}}
+    &middot;
+    Автор последних изменений: {{if .ModifiedByName}}{{.ModifiedByName}}{{else}}&mdash;{{end}}
+    &middot;
+    <a href="/admin/serverspreventlog?server={{.record.Id}}" target="_blank">История изменений карточки</a>
+</div>
+{{end}}
+
 <form role="form" id="UpdateBase" method="POST" class="pb-4">
 
     <div class="card mb-3">
