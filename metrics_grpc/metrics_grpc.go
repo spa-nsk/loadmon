@@ -11,6 +11,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"loadmon/auditlog"
 	"loadmon/cmdb"
 	"loadmon/config"
 	"loadmon/grpcclient"
@@ -202,7 +203,7 @@ func main() {
 	cmdb.ClearOldStorageMetric()
 	cmdb.ClearOldStorageEventLog()  // журнал событий СХД - ретеншен 3 суток, см. cmdb/storageeventlog.go
 	cmdb.ClearOldHardwareEventLog()  // журнал изменений конфигурации серверов/корзин - ретеншен 30 суток, см. cmdb/hardwareeventlog.go
-	cmdb.ClearOldServerSprEventLog() // журнал ручных изменений карточек серверов - ретеншен 180 суток, см. cmdb/serversprchangelog.go
+	auditlog.ClearOldServerSprEventLog() // журнал ручных изменений карточек серверов - ретеншен 180 суток, см. cmdb/serversprchangelog.go
 	zabbix.Get10MinutesHistory()
 
 	go func() {
@@ -272,7 +273,7 @@ func main() {
 					cmdb.ClearOldMetric()            // и из базы (включая storage_metric)
 					cmdb.ClearOldStorageEventLog()   // и журнала событий СХД (ретеншен 3 суток)
 					cmdb.ClearOldHardwareEventLog()  // и журнала изменений конфигурации (ретеншен 30 суток)
-					cmdb.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
+					auditlog.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
 				}()
 
 			case <-timer2.C:
@@ -286,7 +287,7 @@ func main() {
 					cmdb.ClearOldMetric()            // и из базы (включая storage_metric)
 					cmdb.ClearOldStorageEventLog()   // и журнала событий СХД (ретеншен 3 суток)
 					cmdb.ClearOldHardwareEventLog()  // и журнала изменений конфигурации (ретеншен 30 суток)
-					cmdb.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
+					auditlog.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
 				}()
 
 			case <-tickerZabbix.C:

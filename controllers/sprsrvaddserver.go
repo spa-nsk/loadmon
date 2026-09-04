@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"loadmon/cmdb"
+	"loadmon/auditlog"
 	"loadmon/itsystem"
 	"loadmon/models"
 	"strconv"
@@ -160,9 +160,9 @@ func (this *MainController) SprAddServer() {
 		record.Id = newId
 
 		// История изменений карточки (models.ServerSprEventLog, см.
-		// cmdb/serversprchangelog.go) - запись о создании, без email-
+		// auditlog/serversprchangelog.go) - запись о создании, без email-
 		// уведомления (прямое указание пользователя).
-		cmdb.LogServerSprRecordCreated(o, &record)
+		auditlog.LogServerSprRecordCreated(o, &record)
 
 		flash.Notice("Сервер \"%s\" добавлен", record.Name)
 		flash.Store(&this.Controller)
