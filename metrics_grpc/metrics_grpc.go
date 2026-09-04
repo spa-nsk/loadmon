@@ -183,7 +183,11 @@ func main() {
 	tickerZabbix := time.NewTicker(time.Minute * time.Duration(10))
 	defer tickerZabbix.Stop()
 
+	tickerStorageMetrics := time.NewTicker(time.Minute)
+	defer tickerStorageMetrics.Stop()
+
 	cmdb.ClearOldMetric()
+	cmdb.ClearOldStorageMetric()
 	cmdb.ClearOldStorageEventLog() // журнал событий СХД - ретеншен 3 суток, см. cmdb/storageeventlog.go
 	zabbix.Get10MinutesHistory()
 
@@ -196,6 +200,7 @@ func main() {
 				ticker8.Stop()
 				ticker9.Stop()
 				ticker10.Stop()
+				tickerStorageMetrics.Stop()
 				vspheremetrics.GetGlobalVMInfrastructure().SetDoneVcenter()
 				//c <- "exit" // завершить обработчик сохранения кластеров
 				log.Println("Получен сигнал на завершение loadmon")
@@ -247,6 +252,7 @@ func main() {
 				go func() {
 					cmdb.ClearMetricData()         // запустить очистку метрик
 					cmdb.ClearOldMetric()          // и из базы
+					cmdb.ClearOldStorageMetric()
 					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
 				}()
 
@@ -255,11 +261,15 @@ func main() {
 				go func() {
 					cmdb.ClearMetricData()         // запустить очистку метрик
 					cmdb.ClearOldMetric()          // и из базы
+					cmdb.ClearOldStorageMetric()
 					cmdb.ClearOldStorageEventLog() // и журнала событий СХД (ретеншен 3 суток)
 				}()
 
 			case <-tickerZabbix.C:
 				zabbix.Get10MinutesHistory()
+
+			case <-tickerStorageMetrics.C:
+				go cmdb.CollectStorageMetrics()
 
 			case <-ticker.C:
 				go func() {

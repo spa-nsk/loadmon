@@ -47,7 +47,11 @@
     </div>
 </div>
 
-<script type="application/json" id="infra-canvas-data">{{.InfraJSON}}</script>
+<!-- Данные передаются в base64 через data-атрибут (не текст <script>) -
+     обходит поломку JSON html/template-экранированием внутри <script>, см.
+     подробный комментарий в controllers/admininfrastructure.go. Раскодируются
+     в infracanvas/main.go:loadData через atob()+JSON.parse. -->
+<div id="infra-canvas-data" class="d-none" data-payload-b64="{{.InfraJSON}}"></div>
 
 <script src="/static/infracanvas/wasm_exec.js"></script>
 <script>
