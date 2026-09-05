@@ -80,6 +80,15 @@
                         <label for="SizeUnit" class="form-label">Занимаемых юнитов</label>
                         <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.BS.SizeUnit}}">
                     </div>
+                    <div class="col-6">
+                        <label for="RackCabinetId" class="form-label">Шкаф (справочник)</label>
+                        <select id="RackCabinetId" name="RackCabinetId" class="form-select">
+                            <option value="0">-</option>
+                            {{range $rc := .RackCabinets}}
+                            <option value="{{$rc.Id}}" {{if eq $.BS.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
                 </div>
 
                 <hr class="my-3">

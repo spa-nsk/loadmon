@@ -437,6 +437,22 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Блейд-корзины</a>
             </li>
             <li>
+              <a href="/sprsrv/datacentersitelist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник ЦОД</a>
+            </li>
+            <li>
+              <a href="/sprsrv/rackcabinetlist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник шкафов</a>
+            </li>
+            <li>
+              <a href="/sprsrv/networklist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник сетей</a>
+            </li>
+            <li>
+              <a href="/sprsrv/switchlist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник коммутаторов</a>
+            </li>
+            <li>
               <a href="/sprsrv/clustersprlist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник кластеров</a>
             </li>

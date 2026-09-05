@@ -611,6 +611,7 @@ func (this *MainController) SprHwConfigEdit() {
 		rec.RackName = this.GetString("RackName")
 		rec.StartUnitPos, _ = strconv.Atoi(this.GetString("StartUnitPos"))
 		rec.SizeUnit, _ = strconv.Atoi(this.GetString("SizeUnit"))
+		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
 
 		rec.InventoryNum = this.GetString("InventoryNum")
 		rec.InventoryNumBuh = this.GetString("InventoryNumBuh")
@@ -653,6 +654,10 @@ func (this *MainController) SprHwConfigEdit() {
 		flash.Notice("Запись сохранена.")
 		flash.Store(&this.Controller)
 	}
+
+	var racks []models.RackCabinet
+	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)
+	this.Data["RackCabinets"] = racks
 
 	this.Data["HW"] = rec
 	this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
