@@ -82,6 +82,23 @@ func init() {
 	beego.Router("/sprsrv/zabbixperfperiod/:Id", &controllers.MainController{}, "get,post:SprSrvZabbixPerfPeriod") // графики загрузки аппаратного сервера за период по данным Zabbix (zabbix_item/zabbix_key), см. controllers/sprsrvzabbixperfperiod.go
 	beego.Router("/sprsrv/bladesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystems")     // список записей models.BladeSystems (справочник блейд-корзин) с фильтром, пагинацией и экспортом в CSV/XLSX
 	beego.Router("/sprsrv/bladesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystemsEdit") // просмотр/редактирование/добавление одной записи models.BladeSystems по Id (Id=0 - новая запись)
+
+	// Справочник ЦОД (models.DatacenterSite) - по аналогии с Datacenter из oneview2, с альтернативным наименованием.
+	beego.Router("/sprsrv/datacentersitelist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprDatacenterSite")
+	beego.Router("/sprsrv/datacentersiteedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprDatacenterSiteEdit")
+
+	// Справочник шкафов (models.RackCabinet) - по аналогии с Rack из oneview2, связан с ЦОД (DatacenterSiteId)
+	// и с BladeSystems/ServerHardware (RackCabinetId на этих моделях).
+	beego.Router("/sprsrv/rackcabinetlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprRackCabinet")
+	beego.Router("/sprsrv/rackcabinetedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprRackCabinetEdit")
+
+	// Справочник сетей (models.NetworkSprRecords) для серверов и других компонент инфраструктуры.
+	beego.Router("/sprsrv/networklist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetwork")
+	beego.Router("/sprsrv/networkedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEdit")
+
+	// Справочник сетевых коммутаторов (models.SwitchSprRecords) со связями с сетями (models.SwitchNetworkLink).
+	beego.Router("/sprsrv/switchlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSwitch")
+	beego.Router("/sprsrv/switchedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSwitchEdit")
 	beego.Router("/sprsrv/bladesystemserverslist/:id([0-9]+)", &controllers.MainController{}, "get:SprBladeSystemServersList") // read-only список models.ServerHardware, установленных в ОДНОЙ блейд-корзине (BladeSystemId), с фиксацией позиции (BladeNum)
 	beego.Router("/sprsrv/storagesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystems")     // список записей models.StorageSystems (справочник СХД) с фильтром, пагинацией и экспортом в CSV/XLSX
 	beego.Router("/sprsrv/storagesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemsEdit") // просмотр/редактирование/добавление одной записи models.StorageSystems по Id (Id=0 - новая запись)

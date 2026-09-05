@@ -408,6 +408,7 @@ func (this *MainController) SprBladeSystemsEdit() {
 		rec.StartUnit = this.GetString("StartUnit")
 		rec.StartUnitPos, _ = strconv.Atoi(this.GetString("StartUnitPos"))
 		rec.SizeUnit, _ = strconv.Atoi(this.GetString("SizeUnit"))
+		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
 
 		rec.Owner = this.GetString("Owner")
 		rec.Allocation = this.GetString("Allocation")
@@ -449,6 +450,10 @@ func (this *MainController) SprBladeSystemsEdit() {
 		flash.Notice("Запись сохранена.")
 		flash.Store(&this.Controller)
 	}
+
+	var racks []models.RackCabinet
+	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)
+	this.Data["RackCabinets"] = racks
 
 	this.Data["BS"] = rec
 	this.Data["DateContractDocStr"] = formatBladeSystemsDate(rec.DateContractDoc)

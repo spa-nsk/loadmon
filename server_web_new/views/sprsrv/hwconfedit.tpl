@@ -123,6 +123,15 @@
                         <label for="RackName" class="form-label">Шкаф (OneView)</label>
                         <input type="text" id="RackName" name="RackName" class="form-control" value="{{.HW.RackName}}">
                     </div>
+                    <div class="col-6">
+                        <label for="RackCabinetId" class="form-label">Шкаф (справочник)</label>
+                        <select id="RackCabinetId" name="RackCabinetId" class="form-select">
+                            <option value="0">-</option>
+                            {{range $rc := .RackCabinets}}
+                            <option value="{{$rc.Id}}" {{if eq $.HW.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>

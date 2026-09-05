@@ -1258,6 +1258,7 @@ type BladeSystems struct {
 	ServiceContract string    `form:"ServiceContract"` //данные по сервисному контракту, уровень сервиса
 	Id_User         int64     `form:"Id_User"` //
 	Time_Mfy        time.Time `form:"Time_Mfy"` //
+	RackCabinetId   int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"` //FK на models.RackCabinet.Id (новый справочник шкафов, см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum, не заменяет их
 }
 
 // TableName возвращает имя таблицы БД для модели BladeSystems (используется beego ORM).
@@ -1767,6 +1768,7 @@ type ServerHardware struct {
 	MpFirmwareVersion string `form:"MpFirmwareVersion" csv:"Прошивка контроллера управления" json:"MpFirmwareVersion"` // identity.MpFirmwareVersion
 	MpIPAddress       string `form:"MpIPAddress" csv:"IP контроллера управления" json:"MpIPAddress"`     // identity.MpIPAddress - адрес iLO/OA
 	MpHostName        string `form:"MpHostName" csv:"Имя контроллера управления" json:"MpHostName"`      // identity.MpHostName
+	RackCabinetId     int64  `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов" json:"RackCabinetId"` // FK на models.RackCabinet.Id (новый справочник шкафов) - дополняет старые текстовые DatacenterRoom/RackNum/DatacenterName/RackName, не заменяет их
 }
 
 // Коды источника обновления записей ServerHardware/ServerSprRecords -
@@ -2076,6 +2078,159 @@ func (u *Rack) TableIndex() [][]string {
 		[]string{"Code"},
 		[]string{"Datacenter"},
 		[]string{"Datacenter", "Code"},
+	}
+}
+
+// DatacenterSite - справочник ЦОД (физических площадок/серверных), по аналогии
+// с oneview2.Datacenter (см. oneview2/models.go). Отдельная модель от старого
+// models.Datacenter (таблица cmdb_datacenter) - тот используется только
+// внутренним бюджетным нормативным контуром (cmdb/updatehwsprhp.go,
+// UpdateCMDBHwSprHP/UpdateDatacenter) и трогать его рискованно; для нового
+// пользовательского справочника размещения заведена отдельная таблица.
+type DatacenterSite struct {
+	Id         int64     `form:"Id" orm:"auto" csv:"%"`                         //
+	Name       string    `form:"Name" csv:"Наименование"`                       //основное наименование ЦОД
+	AltName    string    `form:"AltName" csv:"Альтернативное наименование"`     //альтернативное наименование (короткий код/старое название и т.п.)
+	Width      int64     `orm:"null" form:"Width" csv:"Ширина"`                 //по аналогии с oneview2.Datacenter.Width
+	Height     int64     `orm:"null" form:"Height" csv:"Высота"`                //по аналогии с oneview2.Datacenter.Height
+	Annotation string    `orm:"null" form:"Annotation" csv:"Описание"`          //
+	Id_User    int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
+	Time_Mfy   time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`      //
+}
+
+// TableName возвращает имя таблицы БД для модели DatacenterSite (используется beego ORM).
+func (a *DatacenterSite) TableName() string {
+	return "cmdb_datacenter_site"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели DatacenterSite в beego ORM.
+func (u *DatacenterSite) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Id"},
+		[]string{"Name"},
+	}
+}
+
+// RackCabinet - справочник шкафов ("Шкаф") в составе ЦОД (DatacenterSite), по
+// аналогии с oneview2.Rack (см. oneview2/models.go). Отдельная модель от
+// старого models.Rack (таблица cmdb_rack) по той же причине, что и
+// DatacenterSite/Datacenter - старая таблица занята бюджетным нормативным
+// контуром. Связывается с BladeSystems (BladeSystems.RackCabinetId) и
+// ServerHardware (ServerHardware.RackCabinetId).
+type RackCabinet struct {
+	Id               int64     `form:"Id" orm:"auto" csv:"%"`                          //
+	DatacenterSiteId int64     `orm:"null" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"` //FK на DatacenterSite.Id
+	Name             string    `form:"Name" csv:"Наименование"`                        //основное наименование шкафа
+	AltName          string    `form:"AltName" csv:"Альтернативное наименование"`      //альтернативное наименование/старый номер шкафа
+	Model            string    `orm:"null" form:"Model" csv:"Модель"`                  //по аналогии с oneview2.Rack.Model
+	SerialNumber     string    `orm:"null" form:"SerialNumber" csv:"Серийный номер"`   //по аналогии с oneview2.Rack.SerialNumber
+	Width            int64     `orm:"null" form:"Width" csv:"Ширина"`                  //по аналогии с oneview2.Rack.Width
+	Depth            int64     `orm:"null" form:"Depth" csv:"Глубина"`                 //по аналогии с oneview2.Rack.Depth
+	Height           int64     `orm:"null" form:"Height" csv:"Высота"`                 //по аналогии с oneview2.Rack.Height
+	UHeight          int64     `orm:"null" form:"UHeight" csv:"Высота, юниты"`         //по аналогии с oneview2.Rack.UHeight
+	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`           //
+	Id_User          int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
+	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`       //
+}
+
+// TableName возвращает имя таблицы БД для модели RackCabinet (используется beego ORM).
+func (a *RackCabinet) TableName() string {
+	return "cmdb_rack_cabinet"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели RackCabinet в beego ORM.
+func (u *RackCabinet) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Id"},
+		[]string{"Name"},
+		[]string{"DatacenterSiteId"},
+	}
+}
+
+// NetworkSprRecords - справочник сетей (VLAN/подсетей) для серверов и других
+// компонент инфраструктуры (СХД, коммутаторы и т.п.). Заводится как
+// самостоятельная нормализованная замена/дополнение к существующим
+// свободнотекстовым полям Network/NetworkName на ServerSprRecords и т.п.
+// (те остаются как есть, для обратной совместимости и данных, полученных из
+// VMware/OneView).
+type NetworkSprRecords struct {
+	Id          int64     `form:"Id" orm:"auto" csv:"%"`                     //
+	Name        string    `form:"Name" csv:"Наименование сети"`              //например, "DMZ Prom"
+	Vlan        int64     `orm:"null" form:"Vlan" csv:"VLAN"`                //номер VLAN, если применимо
+	Subnet      string    `orm:"null" form:"Subnet" csv:"Подсеть (CIDR)"`    //например, 10.10.10.0/24
+	Gateway     string    `orm:"null" form:"Gateway" csv:"Шлюз"`             //
+	Annotation  string    `orm:"null" form:"Annotation" csv:"Описание"`      //
+	Id_User     int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
+	Time_Mfy    time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`  //
+}
+
+// TableName возвращает имя таблицы БД для модели NetworkSprRecords (используется beego ORM).
+func (a *NetworkSprRecords) TableName() string {
+	return "network_spr_records"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели NetworkSprRecords в beego ORM.
+func (u *NetworkSprRecords) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Id"},
+		[]string{"Name"},
+		[]string{"Vlan"},
+	}
+}
+
+// SwitchSprRecords - справочник сетевых коммутаторов, со связью с
+// DatacenterSite/RackCabinet (место установки) и со списком связанных сетей
+// через промежуточную таблицу SwitchNetworkLink (один коммутатор обычно
+// обслуживает несколько VLAN/сетей - поэтому связь многие-ко-многим, а не
+// одиночный FK).
+type SwitchSprRecords struct {
+	Id               int64     `form:"Id" orm:"auto" csv:"%"`                          //
+	Name             string    `form:"Name" csv:"Наименование"`                        //
+	Vendor           string    `orm:"null" form:"Vendor" csv:"Производитель"`          //
+	Model            string    `orm:"null" form:"Model" csv:"Модель"`                  //
+	SerialNum        string    `orm:"null" form:"SerialNum" csv:"Серийный номер"`      //
+	ManagementIp     string    `orm:"null" form:"ManagementIp" csv:"IP управления"`    //
+	DatacenterSiteId int64     `orm:"null" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"` //FK на DatacenterSite.Id
+	RackCabinetId    int64     `orm:"null" form:"RackCabinetId" csv:"Шкаф (ссылка)"`   //FK на RackCabinet.Id
+	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`           //
+	Id_User          int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
+	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`       //
+}
+
+// TableName возвращает имя таблицы БД для модели SwitchSprRecords (используется beego ORM).
+func (a *SwitchSprRecords) TableName() string {
+	return "switch_spr_records"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели SwitchSprRecords в beego ORM.
+func (u *SwitchSprRecords) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Id"},
+		[]string{"Name"},
+		[]string{"DatacenterSiteId"},
+		[]string{"RackCabinetId"},
+	}
+}
+
+// SwitchNetworkLink - связь многие-ко-многим между SwitchSprRecords и
+// NetworkSprRecords (какие сети/VLAN обслуживает конкретный коммутатор).
+type SwitchNetworkLink struct {
+	Id        int64 `form:"Id" orm:"auto" csv:"%"` //
+	SwitchId  int64 `form:"SwitchId" csv:"Коммутатор (ссылка)"`  //FK на SwitchSprRecords.Id
+	NetworkId int64 `form:"NetworkId" csv:"Сеть (ссылка)"`       //FK на NetworkSprRecords.Id
+}
+
+// TableName возвращает имя таблицы БД для модели SwitchNetworkLink (используется beego ORM).
+func (a *SwitchNetworkLink) TableName() string {
+	return "switch_network_link"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели SwitchNetworkLink в beego ORM.
+func (u *SwitchNetworkLink) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Id"},
+		[]string{"SwitchId"},
+		[]string{"NetworkId"},
 	}
 }
 
