@@ -187,80 +187,80 @@ type ReportServerRecord struct {
 	UseWorkDisk            bool      `form:"-"`
 }
 
-	// Раньше поле называлось VMsprId (со строчной "s" в "spr") - из-за этого
-	// beego ORM вычисляло имя колонки как v_mspr_id вместо v_m_spr_id,
-	// используемого везде в проекте для этой же по смыслу ссылки (см.
-	// ServerSprRecords.VMSprId, VMUsageDatastore.VMSprId и т.д., а также
-	// TableIndex ниже, который уже ссылался на "VMSprId"). RunSyncdb (config.DBInit,
-	// force=false) не переименовывает и не удаляет колонки - он молча ДОБАВИЛ
-	// в БД новую колонку v_mspr_id, которая всегда оставалась равна 0, тогда
-	// как реальные значения продолжали писаться в старую v_m_spr_id только тем
-	// кодом, который её ещё использовал. Приведение имени поля к VMSprId
-	// заставляет ORM снова читать/писать v_m_spr_id, где лежат корректные данные.
+// Раньше поле называлось VMsprId (со строчной "s" в "spr") - из-за этого
+// beego ORM вычисляло имя колонки как v_mspr_id вместо v_m_spr_id,
+// используемого везде в проекте для этой же по смыслу ссылки (см.
+// ServerSprRecords.VMSprId, VMUsageDatastore.VMSprId и т.д., а также
+// TableIndex ниже, который уже ссылался на "VMSprId"). RunSyncdb (config.DBInit,
+// force=false) не переименовывает и не удаляет колонки - он молча ДОБАВИЛ
+// в БД новую колонку v_mspr_id, которая всегда оставалась равна 0, тогда
+// как реальные значения продолжали писаться в старую v_m_spr_id только тем
+// кодом, который её ещё использовал. Приведение имени поля к VMSprId
+// заставляет ORM снова читать/писать v_m_spr_id, где лежат корректные данные.
 
 // VMRecord описывает запись/справочник БД loadmon, соответствующую сущности VMRecord.
 type VMRecord struct {
-	Id                   int64     `form:"Id" csv:"-"`
-	ServerId             int64     `form:"ServerId" csv:"-"` //новая ссылка на справочник серверов. Добавить запись значений.
-	VMSprId              int64     `orm:"column(v_m_spr_id)" form:"VMSprId" csv:"-"` //ссылка на справочник VM (vm_spr_record.Id)
-	ClusterId            int64     `form:"ClusterId" csv:"-"`
-	Date                 time.Time `form:"Date" csv:"-"`
-	Vm_NumCPU            int32     `form:"Vm_NumCPU" csv:"-"`
-	Vm_NumCores          int32     `form:"Vm_NumCores" csv:"-"`
-	Vm_MemorySizeGB      float64   `form:"Vm_MemorySizeGB" csv:"-"`
-	Vm_IpAddress         string    `form:"Vm_IpAddress" csv:"-"`
-	Vm_Network           string    `form:"Vm_Network" csv:"-"`
-	Vm_NumEthernetCards  int32     `form:"Vm_NumEthernetCards" csv:"-"`
-	Vm_NumVirtualDisks   int32     `form:"Vm_NumVirtualDisks" csv:"-"`
-	Vm_DiskCommittedGB   float64   `form:"Vm_DiskCommittedGB" csv:"-"`
-	Vm_DiskUncommittedGB float64   `form:"Vm_DiskUncommittedGB" csv:"-"`
-	Vm_CapacityGb        float64   `form:"Vm_CapacityGb" csv:"VM DISK (Gb)"`
-	Vm_FreeSpaceGb       float64   `form:"Vm_FreeSpaceGb" csv:"VM DISK Free (Gb)"`
-	Vm_PercentUsed       float64   `form:"Vm_PercentUsed" csv:"VM DISK Used %"`
-	Cpu_usage_maximum    float64   `form:"Cpu_usage_maximum" csv:"VM CPU max %"`
-	Cpu_usage_maximum_time time.Time `orm:"null" form:"Cpu_usage_maximum_time" csv:"VM CPU max time"`
-	Cpu_usage_average    float64   `form:"Cpu_usage_average" csv:"VM CPU avg %"`
-	Cpu_usage_minimum    float64   `form:"Cpu_usage_minimum" csv:"VM CPU min %"`
-	Cpu_usage_minimum_time time.Time `orm:"null" form:"Cpu_usage_minimum_time" csv:"VM CPU min time"`
-	Mem_usage_maximum    float64   `form:"Mem_usage_maximum" csv:"VM MEM max %"`
-	Mem_usage_maximum_time time.Time `orm:"null" form:"Mem_usage_maximum_time" csv:"VM MEM max time"`
-	Mem_usage_average    float64   `form:"Mem_usage_average" csv:"VM MEM avg %"`
-	Mem_usage_minimum    float64   `form:"Mem_usage_minimum" csv:"VM MEM min %"`
-	Mem_usage_minimum_time time.Time `orm:"null" form:"Mem_usage_minimum_time" csv:"VM MEM min time"`
-	Disk_usage_maximum   float64   `form:"Disk_usage_maximum" csv:"VM DISK Usage max %"`
-	Disk_usage_maximum_time time.Time `orm:"null" form:"Disk_usage_maximum_time" csv:"VM DISK Usage max time"`
-	Disk_usage_average   float64   `form:"Disk_usage_average" csv:"VM DISK Usage avg %"`
-	Disk_usage_minimum   float64   `form:"Disk_usage_minimum" csv:"VM DISK Usage min %"`
-	Disk_usage_minimum_time time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"VM DISK Usage min time"`
-	Disk_totalReadLatency_maximum float64 `form:"Disk_totalReadLatency_maximum" csv:"-"`
-	Disk_totalReadLatency_maximum_time time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
-	Disk_totalReadLatency_average float64 `form:"Disk_totalReadLatency_average" csv:"-"`
-	Disk_totalReadLatency_minimum float64 `form:"Disk_totalReadLatency_minimum" csv:"-"`
-	Disk_totalReadLatency_minimum_time time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
-	Disk_totalWriteLatency_maximum float64 `form:"Disk_totalWriteLatency_maximum" csv:"-"`
+	Id                                  int64     `form:"Id" csv:"-"`
+	ServerId                            int64     `form:"ServerId" csv:"-"`                         //новая ссылка на справочник серверов. Добавить запись значений.
+	VMSprId                             int64     `orm:"column(v_m_spr_id)" form:"VMSprId" csv:"-"` //ссылка на справочник VM (vm_spr_record.Id)
+	ClusterId                           int64     `form:"ClusterId" csv:"-"`
+	Date                                time.Time `form:"Date" csv:"-"`
+	Vm_NumCPU                           int32     `form:"Vm_NumCPU" csv:"-"`
+	Vm_NumCores                         int32     `form:"Vm_NumCores" csv:"-"`
+	Vm_MemorySizeGB                     float64   `form:"Vm_MemorySizeGB" csv:"-"`
+	Vm_IpAddress                        string    `form:"Vm_IpAddress" csv:"-"`
+	Vm_Network                          string    `form:"Vm_Network" csv:"-"`
+	Vm_NumEthernetCards                 int32     `form:"Vm_NumEthernetCards" csv:"-"`
+	Vm_NumVirtualDisks                  int32     `form:"Vm_NumVirtualDisks" csv:"-"`
+	Vm_DiskCommittedGB                  float64   `form:"Vm_DiskCommittedGB" csv:"-"`
+	Vm_DiskUncommittedGB                float64   `form:"Vm_DiskUncommittedGB" csv:"-"`
+	Vm_CapacityGb                       float64   `form:"Vm_CapacityGb" csv:"VM DISK (Gb)"`
+	Vm_FreeSpaceGb                      float64   `form:"Vm_FreeSpaceGb" csv:"VM DISK Free (Gb)"`
+	Vm_PercentUsed                      float64   `form:"Vm_PercentUsed" csv:"VM DISK Used %"`
+	Cpu_usage_maximum                   float64   `form:"Cpu_usage_maximum" csv:"VM CPU max %"`
+	Cpu_usage_maximum_time              time.Time `orm:"null" form:"Cpu_usage_maximum_time" csv:"VM CPU max time"`
+	Cpu_usage_average                   float64   `form:"Cpu_usage_average" csv:"VM CPU avg %"`
+	Cpu_usage_minimum                   float64   `form:"Cpu_usage_minimum" csv:"VM CPU min %"`
+	Cpu_usage_minimum_time              time.Time `orm:"null" form:"Cpu_usage_minimum_time" csv:"VM CPU min time"`
+	Mem_usage_maximum                   float64   `form:"Mem_usage_maximum" csv:"VM MEM max %"`
+	Mem_usage_maximum_time              time.Time `orm:"null" form:"Mem_usage_maximum_time" csv:"VM MEM max time"`
+	Mem_usage_average                   float64   `form:"Mem_usage_average" csv:"VM MEM avg %"`
+	Mem_usage_minimum                   float64   `form:"Mem_usage_minimum" csv:"VM MEM min %"`
+	Mem_usage_minimum_time              time.Time `orm:"null" form:"Mem_usage_minimum_time" csv:"VM MEM min time"`
+	Disk_usage_maximum                  float64   `form:"Disk_usage_maximum" csv:"VM DISK Usage max %"`
+	Disk_usage_maximum_time             time.Time `orm:"null" form:"Disk_usage_maximum_time" csv:"VM DISK Usage max time"`
+	Disk_usage_average                  float64   `form:"Disk_usage_average" csv:"VM DISK Usage avg %"`
+	Disk_usage_minimum                  float64   `form:"Disk_usage_minimum" csv:"VM DISK Usage min %"`
+	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"VM DISK Usage min time"`
+	Disk_totalReadLatency_maximum       float64   `form:"Disk_totalReadLatency_maximum" csv:"-"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
+	Disk_totalReadLatency_average       float64   `form:"Disk_totalReadLatency_average" csv:"-"`
+	Disk_totalReadLatency_minimum       float64   `form:"Disk_totalReadLatency_minimum" csv:"-"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
+	Disk_totalWriteLatency_maximum      float64   `form:"Disk_totalWriteLatency_maximum" csv:"-"`
 	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"-"`
-	Disk_totalWriteLatency_average float64 `form:"Disk_totalWriteLatency_average" csv:"-"`
-	Disk_totalWriteLatency_minimum float64 `form:"Disk_totalWriteLatency_minimum" csv:"-"`
+	Disk_totalWriteLatency_average      float64   `form:"Disk_totalWriteLatency_average" csv:"-"`
+	Disk_totalWriteLatency_minimum      float64   `form:"Disk_totalWriteLatency_minimum" csv:"-"`
 	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"-"`
-	Disk_write_maximum   float64   `form:"Disk_write_maximum" csv:"-"`
-	Disk_write_maximum_time time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
-	Disk_write_average   float64   `form:"Disk_write_average" csv:"-"`
-	Disk_write_minimum   float64   `form:"Disk_write_minimum" csv:"-"`
-	Disk_write_minimum_time time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
-	Disk_read_maximum    float64   `form:"Disk_read_maximum" csv:"-"`
-	Disk_read_maximum_time time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
-	Disk_read_average    float64   `form:"Disk_read_average" csv:"-"`
-	Disk_read_minimum    float64   `form:"Disk_read_minimum" csv:"-"`
-	Disk_read_minimum_time time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
-	Net_usage_maximum    float64   `form:"Net_usage_maximum" csv:"-"`
-	Net_usage_maximum_time time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"-"`
-	Net_usage_average    float64   `form:"Net_usage_average" csv:"-"`
-	Net_usage_minimum    float64   `form:"Net_usage_minimum" csv:"-"`
-	Net_usage_minimum_time time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
-	CpuBilling           float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
-	MemBilling           float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
-	DiskBilling          float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
-	NetBilling           float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
+	Disk_write_maximum                  float64   `form:"Disk_write_maximum" csv:"-"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
+	Disk_write_average                  float64   `form:"Disk_write_average" csv:"-"`
+	Disk_write_minimum                  float64   `form:"Disk_write_minimum" csv:"-"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
+	Disk_read_maximum                   float64   `form:"Disk_read_maximum" csv:"-"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
+	Disk_read_average                   float64   `form:"Disk_read_average" csv:"-"`
+	Disk_read_minimum                   float64   `form:"Disk_read_minimum" csv:"-"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
+	Net_usage_maximum                   float64   `form:"Net_usage_maximum" csv:"-"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"-"`
+	Net_usage_average                   float64   `form:"Net_usage_average" csv:"-"`
+	Net_usage_minimum                   float64   `form:"Net_usage_minimum" csv:"-"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
+	CpuBilling                          float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
+	MemBilling                          float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
+	DiskBilling                         float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
+	NetBilling                          float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
 }
 
 // TableName возвращает имя таблицы БД для модели VMRecord (используется beego ORM).
@@ -335,70 +335,70 @@ type VMSprRecordView struct {
 
 // HostRecord описывает запись/справочник БД loadmon, соответствующую сущности HostRecord.
 type HostRecord struct {
-	Id                         int64     `form:"Id" csv:"-"`
-	ServerId                   int64     `form:"ServerId" csv:"-"` //ссылка на справочник серверов (хостов)
-	ClusterId                  int64     `form:"ClusterId" csv:"-"`
-	Date                       time.Time `form:"Date" csv:"-"`
-	Vcenter                    string    `form:"Vcenter" csv:"-"`
-	Datacenter                 string    `form:"Datacenter" csv:"-"`
-	Cluster                    string    `form:"Cluster" csv:"-"`
-	Name                       string    `form:"Name" csv:"-"`
-	Vendor                     string    `form:"Vendor"` //HostSystemInfo
-	Model                      string    `form:"Model"`
-	CpuModel                   string    `form:"CpuModel"`
-	CpuMhz                     int32     `form:"CpuMhz"`
-	NumCpuPkgs                 int16     `form:"NumCpuPkgs"`
-	NumCpuCores                int16     `form:"NumCpuCores"`
-	NumCpuThreads              int16     `form:"NumCpuThreads"`
-	NumNics                    int32     `form:"NumNics"`
-	IpAddress                  string    `form:"IpAddress"`
-	NumHBAs                    int32     `form:"NumHBAs"`
-	MemorySizeGB               float64   `form:"MemorySizeGB"`
-	HostMaxVirtualDiskCapacity float64   `form:"HostMaxVirtualDiskCapacity"`
-	Cpu_usage_maximum          float64   `orm:"null" form:"Cpu_usage_maximum" csv:"HOST CPU Usage max %"`
-	Cpu_usage_maximum_time     time.Time `orm:"null" form:"Cpu_usage_maximum_time" csv:"-"`
-	Cpu_usage_average          float64   `orm:"null" form:"Cpu_usage_average" csv:"HOST CPU Usage avg %"`
-	Cpu_usage_minimum          float64   `orm:"null" form:"Cpu_usage_minimum" csv:"HOST CPU Usage min %"`
-	Cpu_usage_minimum_time     time.Time `orm:"null" form:"Cpu_usage_minimum_time" csv:"-"`
-	Mem_usage_maximum          float64   `orm:"null" form:"Mem_usage_maximum" csv:"HOST MEM Usage max %"`
-	Mem_usage_maximum_time     time.Time `orm:"null" form:"Mem_usage_maximum_time" csv:"-"`
-	Mem_usage_average          float64   `orm:"null" form:"Mem_usage_average" csv:"HOST MEM Usage avg %"`
-	Mem_usage_minimum          float64   `orm:"null" form:"Mem_usage_minimum" csv:"HOST MEM Usage min %"`
-	Mem_usage_minimum_time     time.Time `orm:"null" form:"Mem_usage_minimum_time" csv:"-"`
-	Disk_usage_maximum         float64   `orm:"null" form:"Disk_usage_maximum" csv:"-"`
-	Disk_usage_maximum_time    time.Time `orm:"null" form:"Disk_usage_maximum_time" csv:"-"`
-	Disk_usage_average         float64   `orm:"null" form:"Disk_usage_average" csv:"-"`
-	Disk_usage_minimum         float64   `orm:"null" form:"Disk_usage_minimum" csv:"-"`
-	Disk_usage_minimum_time    time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"-"`
-	Disk_totalReadLatency_maximum float64 `orm:"null" form:"Disk_totalReadLatency_maximum" csv:"-"`
-	Disk_totalReadLatency_maximum_time time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
-	Disk_totalReadLatency_average float64 `orm:"null" form:"Disk_totalReadLatency_average" csv:"-"`
-	Disk_totalReadLatency_minimum float64 `orm:"null" form:"Disk_totalReadLatency_minimum" csv:"-"`
-	Disk_totalReadLatency_minimum_time time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
-	Disk_totalWriteLatency_maximum float64 `orm:"null" form:"Disk_totalWriteLatency_maximum" csv:"-"`
+	Id                                  int64     `form:"Id" csv:"-"`
+	ServerId                            int64     `form:"ServerId" csv:"-"` //ссылка на справочник серверов (хостов)
+	ClusterId                           int64     `form:"ClusterId" csv:"-"`
+	Date                                time.Time `form:"Date" csv:"-"`
+	Vcenter                             string    `form:"Vcenter" csv:"-"`
+	Datacenter                          string    `form:"Datacenter" csv:"-"`
+	Cluster                             string    `form:"Cluster" csv:"-"`
+	Name                                string    `form:"Name" csv:"-"`
+	Vendor                              string    `form:"Vendor"` //HostSystemInfo
+	Model                               string    `form:"Model"`
+	CpuModel                            string    `form:"CpuModel"`
+	CpuMhz                              int32     `form:"CpuMhz"`
+	NumCpuPkgs                          int16     `form:"NumCpuPkgs"`
+	NumCpuCores                         int16     `form:"NumCpuCores"`
+	NumCpuThreads                       int16     `form:"NumCpuThreads"`
+	NumNics                             int32     `form:"NumNics"`
+	IpAddress                           string    `form:"IpAddress"`
+	NumHBAs                             int32     `form:"NumHBAs"`
+	MemorySizeGB                        float64   `form:"MemorySizeGB"`
+	HostMaxVirtualDiskCapacity          float64   `form:"HostMaxVirtualDiskCapacity"`
+	Cpu_usage_maximum                   float64   `orm:"null" form:"Cpu_usage_maximum" csv:"HOST CPU Usage max %"`
+	Cpu_usage_maximum_time              time.Time `orm:"null" form:"Cpu_usage_maximum_time" csv:"-"`
+	Cpu_usage_average                   float64   `orm:"null" form:"Cpu_usage_average" csv:"HOST CPU Usage avg %"`
+	Cpu_usage_minimum                   float64   `orm:"null" form:"Cpu_usage_minimum" csv:"HOST CPU Usage min %"`
+	Cpu_usage_minimum_time              time.Time `orm:"null" form:"Cpu_usage_minimum_time" csv:"-"`
+	Mem_usage_maximum                   float64   `orm:"null" form:"Mem_usage_maximum" csv:"HOST MEM Usage max %"`
+	Mem_usage_maximum_time              time.Time `orm:"null" form:"Mem_usage_maximum_time" csv:"-"`
+	Mem_usage_average                   float64   `orm:"null" form:"Mem_usage_average" csv:"HOST MEM Usage avg %"`
+	Mem_usage_minimum                   float64   `orm:"null" form:"Mem_usage_minimum" csv:"HOST MEM Usage min %"`
+	Mem_usage_minimum_time              time.Time `orm:"null" form:"Mem_usage_minimum_time" csv:"-"`
+	Disk_usage_maximum                  float64   `orm:"null" form:"Disk_usage_maximum" csv:"-"`
+	Disk_usage_maximum_time             time.Time `orm:"null" form:"Disk_usage_maximum_time" csv:"-"`
+	Disk_usage_average                  float64   `orm:"null" form:"Disk_usage_average" csv:"-"`
+	Disk_usage_minimum                  float64   `orm:"null" form:"Disk_usage_minimum" csv:"-"`
+	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"-"`
+	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum" csv:"-"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
+	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average" csv:"-"`
+	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum" csv:"-"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
+	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum" csv:"-"`
 	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"-"`
-	Disk_totalWriteLatency_average float64 `orm:"null" form:"Disk_totalWriteLatency_average" csv:"-"`
-	Disk_totalWriteLatency_minimum float64 `orm:"null" form:"Disk_totalWriteLatency_minimum" csv:"-"`
+	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average" csv:"-"`
+	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum" csv:"-"`
 	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"-"`
-	Disk_write_maximum         float64   `orm:"null" form:"Disk_write_maximum" csv:"-"`
-	Disk_write_maximum_time    time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
-	Disk_write_average         float64   `orm:"null" form:"Disk_write_average" csv:"-"`
-	Disk_write_minimum         float64   `orm:"null" form:"Disk_write_minimum" csv:"-"`
-	Disk_write_minimum_time    time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
-	Disk_read_maximum          float64   `orm:"null" form:"Disk_read_maximun" csv:"-"`
-	Disk_read_maximum_time     time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
-	Disk_read_average          float64   `orm:"null" form:"Disk_read_average" csv:"-"`
-	Disk_read_minimum          float64   `orm:"null" form:"Disk_read_minimum" csv:"-"`
-	Disk_read_minimum_time     time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
-	Net_usage_maximum          float64   `orm:"null" form:"Net_usage_maximun" csv:"-"`
-	Net_usage_maximum_time     time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"-"`
-	Net_usage_average          float64   `orm:"null" form:"Net_usage_average" csv:"-"`
-	Net_usage_minimum          float64   `orm:"null" form:"Net_usage_minimum" csv:"-"`
-	Net_usage_minimum_time     time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
-	CpuBilling                 float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
-	MemBilling                 float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
-	DiskBilling                float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
-	NetBilling                 float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
+	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum" csv:"-"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
+	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average" csv:"-"`
+	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimum" csv:"-"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
+	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun" csv:"-"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
+	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average" csv:"-"`
+	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimum" csv:"-"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
+	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun" csv:"-"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"-"`
+	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average" csv:"-"`
+	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimum" csv:"-"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
+	CpuBilling                          float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
+	MemBilling                          float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
+	DiskBilling                         float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
+	NetBilling                          float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
 }
 
 // TableName возвращает имя таблицы БД для модели HostRecord (используется beego ORM).
@@ -417,67 +417,67 @@ func (u *HostRecord) TableIndex() [][]string {
 
 // ClusterRecord описывает запись/справочник БД loadmon, соответствующую сущности ClusterRecord.
 type ClusterRecord struct {
-	Id                                 int64     `form:"Id"`
-	ClusterId                          int64     `form:"ClusterId"`
-	Date                               time.Time `form:"Date"`
-	Vcenter                            string    `form:"Vcenter"`
-	Datacenter                         string    `form:"Datacenter"`
-	Name                               string    `form:"Name"`
-	CpuMhzAvg                          int32     `form:"CpuMhzAvg"`
-	AllNumCpuPkgs                      int16     `form:"AllNumCpuPkgs"`
-	AllNumCpuCores                     int16     `form:"AllNumCpuCores"`
-	AllNumCpuThreads                   int16     `form:"AllNumCpuThreads"`
-	AllMemorySizeGB                    float64   `form:"AllMemorySizeGB"`
-	AllCapacityGb                      float64   `form:"AllCapacityGb"`
-	AllFreeSpaceGb                     float64   `form:"AllFreeSpaceGb"`
-	AllPercentUsed                     float64   `form:"AllPercentUsed"`
-	Cpu_usage_maximum                  float64   `orm:"null" form:"Cpu_usage_maximum"`
-	Cpu_usage_maximum_time             time.Time `orm:"null" form:"Cpu_usage_maximum_time"`
-	Cpu_usage_average                  float64   `orm:"null" form:"Cpu_usage_average"`
-	Cpu_usage_minimum                  float64   `orm:"null" form:"Cpu_usage_minimum"`
-	Cpu_usage_minimum_time             time.Time `orm:"null" form:"Cpu_usage_minimum_time"`
-	Mem_usage_maximum                  float64   `orm:"null" form:"Mem_usage_maximum"`
-	Mem_usage_maximum_time             time.Time `orm:"null" form:"Mem_usage_maximum_time"`
-	Mem_usage_average                  float64   `orm:"null" form:"Mem_usage_average"`
-	Mem_usage_minimum                  float64   `orm:"null" form:"Mem_usage_minimum"`
-	Mem_usage_minimum_time             time.Time `orm:"null" form:"Mem_usage_minimum_time"`
-	Disk_usage_maximum                 float64   `orm:"null" form:"Disk_usage_maximum"`
-	Disk_usage_maximum_time            time.Time `orm:"null" form:"Disk_usage_maximum_time"`
-	Disk_usage_average                 float64   `orm:"null" form:"Disk_usage_average"`
-	Disk_usage_minimum                 float64   `orm:"null" form:"Disk_usage_minimum"`
-	Disk_usage_minimum_time            time.Time `orm:"null" form:"Disk_usage_minimum_time"`
-	Disk_totalReadLatency_maximum      float64   `orm:"null" form:"Disk_totalReadLatency_maximum"`
-	Disk_totalReadLatency_maximum_time time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time"`
-	Disk_totalReadLatency_average      float64   `orm:"null" form:"Disk_totalReadLatency_average"`
-	Disk_totalReadLatency_minimum      float64   `orm:"null" form:"Disk_totalReadLatency_minimum"`
-	Disk_totalReadLatency_minimum_time time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time"`
-	Disk_totalWriteLatency_maximum     float64   `orm:"null" form:"Disk_totalWriteLatency_maximum"`
+	Id                                  int64     `form:"Id"`
+	ClusterId                           int64     `form:"ClusterId"`
+	Date                                time.Time `form:"Date"`
+	Vcenter                             string    `form:"Vcenter"`
+	Datacenter                          string    `form:"Datacenter"`
+	Name                                string    `form:"Name"`
+	CpuMhzAvg                           int32     `form:"CpuMhzAvg"`
+	AllNumCpuPkgs                       int16     `form:"AllNumCpuPkgs"`
+	AllNumCpuCores                      int16     `form:"AllNumCpuCores"`
+	AllNumCpuThreads                    int16     `form:"AllNumCpuThreads"`
+	AllMemorySizeGB                     float64   `form:"AllMemorySizeGB"`
+	AllCapacityGb                       float64   `form:"AllCapacityGb"`
+	AllFreeSpaceGb                      float64   `form:"AllFreeSpaceGb"`
+	AllPercentUsed                      float64   `form:"AllPercentUsed"`
+	Cpu_usage_maximum                   float64   `orm:"null" form:"Cpu_usage_maximum"`
+	Cpu_usage_maximum_time              time.Time `orm:"null" form:"Cpu_usage_maximum_time"`
+	Cpu_usage_average                   float64   `orm:"null" form:"Cpu_usage_average"`
+	Cpu_usage_minimum                   float64   `orm:"null" form:"Cpu_usage_minimum"`
+	Cpu_usage_minimum_time              time.Time `orm:"null" form:"Cpu_usage_minimum_time"`
+	Mem_usage_maximum                   float64   `orm:"null" form:"Mem_usage_maximum"`
+	Mem_usage_maximum_time              time.Time `orm:"null" form:"Mem_usage_maximum_time"`
+	Mem_usage_average                   float64   `orm:"null" form:"Mem_usage_average"`
+	Mem_usage_minimum                   float64   `orm:"null" form:"Mem_usage_minimum"`
+	Mem_usage_minimum_time              time.Time `orm:"null" form:"Mem_usage_minimum_time"`
+	Disk_usage_maximum                  float64   `orm:"null" form:"Disk_usage_maximum"`
+	Disk_usage_maximum_time             time.Time `orm:"null" form:"Disk_usage_maximum_time"`
+	Disk_usage_average                  float64   `orm:"null" form:"Disk_usage_average"`
+	Disk_usage_minimum                  float64   `orm:"null" form:"Disk_usage_minimum"`
+	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time"`
+	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time"`
+	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average"`
+	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time"`
+	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum"`
 	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time"`
-	Disk_totalWriteLatency_average     float64   `orm:"null" form:"Disk_totalWriteLatency_average"`
-	Disk_totalWriteLatency_minimum     float64   `orm:"null" form:"Disk_totalWriteLatency_minimum"`
+	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average"`
+	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum"`
 	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time"`
-	Disk_write_maximum                 float64   `orm:"null" form:"Disk_write_maximum"`
-	Disk_write_maximum_time            time.Time `orm:"null" form:"Disk_write_maximum_time"`
-	Disk_write_average                 float64   `orm:"null" form:"Disk_write_average"`
-	Disk_write_minimum                 float64   `orm:"null" form:"Disk_write_minimun"`
-	Disk_write_minimum_time            time.Time `orm:"null" form:"Disk_write_minimum_time"`
-	Disk_read_maximum                  float64   `orm:"null" form:"Disk_read_maximun"`
-	Disk_read_maximum_time             time.Time `orm:"null" form:"Disk_read_maximum_time"`
-	Disk_read_average                  float64   `orm:"null" form:"Disk_read_average"`
-	Disk_read_minimum                  float64   `orm:"null" form:"Disk_read_minimun"`
-	Disk_read_minimum_time             time.Time `orm:"null" form:"Disk_read_minimum_time"`
-	Net_usage_maximum                  float64   `orm:"null" form:"Net_usage_maximun"`
-	Net_usage_maximum_time             time.Time `orm:"null" form:"Net_usage_maximun_time"`
-	Net_usage_average                  float64   `orm:"null" form:"Net_usage_average"`
-	Net_usage_minimum                  float64   `orm:"null" form:"Net_usage_minimun"`
-	Net_usage_minimum_time             time.Time `orm:"null" form:"Net_usage_minimum_time"`
-	CpuBilling                         float64   `form:"CpuBilling"`  // в мегагерц часах
-	DiskBilling                        float64   `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
-	MemBilling                         float64   `form:"MemBilling"`  // в мегабайт часах
-	NetBilling                         float64   `form:"NetBilling"`  // в мегабайт часах
-	HostCount                          int64     `form:"HostCount"`
-	VMCount                            int64     `form:"VMCount"`
-	StorageCount                       int64     `form:"StorageCount"`
+	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time"`
+	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average"`
+	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimun"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time"`
+	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time"`
+	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average"`
+	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimun"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time"`
+	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximun_time"`
+	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average"`
+	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimun"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time"`
+	CpuBilling                          float64   `form:"CpuBilling"`  // в мегагерц часах
+	DiskBilling                         float64   `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
+	MemBilling                          float64   `form:"MemBilling"`  // в мегабайт часах
+	NetBilling                          float64   `form:"NetBilling"`  // в мегабайт часах
+	HostCount                           int64     `form:"HostCount"`
+	VMCount                             int64     `form:"VMCount"`
+	StorageCount                        int64     `form:"StorageCount"`
 }
 
 // TableName возвращает имя таблицы БД для модели ClusterRecord (используется beego ORM).
@@ -497,17 +497,17 @@ func (u *ClusterRecord) TableIndex() [][]string {
 
 // ClusterSprRecords описывает запись/справочник БД loadmon, соответствующую сущности ClusterSprRecords.
 type ClusterSprRecords struct {
-	Id         int64     `form:"Id"`
-	Vcenter    string    `form:"Vcenter"`
-	Datacenter string    `form:"Datacenter"`
-	Name       string    `form:"Name"`
-	ClusterId  string    `form:"ClusterId"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	Annotation string    `form:"Annotation"`
+	Id         int64  `form:"Id"`
+	Vcenter    string `form:"Vcenter"`
+	Datacenter string `form:"Datacenter"`
+	Name       string `form:"Name"`
+	ClusterId  string `form:"ClusterId"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	Annotation string `form:"Annotation"`
 	//Production int         `form:"Production"` //признак продуктового кластера 0-не заполнено 1-продуктовый с бизнес приложениями 2-тестовые среды
-	TypeWork   int       `form:"TypeWork"` //0 - не указано 1 - продуктовая среда 2 - внутренний тест 3 - внешний тест
-	Stat       int       `form:"Stat"`     //0- не указано 1 - активен 2 выведен из работы
-	Id_User    int64     `form:"Id_User"`
-	Time_Mfy   time.Time `form:"Time_Mfy"`
+	TypeWork int       `form:"TypeWork"` //0 - не указано 1 - продуктовая среда 2 - внутренний тест 3 - внешний тест
+	Stat     int       `form:"Stat"`     //0- не указано 1 - активен 2 выведен из работы
+	Id_User  int64     `form:"Id_User"`
+	Time_Mfy time.Time `form:"Time_Mfy"`
 }
 
 // TableName возвращает имя таблицы БД для модели ClusterSprRecords (используется beego ORM).
@@ -573,27 +573,27 @@ type VMSprRecord struct {
 	Vcenter              string  `form:"Vcenter"`
 	Datacenter           string  `form:"Datacenter"`
 	Cluster              string  `form:"Cluster"`
-	ClusterId            string  `form:"ClusterId"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	Production           int     `form:"Production"` //среда 0-не заполнено 1-продуктовая с бизнес приложениями 2-тестовая
+	ClusterId            string  `form:"ClusterId"`   //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	Production           int     `form:"Production"`  //среда 0-не заполнено 1-продуктовая с бизнес приложениями 2-тестовая
 	WorkStation          bool    `form:"WorkStation"` //признак рабочей станции windows
 	TypeWork             int     `form:"TypeWork"`
 	Vm_Name              string  `form:"Vm_Name"`
 	Vm_HostName          string  `form:"Vm_HostName"`
-	Vm_DomainName        string  `form:"Vm_DomainName"` //
-	Vm_ToolsStatus       string  `form:"Vm_ToolsStatus"` // статус установки vmware tools
-	Vm_GuestFullName     string  `form:"Vm_GuestFullName"` //
+	Vm_DomainName        string  `form:"Vm_DomainName"`        //
+	Vm_ToolsStatus       string  `form:"Vm_ToolsStatus"`       // статус установки vmware tools
+	Vm_GuestFullName     string  `form:"Vm_GuestFullName"`     //
 	Vm_GuestDetailedData string  `form:"Vm_GuestDetailedData"` //подробности по гостевой система
 	Vm_PathName          string  `form:"Vm_PathName"`
 	Vm_PowerState        bool    `form:"Vm_PowerState"` //true - VM включена
-	KeyName              string  `form:"KeyName"` // формат Vcenter/Datacenter/Cluster/Vm_Name
+	KeyName              string  `form:"KeyName"`       // формат Vcenter/Datacenter/Cluster/Vm_Name
 	Vm_Uuid              string  `form:"Vm_Uuid"`
 	Vm_GuestId           string  `form:"Vm_GuestId"`
 	Vm_Annotation        string  `form:"Vm_Annotation" csv:"-"`
 	Vm_NumCPU            int32   `form:"Vm_NumCPU"`
 	Vm_NumCores          int32   `form:"Vm_NumCores"`
 	Vm_MemorySizeGB      float64 `form:"Vm_MemorySizeGB"`
-	Vm_Network           string  `form:"Vm_Network"` //список через разделитель ;
-	Vm_IpAddress         string  `form:"Vm_IpAddress"` //список через разделитель ;
+	Vm_Network           string  `form:"Vm_Network"`    //список через разделитель ;
+	Vm_IpAddress         string  `form:"Vm_IpAddress"`  //список через разделитель ;
 	Vm_MacAddress        string  `form:"Vm_MacAddress"` //список через разделитель ;
 	Vm_NumEthernetCards  int32   `form:"Vm_NumEthernetCards"`
 	Vm_NumVirtualDisks   int32   `form:"Vm_NumVirtualDisks"`
@@ -734,76 +734,76 @@ func (u *VMPerfRecord) TableIndex() [][]string {
 
 // ServerSprRecords описывает запись/справочник БД loadmon, соответствующую сущности ServerSprRecords.
 type ServerSprRecords struct {
-	Id               int64     `form:"Id" json:"Id"`
-	OldId            int64     `form:"OldId" json:"OldId"` //ссылка на историческую запись после переименования. 0 если такой нет. Может быть цепочка записей.
-	Type             int       `form:"Type" json:"Type"` //0 - физический сервер 1 - виртуальный 2-host vmware
-	SerialNumber     string    `form:"SerialNumber" json:"SerialNumber"` //серийный номер для type 0 и 2
-	Vcenter          string    `form:"Vcenter" json:"Vcenter"` //для type 1 и 2
-	Datacenter       string    `form:"Datacenter" json:"Datacenter"` //для type 1 и 2
-	Cluster          string    `form:"Cluster" json:"Cluster"` //для type 1 и 2
-	ClusterId        string    `form:"ClusterId" json:"ClusterId"` //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	VMSprId          int64     `form:"VMSprId" json:"VMSprId"` //ссылка на справочник VM если Type = 1 иначе null
-	HWSprId          int64     `form:"HWSprId" json:"HWSprId"` //ссылка на ServerHardware
-	ZabbixHostId     int64     `form:"ZabbixHostId" json:"ZabbixHostId"` //ссылка на ZabbixHost.Id если есть данные из Zabbix по этому серверу
-	TypeMicroservice int       `form:"TypeMicroservice" json:"TypeMicroservice"` // 0 не указано принадлежность к микросервисам, роль в этом пространстве
-	RoleType         int       `form:"RoleType" json:"RoleType"` //не указано 1-APP 2-DB
-	TypeWork         int       `form:"TypeWork" json:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	CriticalLevel    int       `form:"CriticalLevel" json:"CriticalLevel"` //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
-	Stat             int       `form:"Stat" json:"Stat"` //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
-	PowerState       int       `form:"PowerState" json:"PowerState"` //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием // TODO: comment truncated in screenshot
-	Active           int       `form:"Active" json:"Active"` //1 активен 2 выведен из эксплуатации
-	TimeActiveState  time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"` //время изменения статуса активности введения в эксплуатацию
-	ActivatorUser    int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"` //автор записи
-	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"` //время выведения из эксплуатации
-	DeActivatorUser  int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"` //автор записи
-	TimeCreate       time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"` //время создания записи
-	CreatorUser      int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"` //автор записи
-	BusinesPrivilage int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"` //ограничение по редактированию если указано 0 объект открыт // TODO: comment truncated in screenshot
-	Name             string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
-	NameFQDN         string    `form:"NameFQDN" json:"NameFQDN"` //полное имя сервера
-	NameInfo         string    `orm:"null" form:"NameInfo" json:"NameInfo"` //альтернативное имя сервера
-	IPAddress        string    `orm:"null" form:"IPAddress" json:"IPAddress"` //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
-	MacAddress       string    `form:"MacAddress"` //список через разделитель ;
-	IPSharedVIP      string    `orm:"null" form:"IPSharedVIP" json:"IPSharedVIP"` //удалить разделяемый IP вводится вручную
-	Network          string    `orm:"null" form:"Network" json:"Network"` //сеть vlan144
-	NetworkName      string    `orm:"null" form:"NetworkName" json:"NetworkName"` //наименование сети сеть DMZ Prom
-	CPUCount         float64   `orm:"null" form:"CPUCount" json:"CPUCount"` //Количество физических процессоров
-	CPULogical       float64   `form:"CPULogical" json:"CPULogical"` //количество логических CPU
-	MemSize          float64   `form:"MemSize" json:"MemSize"` //размер оперативной памяти сервера
-	DiskSize         float64   `form:"DiskSize" json:"DiskSize"` //суммарный размер всех дисков
-	Service          string    `form:"Service" json:"Service"` //удалить сервис в котором задействован сервер
-	ServiceId        int64     `form:"ServiceId" json:"ServiceId"` //удалить ссылка на базу сервисов
-	ITSystemKey      string    `form:"ITSystemKey" json:"ITSystemKey"` //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
-	OS               string    `form:"OS" json:"OS"` //операционная система
-	Component        string    `form:"Component" json:"Component"` //удалить компонента Kafka, service BD ....
-	Owner            string    `form:"Owner" json:"Owner" csv:"-"` //владелец сервера (ответственный за сервер)
-	BusinessOwner    string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"` //владелец от бизнеса
-	ITOwner          string    `form:"ITOwner" json:"ITOwner" csv:"-"` //владелец со стороны ИТ
-	ProductOwner     string    `form:"ProductOwner" json:"ProductOwner" csv:"-"` //Владелец продукта
-	Support          string    `form:"Support" json:"Support" csv:"-"` //ответственные за поддержку
-	SupportTeam      string    `form:"SupportTeam" json:"SupportTeam" csv:"-"` //Подразделение поддержки
-	SystemType       string    `form:"SystemType" json:"SystemType"` //тип системы техническая ...
-	LicensingType    string    `form:"LicensingType" json:"LicensingType"` //тип лицензирования
-	SolutionType     string    `form:"SolutionType" json:"SolutionType"` //вариант решения (коробочной)
-	Users            string    `form:"Users" json:"Users" csv:"-"` //пользователи системы
-	Allocation       string    `form:"Allocation" json:"Allocation"` //аллокация (подразделение)
-	Anotation          string    `form:"Anotation" json:"Anotation" csv:"-"` //описание сервера
-	TagName          string    `form:"TagName" json:"TagName"` //Имя тэга для виртуальных машин (Код для справочника)
-	TagDescription   string    `form:"TagDescription" json:"TagDescription"` //Описание тэга для виртуальных машин
-	Role             string    `form:"Role" json:"Role"` //роль сервера (сервер баз данных, сервер приложений, хост)
-	Details          string    `form:"Details" json:"Details" csv:"-"` //детали по серверу в свободном формате (примечание)
-	DPCAddress       int       `form:"DPCAddress" json:"DPCAddress"` //удалить ЦОД по справочнику адрес
-	DPCOffice        int       `form:"DPCOffice" json:"DPCOffice"` //ЦОД по справочнику комната с адресом
-	SZHistory        string    `form:"SZHistory" json:"SZHistory"` //номера сз через пробел в хронологическом порядке
-	Warning          string    `form:"Warning" json:"Warning"` //предупреждение (CPU RAM)
-	Level            float64   `form:"Level" json:"Level"` //уровень в процентах
-	Monitoring       int       `form:"Monitoring" json:"Monitoring"` // 0- не указано 1-включен мониторинг 2-отключен мониторинг
-	Backuped         int       `form:"Backuped" json:"Backuped"` // 0 - не указано 1-включено резервное копирование 2-отключено резервное копирование
+	Id                   int64     `form:"Id" json:"Id"`
+	OldId                int64     `form:"OldId" json:"OldId"`                                          //ссылка на историческую запись после переименования. 0 если такой нет. Может быть цепочка записей.
+	Type                 int       `form:"Type" json:"Type"`                                            //0 - физический сервер 1 - виртуальный 2-host vmware
+	SerialNumber         string    `form:"SerialNumber" json:"SerialNumber"`                            //серийный номер для type 0 и 2
+	Vcenter              string    `form:"Vcenter" json:"Vcenter"`                                      //для type 1 и 2
+	Datacenter           string    `form:"Datacenter" json:"Datacenter"`                                //для type 1 и 2
+	Cluster              string    `form:"Cluster" json:"Cluster"`                                      //для type 1 и 2
+	ClusterId            string    `form:"ClusterId" json:"ClusterId"`                                  //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	VMSprId              int64     `form:"VMSprId" json:"VMSprId"`                                      //ссылка на справочник VM если Type = 1 иначе null
+	HWSprId              int64     `form:"HWSprId" json:"HWSprId"`                                      //ссылка на ServerHardware
+	ZabbixHostId         int64     `form:"ZabbixHostId" json:"ZabbixHostId"`                            //ссылка на ZabbixHost.Id если есть данные из Zabbix по этому серверу
+	TypeMicroservice     int       `form:"TypeMicroservice" json:"TypeMicroservice"`                    // 0 не указано принадлежность к микросервисам, роль в этом пространстве
+	RoleType             int       `form:"RoleType" json:"RoleType"`                                    //не указано 1-APP 2-DB
+	TypeWork             int       `form:"TypeWork" json:"TypeWork"`                                    //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
+	CriticalLevel        int       `form:"CriticalLevel" json:"CriticalLevel"`                          //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
+	Stat                 int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
+	PowerState           int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием // TODO: comment truncated in screenshot
+	Active               int       `form:"Active" json:"Active"`                                        //1 активен 2 выведен из эксплуатации
+	TimeActiveState      time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //время изменения статуса активности введения в эксплуатацию
+	ActivatorUser        int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"`               //автор записи
+	TimeDeActiveState    time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"`       //время выведения из эксплуатации
+	DeActivatorUser      int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"`           //автор записи
+	TimeCreate           time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
+	CreatorUser          int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
+	BusinesPrivilage     int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"`         //ограничение по редактированию если указано 0 объект открыт // TODO: comment truncated in screenshot
+	Name                 string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
+	NameFQDN             string    `form:"NameFQDN" json:"NameFQDN"`                                    //полное имя сервера
+	NameInfo             string    `orm:"null" form:"NameInfo" json:"NameInfo"`                         //альтернативное имя сервера
+	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
+	MacAddress           string    `form:"MacAddress"`                                                  //список через разделитель ;
+	IPSharedVIP          string    `orm:"null" form:"IPSharedVIP" json:"IPSharedVIP"`                   //удалить разделяемый IP вводится вручную
+	Network              string    `orm:"null" form:"Network" json:"Network"`                           //сеть vlan144
+	NetworkName          string    `orm:"null" form:"NetworkName" json:"NetworkName"`                   //наименование сети сеть DMZ Prom
+	CPUCount             float64   `orm:"null" form:"CPUCount" json:"CPUCount"`                         //Количество физических процессоров
+	CPULogical           float64   `form:"CPULogical" json:"CPULogical"`                                //количество логических CPU
+	MemSize              float64   `form:"MemSize" json:"MemSize"`                                      //размер оперативной памяти сервера
+	DiskSize             float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков
+	Service              string    `form:"Service" json:"Service"`                                      //удалить сервис в котором задействован сервер
+	ServiceId            int64     `form:"ServiceId" json:"ServiceId"`                                  //удалить ссылка на базу сервисов
+	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
+	OS                   string    `form:"OS" json:"OS"`                                                //операционная система
+	Component            string    `form:"Component" json:"Component"`                                  //удалить компонента Kafka, service BD ....
+	Owner                string    `form:"Owner" json:"Owner" csv:"-"`                                  //владелец сервера (ответственный за сервер)
+	BusinessOwner        string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"`                  //владелец от бизнеса
+	ITOwner              string    `form:"ITOwner" json:"ITOwner" csv:"-"`                              //владелец со стороны ИТ
+	ProductOwner         string    `form:"ProductOwner" json:"ProductOwner" csv:"-"`                    //Владелец продукта
+	Support              string    `form:"Support" json:"Support" csv:"-"`                              //ответственные за поддержку
+	SupportTeam          string    `form:"SupportTeam" json:"SupportTeam" csv:"-"`                      //Подразделение поддержки
+	SystemType           string    `form:"SystemType" json:"SystemType"`                                //тип системы техническая ...
+	LicensingType        string    `form:"LicensingType" json:"LicensingType"`                          //тип лицензирования
+	SolutionType         string    `form:"SolutionType" json:"SolutionType"`                            //вариант решения (коробочной)
+	Users                string    `form:"Users" json:"Users" csv:"-"`                                  //пользователи системы
+	Allocation           string    `form:"Allocation" json:"Allocation"`                                //аллокация (подразделение)
+	Anotation            string    `form:"Anotation" json:"Anotation" csv:"-"`                          //описание сервера
+	TagName              string    `form:"TagName" json:"TagName"`                                      //Имя тэга для виртуальных машин (Код для справочника)
+	TagDescription       string    `form:"TagDescription" json:"TagDescription"`                        //Описание тэга для виртуальных машин
+	Role                 string    `form:"Role" json:"Role"`                                            //роль сервера (сервер баз данных, сервер приложений, хост)
+	Details              string    `form:"Details" json:"Details" csv:"-"`                              //детали по серверу в свободном формате (примечание)
+	DPCAddress           int       `form:"DPCAddress" json:"DPCAddress"`                                //удалить ЦОД по справочнику адрес
+	DPCOffice            int       `form:"DPCOffice" json:"DPCOffice"`                                  //ЦОД по справочнику комната с адресом
+	SZHistory            string    `form:"SZHistory" json:"SZHistory"`                                  //номера сз через пробел в хронологическом порядке
+	Warning              string    `form:"Warning" json:"Warning"`                                      //предупреждение (CPU RAM)
+	Level                float64   `form:"Level" json:"Level"`                                          //уровень в процентах
+	Monitoring           int       `form:"Monitoring" json:"Monitoring"`                                // 0- не указано 1-включен мониторинг 2-отключен мониторинг
+	Backuped             int       `form:"Backuped" json:"Backuped"`                                    // 0 - не указано 1-включено резервное копирование 2-отключено резервное копирование
 	TimeActiveMonitoring time.Time `orm:"null" form:"TimeActiveMonitoring" json:"TimeActiveMonitoring"` //время постановки на мониторинг
-	MonitoringSZ     string    `form:"MonitoringSZ" json:"MonitoringSZ"` //основание постановки на мониторинг
-	Id_User          int64     `form:"Id_User" json:"Id_User"` //
-	Time_Mfy         time.Time `form:"Time_Mfy" json:"Time_Mfy"` //
-	Privilage        int       `form:"Privilage" json:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя) // TODO: comment truncated in screenshot
+	MonitoringSZ         string    `form:"MonitoringSZ" json:"MonitoringSZ"`                            //основание постановки на мониторинг
+	Id_User              int64     `form:"Id_User" json:"Id_User"`                                      //
+	Time_Mfy             time.Time `form:"Time_Mfy" json:"Time_Mfy"`                                    //
+	Privilage            int       `form:"Privilage" json:"Privilage"`                                  //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя) // TODO: comment truncated in screenshot
 	// SourceUpdateType - источник последнего обновления записи: 0 - не
 	// указано, 1 - добавлен/изменён вручную, 2 - VMware, 3 - HPE OneView,
 	// 4 - Zabbix. См. константы SourceUpdate* и комментарий к одноимённому
@@ -818,54 +818,54 @@ type ServerSprRecordsArch struct {
 
 // структура с метриками из SCOM, усреднение за 1 день
 type ServerPerfSCOM struct {
-	Id                     int64     `form:"Id" csv:"-"` //уникальный идентификатор записи
-	Date                   time.Time `form:"Date" csv:"-"` //дата сбора метрик
-	NameFQDN               string    `form:"NameFQDN" csv:"-"` //полное имя сервера как пришло из SCOM
-	ServerId               int64     `form:"ServerId" csv:"-"` //ссылка на справочник серверов
-	Type                   int       `form:"Type" csv:"-"` //0 - физический сервер 1 - виртуальный как пришло из SCOM
-	CPUCount               float64   `form:"CPUCount"` //Количество физических процессоров или vCPU
-	CPULogical             float64   `form:"CPULogical"` //количество логических CPU включая hyper threading
-	FoundAddInfo           int       `form:"FoundAddInfo"` //0 - не найдено 1 есть данные (для аппаратных серверов найдены данные конфигурации, для виртуальной инфраструктуры найден объект)
-	MemSize                float64   `form:"MemSize"` //
-	SysDiskSize            float64   `form:"SysDiskSize"` //
-	WorkDiskSize           float64   `form:"WorkDiskSize"` //
-	CPULoadAvg             float64   `form:"CPULoadAvg"` //
-	CPULoadMin             float64   `form:"CPULoadMin"` //
-	CPULoadMax             float64   `form:"CPULoadMax"` //
-	MemUseAvg              float64   `form:"MemUseAvg"` //
-	MemUseMin              float64   `form:"MemUseMin"` //
-	MemUseMax              float64   `form:"MemUseMax"` //
-	SysDiskFreePercentAvg  float64   `form:"SysDiskFreePercentAvg"` //
-	SysDiskFreePercentMin  float64   `form:"SysDiskFreePercentMin"` //
-	SysDiskFreePercentMax  float64   `form:"SysDiskFreePercentMax"` //
-	SysDiskIdleTimeAvg     float64   `form:"SysDiskIdleTimeAvg"` //
-	SysDiskIdleTimeMin     float64   `form:"SysDiskIdleTimeMin"` //
-	SysDiskIdleTimeMax     float64   `form:"SysDiskIdleTimeMax"` //
-	SysDiskQueueAvg        float64   `form:"SysDiskQueueAvg"` //
-	SysDiskQueueMin        float64   `form:"SysDiskQueueMin"` //
-	SysDiskQueueMax        float64   `form:"SysDiskQueueMax"` //
+	Id                     int64     `form:"Id" csv:"-"`             //уникальный идентификатор записи
+	Date                   time.Time `form:"Date" csv:"-"`           //дата сбора метрик
+	NameFQDN               string    `form:"NameFQDN" csv:"-"`       //полное имя сервера как пришло из SCOM
+	ServerId               int64     `form:"ServerId" csv:"-"`       //ссылка на справочник серверов
+	Type                   int       `form:"Type" csv:"-"`           //0 - физический сервер 1 - виртуальный как пришло из SCOM
+	CPUCount               float64   `form:"CPUCount"`               //Количество физических процессоров или vCPU
+	CPULogical             float64   `form:"CPULogical"`             //количество логических CPU включая hyper threading
+	FoundAddInfo           int       `form:"FoundAddInfo"`           //0 - не найдено 1 есть данные (для аппаратных серверов найдены данные конфигурации, для виртуальной инфраструктуры найден объект)
+	MemSize                float64   `form:"MemSize"`                //
+	SysDiskSize            float64   `form:"SysDiskSize"`            //
+	WorkDiskSize           float64   `form:"WorkDiskSize"`           //
+	CPULoadAvg             float64   `form:"CPULoadAvg"`             //
+	CPULoadMin             float64   `form:"CPULoadMin"`             //
+	CPULoadMax             float64   `form:"CPULoadMax"`             //
+	MemUseAvg              float64   `form:"MemUseAvg"`              //
+	MemUseMin              float64   `form:"MemUseMin"`              //
+	MemUseMax              float64   `form:"MemUseMax"`              //
+	SysDiskFreePercentAvg  float64   `form:"SysDiskFreePercentAvg"`  //
+	SysDiskFreePercentMin  float64   `form:"SysDiskFreePercentMin"`  //
+	SysDiskFreePercentMax  float64   `form:"SysDiskFreePercentMax"`  //
+	SysDiskIdleTimeAvg     float64   `form:"SysDiskIdleTimeAvg"`     //
+	SysDiskIdleTimeMin     float64   `form:"SysDiskIdleTimeMin"`     //
+	SysDiskIdleTimeMax     float64   `form:"SysDiskIdleTimeMax"`     //
+	SysDiskQueueAvg        float64   `form:"SysDiskQueueAvg"`        //
+	SysDiskQueueMin        float64   `form:"SysDiskQueueMin"`        //
+	SysDiskQueueMax        float64   `form:"SysDiskQueueMax"`        //
 	WorkDiskFreePercentAvg float64   `form:"WorkDiskFreePercentAvg"` //
 	WorkDiskFreePercentMin float64   `form:"WorkDiskFreePercentMin"` //
 	WorkDiskFreePercentMax float64   `form:"WorkDiskFreePercentMax"` //
-	WorkDiskIdleTimeAvg    float64   `form:"WorkDiskIdleTimeAvg"` //
-	WorkDiskIdleTimeMin    float64   `form:"WorkDiskIdleTimeMin"` //
-	WorkDiskIdleTimeMax    float64   `form:"WorkDiskIdleTimeMax"` //
-	WorkDiskQueueAvg       float64   `form:"WorkDiskQueueAvg"` //
-	WorkDiskQueueMin       float64   `form:"WorkDiskQueueMin"` //
-	WorkDiskQueueMax       float64   `form:"WorkDiskQueueMax"` //
-	SysDiskIOAvg           float64   `form:"SysDiskIOAvg"` //
-	SysDiskIOMin           float64   `form:"SysDiskIOMin"` //
-	SysDiskIOMax           float64   `form:"SysDiskIOMax"` //
-	SysDiskFreeMbAvg       float64   `form:"SysDiskFreeMbAvg"` //
-	SysDiskFreeMbMin       float64   `form:"SysDiskFreeMbMin"` //
-	SysDiskFreeMbMax       float64   `form:"SysDiskFreeMbMax"` //
-	WorkDiskIOAvg          float64   `form:"WorkDiskIOAvg"` //
-	WorkDiskIOMin          float64   `form:"WorkDiskIOMin"` //
-	WorkDiskIOMax          float64   `form:"WorkDiskIOMax"` //
-	WorkDiskFreeMbAvg      float64   `form:"WorkDiskFreeMbAvg"` //
-	WorkDiskFreeMbMin      float64   `form:"WorkDiskFreeMbMin"` //
-	WorkDiskFreeMbMax      float64   `form:"WorkDiskFreeMbMax"` //
-	UseWorkDisk            int       `form:"UseWorkDisk" csv:"-"` //
+	WorkDiskIdleTimeAvg    float64   `form:"WorkDiskIdleTimeAvg"`    //
+	WorkDiskIdleTimeMin    float64   `form:"WorkDiskIdleTimeMin"`    //
+	WorkDiskIdleTimeMax    float64   `form:"WorkDiskIdleTimeMax"`    //
+	WorkDiskQueueAvg       float64   `form:"WorkDiskQueueAvg"`       //
+	WorkDiskQueueMin       float64   `form:"WorkDiskQueueMin"`       //
+	WorkDiskQueueMax       float64   `form:"WorkDiskQueueMax"`       //
+	SysDiskIOAvg           float64   `form:"SysDiskIOAvg"`           //
+	SysDiskIOMin           float64   `form:"SysDiskIOMin"`           //
+	SysDiskIOMax           float64   `form:"SysDiskIOMax"`           //
+	SysDiskFreeMbAvg       float64   `form:"SysDiskFreeMbAvg"`       //
+	SysDiskFreeMbMin       float64   `form:"SysDiskFreeMbMin"`       //
+	SysDiskFreeMbMax       float64   `form:"SysDiskFreeMbMax"`       //
+	WorkDiskIOAvg          float64   `form:"WorkDiskIOAvg"`          //
+	WorkDiskIOMin          float64   `form:"WorkDiskIOMin"`          //
+	WorkDiskIOMax          float64   `form:"WorkDiskIOMax"`          //
+	WorkDiskFreeMbAvg      float64   `form:"WorkDiskFreeMbAvg"`      //
+	WorkDiskFreeMbMin      float64   `form:"WorkDiskFreeMbMin"`      //
+	WorkDiskFreeMbMax      float64   `form:"WorkDiskFreeMbMax"`      //
+	UseWorkDisk            int       `form:"UseWorkDisk" csv:"-"`    //
 }
 
 // TableName возвращает имя таблицы БД для модели ServerPerfSCOM (используется beego ORM).
@@ -886,30 +886,30 @@ func (a *ServerPerfSCOM) TableIndex() [][]string {
 
 // структура с метриками из Zabbix, усреднение за 1 день
 type ServerPerfZabbix struct {
-	Id                int64     `form:"Id" csv:"-"` //уникальный идентификатор записи
-	Date              time.Time `form:"Date" csv:"-"` //дата сбора метрик
-	NameFQDN          string    `form:"NameFQDN" csv:"-"` //полное имя сервера
-	NameAdd           string    `form:"NameAdd" csv:"-"` //дополнение к имени после пробела как пришло из Zabbix
-	ServerId          int64     `form:"ServerId" csv:"-"` //ссылка на справочник серверов
-	Type              int       `form:"Type" csv:"-"` //0 - физический сервер 1 - виртуальный как пришло из Zabbix (наличие VC в дополнительной части имени признак виртуальной машины)
-	CPUCount          float64   `form:"CPUCount" csv:"-"` //Количество физических процессоров или vCPU
-	CPULogical        float64   `form:"CPULogical" csv:"-"` //Количество логических CPU включая hyper threading
-	FoundAddInfo      int       `form:"FoundAddInfo" csv:"-"` //0 - не найдено 1 есть данные (для аппаратных серверов найдены данные конфигурации, для виртуальной инфраструктуры найден объект)
-	MemSize           float64   `form:"MemSize"` //
+	Id                int64     `form:"Id" csv:"-"`                   //уникальный идентификатор записи
+	Date              time.Time `form:"Date" csv:"-"`                 //дата сбора метрик
+	NameFQDN          string    `form:"NameFQDN" csv:"-"`             //полное имя сервера
+	NameAdd           string    `form:"NameAdd" csv:"-"`              //дополнение к имени после пробела как пришло из Zabbix
+	ServerId          int64     `form:"ServerId" csv:"-"`             //ссылка на справочник серверов
+	Type              int       `form:"Type" csv:"-"`                 //0 - физический сервер 1 - виртуальный как пришло из Zabbix (наличие VC в дополнительной части имени признак виртуальной машины)
+	CPUCount          float64   `form:"CPUCount" csv:"-"`             //Количество физических процессоров или vCPU
+	CPULogical        float64   `form:"CPULogical" csv:"-"`           //Количество логических CPU включая hyper threading
+	FoundAddInfo      int       `form:"FoundAddInfo" csv:"-"`         //0 - не найдено 1 есть данные (для аппаратных серверов найдены данные конфигурации, для виртуальной инфраструктуры найден объект)
+	MemSize           float64   `form:"MemSize"`                      //
 	Cpu_usage_average float64   `orm:"null" form:"Cpu_usage_average"` //% Processor Time averagre
 	Cpu_usage_maximum float64   `orm:"null" form:"Cpu_usage_maximum"` //% Processor Time max
 	Cpu_usage_minimum float64   `orm:"null" form:"Cpu_usage_minimum"` //% Processor Time min
-	Mem_usage_max     float64   `orm:"null" form:"Mem_usage_max"` //% Mem Usage max
+	Mem_usage_max     float64   `orm:"null" form:"Mem_usage_max"`     //% Mem Usage max
 	Mem_usage_average float64   `orm:"null" form:"Mem_usage_average"` //% Mem Usage average
 	Mem_usage_minimum float64   `orm:"null" form:"Mem_usage_minimum"` //% Mem Usage min
 }
 
 // структура с метриками дисков из Zabbix, усреднение за 1 день
 type ServerDiskPerfZabbix struct {
-	Id                 int64   `form:"Id"` //уникальный идентификатор записи
-	ZabbixPerfId       int64   `form:"ZabbixPerfId"` //идентификатор связанной записи ServerPerfZabbix
-	Disk_name          string  `form:"Disk_name"` //имя диска windows или раздела unix
-	Disk_size          float64 `form:"Disk_size"` //размер диска
+	Id                 int64   `form:"Id"`                            //уникальный идентификатор записи
+	ZabbixPerfId       int64   `form:"ZabbixPerfId"`                  //идентификатор связанной записи ServerPerfZabbix
+	Disk_name          string  `form:"Disk_name"`                     //имя диска windows или раздела unix
+	Disk_size          float64 `form:"Disk_size"`                     //размер диска
 	Disk_usage_maximum float64 `orm:"null" form:"Disk_usage_maximum"` //% Disk Usage max по занятости диска
 	Disk_usage_average float64 `orm:"null" form:"Disk_usage_average"` //% Disk Usage average
 	Disk_usage_minimum float64 `orm:"null" form:"Disk_usage_minimum"` //% Disk Usage min
@@ -955,17 +955,17 @@ func (a *ServerDiskPerfZabbix) TableIndex() [][]string {
 
 // ZabbixHost — справочник хостов Zabbix, сопоставленных серверам loadmon.
 type ZabbixHost struct {
-	Id                int64     `form:"Id" orm:"auto"` //
-	ServerId          int64     `form:"ServerId"` //ссылка на ServerSprRecords.Id
-	Host              string    `form:"Host"` //Имя хоста 1
-	Name              string    `form:"Name"` //Имя хоста 2
-	NameFQDN          string    `form:"NameFQDN"` //Полное Имя хоста
+	Id                int64     `form:"Id" orm:"auto"`     //
+	ServerId          int64     `form:"ServerId"`          //ссылка на ServerSprRecords.Id
+	Host              string    `form:"Host"`              //Имя хоста 1
+	Name              string    `form:"Name"`              //Имя хоста 2
+	NameFQDN          string    `form:"NameFQDN"`          //Полное Имя хоста
 	OperationalSystem string    `form:"OperationalSystem"` //Операционная система в своем формате
-	OSArchitecture    string    `form:"OSArchitecture"` //архитектура операционной системы
-	LogicalNumCPU     int       `form:"LogicalNumCPU"` //количество логических процессоров включая Intel Hyper-Threading
-	MemoryTotal       float64   `form:"MemoryTotal"` //Общий объём оперативной памяти в байтах
-	IpAddress         string    `form:"IpAddress"` //IP адреса всех интерфейсов через ;
-	TimeMfy           time.Time `form:"TimeMfy"` //время последнего обновления
+	OSArchitecture    string    `form:"OSArchitecture"`    //архитектура операционной системы
+	LogicalNumCPU     int       `form:"LogicalNumCPU"`     //количество логических процессоров включая Intel Hyper-Threading
+	MemoryTotal       float64   `form:"MemoryTotal"`       //Общий объём оперативной памяти в байтах
+	IpAddress         string    `form:"IpAddress"`         //IP адреса всех интерфейсов через ;
+	TimeMfy           time.Time `form:"TimeMfy"`           //время последнего обновления
 }
 
 // TableName возвращает имя таблицы БД для модели ZabbixHost (используется beego ORM).
@@ -984,13 +984,13 @@ func (a *ZabbixHost) TableIndex() [][]string {
 
 // ZabbixItem описывает запись/справочник БД loadmon, соответствующую сущности ZabbixItem.
 type ZabbixItem struct {
-	Id       int64     `form:"Id" orm:"auto"` //
-	HostId   int64     `form:"HostId"` //ссылка на ZabbixHost.Id
-	KeyId    int64     `form:"KeyId"` //ссылка на ZabbixKey.Id
-	KeyParam string    `form:"KeyParam"` //параметр из полного ключа значение между квадратных скобок []
+	Id       int64  `form:"Id" orm:"auto"` //
+	HostId   int64  `form:"HostId"`        //ссылка на ZabbixHost.Id
+	KeyId    int64  `form:"KeyId"`         //ссылка на ZabbixKey.Id
+	KeyParam string `form:"KeyParam"`      //параметр из полного ключа значение между квадратных скобок []
 	//KeyName  string    `form:"KeyName"`      //выбрать часть имени элемента
-	Value    string    `form:"Value"` //значение в текстовом виде
-	Clock    time.Time `form:"Clock"` //время значения
+	Value string    `form:"Value"` //значение в текстовом виде
+	Clock time.Time `form:"Clock"` //время значения
 }
 
 // TableName возвращает имя таблицы БД для модели ZabbixItem (используется beego ORM).
@@ -1033,10 +1033,10 @@ unixtime - Unix time
 // ZabbixKey описывает запись/справочник БД loadmon, соответствующую сущности ZabbixKey.
 type ZabbixKey struct {
 	Id        int64  `form:"Id" orm:"auto"` //
-	Key       string `form:"Key"` //
-	Name      string `form:"Name"` //
-	ValueType int    `form:"ValueType"` //0 - Numeric float, 1 - Character (короткий текст), 2 - Log, 3 - Numeric unsigned, 4 - Text (длинный текст),5 - Binary
-	Units     string `form:"Units"` //единицы измерения
+	Key       string `form:"Key"`           //
+	Name      string `form:"Name"`          //
+	ValueType int    `form:"ValueType"`     //0 - Numeric float, 1 - Character (короткий текст), 2 - Log, 3 - Numeric unsigned, 4 - Text (длинный текст),5 - Binary
+	Units     string `form:"Units"`         //единицы измерения
 }
 
 // TableName возвращает имя таблицы БД для модели ZabbixKey (используется beego ORM).
@@ -1058,16 +1058,16 @@ func (a *ZabbixKey) TableIndex() [][]string {
 // прикладные сервисы, в которых задействованы серверы
 type AppService struct {
 	Id            int64  `form:"Id" orm:"auto"` //
-	ServiceId     int64  `form:"ServiceId"` //идентификатор сервиса
-	Code          string `form:"Code"` //1 код буквы и номер
-	Type          int64  `form:"Type"` //тип сервиса (подумать над вариантами) 0-не указано 1-инфраструктурный 2 - бизнес
-	Type2         int64  `form:"Type2"` //2 тип индивидуальная, индивидуальная / корпоративная, корпоративная, общего назначения
-	Name          string `form:"Name"` //название сервиса
-	Owner         string `form:"Owner"` //владелец сервиса ФИО (сотрудник отвественный за сервис) администратор информационны системы
-	BusinesOwner  string `form:"BusinesOwner"` //заказчик от бизнеса
-	Allocation    string `form:"Allocation"` //аллокация (подразделение) базовое значение (потребители)
-	Anotation     string `form:"Anotation"` //описане сервиса
-	Privilage     int    `form:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя)
+	ServiceId     int64  `form:"ServiceId"`     //идентификатор сервиса
+	Code          string `form:"Code"`          //1 код буквы и номер
+	Type          int64  `form:"Type"`          //тип сервиса (подумать над вариантами) 0-не указано 1-инфраструктурный 2 - бизнес
+	Type2         int64  `form:"Type2"`         //2 тип индивидуальная, индивидуальная / корпоративная, корпоративная, общего назначения
+	Name          string `form:"Name"`          //название сервиса
+	Owner         string `form:"Owner"`         //владелец сервиса ФИО (сотрудник отвественный за сервис) администратор информационны системы
+	BusinesOwner  string `form:"BusinesOwner"`  //заказчик от бизнеса
+	Allocation    string `form:"Allocation"`    //аллокация (подразделение) базовое значение (потребители)
+	Anotation     string `form:"Anotation"`     //описане сервиса
+	Privilage     int    `form:"Privilage"`     //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя)
 	CriticalLevel int    `form:"CriticalLevel"` //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
 }
 
@@ -1088,20 +1088,20 @@ func (a *AppService) TableIndex() [][]string {
 // Учёт ресурсов администрирования сервиса (в разработке)
 type ServiceAdminAllocation struct {
 	Id        int64   `form:"Id" orm:"auto"` //
-	ServiceId int64   `form:"ServiceId"` //идентификатор сервиса
-	AdminId   int64   `form:"AdminId"` //идентификатор администратора системы
-	Percent   float64 `form:"Percent"` //процент участия в обслуживании сервиса (доля в в конкретном сервисе)
-	RoleType  int64   `form:"RoleType"` //категория роли в поддержке 0 не указано 1-аппаратная часть 2-системное ПО 3-прикладная
-	Role      string  `form:"Role"` // зона ответственности в поддержке сервиса
+	ServiceId int64   `form:"ServiceId"`     //идентификатор сервиса
+	AdminId   int64   `form:"AdminId"`       //идентификатор администратора системы
+	Percent   float64 `form:"Percent"`       //процент участия в обслуживании сервиса (доля в в конкретном сервисе)
+	RoleType  int64   `form:"RoleType"`      //категория роли в поддержке 0 не указано 1-аппаратная часть 2-системное ПО 3-прикладная
+	Role      string  `form:"Role"`          // зона ответственности в поддержке сервиса
 }
 
 // Юридические лица в рамках которых работают сервисы
 type ServiceMember struct {
 	Id         int64  `form:"Id" orm:"auto"` //
-	ServiceId  int64  `form:"ServiceId"` //ссылка на справочник сервисов (может быть несколько записей с одним идентификатором сервиса)
-	MemberFGId int64  `form:"MemberFGId"` //ссылка на справочник ЮЛ ФГ MembersFG
-	Name       string `form:"Name"` //наименование ЮР лица
-	Privilage  int    `form:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя)
+	ServiceId  int64  `form:"ServiceId"`     //ссылка на справочник сервисов (может быть несколько записей с одним идентификатором сервиса)
+	MemberFGId int64  `form:"MemberFGId"`    //ссылка на справочник ЮЛ ФГ MembersFG
+	Name       string `form:"Name"`          //наименование ЮР лица
+	Privilage  int    `form:"Privilage"`     //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя)
 }
 
 // TableName возвращает имя таблицы БД для модели ServiceMember (используется beego ORM).
@@ -1121,10 +1121,10 @@ func (a *ServiceMember) TableIndex() [][]string {
 // MembersFG описывает запись/справочник БД loadmon, соответствующую сущности MembersFG.
 type MembersFG struct {
 	Id        int64  `form:"Id" orm:"auto"` //
-	Name      string `form:"Name"` //Наименование
-	InnUL     string `form:"InnUL"` // ИНН
-	KppUL     string `form:"KppUL"` // КПП
-	Privilage int    `form:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привилегии пользователя)
+	Name      string `form:"Name"`          //Наименование
+	InnUL     string `form:"InnUL"`         // ИНН
+	KppUL     string `form:"KppUL"`         // КПП
+	Privilage int    `form:"Privilage"`     //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привилегии пользователя)
 }
 
 // TableName возвращает имя таблицы БД для модели MembersFG (используется beego ORM).
@@ -1144,10 +1144,10 @@ func (u *MembersFG) TableIndex() [][]string {
 // Counterparty описывает запись/справочник БД loadmon, соответствующую сущности Counterparty.
 type Counterparty struct {
 	Id        int64  `form:"Id" orm:"auto"` //
-	Name      string `form:"Name"` //Наименование
-	InnUL     string `form:"InnUL"` // ИНН
-	KppUL     string `form:"KppUL"` // КПП
-	Privilage int    `form:"Privilage"` //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привилегии пользователя)
+	Name      string `form:"Name"`          //Наименование
+	InnUL     string `form:"InnUL"`         // ИНН
+	KppUL     string `form:"KppUL"`         // КПП
+	Privilage int    `form:"Privilage"`     //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привилегии пользователя)
 }
 
 // TableName возвращает имя таблицы БД для модели Counterparty (используется beego ORM).
@@ -1167,16 +1167,16 @@ func (u *Counterparty) TableIndex() [][]string {
 // ServerSprView описывает запись/справочник БД loadmon, соответствующую сущности ServerSprView.
 type ServerSprView struct {
 	PercentFilledField float64                `form:"PercentFilledField"` //процент заполнения полей в справочнике
-	S                  ServerSprRecords       `form:"S"` //общая информация
-	Hardware           *ServerHardwareView    `form:"Hardware"` //подробности для аппаратных серверов
-	VM                 *VMSprRecordView       `form:"VM"` //подробная информация по VM
-	VMPerf             *VMRecord              `form:"VMPerf"` //усредненные метрики производительности VM за период
-	HostPerf           *HostRecord            `form:"HostPerf"` //усредненные метрики производительности Host за период
-	SrvScomPerf        *ServerPerfSCOM        `form:"SrvScomPerf"` ////усредненные метрики производительности Srv за период из SCOM
-	SrvZabbixPerf      *ServerPerfZabbixView  `form:"SrvZabbixPerf"` ////усредненные метрики производительности Srv за период из Zabbix + диски
-	SrvPerf            *ReportServerRecord    `form:"SrvPerf"` //усредненные метрики производительности Srv за период
-	CFO                []SprCFOAllocation     `form:"CFO"` //алокация по ЦФО
-	Busines            []SprBusinesAllocation `form:"Busines"` //алокация по бизнесам
+	S                  ServerSprRecords       `form:"S"`                  //общая информация
+	Hardware           *ServerHardwareView    `form:"Hardware"`           //подробности для аппаратных серверов
+	VM                 *VMSprRecordView       `form:"VM"`                 //подробная информация по VM
+	VMPerf             *VMRecord              `form:"VMPerf"`             //усредненные метрики производительности VM за период
+	HostPerf           *HostRecord            `form:"HostPerf"`           //усредненные метрики производительности Host за период
+	SrvScomPerf        *ServerPerfSCOM        `form:"SrvScomPerf"`        ////усредненные метрики производительности Srv за период из SCOM
+	SrvZabbixPerf      *ServerPerfZabbixView  `form:"SrvZabbixPerf"`      ////усредненные метрики производительности Srv за период из Zabbix + диски
+	SrvPerf            *ReportServerRecord    `form:"SrvPerf"`            //усредненные метрики производительности Srv за период
+	CFO                []SprCFOAllocation     `form:"CFO"`                //алокация по ЦФО
+	Busines            []SprBusinesAllocation `form:"Busines"`            //алокация по бизнесам
 }
 
 // TableName возвращает имя таблицы БД для модели ServerSprRecords (используется beego ORM).
@@ -1230,34 +1230,34 @@ func (u *ServerSprRecordsArch) TableIndex() [][]string {
 // BladeSystems описывает запись/справочник БД loadmon, соответствующую сущности BladeSystems.
 type BladeSystems struct {
 	Id              int64     `form:"Id"`
-	Name            string    `form:"Name"` //короткое наименование
-	Vendor          string    `form:"Vendor"` //производитель
-	Model           string    `form:"Model"` //модель
-	Type            string    `form:"Type"` //тип c7000 ...
-	PartNum         string    `form:"PartNum"` //продуктовый номер
-	Size            int       `form:"Size"` //количество слотов
-	Used            int       `form:"Used"` //количество занятых слотов
-	SerialNum       string    `form:"SerialNum"` //серийный номер
-	Owner           string    `form:"Owner"` //владелец
-	Allocation      string    `form:"Allocation"` //аллокация
-	Anotation       string    `form:"Anotation"` //описане
-	Description     string    `form:"Description"` //
-	DatacenterRoom  string    `form:"DatacenterRoom"` //серверная
-	RackNum         string    `form:"RackNum"` //номер стойки
-	StartUnit       string    `form:"StartUnit"` //унит с которого начинается сервер или блэйд шасси, куда он установлен //!!! изменен тип
-	StartUnitPos    int       `form:"StartUnitPos"` //
-	SizeUnit        int       `form:"SizeUnit"` //
-	ContractDoc     string    `form:"ContractDoc"` //договорной документ на покупку, название и номер дополнительного соглашения
-	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа
-	Invoice         string    `form:"Invoice"` //счет фактура, накладная
-	DateInvoice     time.Time `orm:"null" form:"DateInvoice"` //дата накладной
-	InventoryNum    string    `form:"InventoryNum"` //Инвентарный номер
-	InventoryNumBuh string    `form:"InventoryNumBuh"` //Инвентарный номер бухгалтерский
-	Counterparty    string    `orm:"null" form:"Counterparty"` //контрагент
-	DateService     time.Time `orm:"null" form:"DateService"` //дата до которой есть гарантия или сервис контракт
-	ServiceContract string    `form:"ServiceContract"` //данные по сервисному контракту, уровень сервиса
-	Id_User         int64     `form:"Id_User"` //
-	Time_Mfy        time.Time `form:"Time_Mfy"` //
+	Name            string    `form:"Name"`                                                       //короткое наименование
+	Vendor          string    `form:"Vendor"`                                                     //производитель
+	Model           string    `form:"Model"`                                                      //модель
+	Type            string    `form:"Type"`                                                       //тип c7000 ...
+	PartNum         string    `form:"PartNum"`                                                    //продуктовый номер
+	Size            int       `form:"Size"`                                                       //количество слотов
+	Used            int       `form:"Used"`                                                       //количество занятых слотов
+	SerialNum       string    `form:"SerialNum"`                                                  //серийный номер
+	Owner           string    `form:"Owner"`                                                      //владелец
+	Allocation      string    `form:"Allocation"`                                                 //аллокация
+	Anotation       string    `form:"Anotation"`                                                  //описане
+	Description     string    `form:"Description"`                                                //
+	DatacenterRoom  string    `form:"DatacenterRoom"`                                             //серверная
+	RackNum         string    `form:"RackNum"`                                                    //номер стойки
+	StartUnit       string    `form:"StartUnit"`                                                  //унит с которого начинается сервер или блэйд шасси, куда он установлен //!!! изменен тип
+	StartUnitPos    int       `form:"StartUnitPos"`                                               //
+	SizeUnit        int       `form:"SizeUnit"`                                                   //
+	ContractDoc     string    `form:"ContractDoc"`                                                //договорной документ на покупку, название и номер дополнительного соглашения
+	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"`                                 //дата документа
+	Invoice         string    `form:"Invoice"`                                                    //счет фактура, накладная
+	DateInvoice     time.Time `orm:"null" form:"DateInvoice"`                                     //дата накладной
+	InventoryNum    string    `form:"InventoryNum"`                                               //Инвентарный номер
+	InventoryNumBuh string    `form:"InventoryNumBuh"`                                            //Инвентарный номер бухгалтерский
+	Counterparty    string    `orm:"null" form:"Counterparty"`                                    //контрагент
+	DateService     time.Time `orm:"null" form:"DateService"`                                     //дата до которой есть гарантия или сервис контракт
+	ServiceContract string    `form:"ServiceContract"`                                            //данные по сервисному контракту, уровень сервиса
+	Id_User         int64     `form:"Id_User"`                                                    //
+	Time_Mfy        time.Time `form:"Time_Mfy"`                                                   //
 	RackCabinetId   int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"` //FK на models.RackCabinet.Id (новый справочник шкафов, см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum, не заменяет их
 }
 
@@ -1278,33 +1278,33 @@ func (u *BladeSystems) TableIndex() [][]string {
 // SANSystem описывает запись/справочник БД loadmon, соответствующую сущности SANSystem.
 type SANSystem struct {
 	Id              int64     `form:"Id"`
-	ShortName       string    `form:"ShortName"` //мнемоническое имя для систем
-	Vendor          string    `form:"Vendor"` //производитель
-	Model           string    `form:"Model"` //модель
-	PartNum         string    `form:"PartNum"` //код продукта у вендора
-	SerialNum       string    `form:"SerialNum"` //серийный номер
-	IpAddress       string    `form:"IpAddress"` //IP apec
-	Fabric          string    `form:"Fabric"` //фабрика
-	Firmware        string    `form:"Firmware"` //версия прошивки
-	Owner           string    `form:"Owner"` //владелец
-	Allocation      string    `form:"Allocation"` //аллокация
-	Anotation       string    `form:"Anotation"` //Описание
-	DatacenterRoom  string    `form:"DatacenterRoom"` //серверная
-	RackNum         string    `form:"RackNum"` //номер стойки, если их несколько можно указать через запятую
-	StartUnit       string    `form:"StartUnit"` //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
-	BladeSystemId   int64     `form:"BladeSystemId"` //ссылка блэйд-шасси в справоченке
-	BladeNum        int       `form:"BladeNum"` //номер позиции в блэйд шасси
-	ContractDoc     string    `form:"ContractDoc"` //договорной документ на покупку, название и номер дополнительного соглашения
+	ShortName       string    `form:"ShortName"`                  //мнемоническое имя для систем
+	Vendor          string    `form:"Vendor"`                     //производитель
+	Model           string    `form:"Model"`                      //модель
+	PartNum         string    `form:"PartNum"`                    //код продукта у вендора
+	SerialNum       string    `form:"SerialNum"`                  //серийный номер
+	IpAddress       string    `form:"IpAddress"`                  //IP apec
+	Fabric          string    `form:"Fabric"`                     //фабрика
+	Firmware        string    `form:"Firmware"`                   //версия прошивки
+	Owner           string    `form:"Owner"`                      //владелец
+	Allocation      string    `form:"Allocation"`                 //аллокация
+	Anotation       string    `form:"Anotation"`                  //Описание
+	DatacenterRoom  string    `form:"DatacenterRoom"`             //серверная
+	RackNum         string    `form:"RackNum"`                    //номер стойки, если их несколько можно указать через запятую
+	StartUnit       string    `form:"StartUnit"`                  //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
+	BladeSystemId   int64     `form:"BladeSystemId"`              //ссылка блэйд-шасси в справоченке
+	BladeNum        int       `form:"BladeNum"`                   //номер позиции в блэйд шасси
+	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
 	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа
-	Invoice         string    `form:"Invoice"` //счет фактура, накладная
-	DateInvoice     time.Time `orm:"null" form:"DateInvoice"` //дата накладной
-	Counterparty    string    `orm:"null" form:"Counterparty"` //контрагент
-	InventoryNum    string    `form:"InventoryNum"` //Инвентарный номер
-	InventoryNumBuh string    `form:"InventoryNumBuh"` //Инвентарный номер бухгалтерский
-	DateService     time.Time `orm:"null" form:"DateService"` //дата до которой есть гарантия или сервис контракт
-	ServiceContract string    `form:"ServiceContract"` //данные по сервисному контракту, уровень сервиса
-	Id_User         int64     `form:"Id_User"` //
-	Time_Mfy        time.Time `form:"Time_Mfy"` //
+	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная
+	DateInvoice     time.Time `orm:"null" form:"DateInvoice"`     //дата накладной
+	Counterparty    string    `orm:"null" form:"Counterparty"`    //контрагент
+	InventoryNum    string    `form:"InventoryNum"`               //Инвентарный номер
+	InventoryNumBuh string    `form:"InventoryNumBuh"`            //Инвентарный номер бухгалтерский
+	DateService     time.Time `orm:"null" form:"DateService"`     //дата до которой есть гарантия или сервис контракт
+	ServiceContract string    `form:"ServiceContract"`            //данные по сервисному контракту, уровень сервиса
+	Id_User         int64     `form:"Id_User"`                    //
+	Time_Mfy        time.Time `form:"Time_Mfy"`                   //
 }
 
 // TableName возвращает имя таблицы БД для модели SANSystem (используется beego ORM).
@@ -1323,50 +1323,50 @@ func (u *SANSystem) TableIndex() [][]string {
 
 // StorageSystems описывает запись/справочник БД loadmon, соответствующую сущности StorageSystems.
 type StorageSystems struct {
-	Id              int64     `form:"Id"`
-	UID             string    `form:"UID"` //уникальный идентификатор
-	ShortName       string    `form:"ShortName"` //мнемоническое имя для систем
-	TagName         string    `form:"TagName"` //список мнемонических имён встречающихся для этой СХД в именах LUN
-	TypeWork        int       `form:"TypeWork" json:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- тестовая 3 - бэкап
+	Id        int64  `form:"Id"`
+	UID       string `form:"UID"`                      //уникальный идентификатор
+	ShortName string `form:"ShortName"`                //мнемоническое имя для систем
+	TagName   string `form:"TagName"`                  //список мнемонических имён встречающихся для этой СХД в именах LUN
+	TypeWork  int    `form:"TypeWork" json:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- тестовая 3 - бэкап
 	//0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	Vendor          string    `form:"Vendor"` //производитель
-	Model           string    `form:"Model"` //модель
-	PartNum         string    `form:"PartNum"` //код продукта у вендора
-	Status          int       `form:"Status"` //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
-	Size            int       `form:"Size"` //максимальное количество дисков
-	Used            int       `form:"Used"` //общее количество установленных дисков
-	IpAddress       string    `form:"IpAddress"` //IP apec
-	IpAddressNext   string    `form:"IpAddressNext"` //IP apec 2
-	TotalSizeRAW    float64   `form:"TotalSizeRAW"` //размер дисков СХД (сырой)
-	UsedPercent     float64   `form:"UsedPercent"` //использовано в %
-	WWNMask         string    `form:"WWNMask"` //WWN маска дисков
-	Firmware        string    `form:"Firmware"` //версия прошивки
-	SerialNum       string    `form:"SerialNum"` //серийный номер
-	Power           int       `form:"Power"` //0 выключен 1 включен
-	ApiType         int       `form:"ApiType"` //тип API 0 не указано 1 - VNX CLI, 2 -Unity Rest 3 - Dorado rest  4- OceanStor 5- Lenovo Rest
-	Ad              bool      `form:"Ad"` //в AD
-	Ldaps           bool      `form:"Ldaps"` //Ldaps
-	AdCert          bool      `form:"AdCert"` //сертификат AD
-	AdCertDate      time.Time `orm:"null" form:"AdCertDate"` //Дата истечения сертификата
-	Owner           string    `form:"Owner"` //владелец
-	Allocation      string    `form:"Allocation"` //аллокация
-	Anotation       string    `form:"Anotation"` //Описание
-	City            string    `form:"City"` //Город
-	DatacenterRoom  string    `form:"DatacenterRoom"` //серверная
-	RackNum         string    `form:"RackNum"` //номер стойки, если их несколько можно указать через запятую
-	StartUnit       string    `form:"StartUnit"` //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
-	SizeUnit        string    `form:"SizeUnit"` //размер в юнитах
-	ContractDoc     string    `form:"ContractDoc"` //договорной документ на покупку, название и номер дополнительного соглашения
+	Vendor          string    `form:"Vendor"`                     //производитель
+	Model           string    `form:"Model"`                      //модель
+	PartNum         string    `form:"PartNum"`                    //код продукта у вендора
+	Status          int       `form:"Status"`                     //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
+	Size            int       `form:"Size"`                       //максимальное количество дисков
+	Used            int       `form:"Used"`                       //общее количество установленных дисков
+	IpAddress       string    `form:"IpAddress"`                  //IP apec
+	IpAddressNext   string    `form:"IpAddressNext"`              //IP apec 2
+	TotalSizeRAW    float64   `form:"TotalSizeRAW"`               //размер дисков СХД (сырой)
+	UsedPercent     float64   `form:"UsedPercent"`                //использовано в %
+	WWNMask         string    `form:"WWNMask"`                    //WWN маска дисков
+	Firmware        string    `form:"Firmware"`                   //версия прошивки
+	SerialNum       string    `form:"SerialNum"`                  //серийный номер
+	Power           int       `form:"Power"`                      //0 выключен 1 включен
+	ApiType         int       `form:"ApiType"`                    //тип API 0 не указано 1 - VNX CLI, 2 -Unity Rest 3 - Dorado rest  4- OceanStor 5- Lenovo Rest
+	Ad              bool      `form:"Ad"`                         //в AD
+	Ldaps           bool      `form:"Ldaps"`                      //Ldaps
+	AdCert          bool      `form:"AdCert"`                     //сертификат AD
+	AdCertDate      time.Time `orm:"null" form:"AdCertDate"`      //Дата истечения сертификата
+	Owner           string    `form:"Owner"`                      //владелец
+	Allocation      string    `form:"Allocation"`                 //аллокация
+	Anotation       string    `form:"Anotation"`                  //Описание
+	City            string    `form:"City"`                       //Город
+	DatacenterRoom  string    `form:"DatacenterRoom"`             //серверная
+	RackNum         string    `form:"RackNum"`                    //номер стойки, если их несколько можно указать через запятую
+	StartUnit       string    `form:"StartUnit"`                  //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
+	SizeUnit        string    `form:"SizeUnit"`                   //размер в юнитах
+	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
 	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа
-	Invoice         string    `form:"Invoice"` //счет фактура, накладная
-	DateInvoice     time.Time `orm:"null" form:"DateInvoice"` //дата накладной
-	Counterparty    string    `orm:"null" form:"Counterparty"` //контрагент
-	InventoryNum    string    `form:"InventoryNum"` //Инвентарный номер
-	InventoryNumBuh string    `form:"InventoryNumBuh"` //Инвентарный номер Бухгалтерский
-	DateService     time.Time `orm:"null" form:"DateService"` //дата до которой есть гарантия или сервис контракт
-	ServiceContract string    `form:"ServiceContract"` //данные по сервисному контракту, уровень сервиса
-	Id_User         int64     `form:"Id_User"` //
-	Time_Mfy        time.Time `form:"Time_Mfy"` //
+	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная
+	DateInvoice     time.Time `orm:"null" form:"DateInvoice"`     //дата накладной
+	Counterparty    string    `orm:"null" form:"Counterparty"`    //контрагент
+	InventoryNum    string    `form:"InventoryNum"`               //Инвентарный номер
+	InventoryNumBuh string    `form:"InventoryNumBuh"`            //Инвентарный номер Бухгалтерский
+	DateService     time.Time `orm:"null" form:"DateService"`     //дата до которой есть гарантия или сервис контракт
+	ServiceContract string    `form:"ServiceContract"`            //данные по сервисному контракту, уровень сервиса
+	Id_User         int64     `form:"Id_User"`                    //
+	Time_Mfy        time.Time `form:"Time_Mfy"`                   //
 	// SourceUpdateType - источник последнего обновления ЗАПИСИ СПРАВОЧНИКА СХД
 	// (значения StorageSourceUpdate* ниже). На практике сама запись
 	// StorageSystems заводится и правится ТОЛЬКО вручную через
@@ -1417,27 +1417,27 @@ func (u *StorageSystems) TableIndex() [][]string {
 
 // StorageVolumes описывает запись/справочник БД loadmon, соответствующую сущности StorageVolumes.
 type StorageVolumes struct {
-	Id               int64     `form:"Id"`
-	StorageSystemsId int64     `form:"StorageSystemsId"` //ID из StorageSystems
-	Status           int       `form:"Status"` //0 - том выведен из работы или удален 1 том в виртуализации 2 все остальные случаи
+	Id               int64 `form:"Id"`
+	StorageSystemsId int64 `form:"StorageSystemsId"` //ID из StorageSystems
+	Status           int   `form:"Status"`           //0 - том выведен из работы или удален 1 том в виртуализации 2 все остальные случаи
 	// HostId         int64   `form:"HostId"`           //если том не в виртуализации, то сервер к которому он подключен
-	UID              string    `form:"UID"` //уникальный идентификатор тома (!!! для RDM дисков может возникнуть проблема будут записи с одинаковыми UID но разными VirtualName)
-	Vcenter          string    `form:"Vcenter"` //
-	Datacenter       string    `form:"Datacenter"` //
-	Cluster          string    `form:"Cluster"` //
-	Server           string    `form:"Server"` //Имя сервера к которому подключено хранилище (если их несколько то проблема будет один из них)
-	VirtualName      string    `form:"VirtualName"` //Имя хранилища в vmware
-	ShortName        string    `form:"ShortName"` //мнемоническое имя для систем
-	DiskType         string    `form:"DiskType"` //тип дисков в lun
-	StorageName      string    `form:"StorageName"` //краткое наименование СХД
-	CapacityGb       float64   `form:"CapacityGb"` //емкость
-	FreeSpaceGb      float64   `form:"FreeSpaceGb"` //свободно
-	PercentUsed      float64   `form:"PercentUsed"` //процент использования
-	Owner            string    `form:"Owner"` //владелец
-	Allocation       string    `form:"Allocation"` //аллокация
-	Annotation       string    `form:"Annotation"` //Описание
-	Id_User          int64     `form:"Id_User"` //
-	Time_Mfy         time.Time `form:"Time_Mfy"` //
+	UID         string    `form:"UID"`         //уникальный идентификатор тома (!!! для RDM дисков может возникнуть проблема будут записи с одинаковыми UID но разными VirtualName)
+	Vcenter     string    `form:"Vcenter"`     //
+	Datacenter  string    `form:"Datacenter"`  //
+	Cluster     string    `form:"Cluster"`     //
+	Server      string    `form:"Server"`      //Имя сервера к которому подключено хранилище (если их несколько то проблема будет один из них)
+	VirtualName string    `form:"VirtualName"` //Имя хранилища в vmware
+	ShortName   string    `form:"ShortName"`   //мнемоническое имя для систем
+	DiskType    string    `form:"DiskType"`    //тип дисков в lun
+	StorageName string    `form:"StorageName"` //краткое наименование СХД
+	CapacityGb  float64   `form:"CapacityGb"`  //емкость
+	FreeSpaceGb float64   `form:"FreeSpaceGb"` //свободно
+	PercentUsed float64   `form:"PercentUsed"` //процент использования
+	Owner       string    `form:"Owner"`       //владелец
+	Allocation  string    `form:"Allocation"`  //аллокация
+	Annotation  string    `form:"Annotation"`  //Описание
+	Id_User     int64     `form:"Id_User"`     //
+	Time_Mfy    time.Time `form:"Time_Mfy"`    //
 	// SourceUpdateType - источник последнего обновления записи тома
 	// (значения StorageSourceUpdate* у StorageSystems выше). Проставляется
 	// автосинхронизацией (StorageSourceUpdateVMware из
@@ -1491,7 +1491,7 @@ type StorageEventLog struct {
 	// StorageEventUnknownLun: UID/StorageName/VirtualName тома - используется
 	// как ключ дедупликации (cmdb.logUnknownLun не создаёт повторную запись
 	// для уже залогированного в пределах срока хранения LUN).
-	Key string `orm:"index"`
+	Key     string `orm:"index"`
 	OK      bool   // для StorageEventAvailability: успех/неуспех опроса; для StorageEventUnknownLun не используется
 	Message string `orm:"size(1024)"` // текст ошибки опроса / детали неизвестного LUN
 }
@@ -1593,7 +1593,7 @@ type ServerSprEventLog struct {
 	Time time.Time `orm:"index"` // время сохранения формы
 	// EventType - ServerSprEventCreated/ServerSprEventFieldChanged (см.
 	// константы ниже).
-	EventType int `orm:"index"`
+	EventType int   `orm:"index"`
 	ServerId  int64 `orm:"index"` // Id изменённой записи ServerSprRecords
 	// Key - имя сервера (ServerSprRecords.Name) на момент записи события -
 	// для читаемости журнала, даже если имя потом снова изменится.
@@ -1638,10 +1638,10 @@ func (u *ServerSprEventLog) TableIndex() [][]string {
 type Datastore struct {
 	Id               int64   `form:"Id"`
 	StorageSystemsId int64   `form:"StorageSystemsId"`
-	ClusterId        int64   `form:"ClusterId"` //ссылка на кластер, к которому подключено хранилище
-	ShortName        string  `form:"ShortName"` //мнемоническое имя для систем
+	ClusterId        int64   `form:"ClusterId"`   //ссылка на кластер, к которому подключено хранилище
+	ShortName        string  `form:"ShortName"`   //мнемоническое имя для систем
 	StorageName      string  `form:"StorageName"` //краткое наименование СХД
-	CapacityGb       float64 `form:"CapacityGb"` //емкость
+	CapacityGb       float64 `form:"CapacityGb"`  //емкость
 	FreeSpaceGb      float64 `form:"FreeSpaceGb"` //свободно
 	PercentUsed      float64 `form:"PercentUsed"` //процент использования
 }
@@ -1701,49 +1701,49 @@ type ServerHardwareView struct {
 // ServerHardware описывает запись/справочник БД loadmon, соответствующую сущности ServerHardware.
 type ServerHardware struct {
 	Id                int64     `form:"Id" csv:"%" json:"Id"`
-	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"` // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
-	Active            int       `form:"Active" csv:"Статус" json:"Active"` // 0 не указано 1 активен 2 выведен из эксплуатации
-	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса" json:"TimeActiveState"` // время изменения статуса активности введения в эксплуатацию
-	ActivatorUser     int64     `orm:"null" form:"ActivatorUser" csv:"Автор ввода в эксплуатацию" json:"ActivatorUser"` // автор записи
+	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"`                                       // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
+	Active            int       `form:"Active" csv:"Статус" json:"Active"`                                                          // 0 не указано 1 активен 2 выведен из эксплуатации
+	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса" json:"TimeActiveState"`             // время изменения статуса активности введения в эксплуатацию
+	ActivatorUser     int64     `orm:"null" form:"ActivatorUser" csv:"Автор ввода в эксплуатацию" json:"ActivatorUser"`             // автор записи
 	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" csv:"Дата выведения из эксплуатации" json:"TimeDeActiveState"` // время выведения из эксплуатации
-	DeActivatorUser   int64     `orm:"null" form:"DeActivatorUser" csv:"Автор выведения из эксплуатации" json:"DeActivatorUser"` // автор записи
-	DeActivateInfo    string    `orm:"null" form:"DeActivateInfo" csv:"Основание выведения из эксплуатации" json:"DeActivateInfo"` // Основание выведения из эксплуатации
-	ServerId          int64     `form:"ServerId" csv:"Ссылка на справочник серверов" json:"ServerId"` // ссылка на сервер из справочника серверов
-	Vendor            string    `form:"Vendor" csv:"Производитель" json:"Vendor"` // производитель
-	Model             string    `form:"Model" csv:"Модель" json:"Model"` // модель
-	PartNum           string    `form:"PartNum" csv:"Номер продукта" json:"PartNum"` // продуктовый номер
-	FormFactor        int       `form:"FormFactor" csv:"Тип сервера" json:"FormFactor"` // тип сервера 1-rack или 2-blade
-	SerialNum         string    `form:"SerialNum" csv:"Серийный номер" json:"SerialNum"` // серийный номер (для физических серверов и хостов виртуализации)
-	VirtualSerialNum  string    `form:"VirtualSerialNum" csv:"Виртуальный серийный номер" json:"VirtualSerialNum"` // виртуальный серийный номер (только для хостов tsxi)
-	CPUModel          string    `form:"CPUModel" csv:"Модель процессора" json:"CPUModel"` // модель процессоров
-	CPUCount          int       `form:"CPUCount" csv:"Количество процессоров" json:"CPUCount"` // Количество физических процессоров
-	CorePerCPU        int       `form:"CorePerCPU" csv:"Ядер в процессоре" json:"CorePerCPU"` // количество физических ядер на процессор
-	CoreMHz           int       `form:"CoreMHz" csv:"Базовая частота процессора" json:"CoreMHz"` // базовая тактовая частота ядра
-	MemoryMb          int       `form:"MemoryMb" csv:"Размер памяти в мб." json:"MemoryMb"` // размер оперативной памяти в мб
-	BladeSystemId     int64     `form:"BladeSystemId" csv:"Ссылка на справочник корзин" json:"BladeSystemId"` // ссылка блэйд-шасси в справочнике
-	BladeNum          int       `form:"BladeNum" csv:"Номер слота в корзине" json:"BladeNum"` // номер позиции в блэйд шасси
-	DatacenterRoom    string    `form:"DatacenterRoom" csv:"ЦОД" json:"DatacenterRoom"` // серверная
-	RackNum           string    `form:"RackNum" csv:"Номер стойки" json:"RackNum"` // номер стойки
-	StartUnit         string    `form:"StartUnit" csv:"-" json:"StartUnit"` // юнит с которого начинается сервер или блэйд шасси, куда он установлен
-	StartUnitPos      int       `form:"StartUnitPos" csv:"Номер юнита" json:"StartUnitPos"` // юнит
-	SizeUnit          int       `form:"SizeUnit" csv:"Количество юнитов" json:"SizeUnit"` // количество занимаемых юнитов
-	DatacenterName    string    `form:"DatacenterName" csv:"Серверная" json:"DatacenterName"` // Серверное помещение из HP One View
-	RackName          string    `form:"RackName" csv:"Шкаф" json:"RackName"` // Шкаф из HP One View
-	OwnerFromFGId     int64     `form:"OwnerFromFGId" csv:"-" json:"OwnerFromFGId"` // ЮЛ на которое покупается сервер из справочника MemberFG
-	CounterpartyId    int64     `form:"CounterpartyId" csv:"-" json:"CounterpartyId"` // ЮЛ контрагент из справочника Counterparty
-	ContractDoc       string    `form:"ContractDoc" csv:"Номер договора" json:"ContractDoc"` // договорной документ на покупку, название и номер дополнительного соглашения
-	DateContractDoc   time.Time `orm:"null" form:"DateContractDoc" csv:"Дата договора" json:"DateContractDoc"` // дата документа
-	Invoice           string    `form:"Invoice" csv:"Накладная" json:"Invoice"` // счет фактура, накладная
-	DateInvoice       time.Time `orm:"null" form:"DateInvoice" csv:"Дата получения" json:"DateInvoice"` // дата накладной
-	Counterparty      string    `orm:"null" form:"Counterparty" csv:"Контрагент" json:"Counterparty"` // контрагент
-	InventoryNum      string    `form:"InventoryNum" csv:"Инвентарный номер" json:"InventoryNum"` // инвентарный номер
-	InventoryNumBuh   string    `form:"InventoryNumBuh" csv:"Бухгалтерский номер" json:"InventoryNumBuh"` // инвентарный номер бухгалтерский
-	TechnicalNumberIT string    `form:"TechnicalNumberIT" csv:"Технический номер" json:"TechnicalNumberIT"` // технический номер ИТ
-	DateService       time.Time `orm:"null" form:"DateService" csv:"Дата окончания гарантии" json:"DateService"` // дата до которой есть гарантия или сервис контракт
-	ServiceContract   string    `form:"ServiceContract" csv:"Сервисный контракт" json:"ServiceContract"` // данные по сервисному контракту, уровень сервиса
-	Id_User           int64     `form:"Id_User" csv:"-" json:"Id_User"` //
-	Time_Mfy          time.Time `form:"Time_Mfy" csv:"-" json:"Time_Mfy"` //
-	SourceUpdate      string    `form:"SourceUpdate" csv:"Источник данных" json:"SourceUpdate"` //
+	DeActivatorUser   int64     `orm:"null" form:"DeActivatorUser" csv:"Автор выведения из эксплуатации" json:"DeActivatorUser"`    // автор записи
+	DeActivateInfo    string    `orm:"null" form:"DeActivateInfo" csv:"Основание выведения из эксплуатации" json:"DeActivateInfo"`  // Основание выведения из эксплуатации
+	ServerId          int64     `form:"ServerId" csv:"Ссылка на справочник серверов" json:"ServerId"`                               // ссылка на сервер из справочника серверов
+	Vendor            string    `form:"Vendor" csv:"Производитель" json:"Vendor"`                                                   // производитель
+	Model             string    `form:"Model" csv:"Модель" json:"Model"`                                                            // модель
+	PartNum           string    `form:"PartNum" csv:"Номер продукта" json:"PartNum"`                                                // продуктовый номер
+	FormFactor        int       `form:"FormFactor" csv:"Тип сервера" json:"FormFactor"`                                             // тип сервера 1-rack или 2-blade
+	SerialNum         string    `form:"SerialNum" csv:"Серийный номер" json:"SerialNum"`                                            // серийный номер (для физических серверов и хостов виртуализации)
+	VirtualSerialNum  string    `form:"VirtualSerialNum" csv:"Виртуальный серийный номер" json:"VirtualSerialNum"`                  // виртуальный серийный номер (только для хостов tsxi)
+	CPUModel          string    `form:"CPUModel" csv:"Модель процессора" json:"CPUModel"`                                           // модель процессоров
+	CPUCount          int       `form:"CPUCount" csv:"Количество процессоров" json:"CPUCount"`                                      // Количество физических процессоров
+	CorePerCPU        int       `form:"CorePerCPU" csv:"Ядер в процессоре" json:"CorePerCPU"`                                       // количество физических ядер на процессор
+	CoreMHz           int       `form:"CoreMHz" csv:"Базовая частота процессора" json:"CoreMHz"`                                    // базовая тактовая частота ядра
+	MemoryMb          int       `form:"MemoryMb" csv:"Размер памяти в мб." json:"MemoryMb"`                                         // размер оперативной памяти в мб
+	BladeSystemId     int64     `form:"BladeSystemId" csv:"Ссылка на справочник корзин" json:"BladeSystemId"`                       // ссылка блэйд-шасси в справочнике
+	BladeNum          int       `form:"BladeNum" csv:"Номер слота в корзине" json:"BladeNum"`                                       // номер позиции в блэйд шасси
+	DatacenterRoom    string    `form:"DatacenterRoom" csv:"ЦОД" json:"DatacenterRoom"`                                             // серверная
+	RackNum           string    `form:"RackNum" csv:"Номер стойки" json:"RackNum"`                                                  // номер стойки
+	StartUnit         string    `form:"StartUnit" csv:"-" json:"StartUnit"`                                                         // юнит с которого начинается сервер или блэйд шасси, куда он установлен
+	StartUnitPos      int       `form:"StartUnitPos" csv:"Номер юнита" json:"StartUnitPos"`                                         // юнит
+	SizeUnit          int       `form:"SizeUnit" csv:"Количество юнитов" json:"SizeUnit"`                                           // количество занимаемых юнитов
+	DatacenterName    string    `form:"DatacenterName" csv:"Серверная" json:"DatacenterName"`                                       // Серверное помещение из HP One View
+	RackName          string    `form:"RackName" csv:"Шкаф" json:"RackName"`                                                        // Шкаф из HP One View
+	OwnerFromFGId     int64     `form:"OwnerFromFGId" csv:"-" json:"OwnerFromFGId"`                                                 // ЮЛ на которое покупается сервер из справочника MemberFG
+	CounterpartyId    int64     `form:"CounterpartyId" csv:"-" json:"CounterpartyId"`                                               // ЮЛ контрагент из справочника Counterparty
+	ContractDoc       string    `form:"ContractDoc" csv:"Номер договора" json:"ContractDoc"`                                        // договорной документ на покупку, название и номер дополнительного соглашения
+	DateContractDoc   time.Time `orm:"null" form:"DateContractDoc" csv:"Дата договора" json:"DateContractDoc"`                      // дата документа
+	Invoice           string    `form:"Invoice" csv:"Накладная" json:"Invoice"`                                                     // счет фактура, накладная
+	DateInvoice       time.Time `orm:"null" form:"DateInvoice" csv:"Дата получения" json:"DateInvoice"`                             // дата накладной
+	Counterparty      string    `orm:"null" form:"Counterparty" csv:"Контрагент" json:"Counterparty"`                               // контрагент
+	InventoryNum      string    `form:"InventoryNum" csv:"Инвентарный номер" json:"InventoryNum"`                                   // инвентарный номер
+	InventoryNumBuh   string    `form:"InventoryNumBuh" csv:"Бухгалтерский номер" json:"InventoryNumBuh"`                           // инвентарный номер бухгалтерский
+	TechnicalNumberIT string    `form:"TechnicalNumberIT" csv:"Технический номер" json:"TechnicalNumberIT"`                         // технический номер ИТ
+	DateService       time.Time `orm:"null" form:"DateService" csv:"Дата окончания гарантии" json:"DateService"`                    // дата до которой есть гарантия или сервис контракт
+	ServiceContract   string    `form:"ServiceContract" csv:"Сервисный контракт" json:"ServiceContract"`                            // данные по сервисному контракту, уровень сервиса
+	Id_User           int64     `form:"Id_User" csv:"-" json:"Id_User"`                                                             //
+	Time_Mfy          time.Time `form:"Time_Mfy" csv:"-" json:"Time_Mfy"`                                                           //
+	SourceUpdate      string    `form:"SourceUpdate" csv:"Источник данных" json:"SourceUpdate"`                                     //
 	// SourceUpdateType - источник последнего обновления записи (числовой
 	// код, в отличие от свободного текстового SourceUpdate выше):
 	// 0 - не указано, 1 - добавлен/изменён вручную, 2 - VMware, 3 - HPE
@@ -1758,17 +1758,17 @@ type ServerHardware struct {
 	// прошивка контроллера управления iLO/OA и т.д.), но они нигде не
 	// сохранялись - см. cmdb/initrec.go:ImportHWSprRecord, где они теперь
 	// проставляются.
-	Status            string `form:"Status" csv:"Состояние (health)" json:"Status"`                     // identity.Status - health-статус OneView (OK/Warning/Critical/...)
-	RomVersion        string `form:"RomVersion" csv:"Версия BIOS/ROM" json:"RomVersion"`                 // identity.RomVersion
-	Platform          string `form:"Platform" csv:"Платформа" json:"Platform"`                           // identity.Platform
-	ShortModel        string `form:"ShortModel" csv:"Короткая модель" json:"ShortModel"`                 // identity.ShortModel
-	AssetTag          string `form:"AssetTag" csv:"Метка актива (OneView)" json:"AssetTag"`              // identity.AssetTag
-	OperatingSystem   string `form:"OperatingSystem" csv:"ОС (по данным OneView)" json:"OperatingSystem"` // identity.OperatingSystem - НЕ обязательно совпадает с фактической ОС, см. комментарий в cmdb/initrec.go:ImportServerSprFromHW про ненадёжность этого поля у OneView
-	MpModel           string `form:"MpModel" csv:"Модель контроллера управления" json:"MpModel"`         // identity.MpModel - модель iLO/OA
+	Status            string `form:"Status" csv:"Состояние (health)" json:"Status"`                                    // identity.Status - health-статус OneView (OK/Warning/Critical/...)
+	RomVersion        string `form:"RomVersion" csv:"Версия BIOS/ROM" json:"RomVersion"`                               // identity.RomVersion
+	Platform          string `form:"Platform" csv:"Платформа" json:"Platform"`                                         // identity.Platform
+	ShortModel        string `form:"ShortModel" csv:"Короткая модель" json:"ShortModel"`                               // identity.ShortModel
+	AssetTag          string `form:"AssetTag" csv:"Метка актива (OneView)" json:"AssetTag"`                            // identity.AssetTag
+	OperatingSystem   string `form:"OperatingSystem" csv:"ОС (по данным OneView)" json:"OperatingSystem"`              // identity.OperatingSystem - НЕ обязательно совпадает с фактической ОС, см. комментарий в cmdb/initrec.go:ImportServerSprFromHW про ненадёжность этого поля у OneView
+	MpModel           string `form:"MpModel" csv:"Модель контроллера управления" json:"MpModel"`                       // identity.MpModel - модель iLO/OA
 	MpFirmwareVersion string `form:"MpFirmwareVersion" csv:"Прошивка контроллера управления" json:"MpFirmwareVersion"` // identity.MpFirmwareVersion
-	MpIPAddress       string `form:"MpIPAddress" csv:"IP контроллера управления" json:"MpIPAddress"`     // identity.MpIPAddress - адрес iLO/OA
-	MpHostName        string `form:"MpHostName" csv:"Имя контроллера управления" json:"MpHostName"`      // identity.MpHostName
-	RackCabinetId     int64  `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов" json:"RackCabinetId"` // FK на models.RackCabinet.Id (новый справочник шкафов) - дополняет старые текстовые DatacenterRoom/RackNum/DatacenterName/RackName, не заменяет их
+	MpIPAddress       string `form:"MpIPAddress" csv:"IP контроллера управления" json:"MpIPAddress"`                   // identity.MpIPAddress - адрес iLO/OA
+	MpHostName        string `form:"MpHostName" csv:"Имя контроллера управления" json:"MpHostName"`                    // identity.MpHostName
+	RackCabinetId     int64  `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов" json:"RackCabinetId"`  // FK на models.RackCabinet.Id (новый справочник шкафов) - дополняет старые текстовые DatacenterRoom/RackNum/DatacenterName/RackName, не заменяет их
 }
 
 // Коды источника обновления записей ServerHardware/ServerSprRecords -
@@ -1786,59 +1786,59 @@ const (
 
 // ServerSpr — справочная запись сервера (CMDB): базовые параметры конфигурации и принадлежности.
 type ServerSpr struct {
-	Id               int64     `form:"Id" json:"Id"` //id записи
-	Type             int       `form:"Type" json:"Type"` //0 - не указан 1 - виртуальный 2 - физический сервер
-	PowerState       int       `form:"PowerState" json:"PowerState"` //0 - не указан 1 включен 2 выключен (последнее состояние)
-	SerialNumber     string    `form:"SerialNumber" json:"SerialNumber"` //серийный номер для type 2
-	Vcenter          string    `form:"Vcenter" json:"Vcenter"` //для type 1 и (type 2 и RoleType 1)
-	Datacenter       string    `form:"Datacenter" json:"Datacenter"` //для type 1 и (type 2 и RoleType 1)
-	Cluster          string    `form:"Cluster" json:"Cluster"` //для type 1 и (type 2 и RoleType 1)
-	VMSprId          int64     `form:"VMSprId" json:"VMSprId"` //ссылка на дополнительные атрибуты для виртуального сервера - справочник VMSpr если Type = 1 иначе 0
-	HWSprId          int64     `form:"HWSprId" json:"HWSprId"` //ссылка на дополнительные атрибуты справочник HWSpr для type 2 иначе 0
-	Name             string    `form:"Name,text,Name" valid:"MinSize(0);MaxSize(256)" json:"Name"` //vm name для type 1, servername для type 2
-	NameFQDN         string    `form:"NameFQDN" json:"NameFQDN"` //hostname для type 1, servername для type 2
-	NameInfo         string    `orm:"null" form:"NameInfo" json:"NameInfo"` //альтернативное имя сервера (DNS имена через ;)
-	TypeMicroservice int       `form:"TypeMicroservice" json:"TypeMicroservice"` //0 не указано принадлежность к микросервисам, роль в этом пространстве
-	RoleType         int       `form:"RoleType" json:"RoleType"` //0-не указано 1- гипервизор vmware 2-APP 3-DB 4-app+DB
-	TypeWork         int       `form:"TypeWork" json:"TypeWork"` //0- не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	CriticalLevel    int       `form:"CriticalLevel" json:"CriticalLevel"` //уровень критичности 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
-	Stat             int       `form:"Stat" json:"Stat"` //0- историческая запись 911 новое добавлено автоматически (требуется правка) 1- не активное 2- в эксплуатации // TODO: comment truncated in screenshot
-	Monitoring       int       `form:"Monitoring" json:"Monitoring"` //0 - не указано 1-включен мониторинг 2-отключен мониторинг
-	Backuped         int       `form:"Backuped" json:"Backuped"` //0 - не указано 1-включено резервное копирование 2-отключено резервное копирование
-	Network          string    `orm:"null" form:"Network" json:"Network"` //сети через ; vlan144
-	IPAddress        string    `orm:"null" form:"IPAddress" json:"IPAddress"` //список IP адресов сервера через ; при наличие информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
-	CPUCount         float64   `form:"CPUCount" json:"CPUCount"` //Количество физических процессоров (корпусов, гнёзд)
-	CPULogical       float64   `form:"CPULogical" json:"CPULogical"` //общее количество логических CPU (ядер)
-	MemSize          float64   `form:"MemSize" json:"MemSize"` //размер оперативной памяти сервера гигабайт
-	DiskSize         float64   `form:"DiskSize" json:"DiskSize"` //суммарный размер всех дисков гигабайт
-	OS               string    `form:"OS" json:"OS"` //операционная система
-	ITSystemKey      string    `form:"ITSystemKey" json:"ITSystemKey"` //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
-	TimeCreate       time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"` //время создания записи
-	CreatorUser      int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"` //автор записи
-	TimeActiveState  time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"` //дата ввода в эксплуатацию
-	ActivatorUser    int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"` //автор записи
-	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"` //дата выведения из эксплуатации
-	DeActivatorUser  int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"` //автор записи
+	Id                   int64     `form:"Id" json:"Id"`                                                //id записи
+	Type                 int       `form:"Type" json:"Type"`                                            //0 - не указан 1 - виртуальный 2 - физический сервер
+	PowerState           int       `form:"PowerState" json:"PowerState"`                                //0 - не указан 1 включен 2 выключен (последнее состояние)
+	SerialNumber         string    `form:"SerialNumber" json:"SerialNumber"`                            //серийный номер для type 2
+	Vcenter              string    `form:"Vcenter" json:"Vcenter"`                                      //для type 1 и (type 2 и RoleType 1)
+	Datacenter           string    `form:"Datacenter" json:"Datacenter"`                                //для type 1 и (type 2 и RoleType 1)
+	Cluster              string    `form:"Cluster" json:"Cluster"`                                      //для type 1 и (type 2 и RoleType 1)
+	VMSprId              int64     `form:"VMSprId" json:"VMSprId"`                                      //ссылка на дополнительные атрибуты для виртуального сервера - справочник VMSpr если Type = 1 иначе 0
+	HWSprId              int64     `form:"HWSprId" json:"HWSprId"`                                      //ссылка на дополнительные атрибуты справочник HWSpr для type 2 иначе 0
+	Name                 string    `form:"Name,text,Name" valid:"MinSize(0);MaxSize(256)" json:"Name"`  //vm name для type 1, servername для type 2
+	NameFQDN             string    `form:"NameFQDN" json:"NameFQDN"`                                    //hostname для type 1, servername для type 2
+	NameInfo             string    `orm:"null" form:"NameInfo" json:"NameInfo"`                         //альтернативное имя сервера (DNS имена через ;)
+	TypeMicroservice     int       `form:"TypeMicroservice" json:"TypeMicroservice"`                    //0 не указано принадлежность к микросервисам, роль в этом пространстве
+	RoleType             int       `form:"RoleType" json:"RoleType"`                                    //0-не указано 1- гипервизор vmware 2-APP 3-DB 4-app+DB
+	TypeWork             int       `form:"TypeWork" json:"TypeWork"`                                    //0- не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
+	CriticalLevel        int       `form:"CriticalLevel" json:"CriticalLevel"`                          //уровень критичности 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
+	Stat                 int       `form:"Stat" json:"Stat"`                                            //0- историческая запись 911 новое добавлено автоматически (требуется правка) 1- не активное 2- в эксплуатации // TODO: comment truncated in screenshot
+	Monitoring           int       `form:"Monitoring" json:"Monitoring"`                                //0 - не указано 1-включен мониторинг 2-отключен мониторинг
+	Backuped             int       `form:"Backuped" json:"Backuped"`                                    //0 - не указано 1-включено резервное копирование 2-отключено резервное копирование
+	Network              string    `orm:"null" form:"Network" json:"Network"`                           //сети через ; vlan144
+	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера через ; при наличие информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
+	CPUCount             float64   `form:"CPUCount" json:"CPUCount"`                                    //Количество физических процессоров (корпусов, гнёзд)
+	CPULogical           float64   `form:"CPULogical" json:"CPULogical"`                                //общее количество логических CPU (ядер)
+	MemSize              float64   `form:"MemSize" json:"MemSize"`                                      //размер оперативной памяти сервера гигабайт
+	DiskSize             float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков гигабайт
+	OS                   string    `form:"OS" json:"OS"`                                                //операционная система
+	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
+	TimeCreate           time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
+	CreatorUser          int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
+	TimeActiveState      time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //дата ввода в эксплуатацию
+	ActivatorUser        int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"`               //автор записи
+	TimeDeActiveState    time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"`       //дата выведения из эксплуатации
+	DeActivatorUser      int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"`           //автор записи
 	TimeActiveMonitoring time.Time `orm:"null" form:"TimeActiveMonitoring" json:"TimeActiveMonitoring"` //время постановки на мониторинг
-	Owner            string    `form:"Owner" json:"Owner" csv:"-"` //владелец сервера (отвественный за сервер)
-	BusinessOwner    string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"` //владелец от бизнеса
-	ITOwner          string    `form:"ITOwner" json:"ITOwner" csv:"-"` //владелец со стороны ИТ
-	ProductOwner     string    `form:"ProductOwner" json:"ProductOwner" csv:"-"` //Владелец продукта
-	Support          string    `form:"Support" json:"Support" csv:"-"` //ответственные за поддержку
-	SupportTeam      string    `form:"SupportTeam" json:"SupportTeam" csv:"-"` //Подразделение поддержки
-	SystemType       string    `form:"SystemType" json:"SystemType"` //тип системы техническая ...
-	LicensingType    string    `form:"LicensingType" json:"LicensingType"` //тип лицензирования
-	SolutionType     string    `form:"SolutionType" json:"SolutionType"` //вариант решения (коробочной)
-	Users            string    `form:"Users" json:"Users" csv:"-"` //пользователи системы
-	Allocation       string    `form:"Allocation" json:"Allocation"` //аллокация (подразделение)
-	Anotation        string    `form:"Anotation" json:"Anotation" csv:"-"` //описане сервера
-	TagName          string    `form:"TagName" json:"TagName"` //Имя тэга для виртуальных машин (Код для справочника)
-	TagDescription   string    `form:"TagDescription" json:"TagDescription"` //Описание тэга для виртуальных машин
-	MonitoringSZ     string    `form:"MonitoringSZ" json:"MonitoringSZ"` //основание постановки на мониторинг
-	SzHistory        string    `form:"SzHistory" json:"SzHistory"` //номера сз через пробел в хронологическом порядке
-	DPCOffice        int       `form:"DPCOffice" json:"DPCOffice"` //размещение в ЦОД по справочнику комната с адресом
-	Id_User          int64     `form:"Id_User" json:"Id_User"` //автор изменений
-	Time_Mfy         time.Time `form:"Time_Mfy" json:"Time_Mfy"` //дата последних изменений
+	Owner                string    `form:"Owner" json:"Owner" csv:"-"`                                  //владелец сервера (отвественный за сервер)
+	BusinessOwner        string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"`                  //владелец от бизнеса
+	ITOwner              string    `form:"ITOwner" json:"ITOwner" csv:"-"`                              //владелец со стороны ИТ
+	ProductOwner         string    `form:"ProductOwner" json:"ProductOwner" csv:"-"`                    //Владелец продукта
+	Support              string    `form:"Support" json:"Support" csv:"-"`                              //ответственные за поддержку
+	SupportTeam          string    `form:"SupportTeam" json:"SupportTeam" csv:"-"`                      //Подразделение поддержки
+	SystemType           string    `form:"SystemType" json:"SystemType"`                                //тип системы техническая ...
+	LicensingType        string    `form:"LicensingType" json:"LicensingType"`                          //тип лицензирования
+	SolutionType         string    `form:"SolutionType" json:"SolutionType"`                            //вариант решения (коробочной)
+	Users                string    `form:"Users" json:"Users" csv:"-"`                                  //пользователи системы
+	Allocation           string    `form:"Allocation" json:"Allocation"`                                //аллокация (подразделение)
+	Anotation            string    `form:"Anotation" json:"Anotation" csv:"-"`                          //описане сервера
+	TagName              string    `form:"TagName" json:"TagName"`                                      //Имя тэга для виртуальных машин (Код для справочника)
+	TagDescription       string    `form:"TagDescription" json:"TagDescription"`                        //Описание тэга для виртуальных машин
+	MonitoringSZ         string    `form:"MonitoringSZ" json:"MonitoringSZ"`                            //основание постановки на мониторинг
+	SzHistory            string    `form:"SzHistory" json:"SzHistory"`                                  //номера сз через пробел в хронологическом порядке
+	DPCOffice            int       `form:"DPCOffice" json:"DPCOffice"`                                  //размещение в ЦОД по справочнику комната с адресом
+	Id_User              int64     `form:"Id_User" json:"Id_User"`                                      //автор изменений
+	Time_Mfy             time.Time `form:"Time_Mfy" json:"Time_Mfy"`                                    //дата последних изменений
 }
 
 // TableName возвращает имя таблицы БД для модели ServerSpr (используется beego ORM).
@@ -1861,30 +1861,30 @@ func (u *ServerSpr) TableIndex() [][]string {
 
 // VMSpr описывает запись/справочник БД loadmon, соответствующую сущности VMSpr.
 type VMSpr struct {
-	Id                int64     `form:"Id"` //id записи
-	ServerId          int64     `form:"ServerId"` //ссылка на ServerSpr.Id
-	Vcenter           string    `form:"Vcenter"` //управляющий центр vmware
-	Datacenter        string    `form:"Datacenter"` //датацентр vmware
-	Cluster           string    `form:"Cluster"` //кластер vmware
-	Name              string    `form:"Name"` //имя виртуальной машины
-	HostName          string    `form:"HostName"` //имя хоста (проверять на localhost и обозначать потребность исправления)
-	GuestFullName     string    `form:"GuestFullName"` //операционная система (данные из описания виртуальной машины, может не совпадать с реальной)
-	PathName          string    `form:"PathName"` //путь к файлам виртуальной машины на хранилище
-	PowerState        bool      `form:"PowerState"` //состояние включения виртуальной машины true - включена
-	Uuid              string    `form:"Uuid"` //уникальный в рамках vcenter идентификатор виртуальной машины
-	Annotation        string    `form:"Annotation" csv:"-"` //описание виртуальной машины в свободном формате
-	NumCPU            int32     `form:"NumCPU"` //количество vCPU
-	NumCores          int32     `form:"NumCores"` //количество ядер
-	MemorySizeGB      float64   `form:"MemorySizeGB"` //размер оперативной памяти в гигабайтах
-	Network           string    `form:"Network"` //сети через разделитель ;
-	IpAddress         string    `form:"IpAddress"` //IP адреса через разделитель ;
-	NumEthernetCards  int32     `form:"NumEthernetCards"` //количество сетевых интерфейсов
-	NumVirtualDisks   int32     `form:"NumVirtualDisks"` //количество виртуальных дисков
-	DiskCommittedGB   float64   `form:"DiskCommittedGB"` //выделенное дисковое пространство с служебной информацией
-	DiskUncommittedGB float64   `form:"DiskUncommittedGB"` //занятое дисковое пространство
-	CapacityGb        float64   `form:"CapacityGb"` //форматная ёмкость дисков (при установленных vmware tools)
-	FreeSpaceGb       float64   `form:"FreeSpaceGb"` //свободное место (при установленных vmware tools)
-	PercentUsed       float64   `form:"PercentUsed"` //процент использования (при установленных vmware tools)
+	Id                int64     `form:"Id"`                       //id записи
+	ServerId          int64     `form:"ServerId"`                 //ссылка на ServerSpr.Id
+	Vcenter           string    `form:"Vcenter"`                  //управляющий центр vmware
+	Datacenter        string    `form:"Datacenter"`               //датацентр vmware
+	Cluster           string    `form:"Cluster"`                  //кластер vmware
+	Name              string    `form:"Name"`                     //имя виртуальной машины
+	HostName          string    `form:"HostName"`                 //имя хоста (проверять на localhost и обозначать потребность исправления)
+	GuestFullName     string    `form:"GuestFullName"`            //операционная система (данные из описания виртуальной машины, может не совпадать с реальной)
+	PathName          string    `form:"PathName"`                 //путь к файлам виртуальной машины на хранилище
+	PowerState        bool      `form:"PowerState"`               //состояние включения виртуальной машины true - включена
+	Uuid              string    `form:"Uuid"`                     //уникальный в рамках vcenter идентификатор виртуальной машины
+	Annotation        string    `form:"Annotation" csv:"-"`       //описание виртуальной машины в свободном формате
+	NumCPU            int32     `form:"NumCPU"`                   //количество vCPU
+	NumCores          int32     `form:"NumCores"`                 //количество ядер
+	MemorySizeGB      float64   `form:"MemorySizeGB"`             //размер оперативной памяти в гигабайтах
+	Network           string    `form:"Network"`                  //сети через разделитель ;
+	IpAddress         string    `form:"IpAddress"`                //IP адреса через разделитель ;
+	NumEthernetCards  int32     `form:"NumEthernetCards"`         //количество сетевых интерфейсов
+	NumVirtualDisks   int32     `form:"NumVirtualDisks"`          //количество виртуальных дисков
+	DiskCommittedGB   float64   `form:"DiskCommittedGB"`          //выделенное дисковое пространство с служебной информацией
+	DiskUncommittedGB float64   `form:"DiskUncommittedGB"`        //занятое дисковое пространство
+	CapacityGb        float64   `form:"CapacityGb"`               //форматная ёмкость дисков (при установленных vmware tools)
+	FreeSpaceGb       float64   `form:"FreeSpaceGb"`              //свободное место (при установленных vmware tools)
+	PercentUsed       float64   `form:"PercentUsed"`              //процент использования (при установленных vmware tools)
 	Time_Mfy          time.Time `form:"Time_Mfy" json:"Time_Mfy"` //дата последних изменений (изменения вносятся в автоматическом режиме)
 }
 
@@ -1908,30 +1908,30 @@ func (u *VMSpr) TableIndex() [][]string {
 // HWSpr описывает запись/справочник БД loadmon, соответствующую сущности HWSpr.
 type HWSpr struct {
 	Id                int64     `form:"Id" csv:"%" json:"Id"`
-	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"` // 0 не указано 1 включен 2 выключен (последнее состояние)
-	ServerId          int64     `form:"ServerId" csv:"Ссылка на справочник серверов" json:"ServerId"` //ссылка на ServerSpr.Id
-	CUId              int64     `form:"CUId" csv:"-" json:"CUId"` //ссылка на ConfigurationUnit.Id
-	Vendor            string    `form:"Vendor" csv:"Производитель" json:"Vendor"` //производитель
-	Model             string    `form:"Model" csv:"Модель" json:"Model"` //модель
-	PartNum           string    `form:"PartNum" csv:"Номер продукта" json:"PartNum"` //продуктовый номер
-	Type              int       `form:"Type" csv:"Тип сервера" json:"Type"` //тип сервера 1-rack или 2-blade
-	SerialNum         string    `form:"SerialNum" csv:"Серийный номер" json:"SerialNum"` //серийный номер (для физических серверов и хостов виртуализации)
-	CPUModel          string    `form:"CPUModel" csv:"Модель процессора" json:"CPUModel"` //модель процессоров
-	CPUCount          int       `form:"CPUCount" csv:"Количество процессоров" json:"CPUCount"` //Количество физических процессоров
-	CorePerCPU        int       `form:"CorePerCPU" csv:"Ядер в процессоре" json:"CorePerCPU"` //Количество физических ядер на процессор
-	CoreMHz           int       `form:"CoreMHz" csv:"Базовая частота процессора" json:"CoreMHz"` //базовая тактовая частота ядра
-	MemoryMb          int       `form:"MemoryMb" csv:"Размер памяти в мб." json:"MemoryMb"` //размер оперативной памяти в мб
+	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"`                 // 0 не указано 1 включен 2 выключен (последнее состояние)
+	ServerId          int64     `form:"ServerId" csv:"Ссылка на справочник серверов" json:"ServerId"`         //ссылка на ServerSpr.Id
+	CUId              int64     `form:"CUId" csv:"-" json:"CUId"`                                             //ссылка на ConfigurationUnit.Id
+	Vendor            string    `form:"Vendor" csv:"Производитель" json:"Vendor"`                             //производитель
+	Model             string    `form:"Model" csv:"Модель" json:"Model"`                                      //модель
+	PartNum           string    `form:"PartNum" csv:"Номер продукта" json:"PartNum"`                          //продуктовый номер
+	Type              int       `form:"Type" csv:"Тип сервера" json:"Type"`                                   //тип сервера 1-rack или 2-blade
+	SerialNum         string    `form:"SerialNum" csv:"Серийный номер" json:"SerialNum"`                      //серийный номер (для физических серверов и хостов виртуализации)
+	CPUModel          string    `form:"CPUModel" csv:"Модель процессора" json:"CPUModel"`                     //модель процессоров
+	CPUCount          int       `form:"CPUCount" csv:"Количество процессоров" json:"CPUCount"`                //Количество физических процессоров
+	CorePerCPU        int       `form:"CorePerCPU" csv:"Ядер в процессоре" json:"CorePerCPU"`                 //Количество физических ядер на процессор
+	CoreMHz           int       `form:"CoreMHz" csv:"Базовая частота процессора" json:"CoreMHz"`              //базовая тактовая частота ядра
+	MemoryMb          int       `form:"MemoryMb" csv:"Размер памяти в мб." json:"MemoryMb"`                   //размер оперативной памяти в мб
 	BladeSystemId     int64     `form:"BladeSystemId" csv:"Ссылка на справочник корзин" json:"BladeSystemId"` //ссылка блэйд-шасси в справочнике
-	BladeNum          int       `form:"BladeNum" csv:"Номер слота в корзине" json:"BladeNum"` //номер позиции в блэйд шасси
-	DatacenterName    string    `form:"DatacenterName" csv:"Серверная" json:"DatacenterName"` //Серверное помещение из HP One View
-	RackName          string    `form:"RackName" csv:"Шкаф" json:"RackName"` //Шкаф из HP One View
-	StartUnitPos      int       `form:"StartUnitPos" csv:"Номер юнита" json:"StartUnitPos"` //юнит с которого начинается сервер или блэйд шасси, куда он установлен
-	SizeUnit          int       `form:"SizeUnit" csv:"Количество юнитов" json:"SizeUnit"` //количество занимаемых unit
-	InventoryNum      string    `form:"InventoryNum" csv:"Инвентарный номер" json:"InventoryNum"` //Инвентарный номер
-	InventoryNumBuh   string    `form:"InventoryNumBuh" csv:"Бухгалтерский номер" json:"InventoryNumBuh"` //Инвентарный номер бухгалтерский
-	TechnicalNumberIT string    `form:"TechnicalNumberIT" csv:"Технический номер" json:"TechnicalNumberIT"` //технический номер ИТ
-	Id_User           int64     `form:"Id_User" csv:"-" json:"Id_User"` //
-	Time_Mfy          time.Time `form:"Time_Mfy" csv:"-" json:"Time_Mfy"` //
+	BladeNum          int       `form:"BladeNum" csv:"Номер слота в корзине" json:"BladeNum"`                 //номер позиции в блэйд шасси
+	DatacenterName    string    `form:"DatacenterName" csv:"Серверная" json:"DatacenterName"`                 //Серверное помещение из HP One View
+	RackName          string    `form:"RackName" csv:"Шкаф" json:"RackName"`                                  //Шкаф из HP One View
+	StartUnitPos      int       `form:"StartUnitPos" csv:"Номер юнита" json:"StartUnitPos"`                   //юнит с которого начинается сервер или блэйд шасси, куда он установлен
+	SizeUnit          int       `form:"SizeUnit" csv:"Количество юнитов" json:"SizeUnit"`                     //количество занимаемых unit
+	InventoryNum      string    `form:"InventoryNum" csv:"Инвентарный номер" json:"InventoryNum"`             //Инвентарный номер
+	InventoryNumBuh   string    `form:"InventoryNumBuh" csv:"Бухгалтерский номер" json:"InventoryNumBuh"`     //Инвентарный номер бухгалтерский
+	TechnicalNumberIT string    `form:"TechnicalNumberIT" csv:"Технический номер" json:"TechnicalNumberIT"`   //технический номер ИТ
+	Id_User           int64     `form:"Id_User" csv:"-" json:"Id_User"`                                       //
+	Time_Mfy          time.Time `form:"Time_Mfy" csv:"-" json:"Time_Mfy"`                                     //
 }
 
 // TableName возвращает имя таблицы БД для модели HWSpr (используется beego ORM).
@@ -1954,22 +1954,22 @@ func (u *HWSpr) TableIndex() [][]string {
 // ConfigurationUnit описывает запись/справочник БД loadmon, соответствующую сущности ConfigurationUnit.
 type ConfigurationUnit struct {
 	Id                int64     `form:"Id" csv:"-" json:"Id"`
-	StateWork         int       `form:"StateWork" csv:"Статус" json:"StateWork"` //0 не указано 1 активен 2 выведен из эксплуатации
-	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса" json:"TimeActiveState"` //время изменения статуса активности введения в эксплуатацию
-	ActivatorUser     int64     `form:"ActivatorUser" csv:"Автор ввода в эксплуатацию" json:"ActivatorUser"` //автор записи
+	StateWork         int       `form:"StateWork" csv:"Статус" json:"StateWork"`                                                    //0 не указано 1 активен 2 выведен из эксплуатации
+	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса" json:"TimeActiveState"`             //время изменения статуса активности введения в эксплуатацию
+	ActivatorUser     int64     `form:"ActivatorUser" csv:"Автор ввода в эксплуатацию" json:"ActivatorUser"`                        //автор записи
 	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" csv:"Дата выведения из эксплуатации" json:"TimeDeActiveState"` //время выведения из эксплуатации
-	DeActivatorUser   int64     `form:"DeActivatorUser" csv:"Автор выведения из эксплуатации" json:"DeActivatorUser"` //автор записи
-	ReasonEndLife     int64     `orm:"null" form:"ReasonEndLife" csv:"Основание выведения из эксплуатации" json:"ReasonEndLife"` //ReasonEndLife.Code Основание выведения из эксплуатации
-	ServerId          int64     `form:"ServerId" csv:"Ссылка на справочник серверов" json:"ServerId"` //ссылка на сервер из справочника серверов
-	NameFQDN          string    `form:"NameFQDN" csv:"Имя сервера" json:"NameFQDN"` //имя сервера
-	SerialNum         string    `form:"SerialNum" csv:"Серийный номер" json:"SerialNum"` //серийный номер (для физических серверов и хостов виртуализации)
-	ModelEquipment    int64     `form:"ModelEquipment" csv:"Модель норматив" json:"ModelEquipment"` //ModelEquipment.code модель-норматив по справочнику
-	Datacenter        int64     `form:"Datacenter" csv:"ЦОД" json:"Datacenter"` //Datacenter.Code серверная из справочника
-	Rack              int64     `form:"Rack" csv:"Номер стойки" json:"Rack"` //Rack.Code номер стойки из справочника для конкретного Datacenter
-	StartUnit         int64     `form:"StartUnit" csv:"стартовый юнит" json:"StartUnit"` //юнит с которого начинается сервер или блэйд шасси, куда он установлен
-	InventoryNum      string    `form:"InventoryNum" csv:"Инвентарный номер" json:"InventoryNum"` //Инвентарный номер
-	InventoryNumBuh   string    `form:"InventoryNumBuh" csv:"Бухгалтерский номер" json:"InventoryNumBuh"` //Инвентарный номер бухгалтерский
-	TechnicalNumberIT string    `form:"TechnicalNumberIT" csv:"Технический номер IT" json:"TechnicalNumberIT"` //технический номер ИТ
+	DeActivatorUser   int64     `form:"DeActivatorUser" csv:"Автор выведения из эксплуатации" json:"DeActivatorUser"`               //автор записи
+	ReasonEndLife     int64     `orm:"null" form:"ReasonEndLife" csv:"Основание выведения из эксплуатации" json:"ReasonEndLife"`    //ReasonEndLife.Code Основание выведения из эксплуатации
+	ServerId          int64     `form:"ServerId" csv:"Ссылка на справочник серверов" json:"ServerId"`                               //ссылка на сервер из справочника серверов
+	NameFQDN          string    `form:"NameFQDN" csv:"Имя сервера" json:"NameFQDN"`                                                 //имя сервера
+	SerialNum         string    `form:"SerialNum" csv:"Серийный номер" json:"SerialNum"`                                            //серийный номер (для физических серверов и хостов виртуализации)
+	ModelEquipment    int64     `form:"ModelEquipment" csv:"Модель норматив" json:"ModelEquipment"`                                 //ModelEquipment.code модель-норматив по справочнику
+	Datacenter        int64     `form:"Datacenter" csv:"ЦОД" json:"Datacenter"`                                                     //Datacenter.Code серверная из справочника
+	Rack              int64     `form:"Rack" csv:"Номер стойки" json:"Rack"`                                                        //Rack.Code номер стойки из справочника для конкретного Datacenter
+	StartUnit         int64     `form:"StartUnit" csv:"стартовый юнит" json:"StartUnit"`                                            //юнит с которого начинается сервер или блэйд шасси, куда он установлен
+	InventoryNum      string    `form:"InventoryNum" csv:"Инвентарный номер" json:"InventoryNum"`                                   //Инвентарный номер
+	InventoryNumBuh   string    `form:"InventoryNumBuh" csv:"Бухгалтерский номер" json:"InventoryNumBuh"`                           //Инвентарный номер бухгалтерский
+	TechnicalNumberIT string    `form:"TechnicalNumberIT" csv:"Технический номер IT" json:"TechnicalNumberIT"`                      //технический номер ИТ
 	Id_User           int64     `form:"Id_User" csv:"Автор изменений" json:"Id_User"`
 	Time_Mfy          time.Time `orm:"null" form:"Time_Mfy" csv:"Дата последних изменений" json:"Time_Mfy"`
 }
@@ -2013,8 +2013,8 @@ func (u *ConfigurationUnit) TableIndex() [][]string {
 // таблица связей конфигурационных единиц как пример связи блэйд корзин и лезвий
 type ConfigurationUnitLink struct {
 	Id        int64 `form:"Id" orm:"auto"` //
-	OwnerUnit int64 `form:"OwnerUnit"` //родительское устройство
-	LinkUnit  int64 `form:"LinkUnit"` //дочернее устройство
+	OwnerUnit int64 `form:"OwnerUnit"`     //родительское устройство
+	LinkUnit  int64 `form:"LinkUnit"`      //дочернее устройство
 }
 
 // TableName возвращает имя таблицы БД для модели ConfigurationUnitLink (используется beego ORM).
@@ -2031,71 +2031,29 @@ func (u *ConfigurationUnitLink) TableIndex() [][]string {
 	}
 }
 
-// цод
-type Datacenter struct {
-	Id    int64  `form:"Id" orm:"auto" csv:"%"` //
-	Code  int64  `form:"Code" csv:"Код"` //уникальный код
-	Name  string `form:"Name" csv:"Наименование"` //Наименование ЦОД
-	Width int64  `form:"Width" csv:"Ширина"`
-	Depth int64  `form:"Depth" csv:"Глубина"`
-}
-
-// TableName возвращает имя таблицы БД для модели Datacenter (используется beego ORM).
-func (a *Datacenter) TableName() string {
-	return "cmdb_datacenter"
-}
-
-// TableIndex возвращает список индексов для регистрации таблицы модели Datacenter в beego ORM.
-func (u *Datacenter) TableIndex() [][]string {
-	return [][]string{
-		[]string{"Id"},
-		[]string{"Code"},
-	}
-}
-
-// стойка в ЦОД
-type Rack struct {
-	Id         int64  `form:"Id" orm:"auto" csv:"%"` //
-	Code       int64  `form:"Code" csv:"Код"` //уникальный код
-	Datacenter int64  `form:"Datacenter" csv:"ЦОД"` //Datacenter.Code ЦОД в котором стоит стойка
-	Name       string `form:"Name" csv:"Наименование"` //Наименование стойки
-	Width      int64  `form:"Width" csv:"Ширина"`
-	Depth      int64  `form:"Depth" csv:"Глубина"`
-	Height     int64  `form:"Height" csv:"Высота"`
-	UHeight    int64  `form:"UHeight" csv:"Высота юниты"`
-	//добавить размеры включая высоту в unit
-}
-
-// TableName возвращает имя таблицы БД для модели Rack (используется beego ORM).
-func (a *Rack) TableName() string {
-	return "cmdb_rack"
-}
-
-// TableIndex возвращает список индексов для регистрации таблицы модели Rack в beego ORM.
-func (u *Rack) TableIndex() [][]string {
-	return [][]string{
-		[]string{"Id"},
-		[]string{"Code"},
-		[]string{"Datacenter"},
-		[]string{"Datacenter", "Code"},
-	}
-}
+// ⚠️ УДАЛЕНО (2026-09-06): старые models.Datacenter (cmdb_datacenter) и
+// models.Rack (cmdb_rack) вместе с обслуживавшей их легаси-синхронизацией
+// из HP OneView (cmdb/updatehwsprhp.go: UpdateDatacenter/UpdateRack/
+// UpdateCMDBHwSprHP - функция нигде не вызывалась, таблицы не
+// регистрировались в dbinit.go, т.е. это был полностью мёртвый код). Теперь
+// единственные справочники ЦОД/шкафов - DatacenterSite/RackCabinet ниже, и
+// наполняются они НЕ из OneView, а из выгрузок Итиллиум (см.
+// itilliumimport/importrackservers.go) либо вручную через
+// /sprsrv/datacentersitelist(edit) и /sprsrv/rackcabinetlist(edit).
 
 // DatacenterSite - справочник ЦОД (физических площадок/серверных), по аналогии
-// с oneview2.Datacenter (см. oneview2/models.go). Отдельная модель от старого
-// models.Datacenter (таблица cmdb_datacenter) - тот используется только
-// внутренним бюджетным нормативным контуром (cmdb/updatehwsprhp.go,
-// UpdateCMDBHwSprHP/UpdateDatacenter) и трогать его рискованно; для нового
-// пользовательского справочника размещения заведена отдельная таблица.
+// с oneview2.Datacenter (см. oneview2/models.go). Наполняется вручную через
+// UI (/sprsrv/datacentersitelist(edit)) или импортом из Итиллиум (см.
+// itilliumimport/importrackservers.go) - НЕ синхронизируется из HP OneView.
 type DatacenterSite struct {
-	Id         int64     `form:"Id" orm:"auto" csv:"%"`                         //
-	Name       string    `form:"Name" csv:"Наименование"`                       //основное наименование ЦОД
-	AltName    string    `form:"AltName" csv:"Альтернативное наименование"`     //альтернативное наименование (короткий код/старое название и т.п.)
-	Width      int64     `orm:"null" form:"Width" csv:"Ширина"`                 //по аналогии с oneview2.Datacenter.Width
-	Height     int64     `orm:"null" form:"Height" csv:"Высота"`                //по аналогии с oneview2.Datacenter.Height
-	Annotation string    `orm:"null" form:"Annotation" csv:"Описание"`          //
+	Id         int64     `form:"Id" orm:"auto" csv:"id"`                             //
+	Name       string    `form:"Name" csv:"Наименование"`                            //основное наименование ЦОД
+	AltName    string    `form:"AltName" csv:"Альтернативное наименование"`          //альтернативное наименование (короткий код/старое название и т.п.)
+	Width      int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Datacenter.Width
+	Height     int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Datacenter.Height
+	Annotation string    `orm:"null" form:"Annotation" csv:"Описание"`               //
 	Id_User    int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
-	Time_Mfy   time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`      //
+	Time_Mfy   time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
 }
 
 // TableName возвращает имя таблицы БД для модели DatacenterSite (используется beego ORM).
@@ -2112,25 +2070,25 @@ func (u *DatacenterSite) TableIndex() [][]string {
 }
 
 // RackCabinet - справочник шкафов ("Шкаф") в составе ЦОД (DatacenterSite), по
-// аналогии с oneview2.Rack (см. oneview2/models.go). Отдельная модель от
-// старого models.Rack (таблица cmdb_rack) по той же причине, что и
-// DatacenterSite/Datacenter - старая таблица занята бюджетным нормативным
-// контуром. Связывается с BladeSystems (BladeSystems.RackCabinetId) и
-// ServerHardware (ServerHardware.RackCabinetId).
+// аналогии с oneview2.Rack (см. oneview2/models.go). Наполняется вручную
+// через UI (/sprsrv/rackcabinetlist(edit)) или импортом из Итиллиум (см.
+// itilliumimport/importrackservers.go) - НЕ синхронизируется из HP OneView.
+// Связывается с BladeSystems (BladeSystems.RackCabinetId) и ServerHardware
+// (ServerHardware.RackCabinetId).
 type RackCabinet struct {
-	Id               int64     `form:"Id" orm:"auto" csv:"%"`                          //
-	DatacenterSiteId int64     `orm:"null" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"` //FK на DatacenterSite.Id
-	Name             string    `form:"Name" csv:"Наименование"`                        //основное наименование шкафа
-	AltName          string    `form:"AltName" csv:"Альтернативное наименование"`      //альтернативное наименование/старый номер шкафа
-	Model            string    `orm:"null" form:"Model" csv:"Модель"`                  //по аналогии с oneview2.Rack.Model
-	SerialNumber     string    `orm:"null" form:"SerialNumber" csv:"Серийный номер"`   //по аналогии с oneview2.Rack.SerialNumber
-	Width            int64     `orm:"null" form:"Width" csv:"Ширина"`                  //по аналогии с oneview2.Rack.Width
-	Depth            int64     `orm:"null" form:"Depth" csv:"Глубина"`                 //по аналогии с oneview2.Rack.Depth
-	Height           int64     `orm:"null" form:"Height" csv:"Высота"`                 //по аналогии с oneview2.Rack.Height
-	UHeight          int64     `orm:"null" form:"UHeight" csv:"Высота, юниты"`         //по аналогии с oneview2.Rack.UHeight
-	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`           //
+	Id               int64     `form:"Id" orm:"auto" csv:"%"`                              //
+	DatacenterSiteId int64     `orm:"null" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"`     //FK на DatacenterSite.Id
+	Name             string    `form:"Name" csv:"Наименование"`                            //основное наименование шкафа
+	AltName          string    `form:"AltName" csv:"Альтернативное наименование"`          //альтернативное наименование/старый номер шкафа
+	Model            string    `orm:"null" form:"Model" csv:"Модель"`                      //по аналогии с oneview2.Rack.Model
+	SerialNumber     string    `orm:"null" form:"SerialNumber" csv:"Серийный номер"`       //по аналогии с oneview2.Rack.SerialNumber
+	Width            int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Rack.Width
+	Depth            int64     `orm:"null" form:"Depth" csv:"Глубина"`                     //по аналогии с oneview2.Rack.Depth
+	Height           int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Rack.Height
+	UHeight          int64     `orm:"null" form:"UHeight" csv:"Высота, юниты"`             //по аналогии с oneview2.Rack.UHeight
+	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`               //
 	Id_User          int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
-	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`       //
+	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
 }
 
 // TableName возвращает имя таблицы БД для модели RackCabinet (используется beego ORM).
@@ -2154,14 +2112,14 @@ func (u *RackCabinet) TableIndex() [][]string {
 // (те остаются как есть, для обратной совместимости и данных, полученных из
 // VMware/OneView).
 type NetworkSprRecords struct {
-	Id          int64     `form:"Id" orm:"auto" csv:"%"`                     //
-	Name        string    `form:"Name" csv:"Наименование сети"`              //например, "DMZ Prom"
-	Vlan        int64     `orm:"null" form:"Vlan" csv:"VLAN"`                //номер VLAN, если применимо
-	Subnet      string    `orm:"null" form:"Subnet" csv:"Подсеть (CIDR)"`    //например, 10.10.10.0/24
-	Gateway     string    `orm:"null" form:"Gateway" csv:"Шлюз"`             //
-	Annotation  string    `orm:"null" form:"Annotation" csv:"Описание"`      //
-	Id_User     int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
-	Time_Mfy    time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`  //
+	Id         int64     `form:"Id" orm:"auto" csv:"%"`                              //
+	Name       string    `form:"Name" csv:"Наименование сети"`                       //например, "DMZ Prom"
+	Vlan       int64     `orm:"null" form:"Vlan" csv:"VLAN"`                         //номер VLAN, если применимо
+	Subnet     string    `orm:"null" form:"Subnet" csv:"Подсеть (CIDR)"`             //например, 10.10.10.0/24
+	Gateway    string    `orm:"null" form:"Gateway" csv:"Шлюз"`                      //
+	Annotation string    `orm:"null" form:"Annotation" csv:"Описание"`               //
+	Id_User    int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
+	Time_Mfy   time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
 }
 
 // TableName возвращает имя таблицы БД для модели NetworkSprRecords (используется beego ORM).
@@ -2184,17 +2142,17 @@ func (u *NetworkSprRecords) TableIndex() [][]string {
 // обслуживает несколько VLAN/сетей - поэтому связь многие-ко-многим, а не
 // одиночный FK).
 type SwitchSprRecords struct {
-	Id               int64     `form:"Id" orm:"auto" csv:"%"`                          //
-	Name             string    `form:"Name" csv:"Наименование"`                        //
-	Vendor           string    `orm:"null" form:"Vendor" csv:"Производитель"`          //
-	Model            string    `orm:"null" form:"Model" csv:"Модель"`                  //
-	SerialNum        string    `orm:"null" form:"SerialNum" csv:"Серийный номер"`      //
-	ManagementIp     string    `orm:"null" form:"ManagementIp" csv:"IP управления"`    //
-	DatacenterSiteId int64     `orm:"null" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"` //FK на DatacenterSite.Id
-	RackCabinetId    int64     `orm:"null" form:"RackCabinetId" csv:"Шкаф (ссылка)"`   //FK на RackCabinet.Id
-	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`           //
+	Id               int64     `form:"Id" orm:"auto" csv:"%"`                              //
+	Name             string    `form:"Name" csv:"Наименование"`                            //
+	Vendor           string    `orm:"null" form:"Vendor" csv:"Производитель"`              //
+	Model            string    `orm:"null" form:"Model" csv:"Модель"`                      //
+	SerialNum        string    `orm:"null" form:"SerialNum" csv:"Серийный номер"`          //
+	ManagementIp     string    `orm:"null" form:"ManagementIp" csv:"IP управления"`        //
+	DatacenterSiteId int64     `orm:"null" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"`     //FK на DatacenterSite.Id
+	RackCabinetId    int64     `orm:"null" form:"RackCabinetId" csv:"Шкаф (ссылка)"`       //FK на RackCabinet.Id
+	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`               //
 	Id_User          int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
-	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`       //
+	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
 }
 
 // TableName возвращает имя таблицы БД для модели SwitchSprRecords (используется beego ORM).
@@ -2215,9 +2173,9 @@ func (u *SwitchSprRecords) TableIndex() [][]string {
 // SwitchNetworkLink - связь многие-ко-многим между SwitchSprRecords и
 // NetworkSprRecords (какие сети/VLAN обслуживает конкретный коммутатор).
 type SwitchNetworkLink struct {
-	Id        int64 `form:"Id" orm:"auto" csv:"%"` //
-	SwitchId  int64 `form:"SwitchId" csv:"Коммутатор (ссылка)"`  //FK на SwitchSprRecords.Id
-	NetworkId int64 `form:"NetworkId" csv:"Сеть (ссылка)"`       //FK на NetworkSprRecords.Id
+	Id        int64 `form:"Id" orm:"auto" csv:"%"`              //
+	SwitchId  int64 `form:"SwitchId" csv:"Коммутатор (ссылка)"` //FK на SwitchSprRecords.Id
+	NetworkId int64 `form:"NetworkId" csv:"Сеть (ссылка)"`      //FK на NetworkSprRecords.Id
 }
 
 // TableName возвращает имя таблицы БД для модели SwitchNetworkLink (используется beego ORM).
@@ -2236,20 +2194,20 @@ func (u *SwitchNetworkLink) TableIndex() [][]string {
 
 // модель норматив для бюджетирования
 type ModelEquipment struct {
-	Id                   int64   `form:"Id" orm:"auto" csv:"%"` //
-	ModelVendor          int64   `form:"ModelVendor" csv:"Модель вендора"` //модель у вендора
-	Code                 int64   `form:"Code" csv:"Код норматива"` //код норматива
-	Name                 string  `form:"Name" csv:"Наименование норматива"` //Наименование норматива
-	PartNum              string  `form:"PartNum" csv:"Номер продукта из Oneview"` //номер продукта из Oneview
-	PartNumSale          string  `form:"PartNumSale" csv:"Номер продукта для заказа"` //номер продукта для заказа
-	Money                float64 `form:"Money" csv:"Цена для оценки"` //Цена для оценки
-	Currency             int64   `form:"Currency" csv:"Валюта"` //валюта
-	MoneyInfo            string  `form:"MoneyInfo" csv:"Обоснование цены"` //обоснование цены
+	Id                   int64   `form:"Id" orm:"auto" csv:"%"`                          //
+	ModelVendor          int64   `form:"ModelVendor" csv:"Модель вендора"`               //модель у вендора
+	Code                 int64   `form:"Code" csv:"Код норматива"`                       //код норматива
+	Name                 string  `form:"Name" csv:"Наименование норматива"`              //Наименование норматива
+	PartNum              string  `form:"PartNum" csv:"Номер продукта из Oneview"`        //номер продукта из Oneview
+	PartNumSale          string  `form:"PartNumSale" csv:"Номер продукта для заказа"`    //номер продукта для заказа
+	Money                float64 `form:"Money" csv:"Цена для оценки"`                    //Цена для оценки
+	Currency             int64   `form:"Currency" csv:"Валюта"`                          //валюта
+	MoneyInfo            string  `form:"MoneyInfo" csv:"Обоснование цены"`               //обоснование цены
 	ChangeModelEquipment int64   `form:"ChangeModelEquipment" csv:"Норматив для замены"` //Норматив для замены
-	ChangeMoney          float64 `form:"Money" csv:"Цена для оценки"` //Цена для оценки
-	ChangeCurrency       int64   `form:"Currency" csv:"Валюта"` //валюта
-	ChangeMoneyInfo      string  `form:"MoneyInfo" csv:"Обоснование цены"` //обоснование цены
-	Detail               string  `form:"Detail" csv:"Подробное описание"` //подробное описание (текстовое описание конфигурации, помимо реальной конфигурации)
+	ChangeMoney          float64 `form:"Money" csv:"Цена для оценки"`                    //Цена для оценки
+	ChangeCurrency       int64   `form:"Currency" csv:"Валюта"`                          //валюта
+	ChangeMoneyInfo      string  `form:"MoneyInfo" csv:"Обоснование цены"`               //обоснование цены
+	Detail               string  `form:"Detail" csv:"Подробное описание"`                //подробное описание (текстовое описание конфигурации, помимо реальной конфигурации)
 }
 
 // TableName возвращает имя таблицы БД для модели ModelEquipment (используется beego ORM).
@@ -2269,13 +2227,13 @@ func (u *ModelEquipment) TableIndex() [][]string {
 
 // ModelVendor описывает запись/справочник БД loadmon, соответствующую сущности ModelVendor.
 type ModelVendor struct {
-	Id                int64  `form:"Id" orm:"auto" csv:"%"` //
-	Code              int64  `form:"Code" csv:"Код"` //уникальный код модели
-	CategoryEquipment int64  `form:"CategoryEquipment" csv:"Категория оборудования"` //Категория оборудования из справочника CategoryEquipment.Code (серверное,сетевое, электропитание, оргтехника)
-	Vendor            string `form:"Vendor" csv:"Производитель"` //производитель
-	Model             string `form:"Model" csv:"Модель"` //Наименование модели
-	Type              int64  `form:"Type" csv:"Тип"` //тип сервера данные из ServerType.Code (1-rack или 2-blade зарезервировано) //только для серверного оборудования
-	Detail            string `form:"Detail" csv:"Подробное описание"` //подробное описание
+	Id                int64  `form:"Id" orm:"auto" csv:"%"`                            //
+	Code              int64  `form:"Code" csv:"Код"`                                   //уникальный код модели
+	CategoryEquipment int64  `form:"CategoryEquipment" csv:"Категория оборудования"`   //Категория оборудования из справочника CategoryEquipment.Code (серверное,сетевое, электропитание, оргтехника)
+	Vendor            string `form:"Vendor" csv:"Производитель"`                       //производитель
+	Model             string `form:"Model" csv:"Модель"`                               //Наименование модели
+	Type              int64  `form:"Type" csv:"Тип"`                                   //тип сервера данные из ServerType.Code (1-rack или 2-blade зарезервировано) //только для серверного оборудования
+	Detail            string `form:"Detail" csv:"Подробное описание"`                  //подробное описание
 	SizeUnit          int64  `form:"SizeUnit" csv:"Количество юнитов" json:"SizeUnit"` //количество занимаемых unit
 }
 
@@ -2295,13 +2253,13 @@ func (u *ModelVendor) TableIndex() [][]string {
 
 // список компонент для конфигурационной единицы
 type Components struct {
-	Id                int64  `form:"Id" orm:"auto" csv:"%u"` //
+	Id                int64  `form:"Id" orm:"auto" csv:"%u"`                           //
 	ConfigurationUnit int64  `form:"ConfigurationUnit" csv:"Конфигурационная единица"` //конфигурационная единица, содержащая компоненту
-	CategoryEquipment int64  `form:"CategoryEquipment" csv:"Категория оборудования"` //Категория оборудования из справочника CategoryEquipment.Code (серверное,сетевое, электропитание, оргтехника)
-	Type              int64  `form:"Type" csv:"Тип"` //тип компоненты ComponentType.Code (Процессор, память, SSD, HDD, видеокарта, сетевая карта, Raid контроллер, HBA ...)
-	Component         int64  `form:"Component" csv:"Ссылка по типу"` //ссылка на ComponentsCPU.Code, ComponentsRAM.Code, и т. д. по типу из ComponentEquipment
-	SerialNum         string `form:"SerialNum" csv:"Серийный номер"` //серийный номер
-	Location          string `form:"Location" csv:"Размещение"` //размещение
+	CategoryEquipment int64  `form:"CategoryEquipment" csv:"Категория оборудования"`   //Категория оборудования из справочника CategoryEquipment.Code (серверное,сетевое, электропитание, оргтехника)
+	Type              int64  `form:"Type" csv:"Тип"`                                   //тип компоненты ComponentType.Code (Процессор, память, SSD, HDD, видеокарта, сетевая карта, Raid контроллер, HBA ...)
+	Component         int64  `form:"Component" csv:"Ссылка по типу"`                   //ссылка на ComponentsCPU.Code, ComponentsRAM.Code, и т. д. по типу из ComponentEquipment
+	SerialNum         string `form:"SerialNum" csv:"Серийный номер"`                   //серийный номер
+	Location          string `form:"Location" csv:"Размещение"`                        //размещение
 }
 
 // TableName возвращает имя таблицы БД для модели Components (используется beego ORM).
@@ -2323,11 +2281,11 @@ func (u *Components) TableIndex() [][]string {
 
 // справочник процессоров
 type ComponentsCPU struct {
-	Id                 int64  `form:"Id" orm:"auto" csv:"%u"` //
-	Code               int64  `form:"Code" csv:"Код"` //код процессора
+	Id                 int64  `form:"Id" orm:"auto" csv:"%u"`                      //
+	Code               int64  `form:"Code" csv:"Код"`                              //код процессора
 	ProcessorType      string `form:"ProcessorType" csv:"Наименование процессора"` //наименование процессора
-	ProcessorCoreCount int    `form:"ProcessorCoreCount" csv:"Количество ядер"` //количество физических ядер на процессор
-	ProcessorSpeedMhz  int    `form:"ProcessorSpeedMhz" csv:"Тактовая частота"` //базовая тактовая частота ядра
+	ProcessorCoreCount int    `form:"ProcessorCoreCount" csv:"Количество ядер"`    //количество физических ядер на процессор
+	ProcessorSpeedMhz  int    `form:"ProcessorSpeedMhz" csv:"Тактовая частота"`    //базовая тактовая частота ядра
 }
 
 // TableName возвращает имя таблицы БД для модели ComponentsCPU (используется beego ORM).
@@ -2346,17 +2304,17 @@ func (u *ComponentsCPU) TableIndex() [][]string {
 
 // Оперативная память
 type ComponentsRAM struct {
-	Id                int64  `form:"Id" orm:"auto" csv:"#"` //
-	Code              int64  `form:"Code" csv:"Код"` //код памяти
-	Model             string `form:"Model" csv:"Модель"` //fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa // TODO: comment truncated in screenshot
-	CapacityMiB       int    `form:"CapacityMiB" csv:"Емкость Мб"` //объём в мегабайтах
-	BaseModuleType    string `form:"BaseModuleType" csv:"Тип модуля"` //
-	MemoryDeviceType  string `form:"MemoryDeviceType" csv:"Тип устройства"` //
-	OperatingSpeedMhz int    `form:"OperatingSpeedMhz" csv:"Частота"` //
-	Vendor            string `form:"Vendor" csv:"Производитель"` //производитель
+	Id                int64  `form:"Id" orm:"auto" csv:"#"`                    //
+	Code              int64  `form:"Code" csv:"Код"`                           //код памяти
+	Model             string `form:"Model" csv:"Модель"`                       //fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa // TODO: comment truncated in screenshot
+	CapacityMiB       int    `form:"CapacityMiB" csv:"Емкость Мб"`             //объём в мегабайтах
+	BaseModuleType    string `form:"BaseModuleType" csv:"Тип модуля"`          //
+	MemoryDeviceType  string `form:"MemoryDeviceType" csv:"Тип устройства"`    //
+	OperatingSpeedMhz int    `form:"OperatingSpeedMhz" csv:"Частота"`          //
+	Vendor            string `form:"Vendor" csv:"Производитель"`               //производитель
 	PartNumber        string `form:"PartNumber" csv:"Номер продукта One View"` //номер продукта из HP OneView
-	PartNumberSale    string `form:"PartNumberSale" csv:"Номер для заказа"` //номер продукта для заказа
-	RankCount         int    `form:"RankCount" csv:"Ранг"` //
+	PartNumberSale    string `form:"PartNumberSale" csv:"Номер для заказа"`    //номер продукта для заказа
+	RankCount         int    `form:"RankCount" csv:"Ранг"`                     //
 }
 
 // TableName возвращает имя таблицы БД для модели ComponentsRAM (используется beego ORM).
@@ -2375,8 +2333,8 @@ func (u *ComponentsRAM) TableIndex() [][]string {
 
 // ComponentType описывает запись/справочник БД loadmon, соответствующую сущности ComponentType.
 type ComponentType struct {
-	Id   int64  `form:"Id" orm:"auto" csv:"#"` //
-	Code int32  `form:"Code" csv:"Код"` //код компоненты
+	Id   int64  `form:"Id" orm:"auto" csv:"#"`   //
+	Code int32  `form:"Code" csv:"Код"`          //код компоненты
 	Name string `form:"Name" csv:"Наименование"` //Наименование компоненты
 }
 
@@ -2395,11 +2353,11 @@ func (u *ComponentType) TableIndex() [][]string {
 
 // причины окончания эксплуатации
 type ModelsEndLife struct {
-	Id               int64     `form:"Id" orm:"auto" csv:"%"` //
-	ModelLink        int64     `form:"ModelLink" csv:"Ссылка на модель"` // ссылка на модель оборудования ModelEquipment.Id
-	EndWork          time.Time `orm:"null" form:"EndWork" csv:"Дата окончания эксплуатации"` // Дата окончания эксплуатации по указанной причине
+	Id               int64     `form:"Id" orm:"auto" csv:"%"`                                           //
+	ModelLink        int64     `form:"ModelLink" csv:"Ссылка на модель"`                                // ссылка на модель оборудования ModelEquipment.Id
+	EndWork          time.Time `orm:"null" form:"EndWork" csv:"Дата окончания эксплуатации"`            // Дата окончания эксплуатации по указанной причине
 	EndWorkYearCount int64     `form:"EndWorkYearCount" csv:"Количество лет до окончания эксплуатации"` // количество лет до наступления вывода из эксплуатации с момента покупки
-	ReasonEndLife    int64     `form:"ReasonEndLife" csv:"Причина вывода"` // причина вывода из эксплуатации ReasonEndLife.Code
+	ReasonEndLife    int64     `form:"ReasonEndLife" csv:"Причина вывода"`                              // причина вывода из эксплуатации ReasonEndLife.Code
 }
 
 // TableName возвращает имя таблицы БД для модели ModelsEndLife (используется beego ORM).
@@ -2418,8 +2376,8 @@ func (u *ModelsEndLife) TableIndex() [][]string {
 // причина вывода из эксплуатации
 type ReasonEndLife struct {
 	Id   int64  `form:"Id" orm:"auto" csv:"%"` //
-	Code int64  `form:"Code" csv:"Код"` // код причины вывода из эксплуатации
-	Name string `form:"Name" csv:"Описание"` // текстовое описание причины для отображения
+	Code int64  `form:"Code" csv:"Код"`        // код причины вывода из эксплуатации
+	Name string `form:"Name" csv:"Описание"`   // текстовое описание причины для отображения
 }
 
 // TableName возвращает имя таблицы БД для модели ReasonEndLife (используется beego ORM).
@@ -2438,8 +2396,8 @@ func (u *ReasonEndLife) TableIndex() [][]string {
 // Категории оборудования
 type CategoryEquipment struct {
 	Id       int64  `form:"Id" orm:"auto" csv:"%"`
-	Code     int64  `form:"Code" csv:"Код"` //код категории оборудования (зарезервировано 1-серверное,2-сетевое, 3-электропитание, 4-оргтехника)
-	Name     string `form:"Name" csv:"Наименование"` //Наименование
+	Code     int64  `form:"Code" csv:"Код"`                           //код категории оборудования (зарезервировано 1-серверное,2-сетевое, 3-электропитание, 4-оргтехника)
+	Name     string `form:"Name" csv:"Наименование"`                  //Наименование
 	LifeTime int64  `form:"LifeTime" csv:"Срок эксплуатации в годах"` //срок эксплуатации в годах время эксплуатации по правилам компании
 }
 
@@ -2469,8 +2427,8 @@ type LifeTime struct {
 // ServerType описывает запись/справочник БД loadmon, соответствующую сущности ServerType.
 type ServerType struct {
 	Id   int64  `form:"Id" orm:"auto"` //
-	Code int64  `form:"Code"` //код типа сервера
-	Type string `form:"Type"` //Наименование типа сервера
+	Code int64  `form:"Code"`          //код типа сервера
+	Type string `form:"Type"`          //Наименование типа сервера
 }
 
 // TableName возвращает имя таблицы БД для модели ServerType (используется beego ORM).
@@ -2488,8 +2446,8 @@ func (u *ServerType) TableIndex() [][]string {
 
 // справочник операционных систем
 type OperationalSystem struct {
-	Id   int64  `form:"Id" orm:"auto" csv:"%"` //
-	Code int64  `form:"Code" csv:"Код"` //код операционной системы
+	Id   int64  `form:"Id" orm:"auto" csv:"%"`   //
+	Code int64  `form:"Code" csv:"Код"`          //код операционной системы
 	Name string `form:"Name" csv:"Наименование"` //наименование операционной системы
 }
 
@@ -2511,19 +2469,19 @@ func (u *OperationalSystem) TableIndex() [][]string {
 
 // ServerOwnershipHistory — история изменений владельца/принадлежности сервера.
 type ServerOwnershipHistory struct {
-	Id              int64     `form:"Id" orm:"auto"` //
-	Date            time.Time `orm:"null" form:"Date"` //дата операции внутренняя
-	HardwareId      int64     `form:"HardwareId"` //ссылка на Id в ServerHardware
-	Type            int       `form:"Type"` //тип операции 0 - не указано 1 - покупка у внешнего контрагента 2 внутренне перемещение внутри ФГ 3 продажа внешнему контрагенту
-	OwnerFromFG1Id  int64     `form:"OwnerFromFG1Id"` //ЮЛ на которое покупается сервер из справочника MemberFG
-	CounterpartyId  int64     `form:"CounterpartyId"` //ЮЛ контрагент из справочника Counterparty
-	OwnerFromFG2Id  int64     `form:"OwnerFromFG2Id"` //ЮЛ с которого передается сервер, при внутреннем перемещении (из справочника MemberFG) или продаже внешнему
-	ContractDoc     string    `form:"ContractDoc"` //договорной документ на покупку, название и номер дополнительного соглашения
+	Id              int64     `form:"Id" orm:"auto"`              //
+	Date            time.Time `orm:"null" form:"Date"`            //дата операции внутренняя
+	HardwareId      int64     `form:"HardwareId"`                 //ссылка на Id в ServerHardware
+	Type            int       `form:"Type"`                       //тип операции 0 - не указано 1 - покупка у внешнего контрагента 2 внутренне перемещение внутри ФГ 3 продажа внешнему контрагенту
+	OwnerFromFG1Id  int64     `form:"OwnerFromFG1Id"`             //ЮЛ на которое покупается сервер из справочника MemberFG
+	CounterpartyId  int64     `form:"CounterpartyId"`             //ЮЛ контрагент из справочника Counterparty
+	OwnerFromFG2Id  int64     `form:"OwnerFromFG2Id"`             //ЮЛ с которого передается сервер, при внутреннем перемещении (из справочника MemberFG) или продаже внешнему
+	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
 	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа
-	Invoice         string    `form:"Invoice"` //счет фактура, накладная
-	DateInvoice     time.Time `orm:"null" form:"DateInvoice"` //дата накладной
-	Id_User         int64     `form:"Id_User"` //
-	Time_Mfy        time.Time `form:"Time_Mfy"` //
+	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная
+	DateInvoice     time.Time `orm:"null" form:"DateInvoice"`     //дата накладной
+	Id_User         int64     `form:"Id_User"`                    //
+	Time_Mfy        time.Time `form:"Time_Mfy"`                   //
 }
 
 // TableName возвращает имя таблицы БД для модели ServerOwnershipHistory (используется beego ORM).
@@ -2558,24 +2516,24 @@ func (u *ServerHardware) TableIndex() [][]string {
 // ServerHardwareComponents описывает запись/справочник БД loadmon, соответствующую сущности ServerHardwareComponents.
 type ServerHardwareComponents struct {
 	Id              int64     `form:"Id"`
-	ServerId        int64     `form:"ServerId"` //ссылка на сервер из справочника серверов (для компонент серверов)
-	BladeSystemId   int64     `form:"BladeSystemId"` //ссылка блэйд-шасси в справочнике (для компонент блэйд шасси)
-	StorageId       int64     `form:"StorageId"` //ссылка СХД в справочнике (для компонент СХД таких как диски ...)
-	Type            int       `form:"Type"` //тип компонент: 1 память, 2 диск, 3 сетевой контроллер, 4 FC контроллер, 5 RAID контроллер, 6 interconnect blade, 7 managment card blade, 9 прочее PCI-устройство, 10 компонент прошивки, 11 процессор, 12 блок питания blade, 13 вентиляторный модуль blade (типы 9-13 заведены 2026-09-04, см. cmdb/syncserverhardwarecomponents.go и cmdb/syncbladesystemcomponents.go; тип 8 - не используется, см. models/models_add.go doc-комментарий выше о происхождении этого файла из транскрипции скриншотов)
-	SubType         int       `form:"SubType"` //для дисков 1-SSD 2-SAS 3-SATA
-	Vendor          string    `form:"Vendor"` //производитель
-	Model           string    `form:"Model"` //модель
-	SerialNum       string    `form:"SerialNum"` //серийный номер (там где есть, если нет наследуем от сервера с дополнением порядкового номера)
-	CapacityGb      float64   `form:"CapacityGb"` //для дисков и памяти
-	Slot            string    `form:"Slot"` //расположение в родительском устройстве
-	ContractDoc     string    `form:"ContractDoc"` //договорной документ на покупку, название и номер дополнительного соглашения \
+	ServerId        int64     `form:"ServerId"`                   //ссылка на сервер из справочника серверов (для компонент серверов)
+	BladeSystemId   int64     `form:"BladeSystemId"`              //ссылка блэйд-шасси в справочнике (для компонент блэйд шасси)
+	StorageId       int64     `form:"StorageId"`                  //ссылка СХД в справочнике (для компонент СХД таких как диски ...)
+	Type            int       `form:"Type"`                       //тип компонент: 1 память, 2 диск, 3 сетевой контроллер, 4 FC контроллер, 5 RAID контроллер, 6 interconnect blade, 7 managment card blade, 9 прочее PCI-устройство, 10 компонент прошивки, 11 процессор, 12 блок питания blade, 13 вентиляторный модуль blade (типы 9-13 заведены 2026-09-04, см. cmdb/syncserverhardwarecomponents.go и cmdb/syncbladesystemcomponents.go; тип 8 - не используется, см. models/models_add.go doc-комментарий выше о происхождении этого файла из транскрипции скриншотов)
+	SubType         int       `form:"SubType"`                    //для дисков 1-SSD 2-SAS 3-SATA
+	Vendor          string    `form:"Vendor"`                     //производитель
+	Model           string    `form:"Model"`                      //модель
+	SerialNum       string    `form:"SerialNum"`                  //серийный номер (там где есть, если нет наследуем от сервера с дополнением порядкового номера)
+	CapacityGb      float64   `form:"CapacityGb"`                 //для дисков и памяти
+	Slot            string    `form:"Slot"`                       //расположение в родительском устройстве
+	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения \
 	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа                                          \ только для отдельно приобретаемых комплектующих
-	Invoice         string    `form:"Invoice"` //счет фактура, накладная                                       / возможно нужно учесть ЦФО с которого оплата
-	DateInvoice     time.Time `orm:"null" form:"DateInvoice"` //дата накладной                                               /
-	DateService     time.Time `orm:"null" form:"DateWork"` //дата до которой есть гарантия или сервис контракт
-	ServiceContract string    `form:"ServiceContract"` //данные по сервисному контракту, уровень сервиса
-	Id_User         int64     `form:"Id_User"` //
-	Time_Mfy        time.Time `form:"Time_Mfy"` //
+	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная                                       / возможно нужно учесть ЦФО с которого оплата
+	DateInvoice     time.Time `orm:"null" form:"DateInvoice"`     //дата накладной                                               /
+	DateService     time.Time `orm:"null" form:"DateWork"`        //дата до которой есть гарантия или сервис контракт
+	ServiceContract string    `form:"ServiceContract"`            //данные по сервисному контракту, уровень сервиса
+	Id_User         int64     `form:"Id_User"`                    //
+	Time_Mfy        time.Time `form:"Time_Mfy"`                   //
 }
 
 // TableName возвращает имя таблицы БД для модели ServerHardwareComponents (используется beego ORM).
@@ -2617,14 +2575,14 @@ func (u *SprDiskInfo) TableIndex() [][]string {
 
 // SprCFOAllocation описывает запись/справочник БД loadmon, соответствующую сущности SprCFOAllocation.
 type SprCFOAllocation struct {
-	Id            int64   `form:"Id"` //
-	ServerId      int64   `form:"ServerId"` //ссылка на сервер из справочника серверов
+	Id            int64   `form:"Id"`            //
+	ServerId      int64   `form:"ServerId"`      //ссылка на сервер из справочника серверов
 	BladeSystemId int64   `form:"BladeSystemId"` //ссылка блэйд-шасси в справочнике (для аллокаций блэйд шасси)
-	StorageId     int64   `form:"StorageId"` //ссылка СХД в справочнике (для компонент СХД таких как диски ...)
-	ShareF        float64 `form:"ShareF"` //доля значение от 0.0 до 100.0 (проценты float) в аллокации по CFO, сумма долей по серверу должна быть 100%, на каждый сервер может быть несколько записей
-	CFO           string  `form:"CFO"` //код CFO
-	Name          string  `form:"Name"` //Наименование ЦФО
-	Busines       string  `form:"Busines"` //Бизнес колонна
+	StorageId     int64   `form:"StorageId"`     //ссылка СХД в справочнике (для компонент СХД таких как диски ...)
+	ShareF        float64 `form:"ShareF"`        //доля значение от 0.0 до 100.0 (проценты float) в аллокации по CFO, сумма долей по серверу должна быть 100%, на каждый сервер может быть несколько записей
+	CFO           string  `form:"CFO"`           //код CFO
+	Name          string  `form:"Name"`          //Наименование ЦФО
+	Busines       string  `form:"Busines"`       //Бизнес колонна
 }
 
 // TableName возвращает имя таблицы БД для модели SprCFOAllocation (используется beego ORM).
@@ -2644,10 +2602,10 @@ func (u *SprCFOAllocation) TableIndex() [][]string {
 // SprBusinesAllocation описывает запись/справочник БД loadmon, соответствующую сущности SprBusinesAllocation.
 type SprBusinesAllocation struct {
 	Id            int64   `form:"Id"`
-	ServerId      int64   `form:"ServerId"` //ссылка на сервер из справочника серверов
+	ServerId      int64   `form:"ServerId"`      //ссылка на сервер из справочника серверов
 	BladeSystemId int64   `form:"BladeSystemId"` //ссылка блэйд-шасси в справочнике (для аллокаций блэйд шасси)
-	StorageId     int64   `form:"StorageId"` //ссылка СХД в справочнике (для компонент СХД таких как диски ...)
-	Share         int     `form:"Share"` //доля значение от 0 до 100 (проценты) в аллокации по бизнесам, сумма долей по серверу должна быть 100%, на каждый сервер может быть несколько записей
+	StorageId     int64   `form:"StorageId"`     //ссылка СХД в справочнике (для компонент СХД таких как диски ...)
+	Share         int     `form:"Share"`         //доля значение от 0 до 100 (проценты) в аллокации по бизнесам, сумма долей по серверу должна быть 100%, на каждый сервер может быть несколько записей
 	ShareF        float64 `form:"ShareF"`
 	Allocation    string  `form:"Allocation"`
 	Busines       string  `form:"Busines"`
@@ -2689,52 +2647,52 @@ type LoadFilter struct {
 
 // ResourceMap описывает запись/справочник БД loadmon, соответствующую сущности ResourceMap.
 type ResourceMap struct {
-	CountServers            float64 `form:"CountServers"`
-	CPUCount                float64 `form:"CPUCount"`
-	CoreCount               float64 `form:"CoreCount"`
-	MemSize                 float64 `form:"MemSize"`
-	SysDiskSize             float64 `form:"SysDiskSize"`
-	WorkDiskSize            float64 `form:"WorkDiskSize"`
-	CPULoadAvg              float64 `form:"CPULoadAvg"`
-	CPULoadMin              float64 `form:"CPULoadMin"`
-	CPULoadMax              float64 `form:"CPULoadMax"`
-	MemUseAvg               float64 `form:"MemUseAvg"`
-	MemUseMin               float64 `form:"MemUseMin"`
-	MemUseMax               float64 `form:"MemUseMax"`
-	SysDiskFreePercentAvg   float64 `form:"SysDiskFreePercentAvg"`
-	SysDiskFreePercentMin   float64 `form:"SysDiskFreePercentMin"`
-	SysDiskFreePercentMax   float64 `form:"SysDiskFreePercentMax"`
-	WorkDiskFreePercentAvg  float64 `form:"WorkDiskFreePercentAvg"`
-	WorkDiskFreePercentMin  float64 `form:"WorkDiskFreePercentMin"`
-	WorkDiskFreePercentMax  float64 `form:"WorkDiskFreePercentMax"`
-	Allocation              string  `form:"Allocation"`
-	Busines                 string  `form:"Busines"`
-	Count                   float64 `form:"Count"`
+	CountServers           float64 `form:"CountServers"`
+	CPUCount               float64 `form:"CPUCount"`
+	CoreCount              float64 `form:"CoreCount"`
+	MemSize                float64 `form:"MemSize"`
+	SysDiskSize            float64 `form:"SysDiskSize"`
+	WorkDiskSize           float64 `form:"WorkDiskSize"`
+	CPULoadAvg             float64 `form:"CPULoadAvg"`
+	CPULoadMin             float64 `form:"CPULoadMin"`
+	CPULoadMax             float64 `form:"CPULoadMax"`
+	MemUseAvg              float64 `form:"MemUseAvg"`
+	MemUseMin              float64 `form:"MemUseMin"`
+	MemUseMax              float64 `form:"MemUseMax"`
+	SysDiskFreePercentAvg  float64 `form:"SysDiskFreePercentAvg"`
+	SysDiskFreePercentMin  float64 `form:"SysDiskFreePercentMin"`
+	SysDiskFreePercentMax  float64 `form:"SysDiskFreePercentMax"`
+	WorkDiskFreePercentAvg float64 `form:"WorkDiskFreePercentAvg"`
+	WorkDiskFreePercentMin float64 `form:"WorkDiskFreePercentMin"`
+	WorkDiskFreePercentMax float64 `form:"WorkDiskFreePercentMax"`
+	Allocation             string  `form:"Allocation"`
+	Busines                string  `form:"Busines"`
+	Count                  float64 `form:"Count"`
 }
 
 // AuthUser описывает запись/справочник БД loadmon, соответствующую сущности AuthUser.
 type AuthUser struct {
-	Id        int       `form:"id"`
-	Group     int64     `form:"Group"`
-	First     string    `form:"first" valid:"Required"`
-	Last      string    `form:"last"`
-	Email     string    `form:"email" valid:"Email" orm:"unique"`
-	Password  string    `form:"password"`
+	Id        int    `form:"id"`
+	Group     int64  `form:"Group"`
+	First     string `form:"first" valid:"Required"`
+	Last      string `form:"last"`
+	Email     string `form:"email" valid:"Email" orm:"unique"`
+	Password  string `form:"password"`
 	Reg_key   string
 	Reg_date  time.Time `orm:"auto_now_add;type(datetime)"`
 	Reset_key string
-	Priv      int       `form:"priv"`
-	Podr      int       `form:"podr"`
+	Priv      int `form:"priv"`
+	Podr      int `form:"podr"`
 }
 
 // UserLog описывает запись/справочник БД loadmon, соответствующую сущности UserLog.
 type UserLog struct {
-	Id      int64     `form:"id"` // id записи
+	Id      int64     `form:"id"`                // id записи
 	UserId  int64     `orm:"null" form:"userid"` // id пользователя
-	Login   time.Time `orm:"null" form:"login"` // время регистрации
-	Time    time.Time `orm:"null" form:"last"` // время операции
-	Type    int       `form:"type"` // тип операции (1 авторизация, 2 выход, 3 сброс пароля, 4 обновление профиля, 5 чтение справочника, 6 изменение данных справочника, 7 чтение таблицы загрузки // TODO: comment truncated in screenshot
-	Request string    `form:"request"` // текст запроса
+	Login   time.Time `orm:"null" form:"login"`  // время регистрации
+	Time    time.Time `orm:"null" form:"last"`   // время операции
+	Type    int       `form:"type"`              // тип операции (1 авторизация, 2 выход, 3 сброс пароля, 4 обновление профиля, 5 чтение справочника, 6 изменение данных справочника, 7 чтение таблицы загрузки // TODO: comment truncated in screenshot
+	Request string    `form:"request"`           // текст запроса
 }
 
 // TableName возвращает имя таблицы БД для модели UserLog (используется beego ORM).
@@ -2766,73 +2724,73 @@ type LoadmonRequest struct {
 
 // LoadmonResponse описывает запись/справочник БД loadmon, соответствующую сущности LoadmonResponse.
 type LoadmonResponse struct {
-	Code   int         `json:"Code"` //код запроса
+	Code   int         `json:"Code"`   //код запроса
 	Status int         `json:"Status"` //код ответа 1 все хорошо, иначе код ошибки 0 - нет запрошенных данных, 2-ошибка в структуре запроса, 3-недопустимый код запроса
-	Count  int         `json:"Count"` //количество записей в возврате
-	Data   interface{} `json:"Data"` //данные для запроса
+	Count  int         `json:"Count"`  //количество записей в возврате
+	Data   interface{} `json:"Data"`   //данные для запроса
 }
 
 // jira CMDB https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId=21&includeAttributes=true&page=1
 type ItSystemRecord struct {
-	ID                           int    `form:"ID" json:"id"`
-	ObjectKey                    string `form:"ObjectKey" json:"objectKey"`
-	Label                        string `form:"Label" json:"label"`
-	Name                         string `form:"Name" json:"name"`
-	Key                          string `form:"Key" json:"key"` //0
-	FullName                     string `form:"FullName" json:"fullName"` //1
-	ShortName                    string `form:"ShortName" json:"shortName"` //2
-	LevelCriticality             string `form:"LevelCriticality" json:"levelCriticality"` //3 "Критически важные (Vital),Критические для бизнеса (Critical),Важные для бизнеса (Secondary) // TODO: comment truncated in screenshot
-	Description                  string `form:"Description" json:"description"` //4
-	Status                       string `form:"Status" json:"status"` //5 "Планируется, Проектируется, Разрабатывается, Тестируется, Выведено на прод, Заморожено, В архиве // TODO: comment truncated in screenshot
-	IsMonitored                  bool   `form:"IsMonitored" json:"isMonitored"` //6
-	IsBackuped                   bool   `form:"IsBackuped" json:"isBackuped"` //7
-	SystemType                   string `form:"SystemType" json:"systemType"` //8 "Бизнес, Техническая"
-	LicensingType                string `form:"LicensingType" json:"licensingType"` //9 "Подписка, Единоразовая, Бесплатная"
-	SolutionType                 string `form:"SolutionType" json:"solutionType"` //10
-	DeploymentType               string `form:"DeploymentType" json:"deploymentType"` //11 "On-Cloud, On-Premise"
-	ITSystemUsers                string `form:"ITSystemUsers" json:"itSystemUsers"` //12
-	Documentation                string `form:"Documentation" json:"documentation"` //13
-	CFO                          string `form:"CFO" json:"cfo"` //14
-	Commissioning                string `form:"Commissioning" json:"commissioning"` //15
-	Decommissioning              string `form:"Decommissioning" json:"decommissioning"` //16
-	URL                          string `form:"URL" json:"url"` //17
-	DeveloperTeam                string `form:"DeveloperTeam" json:"developerTeam"` //18
-	SupportTeam                  string `form:"SupportTeam" json:"supportTeam"` //19
-	JiraProject                  string `form:"JiraProject" json:"jiraProject"` //20
-	AccountingName               string `form:"AccountingName" json:"accountingName"` //21 object key
-	ReferencedApplication        string `form:"ReferencedApplication" json:"referencedApplication"` //22
-	ItiliumItService             string `form:"ItiliumItService" json:"itiliumItService"` //23
-	DataCenter                   string `form:"DataCenter" json:"dataCenter"` //24
-	ReferencedDatabase           string `form:"ReferencedDatabase" json:"referencedDatabase"` //25
-	ProjectGitlab                string `form:"ProjectGitlab" json:"projectGitlab"` //26
-	LocationType                 string `form:"LocationType" json:"locationType"` //27
-	IPAdressesV4                 string `form:"IPAdressesV4" json:"ipAdressesV4"` //28
-	IPAdressesV6                 string `form:"IPAdressesV6" json:"ipAdressesV6"` //29
-	DescriptionObject            string `form:"DescriptionObject" json:"descriptionObject"` //30
-	AutonomousSystemNumber       string `form:"AutonomousSystemNumber" json:"autonomousSystemNumber"` //31
-	DomainNameElectronicResource string `form:"DomainNameElectronicResource" json:"domainNameElectronicResource"` //32
-	UIRI                         string `form:"UIRI" json:"uiri"` //33
-	PhoneNumbers                 string `form:"PhoneNumbers" json:"phoneNumbers"` //34
-	OperatorId                   string `form:"OperatorId" json:"operatorId"` //35
-	FullCorporateName            string `form:"FullCorporateName" json:"fullCorporateName"` //36
-	TaxpayerIdNumber             string `form:"TaxpayerIdNumber" json:"taxpayerIdNumber"` //37
-	LinkService                  string `form:"LinkService" json:"linkService"` //40
-	LactConfirmDate              string `form:"LactConfirmDate" json:"lactConfirmDate"` //41
-	ItiliumITServiceNew          string `form:"ItiliumITServiceNew" json:"itiliumITServiceNew"` //42
-	URLNew                       string `form:"URLNew" json:"urlnew"` //43
-	SDNotificationDate           string `form:"SDNotificationDate" json:"sdnotificationDate"` //44
-	BizTalkID                    string `form:"BizTalkID" json:"bizTalkID"` //45
-	InboundIntegration           string `form:"InboundIntegration" json:"inboundIntegration"` //46
-	OutboundIntegration          string `form:"OutboundIntegration" json:"outboundIntegration"` //47
-	BusinessColumn               string `form:"BusinessColumn" json:"businessColumn"` //object key
-	BusinessOwner                string `form:"BusinessOwner" json:"businessOwner"` //
-	ITOwner                      string `form:"ITOwner" json:"itOwner"` //
-	Vendor                       string `form:"Vendor" json:"Vendor"` //
-	ProductOwner                 string `form:"ProductOwner" json:"productOwner"` //
-	AnalystMethodologist         string `form:"AnalystMethodologist" json:"analystMethodologist"` //
-	Created                      time.Time `form:"Created" json:"created"` //
-	Updated                      time.Time `form:"Updated" json:"updated"` //
-	Timestamp                    int64   `form:"Timestamp" json:"timestamp"` //
+	ID                           int       `form:"ID" json:"id"`
+	ObjectKey                    string    `form:"ObjectKey" json:"objectKey"`
+	Label                        string    `form:"Label" json:"label"`
+	Name                         string    `form:"Name" json:"name"`
+	Key                          string    `form:"Key" json:"key"`                                                   //0
+	FullName                     string    `form:"FullName" json:"fullName"`                                         //1
+	ShortName                    string    `form:"ShortName" json:"shortName"`                                       //2
+	LevelCriticality             string    `form:"LevelCriticality" json:"levelCriticality"`                         //3 "Критически важные (Vital),Критические для бизнеса (Critical),Важные для бизнеса (Secondary) // TODO: comment truncated in screenshot
+	Description                  string    `form:"Description" json:"description"`                                   //4
+	Status                       string    `form:"Status" json:"status"`                                             //5 "Планируется, Проектируется, Разрабатывается, Тестируется, Выведено на прод, Заморожено, В архиве // TODO: comment truncated in screenshot
+	IsMonitored                  bool      `form:"IsMonitored" json:"isMonitored"`                                   //6
+	IsBackuped                   bool      `form:"IsBackuped" json:"isBackuped"`                                     //7
+	SystemType                   string    `form:"SystemType" json:"systemType"`                                     //8 "Бизнес, Техническая"
+	LicensingType                string    `form:"LicensingType" json:"licensingType"`                               //9 "Подписка, Единоразовая, Бесплатная"
+	SolutionType                 string    `form:"SolutionType" json:"solutionType"`                                 //10
+	DeploymentType               string    `form:"DeploymentType" json:"deploymentType"`                             //11 "On-Cloud, On-Premise"
+	ITSystemUsers                string    `form:"ITSystemUsers" json:"itSystemUsers"`                               //12
+	Documentation                string    `form:"Documentation" json:"documentation"`                               //13
+	CFO                          string    `form:"CFO" json:"cfo"`                                                   //14
+	Commissioning                string    `form:"Commissioning" json:"commissioning"`                               //15
+	Decommissioning              string    `form:"Decommissioning" json:"decommissioning"`                           //16
+	URL                          string    `form:"URL" json:"url"`                                                   //17
+	DeveloperTeam                string    `form:"DeveloperTeam" json:"developerTeam"`                               //18
+	SupportTeam                  string    `form:"SupportTeam" json:"supportTeam"`                                   //19
+	JiraProject                  string    `form:"JiraProject" json:"jiraProject"`                                   //20
+	AccountingName               string    `form:"AccountingName" json:"accountingName"`                             //21 object key
+	ReferencedApplication        string    `form:"ReferencedApplication" json:"referencedApplication"`               //22
+	ItiliumItService             string    `form:"ItiliumItService" json:"itiliumItService"`                         //23
+	DataCenter                   string    `form:"DataCenter" json:"dataCenter"`                                     //24
+	ReferencedDatabase           string    `form:"ReferencedDatabase" json:"referencedDatabase"`                     //25
+	ProjectGitlab                string    `form:"ProjectGitlab" json:"projectGitlab"`                               //26
+	LocationType                 string    `form:"LocationType" json:"locationType"`                                 //27
+	IPAdressesV4                 string    `form:"IPAdressesV4" json:"ipAdressesV4"`                                 //28
+	IPAdressesV6                 string    `form:"IPAdressesV6" json:"ipAdressesV6"`                                 //29
+	DescriptionObject            string    `form:"DescriptionObject" json:"descriptionObject"`                       //30
+	AutonomousSystemNumber       string    `form:"AutonomousSystemNumber" json:"autonomousSystemNumber"`             //31
+	DomainNameElectronicResource string    `form:"DomainNameElectronicResource" json:"domainNameElectronicResource"` //32
+	UIRI                         string    `form:"UIRI" json:"uiri"`                                                 //33
+	PhoneNumbers                 string    `form:"PhoneNumbers" json:"phoneNumbers"`                                 //34
+	OperatorId                   string    `form:"OperatorId" json:"operatorId"`                                     //35
+	FullCorporateName            string    `form:"FullCorporateName" json:"fullCorporateName"`                       //36
+	TaxpayerIdNumber             string    `form:"TaxpayerIdNumber" json:"taxpayerIdNumber"`                         //37
+	LinkService                  string    `form:"LinkService" json:"linkService"`                                   //40
+	LactConfirmDate              string    `form:"LactConfirmDate" json:"lactConfirmDate"`                           //41
+	ItiliumITServiceNew          string    `form:"ItiliumITServiceNew" json:"itiliumITServiceNew"`                   //42
+	URLNew                       string    `form:"URLNew" json:"urlnew"`                                             //43
+	SDNotificationDate           string    `form:"SDNotificationDate" json:"sdnotificationDate"`                     //44
+	BizTalkID                    string    `form:"BizTalkID" json:"bizTalkID"`                                       //45
+	InboundIntegration           string    `form:"InboundIntegration" json:"inboundIntegration"`                     //46
+	OutboundIntegration          string    `form:"OutboundIntegration" json:"outboundIntegration"`                   //47
+	BusinessColumn               string    `form:"BusinessColumn" json:"businessColumn"`                             //object key
+	BusinessOwner                string    `form:"BusinessOwner" json:"businessOwner"`                               //
+	ITOwner                      string    `form:"ITOwner" json:"itOwner"`                                           //
+	Vendor                       string    `form:"Vendor" json:"Vendor"`                                             //
+	ProductOwner                 string    `form:"ProductOwner" json:"productOwner"`                                 //
+	AnalystMethodologist         string    `form:"AnalystMethodologist" json:"analystMethodologist"`                 //
+	Created                      time.Time `form:"Created" json:"created"`                                           //
+	Updated                      time.Time `form:"Updated" json:"updated"`                                           //
+	Timestamp                    int64     `form:"Timestamp" json:"timestamp"`                                       //
 }
 
 // InsightVm описывает запись/справочник БД loadmon, соответствующую сущности InsightVm.
@@ -2904,4 +2862,3 @@ func (u *InsightVmPerf) TableIndex() [][]string {
 		[]string{"Vcenter", "Datacenter", "Cluster", "Name", "Time"},
 	}
 }
-

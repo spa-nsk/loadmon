@@ -40,11 +40,14 @@ func (m *StorageEnclosure) TableUnique() [][]string {
 	return [][]string{{"StorageSystemsId", "ExternalKey"}}
 }
 
+// TableIndex() оставляет только EnclosureType - у StorageSystemsId и
+// SerialNum уже есть тег `orm:"...;index"` на поле (см. выше), повторение
+// тех же колонок здесь давало два одинаковых индекса и падение RunSyncdb с
+// "index ... already exists" на чистой базе (см. models/storage_metric.go
+// и CHANGELOG за подробным объяснением этого паттерна).
 func (m *StorageEnclosure) TableIndex() [][]string {
 	return [][]string{
-		{"StorageSystemsId"},
 		{"EnclosureType"},
-		{"SerialNum"},
 	}
 }
 
@@ -74,10 +77,8 @@ func (m *StorageDisk) TableUnique() [][]string {
 	return [][]string{{"StorageSystemsId", "ExternalKey"}}
 }
 
-func (m *StorageDisk) TableIndex() [][]string {
-	return [][]string{
-		{"StorageSystemsId"},
-		{"StorageEnclosureId"},
-		{"SerialNum"},
-	}
-}
+// TableIndex() намеренно не объявлен - StorageSystemsId/StorageEnclosureId/
+// SerialNum уже проиндексированы тегом `orm:"...;index"` на самих полях
+// (см. выше); повтор тех же колонок здесь давал дублирующиеся индексы и
+// падение RunSyncdb на чистой базе (см. models/storage_metric.go и
+// CHANGELOG).

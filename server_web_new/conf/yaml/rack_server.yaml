@@ -1,0 +1,270 @@
+# Конфигурация связки колонок экспорта Итиллиум (файл-образец
+# "Серверы_templ.xlsx", лист "export") с полями моделей loadmon
+# (models.ServerSprRecords / models.ServerHardware).
+#
+# ПРАВИТЬ ЭТОТ ФАЙЛ, А НЕ Go-КОД, если:
+#   - поменялось название/состав колонок в новой выгрузке Итиллиум;
+#   - нужно перенаправить колонку в другое поле;
+#   - нужно добавить/изменить значение справочника (enums) или разделитель
+#     составного значения (params.separator).
+#
+# Как читать "target":
+#   ServerSprRecords.<Поле>  - пишется в models.ServerSprRecords
+#   ServerHardware.<Поле>    - пишется в models.ServerHardware
+#   extra.<ключ>             - НЕ попадает напрямую ни в одну модель;
+#                              возвращается отдельной картой "на ручной
+#                              разбор" (см. itilliumimport/convert.go:
+#                              ConvertRow -> Result.Extra) - как правило,
+#                              потому что нужен связанный справочник
+#                              (например, ФИО автора -> Id_User) или для
+#                              этих данных пока нет отдельного поля в схеме
+#                              (материнская плата, видеокарта и т.п.).
+#
+# Транзформации (transform):
+#   trim              - убрать пробелы по краям, привести "NaN"/"nan"/"-"
+#                        (в оригинале Итиллиум отдаёт пустые ячейки как NaN
+#                        при экспорте через pandas) к пустой строке.
+#   numeric_to_string - для колонок, которые Excel/pandas отдаёт как число
+#                        с ".0" на конце (напр. "111111.0") - отбросить
+#                        дробную часть, если она нулевая, и привести к
+#                        строке.
+#   date_ru           - разобрать дату в формате "ДД.ММ.ГГГГ" в time.Time.
+#
+# Составные преобразования (composites) - описаны ниже отдельным блоком,
+# т.к. читают НЕСКОЛЬКО колонок и/или пишут в НЕСКОЛЬКО полей сразу.
+
+source_sheet: export
+
+fields:
+  # --- Тех./учётные номера -------------------------------------------------
+  - header: "Тех. номер IT"
+    target: ServerHardware.TechnicalNumberIT
+    transform: trim
+
+  - header: "Бух.инв.№"
+    target: ServerHardware.InventoryNumBuh
+    transform: numeric_to_string
+
+  # Стар.инв.№: в примере это фактический (не "устаревший") номер вида
+  # XXX_S_111 - используется как основной инвентарный номер. Если в вашем
+  # Итиллиум есть отдельная АКТУАЛЬНАЯ колонка инвентарного номера -
+  # перенаправьте её сюда, а "Стар.инв.№" уберите в extra.
+  - header: "Стар.инв.№"
+    target: ServerHardware.InventoryNum
+    transform: trim
+
+  # --- Модель/производитель -------------------------------------------------
+  - header: "Модель от производителя"
+    target: ServerHardware.Model
+    transform: trim
+
+  # "Марка/модель(Норматив)" - нормативное/бюджетное наименование
+  # конфигурации (часто длиннее и включает доп. признаки типа "РК Veeam
+  # proxy") - однозначного поля под него в ServerHardware нет, поэтому по
+  # умолчанию уходит в extra и в конкатенацию Details (см. composite
+  # details_concat ниже). Если заведёте отдельное поле - перенаправьте.
+  - header: "Марка/модель(Норматив)"
+    target: extra.normative_model
+    transform: trim
+
+  - header: "Продукт"
+    target: ServerHardware.PartNum
+    transform: trim
+
+  - header: "S/N"
+    target: ServerHardware.SerialNum
+    transform: trim
+
+  # --- Идентификация сервера ------------------------------------------------
+  - header: "Имя (hostname)"
+    target: ServerSprRecords.Name
+    transform: trim
+
+  # Дублируем hostname и в NameFQDN - в примере доменная часть отдельно не
+  # экспортируется. Если у вас есть отдельная колонка с полным доменным
+  # именем - перенаправьте её сюда вместо дублирования.
+  - header: "Имя (hostname)"
+    target: ServerSprRecords.NameFQDN
+    transform: trim
+
+  - header: "ip"
+    target: ServerSprRecords.IPAddress
+    transform: trim
+
+  - header: "Владелец"
+    target: ServerSprRecords.Owner
+    transform: trim
+
+  - header: "Операционная система"
+    target: ServerSprRecords.OS
+    transform: trim
+
+  - header: "Роль"
+    target: ServerSprRecords.Role
+    transform: trim
+
+  # --- Аппаратные характеристики (простые) -----------------------------------
+  - header: "Процессор"
+    target: ServerHardware.CPUModel
+    transform: trim
+
+  - header: "IPMI"
+    target: ServerHardware.MpIPAddress
+    transform: trim
+
+  # --- Документы/контрагенты -------------------------------------------------
+  - header: "Дата документа закупки"
+    target: ServerHardware.DateContractDoc
+    transform: date_ru
+
+  - header: "Документы"
+    target: ServerHardware.ContractDoc
+    transform: trim
+
+  # "Поставщик" сопоставлен со свободнотекстовым ServerHardware.Counterparty
+  # ("контрагент") - предположение, проверьте по смыслу в вашем Итиллиум.
+  - header: "Поставщик"
+    target: ServerHardware.Counterparty
+    transform: trim
+
+  # "Юр.Лицо" - в схеме это FK-поля OwnerFromFGId/CounterpartyId (числовые
+  # ссылки на справочники MembersFG/Counterparty), а не свободный текст,
+  # поэтому автоматически не резолвится - падает в extra на ручную сверку.
+  - header: "Юр.Лицо"
+    target: extra.legal_entity
+    transform: trim
+
+  # --- Поля без прямого соответствия в схеме (уходят в extra) ----------------
+  # Дата ремонта - отдельного поля под историю ремонтов в ServerHardware нет.
+  - header: "Дата ремонта"
+    target: extra.repair_date
+    transform: trim
+
+  - header: "HDD"
+    target: extra.hdd_1
+    transform: trim
+
+  - header: "HDD 2"
+    target: extra.hdd_2
+    transform: trim
+
+  - header: "RAID"
+    target: extra.raid_1
+    transform: trim
+
+  - header: "RAID(2)"
+    target: extra.raid_2
+    transform: trim
+
+  - header: "IPMI(2)"
+    target: extra.ipmi_2
+    transform: trim
+
+  - header: "Материнская плата"
+    target: extra.motherboard
+    transform: trim
+
+  - header: "Сетевой адаптер"
+    target: extra.network_adapter
+    transform: trim
+
+  - header: "Видеокарта"
+    target: extra.videocard
+    transform: trim
+
+  # "Автор" - ФИО, а не Id_User (нужен поиск пользователя в models.AuthUser
+  # по имени - неоднозначная операция, оставлена на ручное/отдельное
+  # сопоставление).
+  - header: "Автор"
+    target: extra.author_name
+    transform: trim
+
+  - header: "Комплектация"
+    target: extra.equipment_config
+    transform: trim
+
+# Составные преобразования - читают несколько исходных колонок (sources,
+# в указанном порядке) и/или пишут в несколько целевых полей (targets, тоже
+# позиционно, где это применимо). Реализация функций - в convert.go
+# (applyComposite), имя функции берётся из поля "name". Настраивать здесь
+# можно источники/цели/параметры (разделители и т.п.), саму логику разбора
+# менять придётся в Go-коде.
+composites:
+  # "Местоположение": "Город1, ЦОД1 | 9 | 9.2 (991)" - первая часть (город +
+  # ЦОД) идёт в ServerHardware.DatacenterRoom как есть, вторая и третья
+  # части (внутренние коды корпуса/зала Итиллиум) сохраняются в extra на
+  # случай, если понадобится сматчить их со справочником models.RackCabinet/
+  # models.DatacenterSite (там пока нет автоматического сопоставления по
+  # имени - см. kontext/03-data-model.md, раздел 5a).
+  - name: location_split
+    sources: ["Местоположение"]
+    targets: ["ServerHardware.DatacenterRoom"]
+    params:
+      separator: "|"
+      extra_prefix: "location"
+
+  # "Размещение в шкафу/стойке": "9.2-A-04 | 23-23" - первая часть - код
+  # шкафа (RackNum), вторая - диапазон юнитов "начало-конец" (23-23 значит
+  # один юнит №23; 23-25 значило бы юниты с 23 по 25, SizeUnit=3).
+  - name: rack_unit_split
+    sources: ["Размещение в шкафу/стойке"]
+    targets:
+      - "ServerHardware.RackNum"
+      - "ServerHardware.StartUnitPos"
+      - "ServerHardware.SizeUnit"
+    params:
+      separator: "|"
+
+  # Память: "Память (1)"/"Память (1), кол." и "Память (2)"/"Память (2), кол."
+  # - в каждой паре текстовое описание модуля (откуда берём объём одного
+  # модуля в Гб через регулярку) и количество модулей. Итог - суммарный
+  # объём в Мб (ServerHardware.MemoryMb).
+  - name: memory_total
+    sources:
+      - "Память (1)"
+      - "Память (1), кол."
+      - "Память (2)"
+      - "Память (2), кол."
+    targets: ["ServerHardware.MemoryMb"]
+
+  # Статус Итиллиум -> (ServerSprRecords.Active, ServerSprRecords.Stat,
+  # ServerHardware.Active). Формат значения в enums.status - три числа через
+  # "|" в порядке targets. Если встретится статус, которого нет в этом
+  # словаре - все три поля останутся 0, а исходный текст попадёт в
+  # extra.status_raw (см. convert.go) для ручной донастройки словаря.
+  - name: enum_multi
+    sources: ["Статус"]
+    targets:
+      - "ServerSprRecords.Active"
+      - "ServerSprRecords.Stat"
+      - "ServerHardware.Active"
+    params:
+      enum: status
+
+  # Details (ServerSprRecords) - свободное поле-описание, собирается из
+  # "Описание (комментарий / примечание)" и "Примечания" через "; ".
+  - name: concat_extra
+    sources:
+      - "Описание (комментарий / примечание)"
+      - "Примечания"
+    targets: ["ServerSprRecords.Details"]
+    params:
+      separator: "; "
+
+# Словари соответствий (enum) для composite "enum_multi" и т.п. Ключ верхнего
+# уровня - имя словаря (params.enum в composite), ключ второго уровня -
+# точный текст значения колонки-источника (регистр важен, сравнение без
+# обрезки пробелов по краям уже выполнено), значение - "|"-разделённый
+# кортеж под targets соответствующего composite.
+#
+# ServerSprRecords.Active: 0 не указано, 1 активен, 2 выведен из эксплуатации.
+# ServerSprRecords.Stat:   0 историческая запись, 1 используется,
+#                          2 помечено для удаления, 3 архивная запись.
+# ServerHardware.Active:   0 не указано, 1 активен, 2 выведен из эксплуатации.
+enums:
+  status:
+    "В работе (эксплуатации)": "1|1|1"
+    "Выведен": "2|1|2"
+    "Списан": "2|2|2"
+    "Свободно": "1|1|1"
+    "На складе": "1|1|1"

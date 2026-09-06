@@ -39,8 +39,44 @@ func sqliteDataSource(dbFile string) string {
 		}
 	}
 	log.Println("sqlite: файл базы данных:", absPath)
-	// WAL + sync: данные пишутся на диск, а не держатся только в памяти процесса
-	return absPath + "?_journal_mode=WAL&_sync=NORMAL&cache=shared"
+	// WAL + sync: данные пишутся на диск, а не держатся только в памяти процесса.
+	// _busy_timeout=5000 - критично для sqlite при нескольких горутинах,
+	// пишущих в одну и ту же базу (см. metrics_grpc/metrics_grpc.go - там
+	// несколько независимых time.Ticker'ов запускают запись в БД
+	// одновременно, включая цикл обновления ServerHardware из
+	// cmdb/updatehwsprhp.go): без этого параметра драйвер sqlite3 сразу
+	// возвращает "database is locked" (SQLITE_BUSY) при столкновении двух
+	// писателей, вместо того чтобы подождать, пока занятое соединение
+	// освободится. См. также orm.SetMaxOpenConns(alias, 1) в DBInit() ниже -
+	// вместе с busy_timeout это сводит конкурентные попытки записи к
+	// последовательному ожиданию вместо ошибки.
+	return absPath + "?_journal_mode=WAL&_sync=NORMAL&cache=shared&_busy_timeout=5000"
+}
+
+// logSyncdbErr выводит в лог результат orm.RunSyncdb, приглушая одну
+// конкретную и совершенно безобидную ошибку sqlite - "index ... already
+// exists"/"table ... already exists". orm.RunSyncdb(force=false) должен
+// создавать только отсутствующие таблицы/индексы, но генератор DDL beego
+// для sqlite не добавляет "IF NOT EXISTS" в CREATE INDEX (см.
+// beego/v2/client/orm/ddl.go) - поэтому при КАЖДОМ перезапуске приложения,
+// начиная со второго, RunSyncdb пытается создать уже существующие индексы
+// заново и sqlite закономерно отвечает "already exists". Раньше это молча
+// логировалось как обычная ошибка (`log.Println(err)`), что выглядело как
+// поломка синхронизации схемы при каждом старте, хотя на самом деле это
+// ожидаемый шум - таблицы и данные не страдают, RunSyncdb просто
+// останавливается на первой такой "ошибке" и не проверяет остальные
+// модели, но т.к. они уже были созданы в предыдущие разы, это не критично.
+// Если сообщение НЕ про "already exists" (значит, реальная проблема со
+// схемой БД) - оно по-прежнему выводится в лог как есть.
+func logSyncdbErr(alias string, err error) {
+	if err == nil {
+		return
+	}
+	if strings.Contains(err.Error(), "already exists") {
+		log.Printf("sqlite (%s): схема БД уже синхронизирована (таблица/индекс уже существует, это ожидаемо при повторном запуске): %v", alias, err)
+		return
+	}
+	log.Printf("RunSyncdb(%q, false, false): %v", alias, err)
 }
 
 // buildDataSource формирует строку подключения (DSN) в зависимости от драйвера БД.
@@ -89,6 +125,20 @@ func DBInit() {
 			dbFileAdd = base + "-add" + ext
 		}
 		orm.RegisterDataBase("default-add", "sqlite3", sqliteDataSource(dbFileAdd))
+
+		// sqlite поддерживает только ОДНОГО писателя одновременно (даже в
+		// режиме WAL) - пул из нескольких открытых на запись соединений не
+		// ускоряет запись, а только увеличивает число конкурентных
+		// попыток захватить файловую блокировку, что и приводило к
+		// "database is locked" при одновременной работе нескольких
+		// горутин из metrics_grpc/metrics_grpc.go. Ограничение до 1
+		// открытого соединения на алиас заставляет database/sql
+		// сериализовать запросы на уровне пула соединений Go, а не
+		// полагаться только на busy_timeout драйвера.
+		orm.SetMaxOpenConns(alias, 1)
+		orm.SetMaxIdleConns(alias, 1)
+		orm.SetMaxOpenConns("default-add", 1)
+		orm.SetMaxIdleConns("default-add", 1)
 	} else {
 		dataSourceAdd := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", "work", utilities.GetKeyData("work"), "loadmonv3", "172.18.112.125", 5432, "disable")
 		orm.RegisterDataBase("default-add", "postgres", dataSourceAdd)
@@ -150,10 +200,13 @@ func DBInit() {
 	orm.RegisterModel(new(models.VMUsageDatastore))
 
 	//CMDB
-	orm.RegisterModel(new(models.ConfigurationUnit))
-	orm.RegisterModel(new(models.ConfigurationUnitLink))
-	orm.RegisterModel(new(models.Datacenter))
-	orm.RegisterModel(new(models.Rack))
+	//убраны для исключения из схемы, т.к. в CMDB они не используются и не нужны
+	//orm.RegisterModel(new(models.ConfigurationUnit))
+	//orm.RegisterModel(new(models.ConfigurationUnitLink))
+	// models.Datacenter/models.Rack удалены полностью 2026-09-06 (мёртвый
+	// легаси-код бюджетного нормативного контура, никогда не
+	// регистрировались и не синхронизировались) - см. CHANGELOG.md.
+
 	orm.RegisterModel(new(models.DatacenterSite))
 	orm.RegisterModel(new(models.RackCabinet))
 	orm.RegisterModel(new(models.NetworkSprRecords))
@@ -168,6 +221,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.ReasonEndLife))
 	orm.RegisterModel(new(models.CategoryEquipment))
 	orm.RegisterModel(new(models.ServerType))
+	orm.RegisterModel(new(models.OperationalSystem))
 	orm.RegisterModel(new(models.ModelsEndLife))
 	//
 	orm.RegisterModel(new(models.ModelPersonalEquipment))
@@ -187,16 +241,10 @@ func DBInit() {
 	orm.RegisterModel(new(models.StorageMetricRecord))
 
 	err := orm.RunSyncdb("default", false, false)
-
-	if err != nil {
-		log.Println(err)
-	}
+	logSyncdbErr("default", err)
 
 	err = orm.RunSyncdb("default-add", false, false)
-
-	if err != nil {
-		log.Println("RunSyncdb(\"default-add\", false, false)", err)
-	}
+	logSyncdbErr("default-add", err)
 
 	/*
 		name := "default"
