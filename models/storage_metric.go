@@ -46,13 +46,16 @@ func (m *StorageMetric) TableUnique() [][]string {
 	return [][]string{{"StorageSystemsId", "CollectedAt"}}
 }
 
-func (m *StorageMetric) TableIndex() [][]string {
-	return [][]string{
-		{"CollectedAt"},
-		{"StorageSystemsId"},
-		{"ShortName"},
-	}
-}
+// TableIndex() намеренно не объявлен: у StorageSystemsId/CollectedAt/ShortName
+// уже стоит тег `orm:"...;index"` на самом поле (см. выше) - если ещё и
+// продублировать те же одиночные колонки здесь, beego сгенерирует для
+// каждой из них по два одинаковых индекса с одним именем
+// (`storage_metric_collected_at` и т.п.), и на "чистой" базе (где таблицы
+// ещё нет) RunSyncdb попытается создать оба - второй CREATE INDEX упадёт с
+// "index ... already exists", а beego (rtOnError=true) на этом ПОЛНОСТЬЮ
+// прерывает RunSyncdb, не доходя до остальных зарегистрированных моделей -
+// именно это вызывало "index storage_metric_collected_at already exists"
+// при первом запуске синхронизации новой (default-add) базы. См. CHANGELOG.
 
 // ReplaceStorageMetrics записывает снимки за минуту, заменяя существующие.
 func ReplaceStorageMetrics(ctx context.Context, rows []*StorageMetric) error {

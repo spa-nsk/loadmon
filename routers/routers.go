@@ -137,6 +137,10 @@ func init() {
 	beego.Router("/admin/deactivatedservers/restore/:selected", &controllers.MainController{}, "get,post:AdminDeactivatedServersRestore") // форма возврата в учёт выбранных серверов (PowerState/Active, каскад на VM/аппаратный сервер) - доступ только Priv==3, см. controllers/admindeactivatedservers.go
 	beego.Router("/admin/viewexport/:name", &controllers.MainController{}, "get:AdminViewExport") // просмотр/CSV/XLSX-выгрузка результата SQL-файла conf/viewsql/:name.sql - доступ только Priv==3, доступ через подменю Администрирование→"Выгрузка по View" в header.tpl, см. controllers/adminviewexport.go
 	beego.Router("/admin/infrastructure", &controllers.MainController{}, "get:AdminInfrastructure") // canvas-диаграмма инфраструктуры (WASM infracanvas + go-canvas) - доступ только Priv==3, см. controllers/admininfrastructure.go
+
+	beego.Router("/admin/importrackservers", &controllers.MainController{}, "get,post:AdminImportRackServers") // форма загрузки xlsx-выгрузки Итиллиум по rack-серверам в ./import и вызов itilliumimport.ImportItiliumServer(name) - доступ только Priv==3, см. controllers/adminimportrackservers.go
+	beego.Router("/admin/importblades", &controllers.MainController{}, "get,post:AdminImportBladeSystems") // форма загрузки xlsx-выгрузки Итиллиум по блейд-корзинам в ./import и вызов itilliumimport.ImportItiliumBlade(name) - доступ только Priv==3, см. controllers/adminimportblades.go
+	beego.Router("/admin/importbladeservers", &controllers.MainController{}, "get,post:AdminImportBladeServers") // форма загрузки xlsx-выгрузки Итиллиум по блейд-серверам в ./import и вызов itilliumimport.ImportItiliumBladeServer(name) - доступ только Priv==3, см. controllers/adminimportbladeservers.go
 	beego.Router("/api/:json", &controllers.MainController{}, "get,post:RequestAPI")
 	beego.Router("/debug/pprof/", &controllers.MainController{}, "get,post:Prof")
 	beego.Router("/debug/pprof/cmdline", &controllers.MainController{}, "get,post:ProfCmdline")

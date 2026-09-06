@@ -66,6 +66,8 @@ require (
 
 replace github.com/beego/beego/v2 => ./beego/v2
 
+replace github.com/lovi-cloud/go-dorado-sdk => ./go-dorado-sdk
+
 replace github.com/spa-nsk/oneview2 => ./oneview2
 
 replace loadmon/infracanvas/payload => ./infracanvas/payload

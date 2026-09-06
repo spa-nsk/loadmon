@@ -74,10 +74,7 @@ func (m *StorageMetricRecord) TableUnique() [][]string {
 	return [][]string{{"StorageSystemsId", "Date"}}
 }
 
-func (m *StorageMetricRecord) TableIndex() [][]string {
-	return [][]string{
-		{"Date"},
-		{"StorageSystemsId"},
-		{"ShortName"},
-	}
-}
+// TableIndex() намеренно не объявлен - StorageSystemsId/ShortName/Date уже
+// проиндексированы тегом `orm:"...;index"` на самих полях (см. выше);
+// повтор тех же колонок здесь давал дублирующиеся индексы и падение
+// RunSyncdb на чистой базе (см. models/storage_metric.go и CHANGELOG).

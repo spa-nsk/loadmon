@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"syscall/js"
@@ -68,6 +69,18 @@ func applyCanvasSize(canvasEl js.Value) {
 // json.Unmarshal отбрасывалась молча (`_ = json.Unmarshal(...)`), из-за
 // чего страница выглядела "рабочей", но без данных, без единой подсказки
 // в консоли.
+//
+// ⚠️ Base64 декодируется здесь, средствами Go (encoding/base64), а НЕ через
+// JS `atob()` + `.String()`. atob() возвращает "бинарную JS-строку" (каждый
+// code unit = один исходный байт 0-255, это НЕ текст), а мост
+// syscall/js (wasm_exec.js, valuePrepareString) при вызове `.String()`
+// на такой JS-строке прогоняет её через TextEncoder("utf-8"), который
+// трактует каждый code unit как отдельный код Unicode и заново кодирует
+// его в UTF-8 - это двойное кодирование ломает весь не-ASCII текст
+// (кириллица приходила как "Ð Ð°Ð·..." вместо "Раз..." - см. CHANGELOG).
+// Base64-строка сама по себе ASCII-only, поэтому её можно безопасно
+// прочитать через .String() и декодировать std-библиотекой Go, которая
+// вернёт исходные UTF-8 байты без искажений.
 func loadData() {
 	doc := js.Global().Get("document")
 	el := doc.Call("getElementById", "infra-canvas-data")
@@ -78,11 +91,15 @@ func loadData() {
 	if b64 == "" {
 		return
 	}
-	raw := js.Global().Call("atob", b64).String()
-	if raw == "" {
+	raw, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		js.Global().Get("console").Call("error", fmt.Sprintf("infracanvas: ошибка декодирования base64: %v", err))
 		return
 	}
-	if err := json.Unmarshal([]byte(raw), &state.data); err != nil {
+	if len(raw) == 0 {
+		return
+	}
+	if err := json.Unmarshal(raw, &state.data); err != nil {
 		js.Global().Get("console").Call("error", fmt.Sprintf("infracanvas: ошибка разбора данных: %v", err))
 	}
 }

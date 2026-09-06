@@ -18,6 +18,42 @@ func ExtractServerNameILO(ilo string) {
 
 }
 
+// isDatabaseLockedErr определяет, является ли ошибка временной блокировкой
+// sqlite (SQLITE_BUSY, драйвер mattn/go-sqlite3 возвращает текст "database
+// is locked") - в отличие от прочих ошибок ORM, такую операцию имеет смысл
+// повторить через небольшую паузу, а не сразу считать сбоем записи.
+func isDatabaseLockedErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "database is locked") || strings.Contains(msg, "database is busy")
+}
+
+// retryOnDatabaseLocked повторяет fn до maxAttempts раз с небольшой паузой
+// между попытками, если очередная ошибка - "database is locked" (sqlite
+// SQLITE_BUSY). Заведено по жалобе на массовые "Ошибка обновления записи в
+// ServerHardware ... database is locked" при синхронизации с HP OneView -
+// несколько независимых горутин в metrics_grpc/metrics_grpc.go пишут в один
+// sqlite-файл одновременно (см. config/dbinit.go - там же добавлен
+// _busy_timeout и ограничение пула соединений до 1, это первый уровень
+// защиты; retryOnDatabaseLocked - второй, на случай, если пауза
+// busy_timeout всё равно будет исчерпана под нагрузкой). Возвращает
+// последнюю полученную ошибку, если все попытки исчерпаны.
+func retryOnDatabaseLocked(maxAttempts int, fn func() error) error {
+	var err error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		err = fn()
+		if err == nil || !isDatabaseLockedErr(err) {
+			return err
+		}
+		if attempt < maxAttempts {
+			time.Sleep(time.Duration(attempt) * 100 * time.Millisecond)
+		}
+	}
+	return err
+}
+
 func insertNewSprRecord(srv *oneview.Server) (int64, error) {
 	srvspr := models.ServerSprRecords{}
 	// Примечание про oneview2: разбор служебного имени (Identity.Name) для
@@ -289,79 +325,6 @@ func UpdateCpuModel(model *models.ComponentsCPU, srv *oneview.Server) int64 {
 	return model.Code
 }
 
-// обновить справочник Цод
-func UpdateDatacenter(dc *models.Datacenter, srv *oneview.Server) int64 {
-	if dc == nil || srv == nil {
-		return 0
-	}
-	if srv.Datacenter.Name == "" {
-		return -2
-	}
-	m := models.Datacenter{Name: srv.Datacenter.Name}
-	o := orm.NewOrm()
-	err := o.Read(&m, "Name")
-	if err == nil {
-		*dc = m
-		return m.Code
-	}
-	pm := make([]*models.Datacenter, 0)
-
-	sql := "SELECT * FROM public.cmdb_datacenter ORDER BY code DESC"
-	qs := o.Raw(sql)
-	num, err := qs.QueryRows(&pm)
-	if err == nil && num > 0 {
-		dc.Code = pm[0].Code + 1
-	} else {
-		dc.Code = 1
-	}
-	dc.Width = int64(srv.Datacenter.Width)
-	// Примечание про oneview2: DatacenterInfo не хранит Depth (в отличие от
-	// старого пакета) - оставляем как есть (нулевым), если запись новая.
-	dc.Name = srv.Datacenter.Name
-	dc.Id, err = o.Insert(dc)
-	if err != nil {
-		return -1
-	}
-	return dc.Code
-}
-
-// обновить справочник Цод
-func UpdateRack(rk *models.Rack, srv *oneview.Server) int64 {
-	if rk == nil || srv == nil {
-		return 0
-	}
-	if srv.Rack.Name == "" {
-		return -2
-	}
-	m := models.Rack{Name: srv.Rack.Name}
-	o := orm.NewOrm()
-	err := o.Read(&m, "Name")
-	if err == nil {
-		*rk = m
-		return m.Code
-	}
-	pm := make([]*models.Rack, 0)
-
-	sql := "SELECT * FROM public.cmdb_rack ORDER BY code DESC"
-	qs := o.Raw(sql)
-	num, err := qs.QueryRows(&pm)
-	if err == nil && num > 0 {
-		rk.Code = pm[0].Code + 1
-	} else {
-		rk.Code = 1
-	}
-	// Примечание про oneview2: RackInfo не хранит Width/Depth/Height (в
-	// отличие от старого пакета) - есть только UHeight, поэтому rk.Width/
-	// rk.Depth/rk.Height остаются нулевыми для новых записей.
-	rk.UHeight = int64(srv.Rack.UHeight)
-	rk.Name = srv.Rack.Name
-	rk.Id, err = o.Insert(rk)
-	if err != nil {
-		return -1
-	}
-	return rk.Code
-}
-
 // UpdateRamModel ищет в справочнике моделей оперативной памяти (ComponentsRAM) запись,
 // соответствующую характеристикам модуля памяти mem, и при отсутствии создаёт новую с
 // очередным кодом модели. Возвращает код модели.
@@ -404,103 +367,16 @@ func UpdateRamModel(model *models.ComponentsRAM, srv *oneview.Server, mem *onevi
 	return model.Code
 }
 
-// UpdateCMDBHwSprHP обновляет справочники нормативных моделей оборудования (производитель,
-// модель, ЦОД, стойка, процессор, память) в CMDB на основании данных всех серверов из
-// HP OneView.
-func UpdateCMDBHwSprHP() {
-	fmt.Println("Обновление CMDB по данным из HP OneView")
-	ov := oneview.GetGlobalOVInfrastructure()
-
-	for _, srv := range ov.Servers { //проходим по списку всех серверов
-
-		// Примечание про oneview2: разбор служебного имени вынесен в
-		// oneview.GetHWserverName (см. также insertNewSprRecord выше).
-		serverName := oneview.GetHWserverName(srv)
-
-		norm := models.ModelEquipment{}
-		model := models.ModelVendor{}
-		dc := models.Datacenter{}
-		rk := models.Rack{}
-
-		cu := models.ConfigurationUnit{SerialNum: srv.Identity.SerialNumber}
-		//обновление и поиски модели производителя
-		modelCode := UpdateModelVendor(&model, srv) //
-		if modelCode < 0 {
-			fmt.Println("Ошибка добавления модели оборудования: ", srv.Identity.Model, "-", srv.Identity.PartNumber)
-			continue
-		}
-		//обновление и поиск модели-норматива
-		modelEqCode := UpdateModelEquipment(&norm, srv, modelCode)
-		if modelEqCode < 0 {
-			fmt.Println("Ошибка добавления нормативной модели : ", srv.Identity.Model, "-", srv.Identity.PartNumber)
-			continue
-		}
-
-		dcCode := UpdateDatacenter(&dc, srv)
-		if modelEqCode < 0 {
-			fmt.Println("Ошибка добавления датацентра : ", srv.Datacenter.Name)
-		}
-
-		rkCode := UpdateRack(&rk, srv)
-		if modelEqCode < 0 {
-			fmt.Println("Ошибка добавления шкафа : ", srv.Rack.Name)
-		}
-
-		id_me := int64(0)
-
-		o := orm.NewOrm()
-		//поиск конфигурационной единицы сервера
-		err := o.Read(&cu, "SerialNum")
-
-		cu.NameFQDN = serverName
-		if dcCode > 0 {
-			cu.Datacenter = dcCode
-		}
-		if rkCode > 0 {
-			cu.Rack = rkCode
-		}
-
-		if err == nil { //найдена
-			cu.ModelEquipment = modelEqCode
-			o.Update(&cu)
-			id_me = cu.Id
-		} else { //заводим новую
-			cu.ModelEquipment = modelEqCode
-			id_me, err = o.Insert(&cu)
-			if err != nil {
-				fmt.Println("Ошибка добавления конфигурационной единицы: ", srv.Identity.Model, "=", srv.Identity.PartNumber)
-			}
-		}
-		cpu := models.ComponentsCPU{}         //
-		cpu_code := UpdateCpuModel(&cpu, srv) //поиск процессора в справочнике
-		comp_cpu := models.Components{
-			ConfigurationUnit: id_me,
-			CategoryEquipment: 1,        //серверное
-			Type:              1,        //процессор
-			Component:         cpu_code} //модель процессора
-		for i := 0; i < len(srv.Processors); i++ {
-			o.Insert(&comp_cpu) //записываем компоненты процессооры
-		}
-
-		for _, mem := range srv.Memory { //проходим в цикле по всем модулям памяти
-			ram := models.ComponentsRAM{}
-
-			ram_code := UpdateRamModel(&ram, srv, &mem) //ищем модуль памяти в справочнике
-			comp_ram := models.Components{
-				ConfigurationUnit: id_me,
-				CategoryEquipment: 1, //серверное
-				Type:              2, //оперативная память
-				Location:          mem.DeviceLocator,
-				Component:         ram_code} //память из справочника
-			//вставить запись компонент
-
-			if _, err := o.Insert(&comp_ram); err != nil { //вставка записи о оперативной памяти
-				fmt.Println("Ошибка записи данных о памяти", err)
-			}
-		}
-
-	}
-}
+// ⚠️ УДАЛЕНО (2026-09-06): UpdateCMDBHwSprHP - обновляла старый бюджетный
+// нормативный контур (ModelEquipment/ModelVendor/ConfigurationUnit/
+// Components + models.Datacenter/models.Rack, ныне тоже удалённые) на
+// основании данных из HP OneView. Функция нигде не вызывалась (мёртвый
+// код), а её единственные потребители Datacenter/Rack теперь наполняются
+// из Итиллиум, а не из OneView (см. itilliumimport/importrackservers.go) -
+// см. историю удаления в CHANGELOG.md. UpdateModelVendor/
+// UpdateModelEquipment/UpdateCpuModel/UpdateRamModel оставлены нетронутыми
+// (не входят в область этой правки), но с удалением UpdateCMDBHwSprHP
+// вызывающих их мест больше не осталось.
 
 // проверить функцию или переписать
 // oneview.GetHwserverNameFQDN(srv *ServerHardware) string
@@ -585,7 +461,10 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 		}
 
 		if foundHwBySN {
-			_, err = trn.Update(&hw)
+			err = retryOnDatabaseLocked(5, func() error {
+				_, e := trn.Update(&hw)
+				return e
+			})
 			hwId = hw.Id
 			if err != nil {
 				fmt.Println("Ошибка обновления записи в ServerHardware", serverName, err)
@@ -593,7 +472,11 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 				continue
 			}
 		} else {
-			hwId, err = trn.Insert(&hw)
+			err = retryOnDatabaseLocked(5, func() error {
+				var e error
+				hwId, e = trn.Insert(&hw)
+				return e
+			})
 			if err != nil {
 				fmt.Println("Ошибка вставки записи в ServerHardware", serverName, err)
 				trn.Rollback()
@@ -605,7 +488,10 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 		if srvspr.Name != "" && srvspr.NameFQDN != "" { //если имя сервера не определено то не обновляем и не создаём новый
 			if foundSrvSpr {
 				srvspr.Stat = 1
-				_, err = trn.Update(&srvspr)
+				err = retryOnDatabaseLocked(5, func() error {
+					_, e := trn.Update(&srvspr)
+					return e
+				})
 				if err != nil {
 					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
 					trn.Rollback()
@@ -613,7 +499,11 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 				}
 			} else {
 				srvspr.Stat = 1
-				serverId, err = trn.Insert(&srvspr)
+				err = retryOnDatabaseLocked(5, func() error {
+					var e error
+					serverId, e = trn.Insert(&srvspr)
+					return e
+				})
 				if err != nil {
 					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
 					trn.Rollback()
@@ -642,7 +532,10 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 		}
 
 		hw.ServerId = serverId
-		_, err = trn.Update(&hw)
+		err = retryOnDatabaseLocked(5, func() error {
+			_, e := trn.Update(&hw)
+			return e
+		})
 		if err != nil {
 			fmt.Println("Ошибка обновления записи в ServerHardware", serverName, err)
 			trn.Rollback()
@@ -730,7 +623,10 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 		}
 
 		if foundHwBySN {
-			_, err = trn.Update(&hw)
+			err = retryOnDatabaseLocked(5, func() error {
+				_, e := trn.Update(&hw)
+				return e
+			})
 			hwId = hw.Id
 			if err != nil {
 				fmt.Println("Ошибка обновления записи в ServerHardware", serverName, err)
@@ -738,7 +634,11 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 				continue
 			}
 		} else {
-			hwId, err = trn.Insert(&hw)
+			err = retryOnDatabaseLocked(5, func() error {
+				var e error
+				hwId, e = trn.Insert(&hw)
+				return e
+			})
 			if err != nil {
 				fmt.Println("Ошибка вставки записи в ServerHardware", serverName, err)
 				trn.Rollback()
@@ -750,7 +650,10 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 		if srvspr.Name != "" && srvspr.NameFQDN != "" { //если имя сервера не определено то не обновляем и не создаём новый
 			if foundSrvSpr {
 				srvspr.Stat = 1
-				_, err = trn.Update(&srvspr)
+				err = retryOnDatabaseLocked(5, func() error {
+					_, e := trn.Update(&srvspr)
+					return e
+				})
 				if err != nil {
 					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
 					trn.Rollback()
@@ -758,7 +661,11 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 				}
 			} else {
 				srvspr.Stat = 1
-				serverId, err = trn.Insert(&srvspr)
+				err = retryOnDatabaseLocked(5, func() error {
+					var e error
+					serverId, e = trn.Insert(&srvspr)
+					return e
+				})
 				if err != nil {
 					fmt.Println("Ошибка обновления записи в ServerSprRecords", serverName, err)
 					trn.Rollback()
@@ -787,7 +694,10 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 		}
 
 		hw.ServerId = serverId
-		_, err = trn.Update(&hw)
+		err = retryOnDatabaseLocked(5, func() error {
+			_, e := trn.Update(&hw)
+			return e
+		})
 		if err != nil {
 			fmt.Println("Ошибка обновления записи в ServerHardware", serverName, err)
 			trn.Rollback()

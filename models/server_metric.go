@@ -40,13 +40,12 @@ func (m *ServerMetric) TableUnique() [][]string {
 	}
 }
 
-func (m *ServerMetric) TableIndex() [][]string {
-	return [][]string{
-		{"CollectedAt"},
-		{"HostId"},
-		{"ServerName"},
-	}
-}
+// TableIndex() намеренно не объявлен: у HostId/CollectedAt/ServerName уже
+// стоит тег `orm:"...;index"` на самом поле (см. выше) - дублирование тех
+// же одиночных колонок здесь приводило к двум одинаковым индексам с одним
+// именем и падению RunSyncdb с "index ... already exists" на чистой базе
+// (rtOnError=true прерывает синхронизацию остальных моделей). См.
+// аналогичный фикс и комментарий в models/storage_metric.go, CHANGELOG.
 
 // ReplaceMetrics записывает снимки за минуту, заменяя уже существующие строки
 // с той же парой (HostId, CollectedAt).
