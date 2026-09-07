@@ -89,7 +89,7 @@ func UpdateHostSprRecord(hs vsphere.HostInfo, cl *vsphere.Cluster) (int64, error
 	hwspr.SourceUpdateType = models.SourceUpdateVMware
 
 	if hw != nil {
-		ImportHWSprRecord(&hwspr, hw, ov)
+		ImportHWSprRecord(trn, &hwspr, hw, ov)
 		srvspr.SerialNumber = sn
 		hwspr.SerialNum = sn
 		hwspr.SourceUpdateType = models.SourceUpdateOneView // данные оборудования уточнены из HP OneView - более авторитетный источник, чем голый ESXi
@@ -218,7 +218,7 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 		if err == nil {
 			srvspr.HWSprId = hw2.Id
 			if hw != nil {
-				ImportHWSprRecord(&hw2, hw, ov)
+				ImportHWSprRecord(o, &hw2, hw, ov)
 				hw2.SourceUpdateType = models.SourceUpdateOneView
 				num, err := o.Update(&hw2)
 				if err != nil || num < 1 {
@@ -227,7 +227,7 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 			}
 		} else {
 			if hw != nil {
-				ImportHWSprRecord(&hw2, hw, ov)
+				ImportHWSprRecord(o, &hw2, hw, ov)
 				hw2.SourceUpdateType = models.SourceUpdateOneView
 				if srvspr.Active != 0 {
 					hw2.Active = srvspr.Active

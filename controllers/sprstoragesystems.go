@@ -478,6 +478,7 @@ func (this *MainController) SprStorageSystemsEdit() {
 		rec.RackNum = this.GetString("RackNum")
 		rec.StartUnit = this.GetString("StartUnit")
 		rec.SizeUnit = this.GetString("SizeUnit")
+		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
 
 		rec.Owner = this.GetString("Owner")
 		rec.Allocation = this.GetString("Allocation")
@@ -524,6 +525,10 @@ func (this *MainController) SprStorageSystemsEdit() {
 		flash.Notice("Запись сохранена.")
 		flash.Store(&this.Controller)
 	}
+
+	var racks []models.RackCabinet
+	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)
+	this.Data["RackCabinets"] = racks
 
 	this.Data["ST"] = rec
 	this.Data["AdCertDateStr"] = formatStorageSystemsDate(rec.AdCertDate)

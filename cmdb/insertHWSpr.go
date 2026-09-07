@@ -21,7 +21,7 @@ func InsertHWSpr(srv *oneview.Server, srvspr *models.ServerSprRecords, ov *onevi
 	o := orm.NewOrm()
 
 	ImportServerSprFromHW(srvspr, srv) //перенести данные из oneview2.Server в models.ServerSprRecords
-	ImportHWSprRecord(&hw, srv, ov)
+	ImportHWSprRecord(o, &hw, srv, ov)
 	if srvspr.Active != 0 {
 		hw.Active = srvspr.Active
 	}

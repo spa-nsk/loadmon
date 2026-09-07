@@ -502,6 +502,16 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Архитектура
                 инфраструктуры</a>
             </li>
+            <li>
+              <a href="/admin/hwinfra"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Аппаратная
+                инфраструктура ЦОД</a>
+            </li>
+            <li>
+              <a href="/admin/virtinfra"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Виртуальная
+                инфраструктура</a>
+            </li>
             <li class="mb-1">
               <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
                 data-bs-toggle="collapse" data-bs-target="#viewexport-collapse" aria-expanded="false">

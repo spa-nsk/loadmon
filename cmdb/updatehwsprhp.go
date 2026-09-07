@@ -423,7 +423,7 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 			foundHwBySN = true
 		}
 
-		ImportHWSprRecord(&hw, srv, ov) //заполняем данные в models.ServerHardware
+		ImportHWSprRecord(trn, &hw, srv, ov) //заполняем данные в models.ServerHardware
 		hw.SourceUpdateType = models.SourceUpdateOneView
 		if foundHwBySN {
 			//                 srvspr.Id = hw.ServerId
@@ -593,7 +593,7 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 			foundHwBySN = true
 		}
 
-		ImportHWSprRecord(&hw, srv, ov) //заполняем данные в models.ServerHardware
+		ImportHWSprRecord(trn, &hw, srv, ov) //заполняем данные в models.ServerHardware
 		hw.SourceUpdateType = models.SourceUpdateOneView
 		if foundHwBySN {
 			srvspr.HWSprId = hw.Id
