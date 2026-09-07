@@ -26,6 +26,8 @@ var (
 	errNotInitialized     = "Инфраструктура vsphere не инициализирована"
 	errSrvNotFound        = "Сервер с SN:%s не найден"
 	errSrvVirtualNotFound = "Сервер с Virtual SN:%s не найден"
+	errBladeNotFoundName  = "Блейд-корзина с именем:%s не найдена"
+	errBladeNotFoundSN    = "Блейд-корзина с SN:%s не найдена"
 	errAddClusterSpr      = "Ошибка вставки записи в справочник Cluster"
 )
 

@@ -57,6 +57,24 @@ type Infrastructure struct {
 	DatacenterNames map[string]struct{}
 	RackNames       map[string]struct{}
 
+	// EnclosureByName/EnclosureBySN - агрегированные по блейд-корзинам
+	// данные, построенные из имени ServerHardware ("c7000-9, bay 15", см.
+	// ParseBladeNameBay) - БЕЗ дополнительного REST-вызова GetEnclosure на
+	// каждый сервер. EnclosureInfo (заполняется именно через GetEnclosure)
+	// для части серверов не заполняется вовсе (см. комментарий у
+	// EnclosureSummary) - эти карты дают надёжный путь к линковке
+	// сервер->корзина независимо от того, отработал ли GetEnclosure.
+	//
+	// EnclosureByName - ключ: нормализованное имя корзины (см.
+	// NormalizeEnclosureName, формат "PREFIX-NN"). EnclosureBySN - ключ:
+	// серийный номер корзины, ЕСЛИ он известен хотя бы по одному серверу
+	// этой корзины (из Server.EnclosureInfo.SerialNumber, когда
+	// GetEnclosure для НЕГО всё же отработал) - может быть неполной, если
+	// ни один сервер корзины не получил EnclosureInfo. Доступ - только под
+	// LockGetData/WaitUnLockGetData.
+	EnclosureByName map[string]*EnclosureSummary
+	EnclosureBySN   map[string]*EnclosureSummary
+
 	LastError    error
 	LastRefresh  time.Time
 	LastWarnings []string
@@ -120,6 +138,8 @@ func (infra *Infrastructure) Init() {
 	infra.ServerByName = cmap.New[*Server]()
 	infra.DatacenterNames = make(map[string]struct{})
 	infra.RackNames = make(map[string]struct{})
+	infra.EnclosureByName = make(map[string]*EnclosureSummary)
+	infra.EnclosureBySN = make(map[string]*EnclosureSummary)
 }
 
 func (infra *Infrastructure) Destroy() {
@@ -134,6 +154,8 @@ func (infra *Infrastructure) Destroy() {
 	infra.ServerByName.Clear()
 	infra.DatacenterNames = make(map[string]struct{})
 	infra.RackNames = make(map[string]struct{})
+	infra.EnclosureByName = make(map[string]*EnclosureSummary)
+	infra.EnclosureBySN = make(map[string]*EnclosureSummary)
 }
 
 var infrastructureGlobal *Infrastructure
@@ -201,6 +223,11 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 		infra.RackNames = make(map[string]struct{})
 	}
 
+	// enclosuresByName - см. Infrastructure.EnclosureByName/EnclosureBySN и
+	// ParseBladeNameBay: строится из Server.Identity.Name блейд-серверов
+	// ("c7000-9, bay 15"), без дополнительных запросов к appliance.
+	enclosuresByName := make(map[string]*EnclosureSummary)
+
 	for i := range servers {
 		s := &servers[i]
 		list = append(list, s)
@@ -222,7 +249,35 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 		if rk := strings.TrimSpace(s.Rack.Name); rk != "" {
 			infra.RackNames[rk] = struct{}{}
 		}
+		if chassis, bay, ok := ParseBladeNameBay(s.Identity.Name); ok {
+			es, exists := enclosuresByName[chassis]
+			if !exists {
+				es = &EnclosureSummary{Name: chassis, ByBay: make(map[int]*Server)}
+				enclosuresByName[chassis] = es
+			}
+			es.ByBay[bay] = s
+			// Дозаполняем лучшими известными данными из EnclosureInfo -
+			// оно доступно только если GetEnclosure отработал для ЭТОГО
+			// конкретного сервера (см. комментарий у EnclosureSummary) -
+			// первого непустого значения среди серверов корзины достаточно.
+			if es.SerialNumber == "" && s.EnclosureInfo.SerialNumber != "" {
+				es.SerialNumber = s.EnclosureInfo.SerialNumber
+			}
+			if es.Model == "" && s.EnclosureInfo.Model != "" {
+				es.Model = s.EnclosureInfo.Model
+			}
+			if es.EnclosureType == "" && s.EnclosureInfo.EnclosureType != "" {
+				es.EnclosureType = s.EnclosureInfo.EnclosureType
+			}
+		}
 		warnings = append(warnings, s.Warnings...)
+	}
+
+	enclosuresBySN := make(map[string]*EnclosureSummary, len(enclosuresByName))
+	for _, es := range enclosuresByName {
+		if es.SerialNumber != "" {
+			enclosuresBySN[es.SerialNumber] = es
+		}
 	}
 
 	infra.Servers = list
@@ -231,6 +286,8 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 	infra.ServerByVirtualSN = byVSN
 	infra.ServerByURI = byURI
 	infra.ServerByName = byName
+	infra.EnclosureByName = enclosuresByName
+	infra.EnclosureBySN = enclosuresBySN
 	infra.LastError = err
 	infra.LastRefresh = time.Now()
 	infra.LastWarnings = warnings
