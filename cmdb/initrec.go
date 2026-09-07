@@ -935,12 +935,28 @@ func RestoreSprData(to *models.ServerSprRecords, from models.ServerSprRecords) {
 // на каждый Server (см. loadmon/oneview2/location.go), поэтому используется
 // srv.EnclosureInfo/srv.BayInfo напрямую. Параметр ov сохранён в сигнатуре для
 // совместимости вызывающего кода, хотя сейчас не используется.
-func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.Server, ov *oneview.Infrastructure) {
-	if h == nil || srv == nil || ov == nil {
+//
+// Параметр o - ORM-исполнитель (обычная *orm.ormBase ИЛИ активная транзакция
+// orm.TxOrmer), который использует вызывающий код для сохранения самого h.
+// ИСПРАВЛЕНО (2026-09-07, по жалобе "при обновлении данных по oneview блэйд
+// корзины не связываются с блэйд серверами"): раньше эта функция ВСЕГДА
+// открывала СВОЙ отдельный orm.NewOrm() для чтения/создания записи
+// BladeSystems, независимо от того, что вызывающий код (например
+// cmdb/updatehwsprhp.go:UpdateHwSprHPServersInfra) мог в этот момент уже
+// держать открытой СВОЮ транзакцию (trn := o.Begin()) на всю обработку
+// одного сервера. На SQLite (см. повсеместный retryOnDatabaseLocked в этом
+// пакете - явный признак однопоточной блокировки записи) второе, отдельное
+// соединение, пытающееся вставить строку в blade_systems, пока первая
+// транзакция ещё не закоммичена, рискует получить "database is locked" -
+// и эта ошибка только печаталась в лог (fmt.Println), после чего
+// h.BladeSystemId так и оставался 0 НАВСЕГДА для этой корзины. Теперь
+// функция переиспользует ТОТ ЖЕ ORM-исполнитель, что и вызывающий код -
+// работа с BladeSystems становится частью той же транзакции, конфликта
+// блокировок больше нет.
+func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *oneview.Server, ov *oneview.Infrastructure) {
+	if o == nil || h == nil || srv == nil || ov == nil {
 		return
 	}
-
-	o := orm.NewOrm()
 
 	// prev - снимок ДО перезаписи полей ниже, нужен только чтобы после
 	// заполнения залогировать реально изменившиеся поля в
@@ -1005,8 +1021,16 @@ func ImportHWSprRecord(h *models.ServerHardware, srv *oneview.Server, ov *onevie
 			bls.Used = 0
 			bls.Time_Mfy = time.Now().Local()
 			bls.Anotation = fmt.Sprintf("%s%s", srv.EnclosureInfo.SerialNumber, " Данные добавлены из HP One View")
-			if _, err := o.Insert(&bls); err != nil {
+			// ИСПРАВЛЕНО (2026-09-07): раньше после успешной вставки h.BladeSystemId
+			// не проставлялся вообще - сервер, из-за которого корзина заводится
+			// впервые, оставался без ссылки на неё до следующего цикла синхронизации
+			// (когда корзина уже находится по Name читающей веткой выше). Теперь
+			// ссылка проставляется сразу же.
+			if id, err := o.Insert(&bls); err != nil {
 				fmt.Println("Ошибка записи данных в справочник корзин.", err)
+			} else {
+				bls.Id = id
+				h.BladeSystemId = bls.Id
 			}
 		}
 	}

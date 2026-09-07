@@ -183,6 +183,16 @@
                         <label for="SizeUnit" class="form-label">Размер, юнитов</label>
                         <input type="text" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.ST.SizeUnit}}">
                     </div>
+                    <div class="col-6">
+                        <label for="RackCabinetId" class="form-label">Шкаф (справочник)</label>
+                        <select id="RackCabinetId" name="RackCabinetId" class="form-select">
+                            <option value="0">-</option>
+                            {{range $rc := .RackCabinets}}
+                            <option value="{{$rc.Id}}" {{if eq $.ST.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
+                            {{end}}
+                        </select>
+                        <div class="form-text">Дополняет текстовые ЦОД/Номер стойки выше, не заменяет их. Связь пока не заполнена ни у одной записи - используется при заполнении для точного отображения на /admin/hwinfra.</div>
+                    </div>
                 </div>
 
                 <hr class="my-3">

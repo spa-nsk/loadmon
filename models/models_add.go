@@ -1356,6 +1356,15 @@ type StorageSystems struct {
 	RackNum         string    `form:"RackNum"`                    //номер стойки, если их несколько можно указать через запятую
 	StartUnit       string    `form:"StartUnit"`                  //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
 	SizeUnit        string    `form:"SizeUnit"`                   //размер в юнитах
+	// RackCabinetId - FK на models.RackCabinet.Id (новый справочник шкафов,
+	// см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum,
+	// не заменяет их (та же схема, что и у ServerHardware.RackCabinetId и
+	// BladeSystems.RackCabinetId). На момент добавления поля (2026-09-06)
+	// связь ЕЩЁ НЕ ЗАПОЛНЕНА ни у одной записи СХД - значения нужно
+	// проставить вручную через форму редактирования; пока поле пустое,
+	// /admin/hwinfra продолжает сопоставлять СХД со шкафом по тексту
+	// (см. controllers/adminhwinfra.go).
+	RackCabinetId int64 `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`
 	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
 	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа
 	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная
@@ -1412,6 +1421,7 @@ func (u *StorageSystems) TableIndex() [][]string {
 		[]string{"ShortName"},
 		[]string{"InventoryNum"},
 		[]string{"SerialNum"},
+		[]string{"RackCabinetId"},
 	}
 }
 

@@ -165,10 +165,10 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 
 		if foundHWSpr {
 			if hw != nil {
-				ImportHWSprRecord(&h, hw, ov)
+				ImportHWSprRecord(o, &h, hw, ov)
 				h.SourceUpdateType = models.SourceUpdateOneView
 			} else if hwAlter != nil {
-				ImportHWSprRecord(&h, hwAlter, ov)
+				ImportHWSprRecord(o, &h, hwAlter, ov)
 				h.SourceUpdateType = models.SourceUpdateOneView
 			}
 			s.HWSprId = h.Id
