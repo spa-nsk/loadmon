@@ -118,6 +118,74 @@ func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, po
 	return out, nil
 }
 
+// messageToEnclosureSummary конвертирует ответ pb.BladeEnclosure в
+// oneview2.EnclosureSummary. Данные о серверах в отсеках (ByBay) при этом
+// неполные - с провода приходят только Identity.Name/Identity.SerialNumber
+// (см. pb.BladeBayRef), остальные поля oneview2.Server остаются нулевыми -
+// этого достаточно для задела под будущие доработки, полные данные сервера
+// при необходимости нужно дозапрашивать отдельно через
+// GetServerHardwareByName/GetServerHardwareBySN.
+func messageToEnclosureSummary(in *pb.BladeEnclosure) *oneview.EnclosureSummary {
+	if in == nil {
+		return nil
+	}
+	out := &oneview.EnclosureSummary{
+		Name:          in.Name,
+		SerialNumber:  in.SerialNumber,
+		Model:         in.Model,
+		EnclosureType: in.EnclosureType,
+		ByBay:         make(map[int]*oneview.Server, len(in.Bays)),
+	}
+	for _, ref := range in.Bays {
+		if ref == nil {
+			continue
+		}
+		out.ByBay[int(ref.BayNumber)] = &oneview.Server{
+			Identity: oneview.ServerIdentity{
+				Name:         ref.ServerName,
+				SerialNumber: ref.ServerSerialNumber,
+			},
+		}
+	}
+	return out
+}
+
+// GetBladeEnclosureByName возвращает сводную информацию по блейд-корзине
+// (см. oneview2.EnclosureSummary) по её нормализованному имени ("c7000-09")
+// и признак успеха. Задел под будущие доработки - на момент добавления
+// вызывающего кода в проекте ещё нет.
+func GetBladeEnclosureByName(name string) (*oneview.EnclosureSummary, bool) {
+	c, conn, ctx, cancel, err := dialAPIHardware()
+	if err != nil {
+		return nil, false
+	}
+	defer conn.Close()
+	defer cancel()
+	enc, err := c.GetBladeEnclosureByName(ctx, &pb.ServerName{Name: name})
+	if err != nil {
+		return nil, false
+	}
+	return messageToEnclosureSummary(enc), true
+}
+
+// GetBladeEnclosureBySN возвращает сводную информацию по блейд-корзине
+// (см. oneview2.EnclosureSummary) по её серийному номеру и признак успеха -
+// серийный номер известен только если для хотя бы одного сервера корзины
+// отработал GetEnclosure (см. комментарий у Infrastructure.EnclosureBySN).
+func GetBladeEnclosureBySN(sn string) (*oneview.EnclosureSummary, bool) {
+	c, conn, ctx, cancel, err := dialAPIHardware()
+	if err != nil {
+		return nil, false
+	}
+	defer conn.Close()
+	defer cancel()
+	enc, err := c.GetBladeEnclosureBySN(ctx, &pb.SerialNumber{SerialNumber: sn})
+	if err != nil {
+		return nil, false
+	}
+	return messageToEnclosureSummary(enc), true
+}
+
 // GetHWDatacenterNames возвращает список всех различных значений
 // Datacenter.Name, накопленных oneview2.Infrastructure по всем собранным
 // серверам (см. oneview2/global.go) - в отличие от GetServerHardwareList,

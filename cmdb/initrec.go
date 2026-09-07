@@ -987,19 +987,36 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 	h.Model = identity.Model
 	h.FormFactor = 1
 
-	if identity.Position > 0 {
+	// Определение "это блейд-сервер, в какой корзине, в каком отсеке" -
+	// ИЗМЕНЕНО (2026-09-07, по наблюдению пользователя): ПЕРВИЧНЫЙ источник
+	// теперь - разбор srv.Identity.Name (oneview2.ParseBladeNameBay).
+	// HPE OneView сам называет ресурс blade server-hardware в формате
+	// "c7000-9, bay 15" - это поле приходит в ТОМ ЖЕ ответе
+	// /rest/server-hardware, что список серверов, БЕЗ дополнительного
+	// запроса, и поэтому не подвержено сбоям отдельного вызова
+	// GetEnclosure(hw.LocationURI) (см. exportHardware в oneview2/export.go),
+	// от которого зависят identity.Position/srv.EnclosureInfo - именно
+	// пустой srv.EnclosureInfo из-за сбоя этого вызова был основной причиной
+	// того, что часть блейд-серверов не привязывалась к корзине (см.
+	// CHANGELOG (31)/(32) про историю этого разбора).
+	//
+	// ЗАПАСНОЙ источник (если Name почему-то не в этом формате, например
+	// нестандартное именование ресурса на конкретной инсталляции) -
+	// старая связка identity.Position + srv.EnclosureInfo.Name.
+	chassisName, bladeNum, isBlade := oneview.ParseBladeNameBay(identity.Name)
+	if !isBlade && identity.Position > 0 {
+		isBlade = true
+		bladeNum = identity.Position
+		chassisName = oneview.NormalizeEnclosureName(srv.EnclosureInfo.Name)
+	}
+
+	if isBlade {
 		h.FormFactor = 2
-		h.BladeNum = identity.Position
+		h.BladeNum = bladeNum
 
-		BladeSystem := srv.EnclosureInfo.Name
-
-		s := strings.Split(BladeSystem, "-")
-		if len(s) == 2 {
-			num, _ := strconv.Atoi(s[1])
-			BladeSystem = fmt.Sprintf("%s-%02d", s[0], num)
-		}
-		bls := models.BladeSystems{Name: BladeSystem}
-		if err := o.Read(&bls, "Name"); err == nil {
+		bls := models.BladeSystems{Name: chassisName}
+		found := chassisName != "" && o.Read(&bls, "Name") == nil
+		if found {
 			h.BladeSystemId = bls.Id
 			if h.DatacenterRoom == "" { //если у сервера не указан датацентр то берем из данных корзины
 				h.DatacenterRoom = bls.DatacenterRoom
@@ -1008,10 +1025,33 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 				h.RackNum = bls.RackNum
 			}
 			h.StartUnit = bls.StartUnit
-		} else if BladeSystem != "" { //добавить запись в справочник корзин
-			bls.SerialNum = srv.EnclosureInfo.SerialNumber
+		} else if chassisName != "" { //добавить запись в справочник корзин
+			// Данные о самой корзине (серийный номер/модель/тип) сначала
+			// берём из агрегата ov.EnclosureByName (Infrastructure, см.
+			// oneview2/global.go) - он собран по ВСЕМ серверам корзины
+			// сразу и не зависит от того, отработал ли GetEnclosure именно
+			// для ЭТОГО сервера; srv.EnclosureInfo этого сервера -
+			// запасной источник, если агрегата нет или он тоже пуст.
+			serialNum := srv.EnclosureInfo.SerialNumber
+			model := srv.EnclosureInfo.Model
+			encType := srv.EnclosureInfo.EnclosureType
+			if ov != nil && ov.EnclosureByName != nil {
+				if es, ok := ov.EnclosureByName[chassisName]; ok && es != nil {
+					if es.SerialNumber != "" {
+						serialNum = es.SerialNumber
+					}
+					if es.Model != "" {
+						model = es.Model
+					}
+					if es.EnclosureType != "" {
+						encType = es.EnclosureType
+					}
+				}
+			}
+			bls.SerialNum = serialNum
 			bls.PartNum = srv.EnclosureInfo.PartNumber
-			bls.Model = srv.EnclosureInfo.Model
+			bls.Model = model
+			bls.Type = encType
 			bls.Size = srv.EnclosureInfo.DeviceBayCount
 			// Примечание про oneview2: EnclosureInfo на уровне отдельного
 			// Server хранит только общее количество отсеков (DeviceBayCount),
@@ -1020,12 +1060,11 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 			// нельзя и он остаётся нулевым.
 			bls.Used = 0
 			bls.Time_Mfy = time.Now().Local()
-			bls.Anotation = fmt.Sprintf("%s%s", srv.EnclosureInfo.SerialNumber, " Данные добавлены из HP One View")
-			// ИСПРАВЛЕНО (2026-09-07): раньше после успешной вставки h.BladeSystemId
-			// не проставлялся вообще - сервер, из-за которого корзина заводится
-			// впервые, оставался без ссылки на неё до следующего цикла синхронизации
-			// (когда корзина уже находится по Name читающей веткой выше). Теперь
-			// ссылка проставляется сразу же.
+			bls.Anotation = fmt.Sprintf("%s Данные добавлены из HP One View", serialNum)
+			// Ссылка проставляется сразу по возвращённому Id вставленной
+			// записи (см. фикс от 2026-09-07 в CHANGELOG (31)) - сервер, из-за
+			// которого корзина заводится впервые, не остаётся без ссылки на
+			// неё до следующего цикла синхронизации.
 			if id, err := o.Insert(&bls); err != nil {
 				fmt.Println("Ошибка записи данных в справочник корзин.", err)
 			} else {

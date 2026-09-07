@@ -76,6 +76,8 @@ const (
 	Loadmon_GetServerHardwareList_FullMethodName        = "/protocol.Loadmon/GetServerHardwareList"
 	Loadmon_GetHWDatacenterNames_FullMethodName         = "/protocol.Loadmon/GetHWDatacenterNames"
 	Loadmon_GetHWRackNames_FullMethodName               = "/protocol.Loadmon/GetHWRackNames"
+	Loadmon_GetBladeEnclosureByName_FullMethodName      = "/protocol.Loadmon/GetBladeEnclosureByName"
+	Loadmon_GetBladeEnclosureBySN_FullMethodName        = "/protocol.Loadmon/GetBladeEnclosureBySN"
 	Loadmon_RegisterWorkProcess_FullMethodName          = "/protocol.Loadmon/RegisterWorkProcess"
 	Loadmon_GetClusterSprRecords_FullMethodName         = "/protocol.Loadmon/GetClusterSprRecords"
 )
@@ -172,6 +174,15 @@ type LoadmonClient interface {
 	// для выпадающих списков фильтра "Датацентр"/"Шкаф" на /sprsrv/hwviewlist.
 	GetHWDatacenterNames(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameList, error)
 	GetHWRackNames(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameList, error)
+	// Информация по блейд-корзине (агрегат oneview2.Infrastructure.EnclosureByName/
+	// EnclosureBySN, см. oneview2/bladename.go и CHANGELOG за 2026-09-07) -
+	// собрана со стороны серверов корзины (парсинг Server.Identity.Name вида
+	// "c7000-9, bay 15"), не требует отдельного запроса GetEnclosure на каждый
+	// сервер. Задел под будущие доработки (запрошено пользователем отдельно от
+	// привязки серверов в cmdb/initrec.go), на момент добавления клиентских
+	// вызовов ещё нет.
+	GetBladeEnclosureByName(ctx context.Context, in *ServerName, opts ...grpc.CallOption) (*BladeEnclosure, error)
+	GetBladeEnclosureBySN(ctx context.Context, in *SerialNumber, opts ...grpc.CallOption) (*BladeEnclosure, error)
 	// all service
 	RegisterWorkProcess(ctx context.Context, in *RegisterEndpoint, opts ...grpc.CallOption) (*StatusWork, error)
 	GetClusterSprRecords(ctx context.Context, in *EndpointReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RegisterEndpoint], error)
@@ -732,6 +743,26 @@ func (c *loadmonClient) GetHWRackNames(ctx context.Context, in *Empty, opts ...g
 	return out, nil
 }
 
+func (c *loadmonClient) GetBladeEnclosureByName(ctx context.Context, in *ServerName, opts ...grpc.CallOption) (*BladeEnclosure, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BladeEnclosure)
+	err := c.cc.Invoke(ctx, Loadmon_GetBladeEnclosureByName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *loadmonClient) GetBladeEnclosureBySN(ctx context.Context, in *SerialNumber, opts ...grpc.CallOption) (*BladeEnclosure, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BladeEnclosure)
+	err := c.cc.Invoke(ctx, Loadmon_GetBladeEnclosureBySN_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *loadmonClient) RegisterWorkProcess(ctx context.Context, in *RegisterEndpoint, opts ...grpc.CallOption) (*StatusWork, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StatusWork)
@@ -853,6 +884,15 @@ type LoadmonServer interface {
 	// для выпадающих списков фильтра "Датацентр"/"Шкаф" на /sprsrv/hwviewlist.
 	GetHWDatacenterNames(context.Context, *Empty) (*NameList, error)
 	GetHWRackNames(context.Context, *Empty) (*NameList, error)
+	// Информация по блейд-корзине (агрегат oneview2.Infrastructure.EnclosureByName/
+	// EnclosureBySN, см. oneview2/bladename.go и CHANGELOG за 2026-09-07) -
+	// собрана со стороны серверов корзины (парсинг Server.Identity.Name вида
+	// "c7000-9, bay 15"), не требует отдельного запроса GetEnclosure на каждый
+	// сервер. Задел под будущие доработки (запрошено пользователем отдельно от
+	// привязки серверов в cmdb/initrec.go), на момент добавления клиентских
+	// вызовов ещё нет.
+	GetBladeEnclosureByName(context.Context, *ServerName) (*BladeEnclosure, error)
+	GetBladeEnclosureBySN(context.Context, *SerialNumber) (*BladeEnclosure, error)
 	// all service
 	RegisterWorkProcess(context.Context, *RegisterEndpoint) (*StatusWork, error)
 	GetClusterSprRecords(*EndpointReq, grpc.ServerStreamingServer[RegisterEndpoint]) error
@@ -994,6 +1034,12 @@ func (UnimplementedLoadmonServer) GetHWDatacenterNames(context.Context, *Empty) 
 }
 func (UnimplementedLoadmonServer) GetHWRackNames(context.Context, *Empty) (*NameList, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetHWRackNames not implemented")
+}
+func (UnimplementedLoadmonServer) GetBladeEnclosureByName(context.Context, *ServerName) (*BladeEnclosure, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBladeEnclosureByName not implemented")
+}
+func (UnimplementedLoadmonServer) GetBladeEnclosureBySN(context.Context, *SerialNumber) (*BladeEnclosure, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBladeEnclosureBySN not implemented")
 }
 func (UnimplementedLoadmonServer) RegisterWorkProcess(context.Context, *RegisterEndpoint) (*StatusWork, error) {
 	return nil, status.Error(codes.Unimplemented, "method RegisterWorkProcess not implemented")
@@ -1705,6 +1751,42 @@ func _Loadmon_GetHWRackNames_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Loadmon_GetBladeEnclosureByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServerName)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonServer).GetBladeEnclosureByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Loadmon_GetBladeEnclosureByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonServer).GetBladeEnclosureByName(ctx, req.(*ServerName))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Loadmon_GetBladeEnclosureBySN_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SerialNumber)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonServer).GetBladeEnclosureBySN(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Loadmon_GetBladeEnclosureBySN_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonServer).GetBladeEnclosureBySN(ctx, req.(*SerialNumber))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Loadmon_RegisterWorkProcess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RegisterEndpoint)
 	if err := dec(in); err != nil {
@@ -1860,6 +1942,14 @@ var Loadmon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetHWRackNames",
 			Handler:    _Loadmon_GetHWRackNames_Handler,
+		},
+		{
+			MethodName: "GetBladeEnclosureByName",
+			Handler:    _Loadmon_GetBladeEnclosureByName_Handler,
+		},
+		{
+			MethodName: "GetBladeEnclosureBySN",
+			Handler:    _Loadmon_GetBladeEnclosureBySN_Handler,
 		},
 		{
 			MethodName: "RegisterWorkProcess",

@@ -267,6 +267,110 @@ func (s *server) GetServerHardwareList(in *pb.HWReq, stream grpc.ServerStreaming
 	return nil
 }
 
+// enclosureSummaryToMessage конвертирует oneview2.EnclosureSummary (агрегат
+// по блейд-корзине, собранный со стороны серверов - см. oneview2/bladename.go)
+// в gRPC-сообщение pb.BladeEnclosure.
+func enclosureSummaryToMessage(es *oneview.EnclosureSummary) *pb.BladeEnclosure {
+	if es == nil {
+		return nil
+	}
+	out := &pb.BladeEnclosure{
+		Name:          es.Name,
+		SerialNumber:  es.SerialNumber,
+		Model:         es.Model,
+		EnclosureType: es.EnclosureType,
+	}
+	bays := make([]int, 0, len(es.ByBay))
+	for bay := range es.ByBay {
+		bays = append(bays, bay)
+	}
+	sort.Ints(bays)
+	for _, bay := range bays {
+		srv := es.ByBay[bay]
+		ref := &pb.BladeBayRef{BayNumber: int32(bay)}
+		if srv != nil {
+			ref.ServerName = srv.Identity.Name
+			ref.ServerSerialNumber = srv.Identity.SerialNumber
+		}
+		out.Bays = append(out.Bays, ref)
+	}
+	return out
+}
+
+// GetBladeEnclosureByName возвращает сводную информацию по блейд-корзине
+// (см. pb.BladeEnclosure) по её нормализованному имени ("c7000-09"), собранную
+// со стороны серверов корзины - oneview2.Infrastructure.EnclosureByName (см.
+// oneview2/global.go, oneview2/bladename.go). Задел под будущие доработки.
+func (p *server) GetBladeEnclosureByName(_ context.Context, in *pb.ServerName) (*pb.BladeEnclosure, error) {
+	if config.Switch.Endpoint.Count() > 0 {
+		for _, key := range config.Switch.Endpoint.Keys() {
+			endpoint, ok := config.Switch.Endpoint.Get(key)
+			if !ok {
+				continue
+			}
+			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				log.Printf("did not connect: %v\n", err)
+				continue
+			}
+			c := pb.NewLoadmonClient(conn)
+			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
+			enc, err := c.GetBladeEnclosureByName(ctx, in)
+			cancel()
+			conn.Close()
+			if err == nil && enc != nil {
+				return enc, nil
+			}
+		}
+		return &pb.BladeEnclosure{}, fmt.Errorf(errBladeNotFoundName, in.Name)
+	}
+	ov := oneview.GetGlobalOVInfrastructure()
+	ov.WaitUnLockGetData() // см. комментарий в GetServerHardwareBySN про гонку с LoadServerHardwareList
+	if ov.EnclosureByName != nil {
+		if es, ok := ov.EnclosureByName[in.Name]; ok {
+			return enclosureSummaryToMessage(es), nil
+		}
+	}
+	return nil, fmt.Errorf(errBladeNotFoundName, in.Name)
+}
+
+// GetBladeEnclosureBySN — то же самое, что GetBladeEnclosureByName, но поиск
+// по серийному номеру корзины (oneview2.Infrastructure.EnclosureBySN) -
+// известен, только если для хотя бы одного сервера корзины отработал
+// GetEnclosure (см. комментарий у Infrastructure.EnclosureBySN).
+func (p *server) GetBladeEnclosureBySN(_ context.Context, in *pb.SerialNumber) (*pb.BladeEnclosure, error) {
+	if config.Switch.Endpoint.Count() > 0 {
+		for _, key := range config.Switch.Endpoint.Keys() {
+			endpoint, ok := config.Switch.Endpoint.Get(key)
+			if !ok {
+				continue
+			}
+			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				log.Printf("did not connect: %v\n", err)
+				continue
+			}
+			c := pb.NewLoadmonClient(conn)
+			ctx, cancel := context.WithTimeout(context.Background(), hardwareGrpcTimeout())
+			enc, err := c.GetBladeEnclosureBySN(ctx, in)
+			cancel()
+			conn.Close()
+			if err == nil && enc != nil {
+				return enc, nil
+			}
+		}
+		return &pb.BladeEnclosure{}, fmt.Errorf(errBladeNotFoundSN, in.SerialNumber)
+	}
+	ov := oneview.GetGlobalOVInfrastructure()
+	ov.WaitUnLockGetData() // см. комментарий в GetServerHardwareBySN про гонку с LoadServerHardwareList
+	if ov.EnclosureBySN != nil {
+		if es, ok := ov.EnclosureBySN[in.SerialNumber]; ok {
+			return enclosureSummaryToMessage(es), nil
+		}
+	}
+	return nil, fmt.Errorf(errBladeNotFoundSN, in.SerialNumber)
+}
+
 // GetHWDatacenterNames отдаёт клиенту список всех различных значений
 // Datacenter.Name, накопленных oneview2.Infrastructure по всем собранным
 // серверам (см. oneview2/global.go, DatacenterNameList) - в отличие от

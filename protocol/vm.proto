@@ -106,6 +106,15 @@ service Loadmon {
   // для выпадающих списков фильтра "Датацентр"/"Шкаф" на /sprsrv/hwviewlist.
   rpc GetHWDatacenterNames(Empty) returns (NameList) {} //
   rpc GetHWRackNames(Empty) returns (NameList) {} //
+  // Информация по блейд-корзине (агрегат oneview2.Infrastructure.EnclosureByName/
+  // EnclosureBySN, см. oneview2/bladename.go и CHANGELOG за 2026-09-07) -
+  // собрана со стороны серверов корзины (парсинг Server.Identity.Name вида
+  // "c7000-9, bay 15"), не требует отдельного запроса GetEnclosure на каждый
+  // сервер. Задел под будущие доработки (запрошено пользователем отдельно от
+  // привязки серверов в cmdb/initrec.go), на момент добавления клиентских
+  // вызовов ещё нет.
+  rpc GetBladeEnclosureByName(ServerName) returns (BladeEnclosure) {} //
+  rpc GetBladeEnclosureBySN(SerialNumber) returns (BladeEnclosure) {} //
   //all service
   rpc RegisterWorkProcess(RegisterEndpoint) returns (StatusWork) {}
   rpc GetClusterSprRecords(EndpointReq) returns (stream RegisterEndpoint) {}
@@ -883,6 +892,29 @@ message SerialNumber {
 //
 message ServerName {
   string Name = 1;
+}
+
+// BladeBayRef - один занятый отсек блейд-корзины: номер отсека и краткие
+// данные сервера, установленного в него (см. oneview2.EnclosureSummary.ByBay).
+message BladeBayRef {
+  int32  BayNumber          = 1;
+  string ServerName         = 2; // Server.Identity.Name
+  string ServerSerialNumber = 3; // Server.Identity.SerialNumber
+}
+
+// BladeEnclosure - сводная информация по блейд-корзине, собранная со
+// стороны серверов, установленных в неё (см. oneview2/bladename.go:
+// EnclosureSummary, Infrastructure.EnclosureByName/EnclosureBySN) - в
+// отличие от Enclosure (заполняется отдельным запросом GetEnclosure на
+// каждый сервер и может остаться пустой при его сбое), этот агрегат
+// строится из уже собранного списка серверов и всегда доступен, если хотя
+// бы один сервер корзины успешно опрошен.
+message BladeEnclosure {
+  string Name          = 1; // нормализованное имя корзины, см. NormalizeEnclosureName ("c7000-09")
+  string SerialNumber  = 2; // best-effort - известен, если хотя бы для одного сервера корзины отработал GetEnclosure
+  string Model         = 3;
+  string EnclosureType = 4;
+  repeated BladeBayRef Bays = 5;
 }
 
 //
