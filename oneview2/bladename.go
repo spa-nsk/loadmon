@@ -64,7 +64,16 @@ type EnclosureSummary struct {
 	SerialNumber  string          // лучшее известное значение (см. комментарий у Infrastructure.EnclosureBySN) - может быть пустым
 	Model         string          // то же самое - best-effort из EnclosureInfo любого сервера корзины
 	EnclosureType string
-	ByBay         map[int]*Server // сервера корзины по номеру отсека (bay)
+	// Status/State - health-статус ("OK"/"Warning"/"Critical"/...) и
+	// состояние ресурса ("Configured"/"Removed"/...) корзины, лучшее
+	// известное значение (см. комментарий у SerialNumber выше) - как и
+	// SerialNumber/Model/EnclosureType, заполняется только если хотя бы для
+	// ОДНОГО сервера корзины отработал GetEnclosure (см. EnclosureInfo).
+	// Используется в cmdb/initrec.go для простановки
+	// BladeSystems.PowerState/Active при синхронизации с OneView (2026-09-08).
+	Status string
+	State  string
+	ByBay  map[int]*Server // сервера корзины по номеру отсека (bay)
 }
 
 // NormalizeEnclosureName приводит имя корзины к единому виду "PREFIX-NN"

@@ -26,9 +26,10 @@
 # (см. target: BladeSystems.Name ниже, а не BladeSystems.InventoryNum, как
 # можно было бы предположить по названию колонки). Колонка "Описание" в
 # примере обычно дублирует то же значение (иногда с небольшими отличиями в
-# регистре/префиксе, см. "mt-c7000-02"/"mf-c7000-02" в примере) - это
-# отдельное свободнотекстовое поле BladeSystems.Description, НЕ используется
-# для поиска.
+# регистре/префиксе, см. "mt-c7000-02"/"mf-c7000-02" в примере) - раньше
+# уходило в отдельное свободнотекстовое поле BladeSystems.Description,
+# которого больше нет (см. extra.description ниже) - НЕ используется для
+# поиска.
 
 source_sheet: export
 
@@ -37,12 +38,12 @@ fields:
   # отдельного поля под технический номер IT - уходит в extra на случай,
   # если понадобится сверка.
   - header: "Тех. номер IT"
-    target: extra.technical_number_it
+    target: BladeSystems.TechnicalNumberIT
     transform: trim
 
   - header: "Бух.инв.№"
     target: BladeSystems.InventoryNumBuh
-    transform: numeric_to_string
+    transform: trim
 
   # ⚠️ См. предупреждение выше - это ИМЯ шасси (C7000-01 и т.п.), а не
   # старый инвентарный номер. Ключевое поле для поиска существующей записи.
@@ -50,8 +51,10 @@ fields:
     target: BladeSystems.Name
     transform: trim
 
+  # ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился свободнотекстового
+  # поля Description - значение сохраняется в extra на случай ручной сверки.
   - header: "Описание"
-    target: BladeSystems.Description
+    target: extra.description
     transform: trim
 
   # "Марка/модель(Норматив)" в примере почти всегда пусто - но, в отличие от
@@ -67,7 +70,7 @@ fields:
     transform: trim
 
   - header: "Автор"
-    target: extra.author_name
+    target: BladeSystems.Owner
     transform: trim
 
   - header: "Дата ремонта"
@@ -98,6 +101,15 @@ fields:
     target: BladeSystems.Size
     transform: numeric_to_string
 
+  # ДОБАВЛЕНО (2026-09-08, по запросу пользователя): сырое (нетронутое)
+  # значение той же колонки, что разбирает composite rack_unit_split ниже -
+  # используется importblades.go как признак "размещение в шкафу указано" и
+  # копируется как есть в BladeSystems.Anotation (у BladeSystems больше нет
+  # отдельного текстового поля под эту колонку целиком, см. RackNum выше).
+  - header: "Размещение в шкафу/стойке"
+    target: BladeSystems.Anotation
+    transform: trim
+
 # Составные преобразования - см. подробное описание в itilliumimport/mapping.yaml
 # (серверный образец), реализация функций для блейд-корзин - в
 # itilliumimport/convertblade.go (applyCompositeBlade). Форматы значений в
@@ -111,9 +123,13 @@ composites:
   # случае вся строка целиком попадёт в BladeSystems.DatacenterRoom, доп.
   # части в extra не заполнятся - это ожидаемо, требует ручной проверки
   # (см. Result.Warnings это не подсвечивает, т.к. формально не ошибка).
+  # ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстового
+  # DatacenterRoom (расположение теперь описывается только FK RackCabinetId,
+  # который выгрузка Итиллиум текстом не заполняет) - значение уходит в
+  # extra на случай ручной сверки/привязки к справочнику шкафов.
   - name: location_split
     sources: ["Местоположение"]
-    targets: ["BladeSystems.DatacenterRoom"]
+    targets: ["extra.datacenter_room"]
     params:
       separator: "|"
       extra_prefix: "location"
@@ -121,11 +137,18 @@ composites:
   # "Размещение в шкафу/стойке": "3.1-A-03 | 13-22" - шасси C7000 занимает
   # 10 юнитов (13-22, 1-10 и т.п. в примере) - в части строк колонка пуста
   # (composite тогда просто ничего не заполняет, без предупреждения).
+  # ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстового RackNum -
+  # номер стойки уходит в extra (та же причина, что и у DatacenterRoom
+  # выше), StartUnitPos/EndUnitPos остались настоящими полями схемы.
+  # ИЗМЕНЕНО (2026-09-08, повторно, по запросу пользователя): третий target -
+  # EndUnitPos (конечная позиция), а не вычисленный SizeUnit - SizeUnit
+  # больше не показывается в форме и вычисляется по StartUnitPos/EndUnitPos
+  # перед сохранением (см. itilliumimport/importblades.go).
   - name: rack_unit_split
     sources: ["Размещение в шкафу/стойке"]
     targets:
-      - "BladeSystems.RackNum"
+      - "extra.rack_num"
       - "BladeSystems.StartUnitPos"
-      - "BladeSystems.SizeUnit"
+      - "BladeSystems.EndUnitPos"
     params:
       separator: "|"

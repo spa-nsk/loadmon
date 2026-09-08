@@ -953,6 +953,45 @@ func RestoreSprData(to *models.ServerSprRecords, from models.ServerSprRecords) {
 // функция переиспользует ТОТ ЖЕ ORM-исполнитель, что и вызывающий код -
 // работа с BladeSystems становится частью той же транзакции, конфликта
 // блокировок больше нет.
+// bladeSystemPowerActiveFromEnclosure выводит числовые коды
+// BladeSystems.PowerState/Active (см. models_add.go: 0 не указано,
+// PowerState 1 включен/2 выключен, Active 1 активен/2 выведен из
+// эксплуатации) из состояния корзины по данным HPE OneView (2026-09-08, по
+// запросу пользователя "простановка статусов PowerState и Active на основе
+// состояния блэйд корзины"). У oneview2.EnclosureInfo нет отдельного поля
+// "включена ли корзина" (в отличие от identity.PowerState у сервера) -
+// ближайшие доступные сигналы:
+//   - status - health-статус ("OK"/"Warning"/"Critical"/...) -> PowerState
+//     (по аналогии с h.PowerState: есть определённый статус и он "OK" ->
+//     включена/исправна (1), любой другой непустой статус -> выключена/
+//     неисправна (2, то же значение используется для отображения
+//     "выключен последнее известное состояние", см. комментарий у поля).
+//   - state - состояние ресурса в OneView ("Configured"/"Removed"/...) ->
+//     Active (непустое, отличное от "Removed" -> активна (1), "Removed" ->
+//     выведена из эксплуатации (2)).
+//
+// Если соответствующее значение не пришло (пустая строка - GetEnclosure не
+// отработал ни для одного сервера корзины), возвращается 0 ("не указано") -
+// вызывающий код (см. ImportHWSprRecord) не должен затирать этим нулём уже
+// известное значение при обновлении существующей записи.
+func bladeSystemPowerActiveFromEnclosure(status, state string) (powerState, active int) {
+	if status != "" {
+		if status == "OK" {
+			powerState = 1
+		} else {
+			powerState = 2
+		}
+	}
+	if state != "" {
+		if state == "Removed" {
+			active = 2
+		} else {
+			active = 1
+		}
+	}
+	return powerState, active
+}
+
 func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *oneview.Server, ov *oneview.Infrastructure) {
 	if o == nil || h == nil || srv == nil || ov == nil {
 		return
@@ -1014,17 +1053,63 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 		h.FormFactor = 2
 		h.BladeNum = bladeNum
 
+		// Данные о состоянии корзины (health-статус/state ресурса) сначала
+		// берём из агрегата ov.EnclosureByName (собран по ВСЕМ серверам
+		// корзины, не зависит от того, отработал ли GetEnclosure именно для
+		// ЭТОГО сервера), запасной источник - srv.EnclosureInfo этого
+		// сервера. См. bladeSystemPowerActiveFromEnclosure ниже.
+		encStatus := srv.EnclosureInfo.Status
+		encState := srv.EnclosureInfo.State
+		if ov != nil && ov.EnclosureByName != nil {
+			if es, ok := ov.EnclosureByName[chassisName]; ok && es != nil {
+				if es.Status != "" {
+					encStatus = es.Status
+				}
+				if es.State != "" {
+					encState = es.State
+				}
+			}
+		}
+		newPowerState, newActive := bladeSystemPowerActiveFromEnclosure(encStatus, encState)
+
 		bls := models.BladeSystems{Name: chassisName}
 		found := chassisName != "" && o.Read(&bls, "Name") == nil
 		if found {
 			h.BladeSystemId = bls.Id
-			if h.DatacenterRoom == "" { //если у сервера не указан датацентр то берем из данных корзины
-				h.DatacenterRoom = bls.DatacenterRoom
+			// ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстовых
+			// DatacenterRoom/RackNum/StartUnit - расположение корзины теперь
+			// описывается только RackCabinetId (FK на справочник шкафов) и
+			// StartUnitPos (юнит), см. models_add.go. Переносим их на сервер
+			// той же логикой "если у сервера не указано - берём из данных
+			// корзины".
+			if h.RackCabinetId == 0 {
+				h.RackCabinetId = bls.RackCabinetId
 			}
-			if h.RackNum == "" { //если у сервера не указан номер стойки то берем из данных корзины
-				h.RackNum = bls.RackNum
+			h.StartUnitPos = bls.StartUnitPos
+
+			// ДОБАВЛЕНО (2026-09-08, по запросу пользователя): простановка
+			// PowerState/Active корзины по её состоянию в OneView при каждой
+			// синхронизации. Пишем только когда получили ОПРЕДЕЛЁННОЕ
+			// (ненулевое) значение - если OneView сейчас не отдал статус
+			// (например, GetEnclosure не отработал ни для одного сервера
+			// корзины), не затираем ранее известное/вручную выставленное
+			// значение нулём ("не указано").
+			if newPowerState != 0 || newActive != 0 {
+				cols := make([]string, 0, 2)
+				if newPowerState != 0 && bls.PowerState != newPowerState {
+					bls.PowerState = newPowerState
+					cols = append(cols, "PowerState")
+				}
+				if newActive != 0 && bls.Active != newActive {
+					bls.Active = newActive
+					cols = append(cols, "Active")
+				}
+				if len(cols) > 0 {
+					if _, err := o.Update(&bls, cols...); err != nil {
+						fmt.Println("Ошибка обновления статуса корзины.", err)
+					}
+				}
 			}
-			h.StartUnit = bls.StartUnit
 		} else if chassisName != "" { //добавить запись в справочник корзин
 			// Данные о самой корзине (серийный номер/модель/тип) сначала
 			// берём из агрегата ov.EnclosureByName (Infrastructure, см.
@@ -1053,6 +1138,8 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 			bls.Model = model
 			bls.Type = encType
 			bls.Size = srv.EnclosureInfo.DeviceBayCount
+			bls.PowerState = newPowerState
+			bls.Active = newActive
 			// Примечание про oneview2: EnclosureInfo на уровне отдельного
 			// Server хранит только общее количество отсеков (DeviceBayCount),
 			// а не список занятых/свободных отсеков, как старый

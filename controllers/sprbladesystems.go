@@ -21,14 +21,12 @@ import (
 // сессии, постраничная навигация, экспорт) идентичен StorageSystemsFilter в
 // controllers/sprstoragesystems.go (образец стиля для этой формы).
 type BladeSystemsFilter struct {
-	Vendor         string `form:"Vendor"`
-	Model          string `form:"Model"`
-	Type           string `form:"Type"`
-	Name           string `form:"Name"`
-	SerialNum      string `form:"SerialNum"`
-	InventoryNum   string `form:"InventoryNum"`
-	DatacenterRoom string `form:"DatacenterRoom"`
-	RackNum        string `form:"RackNum"`
+	Vendor       string `form:"Vendor"`
+	Model        string `form:"Model"`
+	Type         string `form:"Type"`
+	Name         string `form:"Name"`
+	SerialNum    string `form:"SerialNum"`
+	InventoryNum string `form:"InventoryNum"`
 }
 
 func defaultBladeSystemsFilter() *BladeSystemsFilter {
@@ -37,7 +35,7 @@ func defaultBladeSystemsFilter() *BladeSystemsFilter {
 
 // SprBladeSystems отображает список записей справочника блейд-корзин
 // (models.BladeSystems, таблица blade_systems) с фильтром по
-// Vendor/Model/Type/Name/SerialNum/InventoryNum/DatacenterRoom/RackNum и
+// Vendor/Model/Type/Name/SerialNum/InventoryNum и
 // постраничной навигацией, включая экспорт в CSV и XLSX - структура
 // фильтра/пагинации/экспорта и оформление полностью повторяют
 // /sprsrv/storagesystemslist (controllers/sprstoragesystems.go).
@@ -117,12 +115,6 @@ func (this *MainController) SprBladeSystems() {
 	if filter.InventoryNum != "" {
 		qs = qs.Filter("InventoryNum__icontains", filter.InventoryNum)
 	}
-	if filter.DatacenterRoom != "" {
-		qs = qs.Filter("DatacenterRoom__icontains", filter.DatacenterRoom)
-	}
-	if filter.RackNum != "" {
-		qs = qs.Filter("RackNum__icontains", filter.RackNum)
-	}
 
 	totalRecords, err := qs.Count()
 	if err != nil {
@@ -166,7 +158,61 @@ func (this *MainController) SprBladeSystems() {
 		return
 	}
 
-	this.renderBladeSystemsPage(records, totalRecords, page, pageSize)
+	this.renderBladeSystemsPage(o, records, totalRecords, page, pageSize)
+}
+
+// bladeSystemsPlacementByCabinetId строит по списку записей models.BladeSystems
+// (только по их RackCabinetId) карту "Id шкафа -> "ЦОД / шкаф"" - готовую
+// строку для колонки "Размещение" списка /sprsrv/bladesystemslist. Сделано
+// (2026-09-08, по запросу пользователя) взамен убранных ранее текстовых
+// BladeSystems.DatacenterRoom/RackNum (см. CHANGELOG): единственный источник
+// расположения корзины теперь FK RackCabinetId, поэтому имя ЦОД и шкафа
+// приходится подтягивать отдельным запросом - аналогичный lookup уже
+// используется в controllers/infrastructure_canvas.go для той же цели.
+func bladeSystemsPlacementByCabinetId(o orm.Ormer, rows []models.BladeSystems) map[int64]string {
+	result := map[int64]string{}
+	cabinetIds := make([]int64, 0, len(rows))
+	seen := map[int64]bool{}
+	for _, r := range rows {
+		if r.RackCabinetId > 0 && !seen[r.RackCabinetId] {
+			seen[r.RackCabinetId] = true
+			cabinetIds = append(cabinetIds, r.RackCabinetId)
+		}
+	}
+	if len(cabinetIds) == 0 {
+		return result
+	}
+	var cabinets []models.RackCabinet
+	if _, err := o.QueryTable(new(models.RackCabinet)).Filter("Id__in", cabinetIds).All(&cabinets); err != nil {
+		return result
+	}
+	siteIds := make([]int64, 0, len(cabinets))
+	for _, c := range cabinets {
+		if c.DatacenterSiteId > 0 {
+			siteIds = append(siteIds, c.DatacenterSiteId)
+		}
+	}
+	siteNameById := map[int64]string{}
+	if len(siteIds) > 0 {
+		var sites []models.DatacenterSite
+		if _, err := o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteIds).All(&sites); err == nil {
+			for _, s := range sites {
+				siteNameById[s.Id] = s.Name
+			}
+		}
+	}
+	for _, c := range cabinets {
+		site := siteNameById[c.DatacenterSiteId]
+		switch {
+		case site != "" && c.Name != "":
+			result[c.Id] = site + " / " + c.Name
+		case c.Name != "":
+			result[c.Id] = c.Name
+		default:
+			result[c.Id] = site
+		}
+	}
+	return result
 }
 
 // exportBladeSystemsXLSX отдаёт найденный по фильтру список записей
@@ -294,8 +340,10 @@ func (this *MainController) exportBladeSystemsCSV(rows []models.BladeSystems, fl
 }
 
 // renderBladeSystemsPage кладёт в Data готовую страницу списка (записи +
-// параметры пагинации) - аналогично renderStorageSystemsPage.
-func (this *MainController) renderBladeSystemsPage(rows []models.BladeSystems, totalRecords int64, page, pageSize int) {
+// параметры пагинации) - аналогично renderStorageSystemsPage. Дополнительно
+// строит bladeSystemsPlacementByCabinetId для колонки "Размещение" (см.
+// комментарий у этой функции).
+func (this *MainController) renderBladeSystemsPage(o orm.Ormer, rows []models.BladeSystems, totalRecords int64, page, pageSize int) {
 	totalPages := int((totalRecords + int64(pageSize) - 1) / int64(pageSize))
 	if totalPages < 1 {
 		totalPages = 1
@@ -306,6 +354,7 @@ func (this *MainController) renderBladeSystemsPage(rows []models.BladeSystems, t
 	offset := (page - 1) * pageSize
 
 	this.Data["BladeSystemsList"] = rows
+	this.Data["BladeSystemsPlacement"] = bladeSystemsPlacementByCabinetId(o, rows)
 	this.Data["BladeSystemsCount"] = totalRecords
 	this.Data["Page"] = page
 	this.Data["PageSize"] = pageSize
@@ -342,6 +391,22 @@ func parseBladeSystemsDate(s string) time.Time {
 		return time.Time{}
 	}
 	return t
+}
+
+// bladeSystemsComputeSizeUnit вычисляет BladeSystems.SizeUnit (количество
+// занимаемых юнитов) по StartUnitPos/EndUnitPos - по запросу пользователя
+// (2026-09-08) SizeUnit больше не вводится в форме редактирования напрямую
+// (введены только начальная и конечная позиция), а всегда пересчитывается
+// перед сохранением - и здесь (форма редактирования), и при импорте из
+// Итиллиум (см. itilliumimport/importblades.go). При некорректных или не
+// заполненных значениях (EndUnitPos < StartUnitPos, StartUnitPos <= 0)
+// возвращает 0 ("не указано") вместо того, чтобы писать отрицательное или
+// заведомо неверное число.
+func bladeSystemsComputeSizeUnit(startUnitPos, endUnitPos int) int {
+	if startUnitPos <= 0 || endUnitPos < startUnitPos {
+		return 0
+	}
+	return endUnitPos - startUnitPos + 1
 }
 
 // SprBladeSystemsEdit отображает форму просмотра/редактирования одной записи
@@ -403,17 +468,21 @@ func (this *MainController) SprBladeSystemsEdit() {
 		rec.Size, _ = strconv.Atoi(this.GetString("Size"))
 		rec.Used, _ = strconv.Atoi(this.GetString("Used"))
 
-		rec.DatacenterRoom = this.GetString("DatacenterRoom")
-		rec.RackNum = this.GetString("RackNum")
-		rec.StartUnit = this.GetString("StartUnit")
+		// ИЗМЕНЕНО (2026-09-08, по запросу пользователя): в форме указываются
+		// StartUnitPos и EndUnitPos, SizeUnit в форме больше не отображается -
+		// вычисляется ниже перед сохранением (см.
+		// bladeSystemsComputeSizeUnit).
 		rec.StartUnitPos, _ = strconv.Atoi(this.GetString("StartUnitPos"))
-		rec.SizeUnit, _ = strconv.Atoi(this.GetString("SizeUnit"))
+		rec.EndUnitPos, _ = strconv.Atoi(this.GetString("EndUnitPos"))
+		rec.SizeUnit = bladeSystemsComputeSizeUnit(rec.StartUnitPos, rec.EndUnitPos)
 		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
 
 		rec.Owner = this.GetString("Owner")
-		rec.Allocation = this.GetString("Allocation")
 		rec.Anotation = this.GetString("Anotation")
-		rec.Description = this.GetString("Description")
+
+		rec.PowerState, _ = strconv.Atoi(this.GetString("PowerState"))
+		rec.Active, _ = strconv.Atoi(this.GetString("Active"))
+		rec.TechnicalNumberIT = this.GetString("TechnicalNumberIT")
 
 		rec.InventoryNum = this.GetString("InventoryNum")
 		rec.InventoryNumBuh = this.GetString("InventoryNumBuh")
@@ -450,6 +519,16 @@ func (this *MainController) SprBladeSystemsEdit() {
 		flash.Notice("Запись сохранена.")
 		flash.Store(&this.Controller)
 	}
+
+	// ДОБАВЛЕНО (2026-09-08, по запросу пользователя): выбор ЦОД, по которому
+	// в форме отфильтровывается список шкафов этого ЦОД (каскадный select,
+	// см. bladesystemsedit.tpl) - сохраняется по-прежнему только
+	// BladeSystems.RackCabinetId, ЦОД выводится для удобства выбора и на
+	// сервере не читается (this.GetString("DatacenterSiteId") нигде не
+	// используется).
+	var sites []models.DatacenterSite
+	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&sites)
+	this.Data["DatacenterSites"] = sites
 
 	var racks []models.RackCabinet
 	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)

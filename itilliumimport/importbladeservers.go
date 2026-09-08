@@ -140,16 +140,14 @@ func ImportItiliumBladeServer(name string) {
 			bs := models.BladeSystems{Name: bladeRefName}
 			if err := trn.Read(&bs, "Name"); err == nil {
 				r.Hw.BladeSystemId = bs.Id
+				// ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился
+				// текстовых DatacenterRoom/RackNum - расположение корзины
+				// теперь переносится на сервер только через RackCabinetId
+				// (FK), текстовые поля ServerHardware.DatacenterRoom/RackNum
+				// сервер получает исключительно из разбора "Местоположение"
+				// собственной строки выгрузки (см. выше).
 				if bs.RackCabinetId != 0 {
 					r.Hw.RackCabinetId = bs.RackCabinetId
-				}
-				// Текстовые поля - тоже подтягиваем от корзины для
-				// консистентности (не обязательно, но не помешает).
-				if bs.DatacenterRoom != "" {
-					r.Hw.DatacenterRoom = bs.DatacenterRoom
-				}
-				if bs.RackNum != "" {
-					r.Hw.RackNum = bs.RackNum
 				}
 			} else {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - блейд-корзина", bladeRefName, "не найдена (см. /admin/importblades) - RackCabinetId сервера взят из разбора \"Местоположение\" этой строки, если получилось")

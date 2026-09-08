@@ -257,10 +257,9 @@ func buildHWInfraData() (HWInfraData, error) {
 		if sizeU <= 0 {
 			sizeU = 10
 		}
+		// ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстового
+		// StartUnit - StartUnitPos (число) остался единственным источником.
 		startU := ch.StartUnitPos
-		if startU <= 0 {
-			startU = parseStartUnit(ch.StartUnit)
-		}
 		siteID := siteOfCabinet(ch.RackCabinetId)
 		r := ensureRack(siteID, ch.RackCabinetId)
 		r.chassis = append(r.chassis, HWInfraChassis{

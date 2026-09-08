@@ -269,6 +269,12 @@ func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 			if es.EnclosureType == "" && s.EnclosureInfo.EnclosureType != "" {
 				es.EnclosureType = s.EnclosureInfo.EnclosureType
 			}
+			if es.Status == "" && s.EnclosureInfo.Status != "" {
+				es.Status = s.EnclosureInfo.Status
+			}
+			if es.State == "" && s.EnclosureInfo.State != "" {
+				es.State = s.EnclosureInfo.State
+			}
 		}
 		warnings = append(warnings, s.Warnings...)
 	}

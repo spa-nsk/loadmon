@@ -38,14 +38,6 @@
                 <label for="InventoryNum" class="form-label">Инвентарный номер</label>
                 <input type="text" id="InventoryNum" name="InventoryNum" class="form-control" value="{{.BladeSystemsFilter.InventoryNum}}">
             </div>
-            <div class="col-6 col-md-3">
-                <label for="DatacenterRoom" class="form-label">ЦОД / серверная</label>
-                <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.BladeSystemsFilter.DatacenterRoom}}">
-            </div>
-            <div class="col-6 col-md-3">
-                <label for="RackNum" class="form-label">Номер стойки</label>
-                <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.BladeSystemsFilter.RackNum}}">
-            </div>
         </div>
         <div class="row mt-3">
             <div class="col-12 d-flex flex-wrap align-items-center gap-2">
@@ -94,7 +86,7 @@
                 <td>{{$bs.SerialNum}}</td>
                 <td class="text-end">{{$bs.Size}}</td>
                 <td class="text-end">{{$bs.Used}}</td>
-                <td>{{$bs.DatacenterRoom}} {{if ne $bs.RackNum ""}}/ {{$bs.RackNum}}{{end}}</td>
+                <td>{{index $.BladeSystemsPlacement $bs.RackCabinetId}}</td>
                 <td id="bsRowMenu{{$bs.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/bladesystemsedit/{{$bs.Id}}" target="_blank">Редактировать</a>
                     <a class="ctx-menu-item" href="/sprsrv/bladesystemserverslist/{{$bs.Id}}" target="_blank">Серверы в корзине</a>
