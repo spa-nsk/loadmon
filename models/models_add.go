@@ -1242,9 +1242,9 @@ type BladeSystems struct {
 	SerialNum         string    `form:"SerialNum"`                                                          //серийный номер
 	Owner             string    `form:"Owner"`                                                              //владелец
 	Anotation         string    `form:"Anotation"`                                                          //описане
-	StartUnitPos      int       `form:"StartUnitPos"`                                                       //
-	EndUnitPos        int       `form:"EndUnitPos"`                                                         //
-	SizeUnit          int       `form:"SizeUnit"`                                                           //
+	StartUnitPos      int       `form:"StartUnitPos"`                                                       //стартовая позиция в шкафу (юнит с которого начинается шасси, в случае нескольких шкафов писать через запятую)
+	EndUnitPos        int       `form:"EndUnitPos"`                                                         //конечнкая позиция в шкафу (юнит с которого заканчивается шасси, в случае нескольких шкафов писать через запятую)
+	SizeUnit          int       `form:"SizeUnit"`                                                           //размер в юнитах
 	RackCabinetId     int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`         //FK на models.RackCabinet.Id (новый справочник шкафов, см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum, не заменяет их
 	InventoryNum      string    `form:"InventoryNum"`                                                       //Инвентарный номер
 	InventoryNumBuh   string    `form:"InventoryNumBuh"`                                                    //Инвентарный номер бухгалтерский

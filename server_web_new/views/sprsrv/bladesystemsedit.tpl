@@ -65,8 +65,13 @@
                         <input type="number" id="StartUnitPos" name="StartUnitPos" class="form-control" value="{{.BS.StartUnitPos}}">
                     </div>
                     <div class="col-4">
-                        <label for="SizeUnit" class="form-label">Занимаемых юнитов</label>
-                        <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.BS.SizeUnit}}">
+                        <!-- ИЗМЕНЕНО (2026-09-08, по запросу пользователя): вместо
+                             SizeUnit (количество юнитов) теперь указывается конечная
+                             позиция EndUnitPos - SizeUnit больше не отображается в
+                             форме, вычисляется на сервере перед сохранением (см.
+                             controllers/sprbladesystems.go:bladeSystemsComputeSizeUnit). -->
+                        <label for="EndUnitPos" class="form-label">Юнит конца (номер)</label>
+                        <input type="number" id="EndUnitPos" name="EndUnitPos" class="form-control" value="{{.BS.EndUnitPos}}">
                     </div>
                     <div class="col-4">
                         <!-- ДОБАВЛЕНО (2026-09-08, по запросу пользователя): выбор ЦОД,

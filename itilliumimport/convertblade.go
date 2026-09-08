@@ -176,17 +176,19 @@ func compositeRackUnitSplitBlade(res *ResultBlade, row map[string]string, c Comp
 	}
 	start, _ := strconv.Atoi(m[1])
 	end, _ := strconv.Atoi(m[2])
-	size := end - start + 1
-	if size < 1 {
-		size = 1
-	}
+	// ИЗМЕНЕНО (2026-09-08, по запросу пользователя): раньше третьим target'ом
+	// сюда писался вычисленный SizeUnit (end-start+1). Теперь пишется сам
+	// EndUnitPos (конечная позиция) - SizeUnit больше не показывается ни в
+	// форме редактирования, ни при импорте, и вычисляется по StartUnitPos/
+	// EndUnitPos перед сохранением (см. itilliumimport/importblades.go и
+	// controllers/sprbladesystems.go:bladeSystemsComputeSizeUnit).
 	if len(c.Targets) > 1 {
 		if err := setTargetBlade(res, c.Targets[1], strconv.Itoa(start)); err != nil {
 			res.warn("rack_unit_split -> %s: %v", c.Targets[1], err)
 		}
 	}
 	if len(c.Targets) > 2 {
-		if err := setTargetBlade(res, c.Targets[2], strconv.Itoa(size)); err != nil {
+		if err := setTargetBlade(res, c.Targets[2], strconv.Itoa(end)); err != nil {
 			res.warn("rack_unit_split -> %s: %v", c.Targets[2], err)
 		}
 	}

@@ -58,7 +58,13 @@ func ImportItiliumBlade(name string) {
 			continue
 		}
 
-		if r.Bs.EndUnitPos > r.Bs.StartUnitPos {
+		// ДОБАВЛЕНО (2026-09-08, по запросу пользователя): SizeUnit больше не
+		// приходит из выгрузки напрямую (см. rack_blade.yaml: composite
+		// rack_unit_split теперь пишет EndUnitPos вместо готового SizeUnit) -
+		// вычисляется здесь по StartUnitPos/EndUnitPos перед сохранением.
+		// >= (не строго >), т.к. шасси на один юнит (StartUnitPos==EndUnitPos)
+		// - валидный случай (SizeUnit=1), а не ошибка разбора.
+		if r.Bs.EndUnitPos >= r.Bs.StartUnitPos && r.Bs.StartUnitPos > 0 {
 			r.Bs.SizeUnit = r.Bs.EndUnitPos - r.Bs.StartUnitPos + 1
 		}
 
@@ -171,10 +177,16 @@ func ImportItiliumBlade(name string) {
 			bs.PowerState = r.Bs.PowerState
 			bs.Active = r.Bs.Active
 			bs.Anotation = r.Bs.Anotation
+			// ИСПРАВЛЕНО (2026-09-08): StartUnitPos/EndUnitPos/SizeUnit
+			// вычислялись и присваивались (частично) и раньше, но не
+			// попадали в список колонок trn.Update ниже - при повторном
+			// импорте существующей записи они молча не сохранялись.
+			bs.StartUnitPos = r.Bs.StartUnitPos
+			bs.EndUnitPos = r.Bs.EndUnitPos
 			bs.SizeUnit = r.Bs.SizeUnit
 			bs.Id_User = 9999
 			bs.Time_Mfy = time.Now().Local()
-			if _, err := trn.Update(&bs, "RackCabinetId", "PowerState", "Active", "Anotation", "Id_User", "Time_Mfy"); err != nil {
+			if _, err := trn.Update(&bs, "RackCabinetId", "PowerState", "Active", "Anotation", "StartUnitPos", "EndUnitPos", "SizeUnit", "Id_User", "Time_Mfy"); err != nil {
 				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка обновления bs:", err)
 				trn.Rollback()
 				continue

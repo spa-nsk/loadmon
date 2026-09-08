@@ -139,12 +139,16 @@ composites:
   # (composite тогда просто ничего не заполняет, без предупреждения).
   # ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстового RackNum -
   # номер стойки уходит в extra (та же причина, что и у DatacenterRoom
-  # выше), StartUnitPos/SizeUnit остались настоящими полями схемы.
+  # выше), StartUnitPos/EndUnitPos остались настоящими полями схемы.
+  # ИЗМЕНЕНО (2026-09-08, повторно, по запросу пользователя): третий target -
+  # EndUnitPos (конечная позиция), а не вычисленный SizeUnit - SizeUnit
+  # больше не показывается в форме и вычисляется по StartUnitPos/EndUnitPos
+  # перед сохранением (см. itilliumimport/importblades.go).
   - name: rack_unit_split
     sources: ["Размещение в шкафу/стойке"]
     targets:
       - "extra.rack_num"
       - "BladeSystems.StartUnitPos"
-      - "BladeSystems.SizeUnit"
+      - "BladeSystems.EndUnitPos"
     params:
       separator: "|"

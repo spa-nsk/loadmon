@@ -393,6 +393,22 @@ func parseBladeSystemsDate(s string) time.Time {
 	return t
 }
 
+// bladeSystemsComputeSizeUnit вычисляет BladeSystems.SizeUnit (количество
+// занимаемых юнитов) по StartUnitPos/EndUnitPos - по запросу пользователя
+// (2026-09-08) SizeUnit больше не вводится в форме редактирования напрямую
+// (введены только начальная и конечная позиция), а всегда пересчитывается
+// перед сохранением - и здесь (форма редактирования), и при импорте из
+// Итиллиум (см. itilliumimport/importblades.go). При некорректных или не
+// заполненных значениях (EndUnitPos < StartUnitPos, StartUnitPos <= 0)
+// возвращает 0 ("не указано") вместо того, чтобы писать отрицательное или
+// заведомо неверное число.
+func bladeSystemsComputeSizeUnit(startUnitPos, endUnitPos int) int {
+	if startUnitPos <= 0 || endUnitPos < startUnitPos {
+		return 0
+	}
+	return endUnitPos - startUnitPos + 1
+}
+
 // SprBladeSystemsEdit отображает форму просмотра/редактирования одной записи
 // models.BladeSystems (таблица blade_systems) по Id и сохраняет изменения по
 // отправке формы (POST) - поля читаются вручную по имени (а не через
@@ -452,8 +468,13 @@ func (this *MainController) SprBladeSystemsEdit() {
 		rec.Size, _ = strconv.Atoi(this.GetString("Size"))
 		rec.Used, _ = strconv.Atoi(this.GetString("Used"))
 
+		// ИЗМЕНЕНО (2026-09-08, по запросу пользователя): в форме указываются
+		// StartUnitPos и EndUnitPos, SizeUnit в форме больше не отображается -
+		// вычисляется ниже перед сохранением (см.
+		// bladeSystemsComputeSizeUnit).
 		rec.StartUnitPos, _ = strconv.Atoi(this.GetString("StartUnitPos"))
-		rec.SizeUnit, _ = strconv.Atoi(this.GetString("SizeUnit"))
+		rec.EndUnitPos, _ = strconv.Atoi(this.GetString("EndUnitPos"))
+		rec.SizeUnit = bladeSystemsComputeSizeUnit(rec.StartUnitPos, rec.EndUnitPos)
 		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
 
 		rec.Owner = this.GetString("Owner")
