@@ -1,6 +1,7 @@
 package itilliumimport
 
 import (
+	"loadmon/grpcclient"
 	"loadmon/models"
 	"log"
 	"strings"
@@ -22,8 +23,33 @@ func mappingConfigPathBlade() string {
 	return mappingConfigDir() + "/" + mappingConfigFileNameBlade
 }
 
-// ImportItiliumBlade читает xlsx-файл name (внутри каталога "./import", см.
-// controllers/adminimportblades.go), конвертирует его строки через
+// StartImportItiliumBlade регистрирует новое задание импорта блейд-корзин
+// под ключом jobId (см. ImportProgress в progress.go) и запускает сам разбор
+// и сохранение файла (runImportItiliumBlade) В ОТДЕЛЬНОЙ горутине, сразу
+// возвращая указатель на прогресс вызывающему коду (controllers/
+// adminimportblades.go) - 2026-09-08, по запросу пользователя "отображать
+// процесс импорта в виде градуированного линейного индикатора с процентами".
+// Job регистрируется СИНХРОННО, до запуска горутины - иначе страница могла
+// бы успеть опросить статус раньше, чем задание появится в реестре
+// (GetImportJob вернул бы ok=false).
+func StartImportItiliumBlade(name string) *ImportProgress {
+	job := newImportJob(name)
+	go runImportItiliumBlade(name, job)
+	return job
+}
+
+// ImportItiliumBlade - синхронная версия импорта блейд-корзин (без отдельной
+// горутины и без прогресса) - оставлена для прямых вызовов вне HTTP-хендлера
+// (например, из будущих неинтерактивных сценариев/тестов), где отслеживать
+// прогресс не нужно и вызывающий код готов дождаться завершения. Текущий
+// HTTP-хендлер использует StartImportItiliumBlade выше.
+func ImportItiliumBlade(name string) {
+	job := &ImportProgress{}
+	runImportItiliumBlade(name, job)
+}
+
+// runImportItiliumBlade читает xlsx-файл name (внутри каталога "./import",
+// см. controllers/adminimportblades.go), конвертирует его строки через
 // ConvertFileBlade/ConvertRowBlade (rack_blade.yaml) и создаёт/обновляет
 // записи models.DatacenterSite -> models.RackCabinet -> models.BladeSystems
 // в БД - полный аналог ImportItiliumServer (importrackservers.go) для
@@ -33,22 +59,35 @@ func mappingConfigPathBlade() string {
 // в отличие от серверов, для которых поиск идёт по серийному номеру
 // (S/N у шасси часто не заполняется в Итиллиум так же аккуратно, как у
 // серверов, а Name - устойчивый, заранее согласованный идентификатор).
-func ImportItiliumBlade(name string) {
+//
+// job (см. progress.go) отражает ход выполнения для страницы-опросчика -
+// job.finish(...) вызывается ЛЮБЫМ путём выхода из функции (defer), поэтому
+// индикатор прогресса на странице не может "зависнуть", даже если импорт не
+// смог даже начаться (ошибка загрузки конфигурации/чтения файла).
+func runImportItiliumBlade(name string, job *ImportProgress) {
+	var startErr string
+	defer func() { job.finish(startErr) }()
+
 	cfg, err := LoadMapping(mappingConfigPathBlade())
 	if err != nil {
 		log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка загрузки конфигурации соответствий:", err)
+		startErr = err.Error()
 		return
 	}
 
 	results, err := ConvertFileBlade(cfg, "./import/"+name)
 	if err != nil {
 		log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка чтения/разбора файла:", err)
+		startErr = err.Error()
 		return
 	}
+	job.setFileRows(len(results))
 
 	o := orm.NewOrm()
 
 	for _, r := range results {
+		job.tickProcessed()
+
 		// r.Bs       - models.BladeSystems (частично заполнена)
 		// r.Extra    - map[string]string: поля без прямого соответствия в
 		//              схеме + диагностические "сырые" значения
@@ -57,6 +96,9 @@ func ImportItiliumBlade(name string) {
 			log.Println("itilliumimport: ImportItiliumBlade(", name, ") - пропущена строка без имени блейд-шасси (BladeSystems.Name), см. колонку \"Имя блейд-шасси\" в rack_blade.yaml")
 			continue
 		}
+
+		r.Bs.PowerState = 1 //по умолчанию считаем, что корзина включена (PowerState=1), если в выгрузке не указано обратное
+		r.Bs.Active = 1     //по умолчанию считаем, что корзина активна (Active=1), если в выгрузке не указано обратное
 
 		if r.Bs.EndUnitPos >= r.Bs.StartUnitPos && r.Bs.StartUnitPos > 0 {
 			r.Bs.SizeUnit = r.Bs.EndUnitPos - r.Bs.StartUnitPos + 1
@@ -120,17 +162,9 @@ func ImportItiliumBlade(name string) {
 		}
 		r.Bs.RackCabinetId = rackId
 
-		// --- Статус по наличию размещения в шкафу (2026-09-08, по запросу
-		// пользователя) ---------------------------------------------------
-		// rack_placement_raw - сырое (нетронутое composite-разбором) значение
-		// колонки "Размещение в шкафу/стойке" (см. extra.rack_placement_raw в
-		// rack_blade.yaml) - используется здесь как признак "размещение в
-		// шкафу указано" И как есть копируется в Anotation (текстовое поле
-		// BladeSystems.RackNum, которое раньше хранило часть этого значения,
-		// из схемы убрано - см. CHANGELOG 2026-09-08).
-		rackPlacementRaw := strings.TrimSpace(r.Extra["rack_placement_raw"])
-		r.Bs.Anotation = rackPlacementRaw
-		if rackPlacementRaw == "" || r.Bs.RackCabinetId == 0 || flNotWorking {
+		rackNum := strings.TrimSpace(r.Extra["rack_num"])
+		r.Bs.Anotation = strings.TrimSpace(r.Extra["datacenter_room"])
+		if rackNum == "" || r.Bs.RackCabinetId == 0 || flNotWorking {
 			// Размещение в шкафу не указано в выгрузке - корзина считается
 			// выключенной/выведенной из эксплуатации, пока это не будет
 			// скорректировано вручную или последующим импортом с заполненным
@@ -144,6 +178,7 @@ func ImportItiliumBlade(name string) {
 		// ServerHardware) - см. комментарий у ImportItiliumBlade выше.
 		bs := models.BladeSystems{Name: r.Bs.Name}
 		bsFound := trn.Read(&bs, "Name") == nil
+		var bsId int64 // Id сохранённой записи - нужен ниже для refreshBladeSystemFromOneView
 
 		if !bsFound {
 			// Новая запись - вставляем указатель на r.Bs (не значение!),
@@ -159,6 +194,7 @@ func ImportItiliumBlade(name string) {
 				trn.Rollback()
 				continue
 			}
+			bsId = r.Bs.Id
 		} else {
 			// Запись уже существует - обновляем только поля, которые
 			// однозначно должен приносить импорт (место в стойке, статус по
@@ -174,6 +210,9 @@ func ImportItiliumBlade(name string) {
 			bs.PowerState = r.Bs.PowerState
 			bs.Active = r.Bs.Active
 			bs.Anotation = r.Bs.Anotation
+			bs.InventoryNum = r.Bs.InventoryNum
+			bs.InventoryNumBuh = r.Bs.InventoryNumBuh
+			bs.TechnicalNumberIT = r.Bs.TechnicalNumberIT
 			// ИСПРАВЛЕНО (2026-09-08): StartUnitPos/EndUnitPos/SizeUnit
 			// вычислялись и присваивались (частично) и раньше, но не
 			// попадали в список колонок trn.Update ниже - при повторном
@@ -183,11 +222,12 @@ func ImportItiliumBlade(name string) {
 			bs.SizeUnit = r.Bs.SizeUnit
 			bs.Id_User = 9999
 			bs.Time_Mfy = time.Now().Local()
-			if _, err := trn.Update(&bs, "RackCabinetId", "PowerState", "Active", "Anotation", "StartUnitPos", "EndUnitPos", "SizeUnit", "Id_User", "Time_Mfy"); err != nil {
+			if _, err := trn.Update(&bs, "RackCabinetId", "PowerState", "Active", "Anotation", "StartUnitPos", "EndUnitPos", "SizeUnit", "InventoryNum", "InventoryNumBuh", "TechnicalNumberIT", "Id_User", "Time_Mfy"); err != nil {
 				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка обновления bs:", err)
 				trn.Rollback()
 				continue
 			}
+			bsId = bs.Id
 		}
 
 		// TODO: r.Extra содержит поля без прямого соответствия в схеме
@@ -200,6 +240,141 @@ func ImportItiliumBlade(name string) {
 
 		if err := trn.Commit(); err != nil {
 			log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка коммита транзакции:", err)
+			continue
+		}
+
+		// --- Актуализация PowerState/Active/Used по факту из HPE OneView --
+		// (2026-09-08, по запросу пользователя "актуализация состояния блэйд
+		// корзин после импорта данных из итиллиум через grpc по серийному
+		// номеру") - см. комментарий у refreshBladeSystemFromOneView ниже.
+		// finalActive - лучшее известное на данный момент значение Active
+		// (из OneView, если корзина там найдена и state пришёл определённый,
+		// иначе - как проставлено импортом из Итиллиум выше) - используется
+		// только для статистики "ушло в неактивные" (job.addResult ниже).
+		finalActive := r.Bs.Active
+		if refreshedActive, ok := refreshBladeSystemFromOneView(name, bsId, r.Bs.SerialNum); ok {
+			finalActive = refreshedActive
+		}
+
+		// --- Статистика для страницы-опросчика (progress.go) --------------
+		// (2026-09-08, по запросу пользователя "сколько всего импортировано,
+		// сколько новых, сколько обновлено, какое количество ушло в
+		// неактивные").
+		job.addResult(!bsFound, finalActive == 2)
+	}
+}
+
+// refreshBladeSystemFromOneView актуализирует поля PowerState/Active/Used
+// только что сохранённой записи models.BladeSystems (bsId) фактическим
+// состоянием оборудования - запрашивает корзину по серийному номеру serialNum
+// через gRPC (grpcclient.GetBladeEnclosureBySN, см. protocol/vm.proto:
+// GetBladeEnclosureBySN и grpcserver/handler_hardware.go) у сервиса,
+// агрегирующего данные HPE OneView (см. oneview2.Infrastructure.EnclosureBySN).
+//
+// Смысл: выгрузка Итиллиум не знает фактического состояния оборудования -
+// PowerState/Active, проставленные выше в ImportItiliumBlade, это лишь
+// допущение по наличию размещения в шкафу/признаку списания в тексте
+// местоположения (см. комментарии там), а не реальный статус. Если корзина с
+// таким серийным номером заведена в HPE OneView, эта функция перезаписывает
+// PowerState/Active РЕАЛЬНЫМ health-статусом/состоянием ресурса (см.
+// bladePowerActiveFromEnclosure) и Used - фактическим количеством занятых
+// отсеков (по числу известных серверов в enc.ByBay, см.
+// messageToEnclosureSummary в grpcclient/client_oneview.go).
+//
+// Если корзина в OneView не найдена (не-HPE оборудование, чисто ручной учёт
+// и т.п. - обычный случай для части блейд-корзин) или у неё пока нет
+// серийного номера в выгрузке Итиллиум - функция ничего не меняет, оставляя
+// значения из ImportItiliumBlade единственным источником. Ошибки самого
+// gRPC-вызова (сервис недоступен и т.п.) также не прерывают импорт - только
+// логируются, см. grpcclient.GetBladeEnclosureBySN.
+//
+// Возвращает (active, true), если Active реально был обновлён по данным
+// OneView (нужно вызывающему коду runImportItiliumBlade только для
+// статистики "ушло в неактивные" - job.addResult) - (0, false), если
+// обновления не было (корзина не найдена/нет серийного номера/state не
+// пришёл определённым).
+func refreshBladeSystemFromOneView(importName string, bsId int64, serialNum string) (active int, updated bool) {
+	serialNum = strings.TrimSpace(serialNum)
+	if bsId == 0 || serialNum == "" {
+		return 0, false
+	}
+
+	enc, ok := grpcclient.GetBladeEnclosureBySN(serialNum)
+	if !ok || enc == nil {
+		log.Println("itilliumimport: ImportItiliumBlade(", importName, ") - корзина с S/N", serialNum, "не найдена в HPE OneView, PowerState/Active/Used оставлены как после импорта из Итиллиум")
+		return 0, false
+	}
+
+	powerState, enclosureActive := bladePowerActiveFromEnclosure(enc.Status, enc.State)
+	used := 0
+	for _, srv := range enc.ByBay {
+		if srv == nil {
+			continue
+		}
+		if strings.TrimSpace(srv.Identity.SerialNumber) != "" || strings.TrimSpace(srv.Identity.Name) != "" {
+			used++
 		}
 	}
+
+	bs := models.BladeSystems{Id: bsId}
+	o2 := orm.NewOrm()
+	if err := o2.Read(&bs); err != nil {
+		log.Println("itilliumimport: ImportItiliumBlade(", importName, ") - ошибка чтения bs Id=", bsId, "для актуализации по OneView:", err)
+		return 0, false
+	}
+
+	// Used обновляется всегда (0 - тоже достоверный факт: корзина заведена в
+	// OneView, но в ней нет ни одного известного сервера) - PowerState/Active
+	// затираются, только если по ним пришло определённое значение (см.
+	// bladePowerActiveFromEnclosure - 0 означает "неизвестно", такой нуль
+	// затирать уже проставленное ImportItiliumBlade значение не должен).
+	cols := []string{"Used", "Time_Mfy"}
+	bs.Used = used
+	bs.Time_Mfy = time.Now().Local()
+	if powerState != 0 {
+		bs.PowerState = powerState
+		cols = append(cols, "PowerState")
+	}
+	if enclosureActive != 0 {
+		bs.Active = enclosureActive
+		cols = append(cols, "Active")
+	}
+
+	if _, err := o2.Update(&bs, cols...); err != nil {
+		log.Println("itilliumimport: ImportItiliumBlade(", importName, ") - ошибка обновления bs Id=", bsId, "по данным OneView:", err)
+		return 0, false
+	}
+
+	if enclosureActive != 0 {
+		return enclosureActive, true
+	}
+	return 0, false
+}
+
+// bladePowerActiveFromEnclosure - тот же приём, что
+// cmdb/initrec.go:bladeSystemPowerActiveFromEnclosure (не экспортируется
+// оттуда, поэтому продублирован здесь небольшой независимой функцией, а не
+// импортом пакета cmdb - см. README.md про зависимости пакета itilliumimport).
+// Выводит числовые коды BladeSystems.PowerState/Active (0 не указано,
+// PowerState 1 включен/2 выключен, Active 1 активен/2 выведен из
+// эксплуатации) из health-статуса/state ресурса HPE OneView. Пустое значение
+// status/state (GetEnclosure не отработал ни для одного сервера корзины)
+// даёт 0 ("не указано") - вызывающий код не должен затирать этим нулём уже
+// известное значение.
+func bladePowerActiveFromEnclosure(status, state string) (powerState, active int) {
+	if status != "" {
+		if status == "OK" {
+			powerState = 1
+		} else {
+			powerState = 2
+		}
+	}
+	if state != "" {
+		if state == "Removed" {
+			active = 2
+		} else {
+			active = 1
+		}
+	}
+	return powerState, active
 }

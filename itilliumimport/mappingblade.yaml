@@ -34,16 +34,18 @@
 source_sheet: export
 
 fields:
-  # "Тех. номер IT" - в отличие от ServerHardware, у BladeSystems нет
-  # отдельного поля под технический номер IT - уходит в extra на случай,
-  # если понадобится сверка.
+  # ИСПРАВЛЕНО (2026-09-08, пользователем): у BladeSystems ЕСТЬ прямое поле
+  # TechnicalNumberIT (как и у ServerHardware) - маппится напрямую, а не в
+  # extra, как было изначально.
   - header: "Тех. номер IT"
-    target: extra.technical_number_it
+    target: BladeSystems.TechnicalNumberIT
     transform: trim
 
+  # ИСПРАВЛЕНО (2026-09-08, пользователем): transform заменён на trim -
+  # numeric_to_string не подходил, InventoryNumBuh не обязан быть числом.
   - header: "Бух.инв.№"
     target: BladeSystems.InventoryNumBuh
-    transform: numeric_to_string
+    transform: trim
 
   # ⚠️ См. предупреждение выше - это ИМЯ шасси (C7000-01 и т.п.), а не
   # старый инвентарный номер. Ключевое поле для поиска существующей записи.
@@ -69,8 +71,10 @@ fields:
     target: BladeSystems.SerialNum
     transform: trim
 
+  # ИСПРАВЛЕНО (2026-09-08, пользователем): маппится напрямую в
+  # BladeSystems.Owner (владелец), а не в extra.
   - header: "Автор"
-    target: extra.author_name
+    target: BladeSystems.Owner
     transform: trim
 
   - header: "Дата ремонта"
@@ -101,13 +105,15 @@ fields:
     target: BladeSystems.Size
     transform: numeric_to_string
 
-  # ДОБАВЛЕНО (2026-09-08, по запросу пользователя): сырое (нетронутое)
-  # значение той же колонки, что разбирает composite rack_unit_split ниже -
-  # используется importblades.go как признак "размещение в шкафу указано" и
-  # копируется как есть в BladeSystems.Anotation (у BladeSystems больше нет
-  # отдельного текстового поля под эту колонку целиком, см. RackNum выше).
+  # ИСПРАВЛЕНО (2026-09-08, пользователем): сырое (нетронутое composite-
+  # разбором) значение той же колонки, что разбирает composite
+  # rack_unit_split ниже, маппится НАПРЯМУЮ в BladeSystems.Anotation (а не в
+  # extra.rack_placement_raw, как было изначально) - importblades.go больше
+  # не читает эту колонку из extra, признак "размещение в шкафу указано"
+  # определяется через extra.rack_num/RackCabinetId (см. rack_unit_split
+  # ниже и комментарии в importblades.go).
   - header: "Размещение в шкафу/стойке"
-    target: extra.rack_placement_raw
+    target: BladeSystems.Anotation
     transform: trim
 
 # Составные преобразования - см. подробное описание в itilliumimport/mapping.yaml
