@@ -141,7 +141,8 @@ func init() {
 	beego.Router("/admin/virtinfra", &controllers.MainController{}, "get:AdminVirtInfra") // виртуальная инфраструктура: vCenter -> Datacenter -> Cluster -> Host, см. controllers/adminvirtinfra.go
 
 	beego.Router("/admin/importrackservers", &controllers.MainController{}, "get,post:AdminImportRackServers") // форма загрузки xlsx-выгрузки Итиллиум по rack-серверам в ./import и вызов itilliumimport.ImportItiliumServer(name) - доступ только Priv==3, см. controllers/adminimportrackservers.go
-	beego.Router("/admin/importblades", &controllers.MainController{}, "get,post:AdminImportBladeSystems") // форма загрузки xlsx-выгрузки Итиллиум по блейд-корзинам в ./import и вызов itilliumimport.ImportItiliumBlade(name) - доступ только Priv==3, см. controllers/adminimportblades.go
+	beego.Router("/admin/importblades", &controllers.MainController{}, "get,post:AdminImportBladeSystems")          // форма загрузки xlsx-выгрузки Итиллиум по блейд-корзинам в ./import и асинхронный запуск itilliumimport.StartImportItiliumBlade(name) - доступ только Priv==3, см. controllers/adminimportblades.go
+	beego.Router("/admin/importblades/status", &controllers.MainController{}, "get:AdminImportBladeSystemsStatus") // JSON-опрос прогресса импорта блейд-корзин (параметр job=<имя файла>) - для градуированного индикатора на /admin/importblades, см. controllers/adminimportblades.go
 	beego.Router("/admin/importbladeservers", &controllers.MainController{}, "get,post:AdminImportBladeServers") // форма загрузки xlsx-выгрузки Итиллиум по блейд-серверам в ./import и вызов itilliumimport.ImportItiliumBladeServer(name) - доступ только Priv==3, см. controllers/adminimportbladeservers.go
 	beego.Router("/api/:json", &controllers.MainController{}, "get,post:RequestAPI")
 	beego.Router("/debug/pprof/", &controllers.MainController{}, "get,post:Prof")

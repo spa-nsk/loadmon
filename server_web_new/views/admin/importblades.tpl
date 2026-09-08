@@ -26,3 +26,82 @@
         </div>
     </form>
 </div>
+
+{{if .JobId}}
+<!-- Индикатор прогресса и итоговая статистика последнего запущенного импорта
+     (2026-09-08, по запросу пользователя "выводить статистику по итогу" +
+     "отображать процесс импорта в виде градуированного линейного индикатора
+     с процентами") - опрашивает controllers/adminimportblades.go:
+     AdminImportBladeSystemsStatus раз в секунду до завершения задания
+     (см. itilliumimport/progress.go). -->
+<div class="hw-card mt-3" id="importProgressCard">
+    <h6>Импорт файла: {{.JobId}}</h6>
+    <div class="progress" style="height: 26px;">
+        <div id="importProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+             role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+    </div>
+    <div id="importProgressStats" class="mt-3 small text-muted">Опрос статуса...</div>
+</div>
+
+<script>
+    (function () {
+        var jobId = "{{.JobId}}";
+        if (!jobId) return;
+
+        var bar = document.getElementById('importProgressBar');
+        var stats = document.getElementById('importProgressStats');
+        var timer = null;
+
+        function renderDone(data) {
+            bar.classList.remove('progress-bar-animated');
+            if (data.err) {
+                bar.classList.remove('bg-primary');
+                bar.classList.add('bg-danger');
+                stats.innerHTML = '<span class="text-danger">Импорт завершился с ошибкой: ' + data.err + '</span>';
+                return;
+            }
+            bar.classList.remove('bg-primary');
+            bar.classList.add('bg-success');
+            stats.innerHTML =
+                'Импорт завершён. Всего импортировано: <b>' + data.imported + '</b>' +
+                ' &mdash; новых: <b>' + data.new + '</b>' +
+                ', обновлено: <b>' + data.updated + '</b>' +
+                ', выведено в неактивные: <b>' + data.inactive + '</b>.';
+        }
+
+        function renderRunning(data) {
+            stats.textContent = 'Обработано ' + data.processed + ' из ' + data.file_rows +
+                ' (импортировано: ' + data.imported + ', новых: ' + data.new +
+                ', обновлено: ' + data.updated + ', неактивных: ' + data.inactive + ')';
+        }
+
+        function poll() {
+            fetch('/admin/importblades/status?job=' + encodeURIComponent(jobId), { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.error) {
+                        stats.textContent = data.error;
+                        return;
+                    }
+                    var pct = data.percent || 0;
+                    bar.style.width = pct + '%';
+                    bar.setAttribute('aria-valuenow', pct);
+                    bar.textContent = pct + '%';
+
+                    if (data.done) {
+                        renderDone(data);
+                        if (timer) { clearInterval(timer); timer = null; }
+                    } else {
+                        renderRunning(data);
+                    }
+                })
+                .catch(function () {
+                    // Сеть/сервер временно недоступны - следующий тик опроса попробует снова.
+                });
+        }
+
+        poll();
+        timer = setInterval(poll, 1000);
+    })();
+</script>
+{{end}}
