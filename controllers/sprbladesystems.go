@@ -15,27 +15,36 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// BladeSystemsFilter - фильтр списка /sprsrv/bladesystemslist. models.BladeSystems
-// в отличие от models.StorageSystems не содержит числовых полей-перечислений
-// (TypeWork/Status и т.п.) - все поля фильтра текстовые, приём (фильтр в
-// сессии, постраничная навигация, экспорт) идентичен StorageSystemsFilter в
+// BladeSystemsFilter - фильтр списка /sprsrv/bladesystemslist. Текстовые
+// поля фильтруются по подстроке, приём (фильтр в сессии, постраничная
+// навигация, экспорт) идентичен StorageSystemsFilter в
 // controllers/sprstoragesystems.go (образец стиля для этой формы).
+// Active - числовое поле-перечисление (см. models.BladeSystems.Active),
+// хранится строкой ("all"/"0"/"1"/"2") по тому же принципу, что и
+// PowerState/Active/FormFactor в HWConfigFilter (controllers/sprhwconfig.go).
+// ИЗМЕНЕНО (2026-09-08, по запросу пользователя): InventoryNum заменён на
+// TechnicalNumberIT (технический номер ИТ, формат "IT-0000000000").
 type BladeSystemsFilter struct {
-	Vendor       string `form:"Vendor"`
-	Model        string `form:"Model"`
-	Type         string `form:"Type"`
-	Name         string `form:"Name"`
-	SerialNum    string `form:"SerialNum"`
-	InventoryNum string `form:"InventoryNum"`
+	Vendor            string `form:"Vendor"`
+	Model             string `form:"Model"`
+	Type              string `form:"Type"`
+	Name              string `form:"Name"`
+	SerialNum         string `form:"SerialNum"`
+	TechnicalNumberIT string `form:"TechnicalNumberIT"`
+	Active            string `form:"Active"`
 }
 
+// defaultBladeSystemsFilter - фильтр по умолчанию для свежей сессии
+// (см. keyFilter в SprBladeSystems). Active по умолчанию "1" (только
+// активные корзины) - по запросу пользователя, в отличие от остальных
+// текстовых полей (пустая строка - "без фильтра").
 func defaultBladeSystemsFilter() *BladeSystemsFilter {
-	return &BladeSystemsFilter{}
+	return &BladeSystemsFilter{Active: "1"}
 }
 
 // SprBladeSystems отображает список записей справочника блейд-корзин
 // (models.BladeSystems, таблица blade_systems) с фильтром по
-// Vendor/Model/Type/Name/SerialNum/InventoryNum и
+// Vendor/Model/Type/Name/SerialNum/TechnicalNumberIT/Active и
 // постраничной навигацией, включая экспорт в CSV и XLSX - структура
 // фильтра/пагинации/экспорта и оформление полностью повторяют
 // /sprsrv/storagesystemslist (controllers/sprstoragesystems.go).
@@ -112,8 +121,13 @@ func (this *MainController) SprBladeSystems() {
 	if filter.SerialNum != "" {
 		qs = qs.Filter("SerialNum__icontains", filter.SerialNum)
 	}
-	if filter.InventoryNum != "" {
-		qs = qs.Filter("InventoryNum__icontains", filter.InventoryNum)
+	if filter.TechnicalNumberIT != "" {
+		qs = qs.Filter("TechnicalNumberIT__icontains", filter.TechnicalNumberIT)
+	}
+	if filter.Active != "" && filter.Active != "all" {
+		if v, err := strconv.Atoi(filter.Active); err == nil {
+			qs = qs.Filter("Active", v)
+		}
 	}
 
 	totalRecords, err := qs.Count()

@@ -35,8 +35,17 @@
                 <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.BladeSystemsFilter.SerialNum}}">
             </div>
             <div class="col-6 col-md-3">
-                <label for="InventoryNum" class="form-label">Инвентарный номер</label>
-                <input type="text" id="InventoryNum" name="InventoryNum" class="form-control" value="{{.BladeSystemsFilter.InventoryNum}}">
+                <label for="TechnicalNumberIT" class="form-label">Технический номер ИТ</label>
+                <input type="text" id="TechnicalNumberIT" name="TechnicalNumberIT" class="form-control" value="{{.BladeSystemsFilter.TechnicalNumberIT}}" placeholder="IT-0000000000">
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="Active" class="form-label">Статус</label>
+                <select id="Active" name="Active" class="form-select">
+                    <option value="all" {{if eq .BladeSystemsFilter.Active "all"}}selected{{end}}>Все</option>
+                    <option value="0" {{if eq .BladeSystemsFilter.Active "0"}}selected{{end}}>Не указано</option>
+                    <option value="1" {{if eq .BladeSystemsFilter.Active "1"}}selected{{end}}>Активен</option>
+                    <option value="2" {{if eq .BladeSystemsFilter.Active "2"}}selected{{end}}>Выведен из эксплуатации</option>
+                </select>
             </div>
         </div>
         <div class="row mt-3">

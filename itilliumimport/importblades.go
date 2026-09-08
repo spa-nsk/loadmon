@@ -58,70 +58,67 @@ func ImportItiliumBlade(name string) {
 			continue
 		}
 
-		// ДОБАВЛЕНО (2026-09-08, по запросу пользователя): SizeUnit больше не
-		// приходит из выгрузки напрямую (см. rack_blade.yaml: composite
-		// rack_unit_split теперь пишет EndUnitPos вместо готового SizeUnit) -
-		// вычисляется здесь по StartUnitPos/EndUnitPos перед сохранением.
-		// >= (не строго >), т.к. шасси на один юнит (StartUnitPos==EndUnitPos)
-		// - валидный случай (SizeUnit=1), а не ошибка разбора.
 		if r.Bs.EndUnitPos >= r.Bs.StartUnitPos && r.Bs.StartUnitPos > 0 {
 			r.Bs.SizeUnit = r.Bs.EndUnitPos - r.Bs.StartUnitPos + 1
 		}
+		flNotWorking := false
 
+		if strings.Contains(r.Extra["datacenter_room"], "списан") || strings.Contains(r.Extra["datacenter_room"], "продаж") || strings.Contains(r.Extra["datacenter_room"], "утер") {
+			flNotWorking = true
+		}
 		trn, err := o.Begin()
 		if err != nil {
 			log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка начала транзакции:", err)
 			continue
 		}
 
-		// ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстовых
-		// DatacenterRoom/RackNum - теперь эти значения попадают в r.Extra
-		// (см. rack_blade.yaml: extra.datacenter_room/extra.rack_num), а не
-		// в поля r.Bs напрямую.
 		datacenterRoom := r.Extra["datacenter_room"]
+		rackId := int64(0)
+		if !flNotWorking {
+			// --- ЦОД (models.DatacenterSite) --------------------------------
+			datacenter := models.DatacenterSite{
+				Name:       datacenterRoom + " " + r.Extra["location_room_code"],
+				Annotation: "ЦОД по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
+				Id_User:    9999,
+				Time_Mfy:   time.Now().Local(),
+			}
+			if err := trn.Read(&datacenter, "Name"); err != nil {
+				if _, err := trn.Insert(&datacenter); err != nil {
+					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка вставки datacenter:", err)
+					trn.Rollback()
+					continue
+				}
+			}
+			datacenterId := datacenter.Id
 
-		// --- ЦОД (models.DatacenterSite) --------------------------------
-		datacenter := models.DatacenterSite{
-			Name:       datacenterRoom + " " + r.Extra["location_room_code"],
-			Annotation: "ЦОД по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-			Id_User:    9999,
-			Time_Mfy:   time.Now().Local(),
-		}
-		if err := trn.Read(&datacenter, "Name"); err != nil {
-			if _, err := trn.Insert(&datacenter); err != nil {
-				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка вставки datacenter:", err)
-				trn.Rollback()
-				continue
+			// --- Шкаф (models.RackCabinet) ----------------------------------
+			rack := models.RackCabinet{
+				Name:             r.Extra["rack_num"],
+				DatacenterSiteId: datacenterId,
+				Annotation:       "Шкаф по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
+				Id_User:          9999,
+				Time_Mfy:         time.Now().Local(),
 			}
-		}
-		datacenterId := datacenter.Id
-
-		// --- Шкаф (models.RackCabinet) ----------------------------------
-		rack := models.RackCabinet{
-			Name:             r.Extra["rack_num"],
-			DatacenterSiteId: datacenterId,
-			Annotation:       "Шкаф по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-			Id_User:          9999,
-			Time_Mfy:         time.Now().Local(),
-		}
-		if err := trn.Read(&rack, "Name"); err != nil {
-			if _, err := trn.Insert(&rack); err != nil {
-				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка вставки rack:", err)
-				trn.Rollback()
-				continue
+			if err := trn.Read(&rack, "Name"); err != nil {
+				if _, err := trn.Insert(&rack); err != nil {
+					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка вставки rack:", err)
+					trn.Rollback()
+					continue
+				}
+			} else if rack.DatacenterSiteId != datacenterId {
+				// Шкаф уже существовал (например, из более ранней выгрузки или
+				// из импорта серверов) - подтягиваем актуальный ЦОД, если он
+				// изменился.
+				rack.DatacenterSiteId = datacenterId
+				if _, err := trn.Update(&rack, "DatacenterSiteId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка обновления rack:", err)
+					trn.Rollback()
+					continue
+				}
 			}
-		} else if rack.DatacenterSiteId != datacenterId {
-			// Шкаф уже существовал (например, из более ранней выгрузки или
-			// из импорта серверов) - подтягиваем актуальный ЦОД, если он
-			// изменился.
-			rack.DatacenterSiteId = datacenterId
-			if _, err := trn.Update(&rack, "DatacenterSiteId"); err != nil {
-				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка обновления rack:", err)
-				trn.Rollback()
-				continue
-			}
+			rackId = rack.Id
 		}
-		r.Bs.RackCabinetId = rack.Id
+		r.Bs.RackCabinetId = rackId
 
 		// --- Статус по наличию размещения в шкафу (2026-09-08, по запросу
 		// пользователя) ---------------------------------------------------
@@ -133,7 +130,7 @@ func ImportItiliumBlade(name string) {
 		// из схемы убрано - см. CHANGELOG 2026-09-08).
 		rackPlacementRaw := strings.TrimSpace(r.Extra["rack_placement_raw"])
 		r.Bs.Anotation = rackPlacementRaw
-		if rackPlacementRaw == "" {
+		if rackPlacementRaw == "" || r.Bs.RackCabinetId == 0 || flNotWorking {
 			// Размещение в шкафу не указано в выгрузке - корзина считается
 			// выключенной/выведенной из эксплуатации, пока это не будет
 			// скорректировано вручную или последующим импортом с заполненным
