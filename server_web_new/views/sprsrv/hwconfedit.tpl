@@ -99,13 +99,36 @@
 
                 <h6>Размещение</h6>
                 <div class="row g-3">
+                    <!-- ИЗМЕНЕНО (2026-09-08, по запросу пользователя "исправь ...
+                         в самой карточке редактирования"): вместо свободных
+                         текстовых полей "ЦОД"/"Номер стойки" (старые данные
+                         Итиллиум/OneView) - каскадный выбор ЦОД -> Шкаф из
+                         справочников (models.DatacenterSite/models.RackCabinet),
+                         тот же приём, что уже в bladesystemsedit.tpl - см. JS
+                         внизу файла. ЦОД (DatacenterSiteId) сам никуда не
+                         сохраняется (нет name), сохраняется только
+                         RackCabinetId. Старые текстовые
+                         DatacenterRoom/RackNum/DatacenterName/RackName оставлены
+                         ниже как read-only справочная информация (последнее
+                         известное значение из Итиллиум/OneView) - на случай
+                         расхождения со справочником, для ручной сверки. -->
                     <div class="col-6">
-                        <label for="DatacenterRoom" class="form-label">ЦОД</label>
-                        <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.HW.DatacenterRoom}}">
+                        <label for="hwEditDatacenterSiteId" class="form-label">ЦОД</label>
+                        <select id="hwEditDatacenterSiteId" class="form-select">
+                            <option value="0">-</option>
+                            {{range $dc := .DatacenterSites}}
+                            <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                            {{end}}
+                        </select>
                     </div>
                     <div class="col-6">
-                        <label for="RackNum" class="form-label">Номер стойки</label>
-                        <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.HW.RackNum}}">
+                        <label for="RackCabinetId" class="form-label">Шкаф</label>
+                        <select id="RackCabinetId" name="RackCabinetId" class="form-select">
+                            <option value="0">-</option>
+                            {{range $rc := .RackCabinets}}
+                            <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.HW.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
+                            {{end}}
+                        </select>
                     </div>
                     <div class="col-6">
                         <label for="StartUnitPos" class="form-label">Юнит начала</label>
@@ -116,21 +139,20 @@
                         <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.HW.SizeUnit}}">
                     </div>
                     <div class="col-6">
+                        <label for="DatacenterRoom" class="form-label">ЦОД (текст, Итиллиум)</label>
+                        <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.HW.DatacenterRoom}}" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label for="RackNum" class="form-label">Номер стойки (текст, Итиллиум)</label>
+                        <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.HW.RackNum}}" readonly>
+                    </div>
+                    <div class="col-6">
                         <label for="DatacenterName" class="form-label">Помещение (OneView)</label>
-                        <input type="text" id="DatacenterName" name="DatacenterName" class="form-control" value="{{.HW.DatacenterName}}">
+                        <input type="text" id="DatacenterName" name="DatacenterName" class="form-control" value="{{.HW.DatacenterName}}" readonly>
                     </div>
                     <div class="col-6">
                         <label for="RackName" class="form-label">Шкаф (OneView)</label>
-                        <input type="text" id="RackName" name="RackName" class="form-control" value="{{.HW.RackName}}">
-                    </div>
-                    <div class="col-6">
-                        <label for="RackCabinetId" class="form-label">Шкаф (справочник)</label>
-                        <select id="RackCabinetId" name="RackCabinetId" class="form-select">
-                            <option value="0">-</option>
-                            {{range $rc := .RackCabinets}}
-                            <option value="{{$rc.Id}}" {{if eq $.HW.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
-                            {{end}}
-                        </select>
+                        <input type="text" id="RackName" name="RackName" class="form-control" value="{{.HW.RackName}}" readonly>
                     </div>
                 </div>
             </div>
@@ -216,3 +238,50 @@
         letter-spacing: 0.03em;
     }
 </style>
+
+<script>
+    // Каскадный выбор "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя
+    // "исправь ... в самой карточке редактирования") - select ЦОД
+    // (hwEditDatacenterSiteId) сам никуда не сохраняется (нет атрибута name),
+    // он только сужает список опций select "Шкаф" (RackCabinetId,
+    // единственное поле, которое реально сохраняется) по атрибуту data-dc
+    // каждой опции - идентично bladesystemsedit.tpl
+    // (sprbladesystems.go:SprBladeSystemsEdit) и фильтру /sprsrv/hwconflist
+    // (hwconflist.tpl).
+    (function () {
+        var dcSelect = document.getElementById('hwEditDatacenterSiteId');
+        var rackSelect = document.getElementById('RackCabinetId');
+        if (!dcSelect || !rackSelect) return;
+
+        var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+
+        function applyFilter(preserveSelection) {
+            var dc = dcSelect.value;
+            var currentValue = rackSelect.value;
+            rackSelect.innerHTML = '';
+            allRackOptions.forEach(function (opt) {
+                var optDc = opt.getAttribute('data-dc') || '0';
+                if (opt.value === '0' || dc === '0' || optDc === dc) {
+                    rackSelect.appendChild(opt);
+                }
+            });
+            if (preserveSelection) {
+                var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
+                    return opt.value === currentValue;
+                });
+                rackSelect.value = stillPresent ? currentValue : '0';
+            }
+        }
+
+        // При открытии карточки с уже сохранённым шкафом - подставляем в
+        // select ЦОД тот ЦОД, которому принадлежит выбранный шкаф, чтобы
+        // список шкафов сразу был сужен корректно.
+        var selectedOption = allRackOptions.find(function (opt) { return opt.selected; });
+        if (selectedOption && selectedOption.value !== '0') {
+            dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+        }
+        applyFilter(true);
+
+        dcSelect.addEventListener('change', function () { applyFilter(true); });
+    })();
+</script>

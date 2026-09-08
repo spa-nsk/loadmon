@@ -221,12 +221,56 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 	sort.Slice(storageRows, func(i, j int) bool {
 		return storageRows[i].ShortName < storageRows[j].ShortName
 	})
+
+	// ИЗМЕНЕНО (2026-09-08): models.StorageSystems лишился текстовых
+	// DatacenterRoom/RackNum - расположение СХД теперь определяется только
+	// через RackCabinetId (FK на models.RackCabinet), точно так же, как ранее
+	// было исправлено для BladeSystems выше (см. cabinetById/cabinetPlacement
+	// там) - здесь довычисляются недостающие записи cabinetById для шкафов,
+	// на которые ссылаются СХД (RackCabinetId у корзин и у СХД может
+	// пересекаться, но необязательно совпадать полностью, поэтому нельзя
+	// просто переиспользовать карту как есть без дозагрузки).
+	{
+		missingCabinetIds := make([]int64, 0)
+		for _, st := range storageRows {
+			if st.RackCabinetId > 0 {
+				if _, ok := cabinetById[st.RackCabinetId]; !ok {
+					missingCabinetIds = append(missingCabinetIds, st.RackCabinetId)
+				}
+			}
+		}
+		if len(missingCabinetIds) > 0 {
+			var cabinets []models.RackCabinet
+			if _, err := o.QueryTable(new(models.RackCabinet)).Filter("Id__in", missingCabinetIds).All(&cabinets); err == nil {
+				siteIds := make([]int64, 0, len(cabinets))
+				for _, c := range cabinets {
+					if c.DatacenterSiteId > 0 {
+						siteIds = append(siteIds, c.DatacenterSiteId)
+					}
+				}
+				siteNameById := map[int64]string{}
+				if len(siteIds) > 0 {
+					var sites []models.DatacenterSite
+					if _, err := o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteIds).All(&sites); err == nil {
+						for _, s := range sites {
+							siteNameById[s.Id] = s.Name
+						}
+					}
+				}
+				for _, c := range cabinets {
+					cabinetById[c.Id] = cabinetPlacement{room: siteNameById[c.DatacenterSiteId], rack: c.Name}
+				}
+			}
+		}
+	}
+
 	storageItems := make([]payload.Storage, 0, len(storageRows))
 	for _, st := range storageRows {
 		diskMax := st.Size
 		if diskMax <= 0 && st.Used > 0 {
 			diskMax = st.Used
 		}
+		placement := cabinetById[st.RackCabinetId]
 		storageItems = append(storageItems, payload.Storage{
 			ShortName:   st.ShortName,
 			Vendor:      st.Vendor,
@@ -235,8 +279,8 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 			DiskMax:     diskMax,
 			TotalSizeTB: st.TotalSizeRAW,
 			UsedPercent: st.UsedPercent,
-			Room:        st.DatacenterRoom,
-			RackNum:     st.RackNum,
+			Room:        placement.room,
+			RackNum:     placement.rack,
 			PowerOn:     st.Power == 1,
 		})
 	}

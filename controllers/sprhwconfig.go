@@ -22,6 +22,16 @@ import (
 // указано" в самой таблице models.ServerHardware). ServerName - поиск по
 // связанному справочнику серверов (models.ServerSprRecords.Name/NameFQDN,
 // связь через ServerHardware.ServerId).
+//
+// ИЗМЕНЕНО (2026-09-08, по запросу пользователя "в справочнике серверов в
+// фильтре используй схему с выбором ЦОД и Шкафа вместо ЦОД: адрес и площадка
+// по старым данным"): текстовые поля DatacenterRoom/RackNum (свободный текст
+// по старым данным Итиллиум/OneView) заменены на RackCabinetId - выбор
+// конкретного шкафа из справочника models.RackCabinet (с каскадным select
+// ЦОД -> Шкаф в шаблоне, тот же приём, что уже сделан в форме
+// bladesystemsedit.tpl для models.BladeSystems, см. sprbladesystems.go).
+// "0"/"" означает "фильтр по шкафу не применён" (см. RackCabinetId ниже),
+// по аналогии с "все" для select-фильтров выше.
 type HWConfigFilter struct {
 	PowerState        string `form:"PowerState"`
 	Active            string `form:"Active"`
@@ -31,14 +41,13 @@ type HWConfigFilter struct {
 	FormFactor        string `form:"FormFactor"`
 	CPUModel          string `form:"CPUModel"`
 	SerialNum         string `form:"SerialNum"`
-	DatacenterRoom    string `form:"DatacenterRoom"`
-	RackNum           string `form:"RackNum"`
+	RackCabinetId     string `form:"RackCabinetId"`
 	ServerName        string `form:"ServerName"`
 	TechnicalNumberIT string `form:"TechnicalNumberIT"`
 }
 
 func defaultHWConfigFilter() *HWConfigFilter {
-	return &HWConfigFilter{PowerState: "all", Active: "all", FormFactor: "all"}
+	return &HWConfigFilter{PowerState: "all", Active: "all", FormFactor: "all", RackCabinetId: "0"}
 }
 
 // HWConfigRow - одна строка списка /sprsrv/hwconflist: запись
@@ -54,10 +63,10 @@ type HWConfigRow struct {
 
 // SprHwConfig отображает список записей справочника аппаратной конфигурации
 // серверов (models.ServerHardware, таблица server_hardware) с фильтром по
-// PowerState/Active/Vendor/Model/PartNum/FormFactor/CPUModel/DatacenterRoom/
-// RackNum/имени сервера и постраничной навигацией - оформление аналогично
-// /sprsrv/view2 (фильтр POST-формой, классическая таблица, номер страницы
-// передаётся скрытым полем формы).
+// PowerState/Active/Vendor/Model/PartNum/FormFactor/CPUModel/RackCabinetId
+// (шкаф из справочника, см. HWConfigFilter)/имени сервера и постраничной
+// навигацией - оформление аналогично /sprsrv/view2 (фильтр POST-формой,
+// классическая таблица, номер страницы передаётся скрытым полем формы).
 //
 // Маршрут: /sprsrv/hwconflist/:id
 func (this *MainController) SprHwConfig() {
@@ -115,8 +124,6 @@ func (this *MainController) SprHwConfig() {
 		filter.PartNum = this.GetString("PartNum")
 		filter.CPUModel = this.GetString("CPUModel")
 		filter.SerialNum = this.GetString("SerialNum")
-		filter.DatacenterRoom = this.GetString("DatacenterRoom")
-		filter.RackNum = this.GetString("RackNum")
 		filter.ServerName = this.GetString("ServerName")
 		filter.TechnicalNumberIT = this.GetString("TechnicalNumberIT")
 
@@ -140,6 +147,19 @@ func (this *MainController) SprHwConfig() {
 	this.Data[keyFilter] = filter
 
 	o := orm.NewOrm()
+
+	// Справочники ЦОД/Шкаф для каскадного select-фильтра размещения (см.
+	// комментарий у HWConfigFilter.RackCabinetId выше и JS в hwconflist.tpl) -
+	// тот же приём, что уже используется в форме bladesystemsedit.tpl
+	// (sprbladesystems.go:SprBladeSystemsEdit).
+	var sites []models.DatacenterSite
+	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&sites)
+	this.Data["DatacenterSites"] = sites
+
+	var racks []models.RackCabinet
+	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)
+	this.Data["RackCabinets"] = racks
+
 	qs := o.QueryTable("server_hardware")
 
 	if filter.PowerState != "" && filter.PowerState != "all" {
@@ -172,11 +192,10 @@ func (this *MainController) SprHwConfig() {
 	if filter.SerialNum != "" {
 		qs = qs.Filter("SerialNum__icontains", filter.SerialNum)
 	}
-	if filter.DatacenterRoom != "" {
-		qs = qs.Filter("DatacenterRoom__icontains", filter.DatacenterRoom)
-	}
-	if filter.RackNum != "" {
-		qs = qs.Filter("RackNum__icontains", filter.RackNum)
+	if filter.RackCabinetId != "" && filter.RackCabinetId != "0" {
+		if v, err := strconv.ParseInt(filter.RackCabinetId, 10, 64); err == nil && v > 0 {
+			qs = qs.Filter("RackCabinetId", v)
+		}
 	}
 	if filter.TechnicalNumberIT != "" {
 		qs = qs.Filter("TechnicalNumberIT__icontains", filter.TechnicalNumberIT)
@@ -273,7 +292,69 @@ func (this *MainController) SprHwConfig() {
 		return
 	}
 
+	// Размещение в колонке списка (2026-09-08, по запросу пользователя
+	// "исправь размещение в списке конфигураций серверов аналогично блэйд
+	// корзинам") - вместо старых текстовых DatacenterRoom/RackNum теперь
+	// "ЦОД / Шкаф" по RackCabinetId, тот же приём (и тот же lookup-паттерн),
+	// что уже применяется в bladesystemslist.tpl, см.
+	// sprbladesystems.go:bladeSystemsPlacementByCabinetId.
+	this.Data["HWConfigPlacement"] = hwConfigPlacementByCabinetId(o, records)
+
 	this.renderHWConfigPage(rows, totalRecords, page, pageSize)
+}
+
+// hwConfigPlacementByCabinetId строит по списку записей models.ServerHardware
+// (только по их RackCabinetId) карту "Id шкафа -> "ЦОД / шкаф"" - для колонки
+// "Размещение" в hwconflist.tpl. Полный аналог
+// sprbladesystems.go:bladeSystemsPlacementByCabinetId (для models.BladeSystems) -
+// продублирован здесь как отдельная функция, а не переиспользован напрямую,
+// т.к. тот принимает []models.BladeSystems, а не []models.ServerHardware, и
+// добавлять ради этого обобщённый (generics/интерфейс) вариант ради одной
+// строчки не оправдано.
+func hwConfigPlacementByCabinetId(o orm.Ormer, rows []models.ServerHardware) map[int64]string {
+	result := map[int64]string{}
+	cabinetIds := make([]int64, 0, len(rows))
+	seen := map[int64]bool{}
+	for _, r := range rows {
+		if r.RackCabinetId > 0 && !seen[r.RackCabinetId] {
+			seen[r.RackCabinetId] = true
+			cabinetIds = append(cabinetIds, r.RackCabinetId)
+		}
+	}
+	if len(cabinetIds) == 0 {
+		return result
+	}
+	var cabinets []models.RackCabinet
+	if _, err := o.QueryTable(new(models.RackCabinet)).Filter("Id__in", cabinetIds).All(&cabinets); err != nil {
+		return result
+	}
+	siteIds := make([]int64, 0, len(cabinets))
+	for _, c := range cabinets {
+		if c.DatacenterSiteId > 0 {
+			siteIds = append(siteIds, c.DatacenterSiteId)
+		}
+	}
+	siteNameById := map[int64]string{}
+	if len(siteIds) > 0 {
+		var sites []models.DatacenterSite
+		if _, err := o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteIds).All(&sites); err == nil {
+			for _, s := range sites {
+				siteNameById[s.Id] = s.Name
+			}
+		}
+	}
+	for _, c := range cabinets {
+		site := siteNameById[c.DatacenterSiteId]
+		switch {
+		case site != "" && c.Name != "":
+			result[c.Id] = site + " / " + c.Name
+		case c.Name != "":
+			result[c.Id] = c.Name
+		default:
+			result[c.Id] = site
+		}
+	}
+	return result
 }
 
 // exportHWConfigXLSX отдаёт найденный по фильтру список записей
@@ -654,6 +735,14 @@ func (this *MainController) SprHwConfigEdit() {
 		flash.Notice("Запись сохранена.")
 		flash.Store(&this.Controller)
 	}
+
+	// ЦОД/Шкаф для каскадного select размещения (2026-09-08, по запросу
+	// пользователя "исправь ... в самой карточке редактирования") - тот же
+	// приём, что и в bladesystemsedit.tpl (sprbladesystems.go:SprBladeSystemsEdit)
+	// и в фильтре /sprsrv/hwconflist (см. SprHwConfig выше).
+	var sites []models.DatacenterSite
+	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&sites)
+	this.Data["DatacenterSites"] = sites
 
 	var racks []models.RackCabinet
 	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)

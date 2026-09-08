@@ -56,12 +56,22 @@
                 <input type="text" id="InventoryNum" name="InventoryNum" class="form-control" value="{{.StorageSystemsFilter.InventoryNum}}">
             </div>
             <div class="col-6 col-md-3">
-                <label for="DatacenterRoom" class="form-label">ЦОД / серверная</label>
-                <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.StorageSystemsFilter.DatacenterRoom}}">
+                <label for="stFilterDatacenterSiteId" class="form-label">ЦОД</label>
+                <select id="stFilterDatacenterSiteId" class="form-select">
+                    <option value="0">Все</option>
+                    {{range $dc := .DatacenterSites}}
+                    <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                    {{end}}
+                </select>
             </div>
             <div class="col-6 col-md-3">
-                <label for="RackNum" class="form-label">Номер стойки</label>
-                <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.StorageSystemsFilter.RackNum}}">
+                <label for="RackCabinetId" class="form-label">Шкаф</label>
+                <select id="RackCabinetId" name="RackCabinetId" class="form-select">
+                    <option value="0">Все</option>
+                    {{range $rc := .RackCabinets}}
+                    <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.StorageSystemsFilter.RackCabinetId (printf "%d" $rc.Id)}}selected{{end}}>{{$rc.Name}}</option>
+                    {{end}}
+                </select>
             </div>
         </div>
         <div class="row mt-3">
@@ -121,7 +131,7 @@
                 <td>{{$st.SerialNum}}</td>
                 <td class="text-end">{{printf "%.1f" $st.TotalSizeRAW}}</td>
                 <td class="text-end">{{printf "%.1f" $st.UsedPercent}}</td>
-                <td>{{$st.DatacenterRoom}} {{if ne $st.RackNum ""}}/ {{$st.RackNum}}{{end}}</td>
+                <td>{{index $.StorageSystemsPlacement $st.RackCabinetId}}</td>
                 <td id="stRowMenu{{$st.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemsedit/{{$st.Id}}" target="_blank">Редактировать</a>
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemconfigview/{{$st.Id}}" target="_blank">Конфигурация СХД</a>
@@ -260,5 +270,47 @@
         });
         document.addEventListener('scroll', hideMenu, true);
         window.addEventListener('resize', hideMenu);
+    })();
+
+    // Каскадный фильтр "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя
+    // "добавь в models.StorageSystems поле RackCabinetId и сделай
+    // соответствующую обработку и отображение в справочнике СХД и форме
+    // редактирования СХД") - select ЦОД (stFilterDatacenterSiteId) сам никуда
+    // не отправляется (нет атрибута name), он только сужает список опций
+    // select "Шкаф" (RackCabinetId, единственное поле, которое реально уходит
+    // в фильтр) по атрибуту data-dc каждой опции - тот же приём, что уже
+    // используется в hwconflist.tpl / view2.tpl.
+    (function () {
+        var dcSelect = document.getElementById('stFilterDatacenterSiteId');
+        var rackSelect = document.getElementById('RackCabinetId');
+        if (!dcSelect || !rackSelect) return;
+
+        var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+
+        function applyFilter(preserveSelection) {
+            var dc = dcSelect.value;
+            var currentValue = rackSelect.value;
+            rackSelect.innerHTML = '';
+            allRackOptions.forEach(function (opt) {
+                var optDc = opt.getAttribute('data-dc') || '0';
+                if (opt.value === '0' || dc === '0' || optDc === dc) {
+                    rackSelect.appendChild(opt);
+                }
+            });
+            if (preserveSelection) {
+                var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
+                    return opt.value === currentValue;
+                });
+                rackSelect.value = stillPresent ? currentValue : '0';
+            }
+        }
+
+        var selectedOption = allRackOptions.find(function (opt) { return opt.selected; });
+        if (selectedOption && selectedOption.value !== '0') {
+            dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+        }
+        applyFilter(true);
+
+        dcSelect.addEventListener('change', function () { applyFilter(true); });
     })();
 </script>

@@ -438,26 +438,74 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         </div>
 
+        <!-- ИЗМЕНЕНО (2026-09-08, по запросу пользователя "замени в форме
+             /sprsrv/view2 ... схему с выбором ЦОД и Шкафа вместо ЦОД: адрес и
+             площадка по старым данным"): вместо select "DPCOffice" (жёстко
+             зашитый в HTML список адресов, не связанный со справочниками) -
+             каскадный выбор ЦОД -> Шкаф из models.DatacenterSite/
+             models.RackCabinet, тот же приём, что уже в bladesystemsedit.tpl
+             и /sprsrv/hwconflist (см. sprsrvview2.go:placementServerSprIds
+             про правила определения размещения для разных типов записей). -->
         <div class="row">
-            <div class="form-group col-sm-6">
-                <label for="DPCOffice">ЦОД: адрес и площадка</label>
-                <select name="DPCOffice" size="1" class="form-control" value="{{.record.DPCOffice}}">
-                    <option value="0" {{if eq .record.DPCOffice 0}}selected{{end}}>не выбрано</option>
-                    <option value="101" {{if eq .record.DPCOffice 101}}selected{{end}}>623к, г. Новосибирск, ул. Советская 37
-                    </option>
-                    <option value="102" {{if eq .record.DPCOffice 102}}selected{{end}}>624к, г. Новосибирск, ул. Советская 37
-                    </option>
-                    <option value="103" {{if eq .record.DPCOffice 103}}selected{{end}}>316к, г. Новосибирск, ул. Советская 37
-                    </option>
-                    <option value="121" {{if eq .record.DPCOffice 121}}selected{{end}}>Мегафон,г. Новосибирск, ул. Толмачевская 19а к3</option>
-                    <option value="131" {{if eq .record.DPCOffice 131}}selected{{end}}>Ростелеком,г. Новосибирск, ул. Менделеева 1</option>
-                    <option value="201" {{if eq .record.DPCOffice 201}}selected{{end}}>3-02 г. Москва, ул. Мира 69</option>
-                    <option value="202" {{if eq .record.DPCOffice 202}}selected{{end}}>4-19 г. Москва, ул. Мира 69</option>
-                    <option value="281" {{if eq .record.DPCOffice 281}}selected{{end}}>DSP г. Москва, ул.Шарикоподшипниковская улица 11/9</option>
-                    <option value="291" {{if eq .record.DPCOffice 291}}selected{{end}}>М1 г. Москва, ул. Варшавское шоссе 125</option>
+            <div class="form-group col-sm-3">
+                <label for="view2DatacenterSiteId">ЦОД</label>
+                <select id="view2DatacenterSiteId" class="form-control">
+                    <option value="0">Все</option>
+                    {{range $dc := .DatacenterSites}}
+                    <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group col-sm-3">
+                <label for="RackCabinetId">Шкаф</label>
+                <select id="RackCabinetId" name="RackCabinetId" size="1" class="form-control">
+                    <option value="0">Все</option>
+                    {{range $rc := .RackCabinets}}
+                    <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.RackCabinetId (printf "%d" $rc.Id)}}selected{{end}}>{{$rc.Name}}</option>
+                    {{end}}
                 </select>
             </div>
         </div>
+        <script>
+            // Каскадный фильтр "ЦОД -> Шкаф" - select ЦОД (view2DatacenterSiteId)
+            // сам никуда не отправляется (нет атрибута name), он только сужает
+            // список опций select "Шкаф" (RackCabinetId, единственное поле,
+            // которое реально уходит в фильтр) по атрибуту data-dc каждой
+            // опции - идентично /sprsrv/hwconflist и bladesystemsedit.tpl.
+            (function () {
+                var dcSelect = document.getElementById('view2DatacenterSiteId');
+                var rackSelect = document.getElementById('RackCabinetId');
+                if (!dcSelect || !rackSelect) return;
+
+                var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+
+                function applyFilter(preserveSelection) {
+                    var dc = dcSelect.value;
+                    var currentValue = rackSelect.value;
+                    rackSelect.innerHTML = '';
+                    allRackOptions.forEach(function (opt) {
+                        var optDc = opt.getAttribute('data-dc') || '0';
+                        if (opt.value === '0' || dc === '0' || optDc === dc) {
+                            rackSelect.appendChild(opt);
+                        }
+                    });
+                    if (preserveSelection) {
+                        var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
+                            return opt.value === currentValue;
+                        });
+                        rackSelect.value = stillPresent ? currentValue : '0';
+                    }
+                }
+
+                var selectedOption = allRackOptions.find(function (opt) { return opt.selected; });
+                if (selectedOption && selectedOption.value !== '0') {
+                    dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+                }
+                applyFilter(true);
+
+                dcSelect.addEventListener('change', function () { applyFilter(true); });
+            })();
+        </script>
 
         <div class="row">
             <div class="form-group col-sm-6">

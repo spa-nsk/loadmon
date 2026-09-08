@@ -270,60 +270,41 @@ func buildHWInfraData() (HWInfraData, error) {
 		})
 	}
 
-	// СХД: теперь есть FK StorageSystems.RackCabinetId (см. models_add.go),
-	// но на момент внедрения он ЕЩЁ НЕ ЗАПОЛНЕН ни у одной записи - поэтому
-	// используем его, если проставлен, а иначе откатываемся на сопоставление
-	// по тексту RackNum/DatacenterRoom с Name/AltName шкафов и ЦОД (лучшее
-	// приближение без данных FK). После заполнения справочника вручную через
-	// /sprsrv/storagesystemsedit текстовый fallback перестанет требоваться.
-	normalize := func(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
-	cabinetByName := map[string]*models.RackCabinet{}
-	for i := range cabinets {
-		if n := normalize(cabinets[i].Name); n != "" {
-			cabinetByName[n] = &cabinets[i]
-		}
-		if n := normalize(cabinets[i].AltName); n != "" {
-			cabinetByName[n] = &cabinets[i]
-		}
-	}
-	siteByName := map[string]*models.DatacenterSite{}
-	for i := range sites {
-		if n := normalize(sites[i].Name); n != "" {
-			siteByName[n] = &sites[i]
-		}
-		if n := normalize(sites[i].AltName); n != "" {
-			siteByName[n] = &sites[i]
-		}
-	}
+	// СХД: размещение определяется ТОЛЬКО через FK StorageSystems.RackCabinetId
+	// (см. models_add.go) - заполняется вручную через /sprsrv/storagesystemsedit
+	// либо массовым импортом из Итиллиум (itilliumimport/importstorages.go).
+	// ИЗМЕНЕНО (2026-09-08): текстовый fallback по имени шкафа/ЦОД (RackNum/
+	// DatacenterRoom) убран вместе с самими полями - у models.StorageSystems
+	// их больше нет.
 	for _, st := range storageRows {
 		diskMax := st.Size
 		if diskMax <= 0 && st.Used > 0 {
 			diskMax = st.Used
 		}
+		// ИСПРАВЛЕНО (2026-09-08): models.StorageSystems лишился текстовых
+		// DatacenterRoom/RackNum и StartUnit/SizeUnit(string) - размещение
+		// теперь определяется ТОЛЬКО через RackCabinetId (FK), а
+		// StartUnitPos/SizeUnit - уже числа (int), без парсинга. Текстовый
+		// fallback по cabinetByName/siteByName для СХД больше не нужен - см.
+		// комментарий в начале файла про новую схему размещения через
+		// DatacenterSite -> RackCabinet.
 		item := HWInfraStorage{
 			Name: st.ShortName, Vendor: st.Vendor, Model: st.Model,
 			DiskUsed: st.Used, DiskMax: diskMax, TotalSizeTB: st.TotalSizeRAW,
 			UsedPercent: st.UsedPercent, PowerOn: st.Power == 1,
-			StartUnit: parseStartUnit(st.StartUnit),
+			StartUnit: st.StartUnitPos,
+			SizeUnit:  st.SizeUnit,
 		}
-		fmt.Sscanf(strings.TrimSpace(st.SizeUnit), "%d", &item.SizeUnit)
 		if item.SizeUnit <= 0 {
 			item.SizeUnit = 4
 		}
 		var cabID int64
 		if st.RackCabinetId > 0 {
 			cabID = st.RackCabinetId
-		} else if c, ok := cabinetByName[normalize(st.RackNum)]; ok {
-			cabID = c.Id
 		}
 		var siteID int64
 		if cabID > 0 {
 			siteID = siteOfCabinet(cabID)
-		}
-		if siteID == 0 {
-			if s, ok := siteByName[normalize(st.DatacenterRoom)]; ok {
-				siteID = s.Id
-			}
 		}
 		r := ensureRack(siteID, cabID)
 		r.storage = append(r.storage, item)

@@ -21,20 +21,27 @@ import (
 // чтобы отличать "фильтр не применён" от осмысленного значения 0 ("не
 // указано" в самой таблице models.StorageSystems) - приём идентичен
 // HWConfigFilter в controllers/sprhwconfig.go (образец стиля для этой формы).
+// ИЗМЕНЕНО (2026-09-08, по запросу пользователя "добавь в models.StorageSystems
+// поле RackCabinetId и сделай соответствующую обработку и отображение в
+// справочнике СХД и форме редактирования СХД" - само поле RackCabinetId уже
+// существовало в модели, см. models_add.go, доработка коснулась обработки в
+// controllers/tpl): текстовые DatacenterRoom/RackNum заменены на
+// RackCabinetId - выбор шкафа из справочника (с каскадным select ЦОД->Шкаф в
+// шаблоне) - тот же приём, что уже сделан для HWConfigFilter в
+// sprhwconfig.go.
 type StorageSystemsFilter struct {
-	TypeWork       string `form:"TypeWork"`
-	Status         string `form:"Status"`
-	Vendor         string `form:"Vendor"`
-	Model          string `form:"Model"`
-	ShortName      string `form:"ShortName"`
-	SerialNum      string `form:"SerialNum"`
-	InventoryNum   string `form:"InventoryNum"`
-	DatacenterRoom string `form:"DatacenterRoom"`
-	RackNum        string `form:"RackNum"`
+	TypeWork      string `form:"TypeWork"`
+	Status        string `form:"Status"`
+	Vendor        string `form:"Vendor"`
+	Model         string `form:"Model"`
+	ShortName     string `form:"ShortName"`
+	SerialNum     string `form:"SerialNum"`
+	InventoryNum  string `form:"InventoryNum"`
+	RackCabinetId string `form:"RackCabinetId"`
 }
 
 func defaultStorageSystemsFilter() *StorageSystemsFilter {
-	return &StorageSystemsFilter{TypeWork: "all", Status: "all"}
+	return &StorageSystemsFilter{TypeWork: "all", Status: "all", RackCabinetId: "0"}
 }
 
 // SprStorageSystems отображает список записей справочника СХД
@@ -102,6 +109,18 @@ func (this *MainController) SprStorageSystems() {
 	this.Data[keyFilter] = filter
 
 	o := orm.NewOrm()
+
+	// Справочники ЦОД/Шкаф для каскадного select-фильтра размещения (см.
+	// комментарий у StorageSystemsFilter.RackCabinetId выше) - тот же приём,
+	// что и в controllers/sprhwconfig.go:SprHwConfig.
+	var dcSites []models.DatacenterSite
+	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&dcSites)
+	this.Data["DatacenterSites"] = dcSites
+
+	var allRacks []models.RackCabinet
+	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&allRacks)
+	this.Data["RackCabinets"] = allRacks
+
 	qs := o.QueryTable("storage_systems")
 
 	if filter.TypeWork != "" && filter.TypeWork != "all" {
@@ -129,11 +148,10 @@ func (this *MainController) SprStorageSystems() {
 	if filter.InventoryNum != "" {
 		qs = qs.Filter("InventoryNum__icontains", filter.InventoryNum)
 	}
-	if filter.DatacenterRoom != "" {
-		qs = qs.Filter("DatacenterRoom__icontains", filter.DatacenterRoom)
-	}
-	if filter.RackNum != "" {
-		qs = qs.Filter("RackNum__icontains", filter.RackNum)
+	if filter.RackCabinetId != "" && filter.RackCabinetId != "0" {
+		if v, err := strconv.ParseInt(filter.RackCabinetId, 10, 64); err == nil && v > 0 {
+			qs = qs.Filter("RackCabinetId", v)
+		}
 	}
 
 	totalRecords, err := qs.Count()
@@ -178,7 +196,66 @@ func (this *MainController) SprStorageSystems() {
 		return
 	}
 
+	// Размещение в колонке списка (2026-09-08) - "ЦОД / Шкаф" по
+	// RackCabinetId вместо старых текстовых DatacenterRoom/RackNum, тот же
+	// приём, что sprbladesystems.go:bladeSystemsPlacementByCabinetId и
+	// sprhwconfig.go:hwConfigPlacementByCabinetId.
+	this.Data["StorageSystemsPlacement"] = storageSystemsPlacementByCabinetId(o, records)
+
 	this.renderStorageSystemsPage(records, totalRecords, page, pageSize)
+}
+
+// storageSystemsPlacementByCabinetId строит по списку записей
+// models.StorageSystems (только по их RackCabinetId) карту "Id шкафа ->
+// "ЦОД / шкаф"" - для колонки "Размещение" в storagesystemslist.tpl. Полный
+// аналог sprbladesystems.go:bladeSystemsPlacementByCabinetId /
+// sprhwconfig.go:hwConfigPlacementByCabinetId (для models.BladeSystems /
+// models.ServerHardware соответственно) - продублирован здесь для
+// models.StorageSystems по тем же причинам (разные типы среза записей).
+func storageSystemsPlacementByCabinetId(o orm.Ormer, rows []models.StorageSystems) map[int64]string {
+	result := map[int64]string{}
+	cabinetIds := make([]int64, 0, len(rows))
+	seen := map[int64]bool{}
+	for _, r := range rows {
+		if r.RackCabinetId > 0 && !seen[r.RackCabinetId] {
+			seen[r.RackCabinetId] = true
+			cabinetIds = append(cabinetIds, r.RackCabinetId)
+		}
+	}
+	if len(cabinetIds) == 0 {
+		return result
+	}
+	var cabinets []models.RackCabinet
+	if _, err := o.QueryTable(new(models.RackCabinet)).Filter("Id__in", cabinetIds).All(&cabinets); err != nil {
+		return result
+	}
+	siteIds := make([]int64, 0, len(cabinets))
+	for _, c := range cabinets {
+		if c.DatacenterSiteId > 0 {
+			siteIds = append(siteIds, c.DatacenterSiteId)
+		}
+	}
+	siteNameById := map[int64]string{}
+	if len(siteIds) > 0 {
+		var sites []models.DatacenterSite
+		if _, err := o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteIds).All(&sites); err == nil {
+			for _, s := range sites {
+				siteNameById[s.Id] = s.Name
+			}
+		}
+	}
+	for _, c := range cabinets {
+		site := siteNameById[c.DatacenterSiteId]
+		switch {
+		case site != "" && c.Name != "":
+			result[c.Id] = site + " / " + c.Name
+		case c.Name != "":
+			result[c.Id] = c.Name
+		default:
+			result[c.Id] = site
+		}
+	}
+	return result
 }
 
 // exportStorageSystemsXLSX отдаёт найденный по фильтру список записей
@@ -461,6 +538,20 @@ func (this *MainController) SprStorageSystemsEdit() {
 		rec.UsedPercent = parseFloatField("Использовано, %", "UsedPercent")
 		rec.WWNMask = this.GetString("WWNMask")
 
+		// ИСПРАВЛЕНО (2026-09-08, по запросу пользователя "Проверь структуру
+		// StorageSystems, она изменилась"): models.StorageSystems больше не
+		// содержит текстовых полей City/DatacenterRoom/RackNum/Allocation, а
+		// StartUnitPos/EndUnitPos/SizeUnit - числовые (int), а не строки -
+		// код здесь ссылался на уже не существующие поля модели (эта форма
+		// не собиралась бы компилятором) - приведено в соответствие с
+		// текущим models.StorageSystems (та же схема размещения, что у
+		// BladeSystems: RackCabinetId + StartUnitPos/EndUnitPos/SizeUnit).
+		// Разбор через parseIntField ДО проверки parseErrors ниже - иначе
+		// опечатка в этих полях молча терялась бы, минуя общую проверку.
+		rec.StartUnitPos = parseIntField("Юнит начала", "StartUnitPos")
+		rec.EndUnitPos = parseIntField("Юнит окончания", "EndUnitPos")
+		rec.SizeUnit = parseIntField("Размер, юнитов", "SizeUnit")
+
 		if len(parseErrors) > 0 {
 			flash.Error("Не удалось сохранить - проверьте числовые поля: %s", strings.Join(parseErrors, "; "))
 			flash.Store(&this.Controller)
@@ -473,15 +564,10 @@ func (this *MainController) SprStorageSystemsEdit() {
 		rec.AdCert = this.GetString("AdCert") == "on"
 		rec.AdCertDate = parseStorageSystemsDate(this.GetString("AdCertDate"))
 
-		rec.City = this.GetString("City")
-		rec.DatacenterRoom = this.GetString("DatacenterRoom")
-		rec.RackNum = this.GetString("RackNum")
-		rec.StartUnit = this.GetString("StartUnit")
-		rec.SizeUnit = this.GetString("SizeUnit")
 		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
+		rec.TechnicalNumberIT = this.GetString("TechnicalNumberIT")
 
 		rec.Owner = this.GetString("Owner")
-		rec.Allocation = this.GetString("Allocation")
 		rec.Anotation = this.GetString("Anotation")
 
 		rec.InventoryNum = this.GetString("InventoryNum")
@@ -529,6 +615,12 @@ func (this *MainController) SprStorageSystemsEdit() {
 	var racks []models.RackCabinet
 	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)
 	this.Data["RackCabinets"] = racks
+
+	// ЦОД для каскадного select ЦОД->Шкаф в форме редактирования (2026-09-08,
+	// тот же приём, что в hwconfedit.tpl).
+	var dcSites []models.DatacenterSite
+	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&dcSites)
+	this.Data["DatacenterSites"] = dcSites
 
 	this.Data["ST"] = rec
 	this.Data["AdCertDateStr"] = formatStorageSystemsDate(rec.AdCertDate)
