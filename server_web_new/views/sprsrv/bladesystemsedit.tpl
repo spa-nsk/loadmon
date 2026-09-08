@@ -60,18 +60,6 @@
             <div class="hw-card">
                 <h6>Размещение</h6>
                 <div class="row g-3">
-                    <div class="col-6">
-                        <label for="DatacenterRoom" class="form-label">ЦОД / серверная</label>
-                        <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.BS.DatacenterRoom}}">
-                    </div>
-                    <div class="col-6">
-                        <label for="RackNum" class="form-label">Номер стойки</label>
-                        <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.BS.RackNum}}">
-                    </div>
-                    <div class="col-4">
-                        <label for="StartUnit" class="form-label">Юнит начала (текст)</label>
-                        <input type="text" id="StartUnit" name="StartUnit" class="form-control" value="{{.BS.StartUnit}}">
-                    </div>
                     <div class="col-4">
                         <label for="StartUnitPos" class="form-label">Юнит начала (номер)</label>
                         <input type="number" id="StartUnitPos" name="StartUnitPos" class="form-control" value="{{.BS.StartUnitPos}}">
@@ -80,12 +68,26 @@
                         <label for="SizeUnit" class="form-label">Занимаемых юнитов</label>
                         <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.BS.SizeUnit}}">
                     </div>
-                    <div class="col-6">
+                    <div class="col-4">
+                        <!-- ДОБАВЛЕНО (2026-09-08, по запросу пользователя): выбор ЦОД,
+                             по которому ниже отфильтровывается список шкафов этого
+                             ЦОД (см. скрипт bsFilterRacksByDatacenter внизу файла) -
+                             сам ЦОД никуда не сохраняется, сохраняется только
+                             выбранный в отфильтрованном списке RackCabinetId. -->
+                        <label for="DatacenterSiteId" class="form-label">ЦОД</label>
+                        <select id="DatacenterSiteId" class="form-select">
+                            <option value="0">-</option>
+                            {{range $dc := .DatacenterSites}}
+                            <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                    <div class="col-4">
                         <label for="RackCabinetId" class="form-label">Шкаф (справочник)</label>
                         <select id="RackCabinetId" name="RackCabinetId" class="form-select">
                             <option value="0">-</option>
                             {{range $rc := .RackCabinets}}
-                            <option value="{{$rc.Id}}" {{if eq $.BS.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
+                            <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.BS.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
                             {{end}}
                         </select>
                     </div>
@@ -93,23 +95,35 @@
 
                 <hr class="my-3">
 
-                <h6>Владелец и описание</h6>
+                <h6>Статус и владелец</h6>
                 <div class="row g-3">
+                    <div class="col-6">
+                        <label for="PowerState" class="form-label">Состояние питания</label>
+                        <select id="PowerState" name="PowerState" class="form-select">
+                            <option value="0" {{if eq .BS.PowerState 0}}selected{{end}}>Не указано</option>
+                            <option value="1" {{if eq .BS.PowerState 1}}selected{{end}}>Включен</option>
+                            <option value="2" {{if eq .BS.PowerState 2}}selected{{end}}>Выключен</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label for="Active" class="form-label">Статус</label>
+                        <select id="Active" name="Active" class="form-select">
+                            <option value="0" {{if eq .BS.Active 0}}selected{{end}}>Не указано</option>
+                            <option value="1" {{if eq .BS.Active 1}}selected{{end}}>Активен</option>
+                            <option value="2" {{if eq .BS.Active 2}}selected{{end}}>Выведен из эксплуатации</option>
+                        </select>
+                    </div>
                     <div class="col-6">
                         <label for="Owner" class="form-label">Владелец</label>
                         <input type="text" id="Owner" name="Owner" class="form-control" value="{{.BS.Owner}}">
                     </div>
                     <div class="col-6">
-                        <label for="Allocation" class="form-label">Аллокация</label>
-                        <input type="text" id="Allocation" name="Allocation" class="form-control" value="{{.BS.Allocation}}">
+                        <label for="TechnicalNumberIT" class="form-label">Технический номер</label>
+                        <input type="text" id="TechnicalNumberIT" name="TechnicalNumberIT" class="form-control" value="{{.BS.TechnicalNumberIT}}">
                     </div>
-                    <div class="col-6">
+                    <div class="col-12">
                         <label for="Anotation" class="form-label">Примечание</label>
                         <input type="text" id="Anotation" name="Anotation" class="form-control" value="{{.BS.Anotation}}">
-                    </div>
-                    <div class="col-6">
-                        <label for="Description" class="form-label">Описание</label>
-                        <input type="text" id="Description" name="Description" class="form-control" value="{{.BS.Description}}">
                     </div>
                 </div>
             </div>
@@ -178,3 +192,54 @@
         letter-spacing: 0.03em;
     }
 </style>
+
+<script>
+    // Каскадный выбор "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя):
+    // список шкафов (#RackCabinetId) фильтруется по выбранному ЦОД
+    // (#DatacenterSiteId, ЦОД никуда не сохраняется - это только помощник
+    // выбора). Признак принадлежности шкафа ЦОД - атрибут data-dc на каждом
+    // <option> (проставлен из RackCabinet.DatacenterSiteId в шаблоне выше).
+    // При загрузке страницы ЦОД определяется по уже выбранному шкафу (если
+    // он есть у записи), чтобы форма сразу открывалась с корректно
+    // отфильтрованным списком, а не со списком "все шкафы всех ЦОД".
+    (function () {
+        var dcSelect = document.getElementById('DatacenterSiteId');
+        var rackSelect = document.getElementById('RackCabinetId');
+        if (!dcSelect || !rackSelect) return;
+
+        // Полный список опций шкафов - запоминаем один раз при загрузке
+        // страницы, чтобы потом восстанавливать/фильтровать без повторных
+        // обращений к серверу.
+        var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+
+        function applyFilter(preserveSelection) {
+            var dc = dcSelect.value;
+            var currentValue = rackSelect.value;
+            rackSelect.innerHTML = '';
+            allRackOptions.forEach(function (opt) {
+                var optDc = opt.getAttribute('data-dc') || '0';
+                if (opt.value === '0' || dc === '0' || optDc === dc) {
+                    rackSelect.appendChild(opt);
+                }
+            });
+            if (preserveSelection) {
+                var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
+                    return opt.value === currentValue;
+                });
+                rackSelect.value = stillPresent ? currentValue : '0';
+            }
+        }
+
+        // Определяем исходный ЦОД по уже выбранному шкафу записи (если есть)
+        // и сразу применяем фильтр, сохранив текущий выбор шкафа.
+        var selectedOption = allRackOptions.find(function (opt) { return opt.selected; });
+        if (selectedOption && selectedOption.value !== '0') {
+            dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+        }
+        applyFilter(true);
+
+        // При смене ЦОД пользователем - список шкафов пересобирается заново
+        // (выбор шкафа сбрасывается, если он не относится к новому ЦОД).
+        dcSelect.addEventListener('change', function () { applyFilter(true); });
+    })();
+</script>

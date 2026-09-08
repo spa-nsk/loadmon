@@ -1229,36 +1229,35 @@ func (u *ServerSprRecordsArch) TableIndex() [][]string {
 
 // BladeSystems описывает запись/справочник БД loadmon, соответствующую сущности BladeSystems.
 type BladeSystems struct {
-	Id              int64     `form:"Id"`
-	Name            string    `form:"Name"`                                                       //короткое наименование
-	Vendor          string    `form:"Vendor"`                                                     //производитель
-	Model           string    `form:"Model"`                                                      //модель
-	Type            string    `form:"Type"`                                                       //тип c7000 ...
-	PartNum         string    `form:"PartNum"`                                                    //продуктовый номер
-	Size            int       `form:"Size"`                                                       //количество слотов
-	Used            int       `form:"Used"`                                                       //количество занятых слотов
-	SerialNum       string    `form:"SerialNum"`                                                  //серийный номер
-	Owner           string    `form:"Owner"`                                                      //владелец
-	Allocation      string    `form:"Allocation"`                                                 //аллокация
-	Anotation       string    `form:"Anotation"`                                                  //описане
-	Description     string    `form:"Description"`                                                //
-	DatacenterRoom  string    `form:"DatacenterRoom"`                                             //серверная
-	RackNum         string    `form:"RackNum"`                                                    //номер стойки
-	StartUnit       string    `form:"StartUnit"`                                                  //унит с которого начинается сервер или блэйд шасси, куда он установлен //!!! изменен тип
-	StartUnitPos    int       `form:"StartUnitPos"`                                               //
-	SizeUnit        int       `form:"SizeUnit"`                                                   //
-	ContractDoc     string    `form:"ContractDoc"`                                                //договорной документ на покупку, название и номер дополнительного соглашения
-	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"`                                 //дата документа
-	Invoice         string    `form:"Invoice"`                                                    //счет фактура, накладная
-	DateInvoice     time.Time `orm:"null" form:"DateInvoice"`                                     //дата накладной
-	InventoryNum    string    `form:"InventoryNum"`                                               //Инвентарный номер
-	InventoryNumBuh string    `form:"InventoryNumBuh"`                                            //Инвентарный номер бухгалтерский
-	Counterparty    string    `orm:"null" form:"Counterparty"`                                    //контрагент
-	DateService     time.Time `orm:"null" form:"DateService"`                                     //дата до которой есть гарантия или сервис контракт
-	ServiceContract string    `form:"ServiceContract"`                                            //данные по сервисному контракту, уровень сервиса
-	Id_User         int64     `form:"Id_User"`                                                    //
-	Time_Mfy        time.Time `form:"Time_Mfy"`                                                   //
-	RackCabinetId   int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"` //FK на models.RackCabinet.Id (новый справочник шкафов, см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum, не заменяет их
+	Id                int64     `form:"Id"`
+	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"`               // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
+	Active            int       `form:"Active" csv:"Статус" json:"Active"`                                  // 0 не указано 1 активен 2 выведен из эксплуатации
+	Name              string    `form:"Name"`                                                               //короткое наименование
+	Vendor            string    `form:"Vendor"`                                                             //производитель
+	Model             string    `form:"Model"`                                                              //модель
+	Type              string    `form:"Type"`                                                               //тип c7000 ...
+	PartNum           string    `form:"PartNum"`                                                            //продуктовый номер
+	Size              int       `form:"Size"`                                                               //количество слотов
+	Used              int       `form:"Used"`                                                               //количество занятых слотов
+	SerialNum         string    `form:"SerialNum"`                                                          //серийный номер
+	Owner             string    `form:"Owner"`                                                              //владелец
+	Anotation         string    `form:"Anotation"`                                                          //описане
+	StartUnitPos      int       `form:"StartUnitPos"`                                                       //
+	EndUnitPos        int       `form:"EndUnitPos"`                                                         //
+	SizeUnit          int       `form:"SizeUnit"`                                                           //
+	RackCabinetId     int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`         //FK на models.RackCabinet.Id (новый справочник шкафов, см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum, не заменяет их
+	InventoryNum      string    `form:"InventoryNum"`                                                       //Инвентарный номер
+	InventoryNumBuh   string    `form:"InventoryNumBuh"`                                                    //Инвентарный номер бухгалтерский
+	TechnicalNumberIT string    `form:"TechnicalNumberIT" csv:"Технический номер" json:"TechnicalNumberIT"` // технический номер ИТ
+	ContractDoc       string    `form:"ContractDoc"`                                                        //договорной документ на покупку, название и номер дополнительного соглашения
+	DateContractDoc   time.Time `orm:"null" form:"DateContractDoc"`                                         //дата документа
+	Invoice           string    `form:"Invoice"`                                                            //счет фактура, накладная
+	DateInvoice       time.Time `orm:"null" form:"DateInvoice"`                                             //дата накладной
+	Counterparty      string    `orm:"null" form:"Counterparty"`                                            //контрагент
+	DateService       time.Time `orm:"null" form:"DateService"`                                             //дата до которой есть гарантия или сервис контракт
+	ServiceContract   string    `form:"ServiceContract"`                                                    //данные по сервисному контракту, уровень сервиса
+	Id_User           int64     `form:"Id_User"`                                                            //
+	Time_Mfy          time.Time `form:"Time_Mfy"`                                                           //
 }
 
 // TableName возвращает имя таблицы БД для модели BladeSystems (используется beego ORM).
@@ -1329,33 +1328,33 @@ type StorageSystems struct {
 	TagName   string `form:"TagName"`                  //список мнемонических имён встречающихся для этой СХД в именах LUN
 	TypeWork  int    `form:"TypeWork" json:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- тестовая 3 - бэкап
 	//0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	Vendor          string    `form:"Vendor"`                     //производитель
-	Model           string    `form:"Model"`                      //модель
-	PartNum         string    `form:"PartNum"`                    //код продукта у вендора
-	Status          int       `form:"Status"`                     //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
-	Size            int       `form:"Size"`                       //максимальное количество дисков
-	Used            int       `form:"Used"`                       //общее количество установленных дисков
-	IpAddress       string    `form:"IpAddress"`                  //IP apec
-	IpAddressNext   string    `form:"IpAddressNext"`              //IP apec 2
-	TotalSizeRAW    float64   `form:"TotalSizeRAW"`               //размер дисков СХД (сырой)
-	UsedPercent     float64   `form:"UsedPercent"`                //использовано в %
-	WWNMask         string    `form:"WWNMask"`                    //WWN маска дисков
-	Firmware        string    `form:"Firmware"`                   //версия прошивки
-	SerialNum       string    `form:"SerialNum"`                  //серийный номер
-	Power           int       `form:"Power"`                      //0 выключен 1 включен
-	ApiType         int       `form:"ApiType"`                    //тип API 0 не указано 1 - VNX CLI, 2 -Unity Rest 3 - Dorado rest  4- OceanStor 5- Lenovo Rest
-	Ad              bool      `form:"Ad"`                         //в AD
-	Ldaps           bool      `form:"Ldaps"`                      //Ldaps
-	AdCert          bool      `form:"AdCert"`                     //сертификат AD
-	AdCertDate      time.Time `orm:"null" form:"AdCertDate"`      //Дата истечения сертификата
-	Owner           string    `form:"Owner"`                      //владелец
-	Allocation      string    `form:"Allocation"`                 //аллокация
-	Anotation       string    `form:"Anotation"`                  //Описание
-	City            string    `form:"City"`                       //Город
-	DatacenterRoom  string    `form:"DatacenterRoom"`             //серверная
-	RackNum         string    `form:"RackNum"`                    //номер стойки, если их несколько можно указать через запятую
-	StartUnit       string    `form:"StartUnit"`                  //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
-	SizeUnit        string    `form:"SizeUnit"`                   //размер в юнитах
+	Vendor         string    `form:"Vendor"`                //производитель
+	Model          string    `form:"Model"`                 //модель
+	PartNum        string    `form:"PartNum"`               //код продукта у вендора
+	Status         int       `form:"Status"`                //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
+	Size           int       `form:"Size"`                  //максимальное количество дисков
+	Used           int       `form:"Used"`                  //общее количество установленных дисков
+	IpAddress      string    `form:"IpAddress"`             //IP apec
+	IpAddressNext  string    `form:"IpAddressNext"`         //IP apec 2
+	TotalSizeRAW   float64   `form:"TotalSizeRAW"`          //размер дисков СХД (сырой)
+	UsedPercent    float64   `form:"UsedPercent"`           //использовано в %
+	WWNMask        string    `form:"WWNMask"`               //WWN маска дисков
+	Firmware       string    `form:"Firmware"`              //версия прошивки
+	SerialNum      string    `form:"SerialNum"`             //серийный номер
+	Power          int       `form:"Power"`                 //0 выключен 1 включен
+	ApiType        int       `form:"ApiType"`               //тип API 0 не указано 1 - VNX CLI, 2 -Unity Rest 3 - Dorado rest  4- OceanStor 5- Lenovo Rest
+	Ad             bool      `form:"Ad"`                    //в AD
+	Ldaps          bool      `form:"Ldaps"`                 //Ldaps
+	AdCert         bool      `form:"AdCert"`                //сертификат AD
+	AdCertDate     time.Time `orm:"null" form:"AdCertDate"` //Дата истечения сертификата
+	Owner          string    `form:"Owner"`                 //владелец
+	Allocation     string    `form:"Allocation"`            //аллокация
+	Anotation      string    `form:"Anotation"`             //Описание
+	City           string    `form:"City"`                  //Город
+	DatacenterRoom string    `form:"DatacenterRoom"`        //серверная
+	RackNum        string    `form:"RackNum"`               //номер стойки, если их несколько можно указать через запятую
+	StartUnit      string    `form:"StartUnit"`             //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
+	SizeUnit       string    `form:"SizeUnit"`              //размер в юнитах
 	// RackCabinetId - FK на models.RackCabinet.Id (новый справочник шкафов,
 	// см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum,
 	// не заменяет их (та же схема, что и у ServerHardware.RackCabinetId и
@@ -1364,7 +1363,7 @@ type StorageSystems struct {
 	// проставить вручную через форму редактирования; пока поле пустое,
 	// /admin/hwinfra продолжает сопоставлять СХД со шкафом по тексту
 	// (см. controllers/adminhwinfra.go).
-	RackCabinetId int64 `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`
+	RackCabinetId   int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`
 	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
 	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа
 	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная
