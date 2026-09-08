@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"loadmon/itilliumimport"
 	"loadmon/models"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,10 +43,17 @@ func sanitizeImportFileName(name string) string {
 
 // AdminImportRackServers отображает форму загрузки xlsx-выгрузки Итиллиум
 // по rack-серверам (GET) и принимает загруженный файл (POST): сохраняет
-// его в каталог importDir на сервере и вызывает
-// itilliumimport.ImportItiliumServer(name) с именем сохранённого файла
-// (пока заглушка - см. itilliumimport/import.go). Доступ только Priv==3,
-// приём идентичен другим страницам /admin/* (см. controllers/admininfrastructure.go).
+// его в каталог importDir на сервере и запускает
+// itilliumimport.StartImportItiliumServer(name) с именем сохранённого файла.
+// Доступ только Priv==3, приём идентичен другим страницам /admin/* (см.
+// controllers/admininfrastructure.go).
+//
+// ИЗМЕНЕНО (2026-09-08, по запросу пользователя "сделай аналогичный progress
+// bar для импорта rack серверов и blade серверов" - то же решение, что уже
+// сделано для блейд-корзин, см. controllers/adminimportblades.go): импорт
+// запускается АСИНХРОННО, страница остаётся на /admin/importrackservers с
+// параметром ?job=<имя файла> и опрашивает прогресс через AJAX-эндпоинт
+// AdminImportRackServersStatus.
 //
 // Маршрут: /admin/importrackservers
 func (this *MainController) AdminImportRackServers() {
@@ -93,15 +101,45 @@ func (this *MainController) AdminImportRackServers() {
 			return
 		}
 
-		// ImportItiliumServer - пока заглушка (см. itilliumimport/import.go)
-		// - реальный разбор/сохранение в БД предстоит реализовать отдельно
-		// (см. README.md пакета itilliumimport про то, что itilliumimport
-		// сознательно не пишет в БД сам).
-		itilliumimport.ImportItiliumServer(savedName)
+		itilliumimport.StartImportItiliumServer(savedName)
 
-		flash.Notice("Файл %s загружен и передан на импорт (см. итог в логе сервера - ImportItiliumServer пока заглушка).", savedName)
+		flash.Notice("Файл %s загружен, импорт rack-серверов запущен - прогресс и итог см. ниже.", savedName)
 		flash.Store(&this.Controller)
-		this.Redirect("/admin/importrackservers", 302)
+		this.Redirect("/admin/importrackservers?job="+url.QueryEscape(savedName), 302)
 		return
 	}
+
+	// jobId - имя файла последнего запущенного через эту страницу импорта
+	// (см. редирект выше) - если параметр передан, шаблон отрисовывает
+	// градуированный индикатор прогресса и опрашивает AdminImportRackServersStatus.
+	this.Data["JobId"] = this.GetString("job")
+}
+
+// AdminImportRackServersStatus отдаёт JSON-снимок прогресса ранее
+// запущенного (через AdminImportRackServers) импорта rack-серверов по
+// идентификатору задания (параметр "job" - имя сохранённого файла) - см.
+// itilliumimport.GetImportJob/ImportProgress.Snapshot. Полный аналог
+// AdminImportBladeSystemsStatus (controllers/adminimportblades.go).
+//
+// Маршрут: /admin/importrackservers/status
+func (this *MainController) AdminImportRackServersStatus() {
+	sess := this.GetSession("loadmon")
+	m := sess.(models.LoadFilter).Map
+	priv, _ := m["privilage"].(int)
+	if priv != 3 {
+		this.Data["json"] = map[string]string{"error": "доступ запрещён"}
+		this.ServeJSON()
+		return
+	}
+
+	jobId := this.GetString("job")
+	job, ok := itilliumimport.GetImportJob(jobId)
+	if !ok {
+		this.Data["json"] = map[string]string{"error": "задание не найдено"}
+		this.ServeJSON()
+		return
+	}
+
+	this.Data["json"] = job.Snapshot()
+	this.ServeJSON()
 }

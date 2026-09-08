@@ -55,22 +55,60 @@ func mappingConfigPathBladeServer() string {
 //     корзина не найдена (например, ещё не импортирована через
 //     /admin/importblades) - используется результат стандартного разбора,
 //     событие логируется как предупреждение.
+// StartImportItiliumBladeServer регистрирует новое задание импорта
+// блейд-серверов под ключом jobId (см. ImportProgress в progress.go) и
+// запускает сам разбор и сохранение файла (runImportItiliumBladeServer) в
+// отдельной горутине, сразу возвращая указатель на прогресс вызывающему коду
+// (controllers/adminimportbladeservers.go) - 2026-09-08, по запросу
+// пользователя "сделай аналогичный progress bar для импорта rack серверов и
+// blade серверов" (то же решение, что для блейд-корзин, см. CHANGELOG.md
+// запись (42), и для rack-серверов - StartImportItiliumServer). Job
+// регистрируется СИНХРОННО, до запуска горутины.
+func StartImportItiliumBladeServer(name string) *ImportProgress {
+	job := newImportJob(name)
+	go runImportItiliumBladeServer(name, job)
+	return job
+}
+
+// ImportItiliumBladeServer - синхронная версия импорта блейд-серверов (без
+// отдельной горутины и без прогресса) - оставлена для прямых вызовов вне
+// HTTP-хендлера. Текущий HTTP-хендлер использует StartImportItiliumBladeServer
+// выше.
 func ImportItiliumBladeServer(name string) {
+	job := &ImportProgress{}
+	runImportItiliumBladeServer(name, job)
+}
+
+// runImportItiliumBladeServer читает xlsx-файл name (внутри каталога
+// "./import", см. controllers/adminimportbladeservers.go) и создаёт/
+// обновляет записи - см. подробный комментарий у ImportItiliumBladeServer
+// выше. job (см. progress.go) отражает ход выполнения для
+// страницы-опросчика - job.finish(...) вызывается ЛЮБЫМ путём выхода из
+// функции (defer).
+func runImportItiliumBladeServer(name string, job *ImportProgress) {
+	var startErr string
+	defer func() { job.finish(startErr) }()
+
 	cfg, err := LoadMapping(mappingConfigPathBladeServer())
 	if err != nil {
 		log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка загрузки конфигурации соответствий:", err)
+		startErr = err.Error()
 		return
 	}
 
 	results, err := ConvertFile(cfg, "./import/"+name)
 	if err != nil {
 		log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка чтения/разбора файла:", err)
+		startErr = err.Error()
 		return
 	}
+	job.setFileRows(len(results))
 
 	o := orm.NewOrm()
 
 	for _, r := range results {
+		job.tickProcessed()
+
 		// r.Spr  - models.ServerSprRecords (частично заполнена)
 		// r.Hw   - models.ServerHardware (частично заполнена)
 		// r.Extra    - map[string]string: поля без прямого соответствия в
@@ -246,6 +284,11 @@ func ImportItiliumBladeServer(name string) {
 
 		if err := trn.Commit(); err != nil {
 			log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка коммита транзакции:", err)
+			continue
 		}
+
+		// --- Статистика для страницы-опросчика (progress.go) --------------
+		// (2026-09-08, тот же принцип, что для rack-серверов/блейд-корзин).
+		job.addResult(!sprFound, r.Spr.Active == 2)
 	}
 }

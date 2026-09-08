@@ -35,29 +35,67 @@ func mappingConfigPath() string {
 	return mappingConfigDir() + "/" + mappingConfigFileName
 }
 
-// ImportItiliumServer читает xlsx-файл name (внутри каталога "./import",
+// StartImportItiliumServer регистрирует новое задание импорта rack-серверов
+// под ключом jobId (см. ImportProgress в progress.go) и запускает сам разбор
+// и сохранение файла (runImportItiliumServer) в отдельной горутине, сразу
+// возвращая указатель на прогресс вызывающему коду (controllers/
+// adminimportrackservers.go) - 2026-09-08, по запросу пользователя "сделай
+// аналогичный progress bar для импорта rack серверов и blade серверов" (см.
+// itilliumimport/progress.go и то же решение для блейд-корзин, запись (42) в
+// CHANGELOG.md). Job регистрируется СИНХРОННО, до запуска горутины - иначе
+// страница могла бы успеть опросить статус раньше, чем задание появится в
+// реестре (GetImportJob вернул бы ok=false).
+func StartImportItiliumServer(name string) *ImportProgress {
+	job := newImportJob(name)
+	go runImportItiliumServer(name, job)
+	return job
+}
+
+// ImportItiliumServer - синхронная версия импорта rack-серверов (без
+// отдельной горутины и без прогресса) - оставлена для прямых вызовов вне
+// HTTP-хендлера, где отслеживать прогресс не нужно. Текущий HTTP-хендлер
+// использует StartImportItiliumServer выше.
+func ImportItiliumServer(name string) {
+	job := &ImportProgress{}
+	runImportItiliumServer(name, job)
+}
+
+// runImportItiliumServer читает xlsx-файл name (внутри каталога "./import",
 // см. controllers/adminimportrackservers.go), конвертирует его строки через
 // ConvertFile/ConvertRow (mapping.yaml) и создаёт/обновляет записи
 // models.DatacenterSite -> models.RackCabinet -> models.ServerHardware ->
 // models.ServerSprRecords в БД. Одна строка исходного файла - одна
 // транзакция (аналогично циклу cmdb/updatehwsprhp.go:UpdateHwSprHPServers) -
 // ошибка в одной строке не прерывает импорт остальных.
-func ImportItiliumServer(name string) {
+//
+// job (см. progress.go) отражает ход выполнения для страницы-опросчика -
+// job.finish(...) вызывается ЛЮБЫМ путём выхода из функции (defer), поэтому
+// индикатор прогресса на странице не может "зависнуть", даже если импорт не
+// смог даже начаться (ошибка загрузки конфигурации/чтения файла).
+func runImportItiliumServer(name string, job *ImportProgress) {
+	var startErr string
+	defer func() { job.finish(startErr) }()
+
 	cfg, err := LoadMapping(mappingConfigPath())
 	if err != nil {
 		log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка загрузки конфигурации соответствий:", err)
+		startErr = err.Error()
 		return
 	}
 
 	results, err := ConvertFile(cfg, "./import/"+name)
 	if err != nil {
 		log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка чтения/разбора файла:", err)
+		startErr = err.Error()
 		return
 	}
+	job.setFileRows(len(results))
 
 	o := orm.NewOrm()
 
 	for _, r := range results {
+		job.tickProcessed()
+
 		// r.Spr  - models.ServerSprRecords (частично заполнена)
 		// r.Hw   - models.ServerHardware (частично заполнена)
 		// r.Extra    - map[string]string: поля без прямого соответствия в
@@ -222,6 +260,15 @@ func ImportItiliumServer(name string) {
 
 		if err := trn.Commit(); err != nil {
 			log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка коммита транзакции:", err)
+			continue
 		}
+
+		// --- Статистика для страницы-опросчика (progress.go) --------------
+		// (2026-09-08, по запросу пользователя "сделай аналогичный progress
+		// bar для импорта rack серверов и blade серверов", тот же принцип,
+		// что для блейд-корзин - "новый"/"обновлён" по !sprFound,
+		// "неактивен" по итоговому r.Spr.Active == 2, см. models_add.go:
+		// ServerSprRecords.Active).
+		job.addResult(!sprFound, r.Spr.Active == 2)
 	}
 }

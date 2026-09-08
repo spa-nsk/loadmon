@@ -64,12 +64,22 @@
                 <input type="text" id="ServerName" name="ServerName" class="form-control" value="{{.HWConfigFilter.ServerName}}">
             </div>
             <div class="col-6 col-md-3">
-                <label for="DatacenterRoom" class="form-label">ЦОД</label>
-                <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.HWConfigFilter.DatacenterRoom}}">
+                <label for="hwFilterDatacenterSiteId" class="form-label">ЦОД</label>
+                <select id="hwFilterDatacenterSiteId" class="form-select">
+                    <option value="0">Все</option>
+                    {{range $dc := .DatacenterSites}}
+                    <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                    {{end}}
+                </select>
             </div>
             <div class="col-6 col-md-3">
-                <label for="RackNum" class="form-label">Номер стойки</label>
-                <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.HWConfigFilter.RackNum}}">
+                <label for="RackCabinetId" class="form-label">Шкаф</label>
+                <select id="RackCabinetId" name="RackCabinetId" class="form-select">
+                    <option value="0">Все</option>
+                    {{range $rc := .RackCabinets}}
+                    <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.HWConfigFilter.RackCabinetId (printf "%d" $rc.Id)}}selected{{end}}>{{$rc.Name}}</option>
+                    {{end}}
+                </select>
             </div>
             <div class="col-6 col-md-3">
                 <label for="TechnicalNumberIT" class="form-label">Технический номер ИТ</label>
@@ -138,7 +148,7 @@
                         </div>
                     </td>
                     <td class="text-end">{{$hw.MemoryMb}}</td>
-                    <td>{{$hw.DatacenterRoom}} {{if ne $hw.RackNum ""}}/ {{$hw.RackNum}}{{end}}</td>
+                    <td>{{index $.HWConfigPlacement $hw.RackCabinetId}}</td>
                     <td>
                         {{if gt $hw.ServerId 0}}
                             <a href="/sprsrv/updatebase/all/{{$hw.ServerId}}" target="_blank" title="Общие данные по серверу">{{if ne $hw.ServerName ""}}{{$hw.ServerName}}{{else}}{{$hw.ServerId}}{{end}}</a>
@@ -234,6 +244,51 @@
 
         window.addEventListener('resize', updateTheadOffset);
         window.addEventListener('load', updateTheadOffset);
+    })();
+
+    // Каскадный фильтр "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя "в
+    // справочнике серверов в фильтре используй схему с выбором ЦОД и Шкафа
+    // вместо ЦОД: адрес и площадка по старым данным") - select ЦОД
+    // (hwFilterDatacenterSiteId) сам никуда не отправляется (нет атрибута
+    // name), он только сужает список опций select "Шкаф" (RackCabinetId,
+    // единственное поле, которое реально уходит в фильтр) по атрибуту
+    // data-dc каждой опции - тот же приём, что уже используется в форме
+    // bladesystemsedit.tpl (см. sprbladesystems.go:SprBladeSystemsEdit).
+    (function () {
+        var dcSelect = document.getElementById('hwFilterDatacenterSiteId');
+        var rackSelect = document.getElementById('RackCabinetId');
+        if (!dcSelect || !rackSelect) return;
+
+        var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+
+        function applyFilter(preserveSelection) {
+            var dc = dcSelect.value;
+            var currentValue = rackSelect.value;
+            rackSelect.innerHTML = '';
+            allRackOptions.forEach(function (opt) {
+                var optDc = opt.getAttribute('data-dc') || '0';
+                if (opt.value === '0' || dc === '0' || optDc === dc) {
+                    rackSelect.appendChild(opt);
+                }
+            });
+            if (preserveSelection) {
+                var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
+                    return opt.value === currentValue;
+                });
+                rackSelect.value = stillPresent ? currentValue : '0';
+            }
+        }
+
+        // При открытии страницы с уже выбранным (сохранённым в сессии)
+        // шкафом - подставляем в select ЦОД тот ЦОД, которому принадлежит
+        // выбранный шкаф, чтобы список шкафов сразу был сужен корректно.
+        var selectedOption = allRackOptions.find(function (opt) { return opt.selected; });
+        if (selectedOption && selectedOption.value !== '0') {
+            dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+        }
+        applyFilter(true);
+
+        dcSelect.addEventListener('change', function () { applyFilter(true); });
     })();
 
     // Переход по странице без потери значений фильтра - номер страницы

@@ -274,6 +274,31 @@ func (this *MainController) SprSrvViewV2() {
 		allocationBtn = this.GetString("SetAllocateBTN")
 
 	}
+
+	// Фильтр размещения "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя
+	// "замени в форме /sprsrv/view2 ... схему с выбором ЦОД и Шкафа вместо
+	// ЦОД: адрес и площадка по старым данным") - хранится ОТДЕЛЬНО от record
+	// (models.ServerSprRecords не имеет и не должна получать новое поле ради
+	// одного фильтра списка - тот же принцип, что и HWConfigFilter в
+	// sprhwconfig.go), значение - строка ("0"/"" - фильтр не применён,
+	// аналогично остальным select-фильтрам этой страницы). Списки ЦОД/Шкаф
+	// для select'ов (см. view2.tpl) грузятся безусловно (и на GET, и на
+	// POST) - тот же приём, что в sprhwconfig.go:SprHwConfig.
+	rackCabinetId, _ := m["FilterRackCabinetId"].(string)
+	if isPost {
+		rackCabinetId = this.GetString("RackCabinetId")
+		m["FilterRackCabinetId"] = rackCabinetId
+	}
+	this.Data["RackCabinetId"] = rackCabinetId
+
+	var dcSites []models.DatacenterSite
+	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&dcSites)
+	this.Data["DatacenterSites"] = dcSites
+
+	var rackCabinets []models.RackCabinet
+	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&rackCabinets)
+	this.Data["RackCabinets"] = rackCabinets
+
 	id, err := strconv.Atoi(Id)
 	if err != nil {
 		//beego.Error("Недопустимый аргумент Id", err)
@@ -383,11 +408,25 @@ func (this *MainController) SprSrvViewV2() {
 			cond = cond.And("ITSystemKey", record.ITSystemKey)
 		}
 
-		//         if record.DPCAddress != 0 {
-		//             cond = cond.And("d_p_c_address", record.DPCAddress)
-		//         }
-		if record.DPCOffice != 0 {
-			cond = cond.And("DPCOffice", record.DPCOffice)
+		// ИЗМЕНЕНО (2026-09-08, по запросу пользователя): фильтр по
+		// record.DPCOffice (старый жёстко зашитый в HTML список "ЦОД: адрес
+		// и площадка") заменён на фильтр по выбранному шкафу (RackCabinetId,
+		// см. view2.tpl и загрузку rackCabinetId выше) - см.
+		// placementServerSprIds ниже про правила определения размещения для
+		// аппаратных серверов/гипервизоров, блейд-серверов (приоритет у
+		// размещения самой корзины) и виртуальных машин (по хосту).
+		if rackCabinetId != "" && rackCabinetId != "0" {
+			if v, errRc := strconv.ParseInt(rackCabinetId, 10, 64); errRc == nil && v > 0 {
+				placementIds := placementServerSprIds(o, v)
+				if len(placementIds) == 0 {
+					// ничего не размещено в выбранном шкафу - гарантированно
+					// пустой результат вместо некорректного "Id__in" с пустым
+					// списком (часть ORM-драйверов не умеет "IN ()").
+					cond = cond.And("Id", int64(-1))
+				} else {
+					cond = cond.And("Id__in", placementIds)
+				}
+			}
 		}
 		if record.RoleType != 0 {
 			cond = cond.And("RoleType", record.RoleType)
@@ -888,4 +927,132 @@ func CalcPercentFilled(rec *models.ServerSprView) {
 	}
 
 	rec.PercentFilledField = count * 100 / 12
+}
+
+// placementServerSprIds возвращает Id записей models.ServerSprRecords
+// (аппаратные серверы Type=0, гипервизоры Type=2 и виртуальные машины
+// Type=1), физически размещённых в шкафу rackCabinetId - используется
+// фильтром "ЦОД/Шкаф" на /sprsrv/view2 (2026-09-08, по запросу пользователя
+// "замени в форме /sprsrv/view2 ... схему с выбором ЦОД и Шкафа вместо ЦОД:
+// адрес и площадка по старым данным").
+//
+// Правила определения места размещения:
+//   - аппаратные серверы и гипервизоры (не блейд) - по прямому
+//     models.ServerHardware.RackCabinetId;
+//   - блейд-серверы (FormFactor==2, BladeSystemId!=0) - В ПРИОРИТЕТЕ по
+//     размещению самой блейд-корзины (models.BladeSystems.RackCabinetId, по
+//     BladeSystemId), а не по собственному ServerHardware.RackCabinetId -
+//     если у корзины размещение не указано (RackCabinetId==0) или сама
+//     корзина не найдена, используется запасной вариант - собственный
+//     RackCabinetId сервера (тот же приём, что уже применяется для
+//     PowerState/Active блейд-корзин, см. cmdb/initrec.go);
+//   - виртуальные машины - по размещению их хоста (гипервизора): среди уже
+//     найденных выше хостов (Type==2) ищем совпадение имени с
+//     models.VMSprRecord.Vm_HostName (сравнение без учёта регистра с
+//     Name/NameFQDN хоста - прямой FK-связи VM->хост в схеме нет, только
+//     сопоставление по имени, см. cmdb/initrec.go:CopySprVmToVm/CopyVmToSprVm),
+//     затем берём все ServerSprRecords с Type==1, чей VMSprId ссылается на
+//     найденную запись models.VMSprRecord.
+func placementServerSprIds(o orm.Ormer, rackCabinetId int64) []int64 {
+	// --- аппаратные серверы/гипервизоры - прямое совпадение RackCabinetId
+	// (сюда попадают и блейд-сервера с собственным RackCabinetId, если у их
+	// корзины размещение не указано - см. ниже) -------------------------
+	var directHw []models.ServerHardware
+	o.QueryTable("server_hardware").Filter("RackCabinetId", rackCabinetId).All(&directHw, "ServerId")
+
+	matchedServerIds := map[int64]bool{}
+	for _, hw := range directHw {
+		if hw.ServerId != 0 {
+			matchedServerIds[hw.ServerId] = true
+		}
+	}
+
+	// --- блейд-серверы: размещение самой корзины в приоритете -----------
+	var bladeHw []models.ServerHardware
+	o.QueryTable("server_hardware").Filter("FormFactor", 2).Filter("BladeSystemId__gt", 0).All(&bladeHw, "ServerId", "BladeSystemId")
+	if len(bladeHw) > 0 {
+		bsIds := make([]int64, 0, len(bladeHw))
+		seenBs := map[int64]bool{}
+		for _, hw := range bladeHw {
+			if !seenBs[hw.BladeSystemId] {
+				seenBs[hw.BladeSystemId] = true
+				bsIds = append(bsIds, hw.BladeSystemId)
+			}
+		}
+		var chassis []models.BladeSystems
+		o.QueryTable(new(models.BladeSystems)).Filter("Id__in", bsIds).All(&chassis, "Id", "RackCabinetId")
+		chassisRackById := make(map[int64]int64, len(chassis))
+		for _, c := range chassis {
+			chassisRackById[c.Id] = c.RackCabinetId
+		}
+		for _, hw := range bladeHw {
+			if hw.ServerId == 0 {
+				continue
+			}
+			chassisRack, known := chassisRackById[hw.BladeSystemId]
+			if !known || chassisRack == 0 {
+				// корзина не найдена/её размещение не указано - оставляем
+				// как определено выше по собственному RackCabinetId сервера
+				// (уже в matchedServerIds, если совпал, иначе не совпал).
+				continue
+			}
+			if chassisRack == rackCabinetId {
+				matchedServerIds[hw.ServerId] = true
+			} else {
+				// корзина размещена в ДРУГОМ шкафу - у размещения корзины
+				// приоритет, исключаем сервер, даже если его собственный
+				// RackCabinetId совпал с искомым выше.
+				delete(matchedServerIds, hw.ServerId)
+			}
+		}
+	}
+
+	result := make([]int64, 0, len(matchedServerIds))
+	for id := range matchedServerIds {
+		result = append(result, id)
+	}
+	if len(result) == 0 {
+		return result
+	}
+
+	// --- виртуальные машины - по размещению хоста ------------------------
+	var hosts []models.ServerSprRecords
+	o.QueryTable("server_spr_records").Filter("Id__in", result).Filter("Type", 2).All(&hosts, "Id", "Name", "NameFQDN")
+	if len(hosts) == 0 {
+		return result
+	}
+
+	hostNames := map[string]bool{}
+	for _, h := range hosts {
+		if n := strings.ToLower(strings.TrimSpace(h.Name)); n != "" {
+			hostNames[n] = true
+		}
+		if n := strings.ToLower(strings.TrimSpace(h.NameFQDN)); n != "" {
+			hostNames[n] = true
+		}
+	}
+	if len(hostNames) == 0 {
+		return result
+	}
+
+	var vms []models.VMSprRecord
+	o.QueryTable("vm_spr_record").All(&vms, "Id", "Vm_HostName")
+	vmIds := make([]int64, 0)
+	for _, vm := range vms {
+		n := strings.ToLower(strings.TrimSpace(vm.Vm_HostName))
+		if n != "" && hostNames[n] {
+			vmIds = append(vmIds, vm.Id)
+		}
+	}
+	if len(vmIds) == 0 {
+		return result
+	}
+
+	var vmSpr []models.ServerSprRecords
+	o.QueryTable("server_spr_records").Filter("Type", 1).Filter("VMSprId__in", vmIds).All(&vmSpr, "Id")
+	for _, s := range vmSpr {
+		result = append(result, s.Id)
+	}
+
+	return result
 }

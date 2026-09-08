@@ -547,6 +547,10 @@
                     <a href="/admin/importbladeservers"
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт blade серверов</a>
                   </li>
+                  <li>
+                    <a href="/admin/importstorages"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт СХД из Итилиум</a>
+                  </li>
                 </ul>
               </div>
             </li>

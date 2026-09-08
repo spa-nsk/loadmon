@@ -162,36 +162,52 @@
         <div class="col-12">
             <div class="hw-card">
                 <h6>Размещение</h6>
-                <div class="row g-3">
+                <!-- ИЗМЕНЕНО (2026-09-08, по запросу пользователя "Проверь
+                     структуру StorageSystems, она изменилась"): у модели
+                     models.StorageSystems больше нет текстовых полей City/
+                     DatacenterRoom/RackNum/Allocation/StartUnit (string) -
+                     размещение теперь описывается ТОЛЬКО через каскадный
+                     select ЦОД -> Шкаф (RackCabinetId, FK на
+                     models.RackCabinet) и числовые StartUnitPos/EndUnitPos/
+                     SizeUnit - тот же набор полей, что у BladeSystems, см.
+                     bladesystemsedit.tpl. Старая версия этого блока
+                     ссылалась на уже не существующие поля модели (баг,
+                     оставшийся с прошлой правки models_add.go) - исправлено
+                     здесь заодно. -->
+                    <div class="row g-3">
                     <div class="col-6">
-                        <label for="City" class="form-label">Город</label>
-                        <input type="text" id="City" name="City" class="form-control" value="{{.ST.City}}">
-                    </div>
-                    <div class="col-6">
-                        <label for="DatacenterRoom" class="form-label">ЦОД / серверная</label>
-                        <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.ST.DatacenterRoom}}">
-                    </div>
-                    <div class="col-6">
-                        <label for="RackNum" class="form-label">Номер стойки</label>
-                        <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.ST.RackNum}}" title="Через запятую, если СХД занимает несколько стоек">
-                    </div>
-                    <div class="col-3">
-                        <label for="StartUnit" class="form-label">Юнит начала</label>
-                        <input type="text" id="StartUnit" name="StartUnit" class="form-control" value="{{.ST.StartUnit}}">
-                    </div>
-                    <div class="col-3">
-                        <label for="SizeUnit" class="form-label">Размер, юнитов</label>
-                        <input type="text" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.ST.SizeUnit}}">
+                        <label for="stEditDatacenterSiteId" class="form-label">ЦОД</label>
+                        <select id="stEditDatacenterSiteId" class="form-select">
+                            <option value="0">-</option>
+                            {{range $dc := .DatacenterSites}}
+                            <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                            {{end}}
+                        </select>
                     </div>
                     <div class="col-6">
                         <label for="RackCabinetId" class="form-label">Шкаф (справочник)</label>
                         <select id="RackCabinetId" name="RackCabinetId" class="form-select">
                             <option value="0">-</option>
                             {{range $rc := .RackCabinets}}
-                            <option value="{{$rc.Id}}" {{if eq $.ST.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
+                            <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.ST.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
                             {{end}}
                         </select>
-                        <div class="form-text">Дополняет текстовые ЦОД/Номер стойки выше, не заменяет их. Связь пока не заполнена ни у одной записи - используется при заполнении для точного отображения на /admin/hwinfra.</div>
+                    </div>
+                    <div class="col-4">
+                        <label for="StartUnitPos" class="form-label">Юнит начала</label>
+                        <input type="number" id="StartUnitPos" name="StartUnitPos" class="form-control" value="{{.ST.StartUnitPos}}">
+                    </div>
+                    <div class="col-4">
+                        <label for="EndUnitPos" class="form-label">Юнит окончания</label>
+                        <input type="number" id="EndUnitPos" name="EndUnitPos" class="form-control" value="{{.ST.EndUnitPos}}">
+                    </div>
+                    <div class="col-4">
+                        <label for="SizeUnit" class="form-label">Размер, юнитов</label>
+                        <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.ST.SizeUnit}}">
+                    </div>
+                    <div class="col-6">
+                        <label for="TechnicalNumberIT" class="form-label">Технический номер ИТ</label>
+                        <input type="text" id="TechnicalNumberIT" name="TechnicalNumberIT" class="form-control" value="{{.ST.TechnicalNumberIT}}">
                     </div>
                 </div>
 
@@ -202,10 +218,6 @@
                     <div class="col-6">
                         <label for="Owner" class="form-label">Владелец</label>
                         <input type="text" id="Owner" name="Owner" class="form-control" value="{{.ST.Owner}}">
-                    </div>
-                    <div class="col-6">
-                        <label for="Allocation" class="form-label">Аллокация</label>
-                        <input type="text" id="Allocation" name="Allocation" class="form-control" value="{{.ST.Allocation}}">
                     </div>
                     <div class="col-12">
                         <label for="Anotation" class="form-label">Описание</label>
@@ -278,3 +290,47 @@
         letter-spacing: 0.03em;
     }
 </style>
+
+<script>
+    // Каскадный select "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя
+    // "добавь в models.StorageSystems поле RackCabinetId и сделай
+    // соответствующую обработку и отображение в справочнике СХД и форме
+    // редактирования СХД") - select ЦОД (stEditDatacenterSiteId) сам никуда
+    // не отправляется (нет атрибута name), он только сужает список опций
+    // select "Шкаф" (RackCabinetId, единственное поле, которое реально уходит
+    // в форму) по атрибуту data-dc каждой опции - тот же приём, что уже
+    // используется в hwconfedit.tpl / hwconflist.tpl / view2.tpl.
+    (function () {
+        var dcSelect = document.getElementById('stEditDatacenterSiteId');
+        var rackSelect = document.getElementById('RackCabinetId');
+        if (!dcSelect || !rackSelect) return;
+
+        var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+
+        function applyFilter(preserveSelection) {
+            var dc = dcSelect.value;
+            var currentValue = rackSelect.value;
+            rackSelect.innerHTML = '';
+            allRackOptions.forEach(function (opt) {
+                var optDc = opt.getAttribute('data-dc') || '0';
+                if (opt.value === '0' || dc === '0' || optDc === dc) {
+                    rackSelect.appendChild(opt);
+                }
+            });
+            if (preserveSelection) {
+                var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
+                    return opt.value === currentValue;
+                });
+                rackSelect.value = stillPresent ? currentValue : '0';
+            }
+        }
+
+        var selectedOption = allRackOptions.find(function (opt) { return opt.selected; });
+        if (selectedOption && selectedOption.value !== '0') {
+            dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+        }
+        applyFilter(true);
+
+        dcSelect.addEventListener('change', function () { applyFilter(true); });
+    })();
+</script>

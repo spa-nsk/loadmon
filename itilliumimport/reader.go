@@ -90,3 +90,18 @@ func ConvertFileBlade(cfg *Config, path string) ([]*ResultBlade, error) {
 	}
 	return results, nil
 }
+
+// ConvertFileStorage - аналог ConvertFile/ConvertFileBlade для импорта СХД
+// (models.StorageSystems, см. convertstorage.go/importstorages.go): читает
+// path через ReadRows и прогоняет каждую строку через ConvertRowStorage.
+func ConvertFileStorage(cfg *Config, path string) ([]*ResultStorage, error) {
+	rows, err := ReadRows(cfg, path)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]*ResultStorage, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, ConvertRowStorage(cfg, row))
+	}
+	return results, nil
+}

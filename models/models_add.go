@@ -1328,33 +1328,30 @@ type StorageSystems struct {
 	TagName   string `form:"TagName"`                  //список мнемонических имён встречающихся для этой СХД в именах LUN
 	TypeWork  int    `form:"TypeWork" json:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- тестовая 3 - бэкап
 	//0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	Vendor         string    `form:"Vendor"`                //производитель
-	Model          string    `form:"Model"`                 //модель
-	PartNum        string    `form:"PartNum"`               //код продукта у вендора
-	Status         int       `form:"Status"`                //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
-	Size           int       `form:"Size"`                  //максимальное количество дисков
-	Used           int       `form:"Used"`                  //общее количество установленных дисков
-	IpAddress      string    `form:"IpAddress"`             //IP apec
-	IpAddressNext  string    `form:"IpAddressNext"`         //IP apec 2
-	TotalSizeRAW   float64   `form:"TotalSizeRAW"`          //размер дисков СХД (сырой)
-	UsedPercent    float64   `form:"UsedPercent"`           //использовано в %
-	WWNMask        string    `form:"WWNMask"`               //WWN маска дисков
-	Firmware       string    `form:"Firmware"`              //версия прошивки
-	SerialNum      string    `form:"SerialNum"`             //серийный номер
-	Power          int       `form:"Power"`                 //0 выключен 1 включен
-	ApiType        int       `form:"ApiType"`               //тип API 0 не указано 1 - VNX CLI, 2 -Unity Rest 3 - Dorado rest  4- OceanStor 5- Lenovo Rest
-	Ad             bool      `form:"Ad"`                    //в AD
-	Ldaps          bool      `form:"Ldaps"`                 //Ldaps
-	AdCert         bool      `form:"AdCert"`                //сертификат AD
-	AdCertDate     time.Time `orm:"null" form:"AdCertDate"` //Дата истечения сертификата
-	Owner          string    `form:"Owner"`                 //владелец
-	Allocation     string    `form:"Allocation"`            //аллокация
-	Anotation      string    `form:"Anotation"`             //Описание
-	City           string    `form:"City"`                  //Город
-	DatacenterRoom string    `form:"DatacenterRoom"`        //серверная
-	RackNum        string    `form:"RackNum"`               //номер стойки, если их несколько можно указать через запятую
-	StartUnit      string    `form:"StartUnit"`             //юнит с которого начинается СХД, куда она установлена, в случае нескольких стоек писать через запятую
-	SizeUnit       string    `form:"SizeUnit"`              //размер в юнитах
+	Vendor        string    `form:"Vendor"`                //производитель
+	Model         string    `form:"Model"`                 //модель
+	PartNum       string    `form:"PartNum"`               //код продукта у вендора
+	Status        int       `form:"Status"`                //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
+	Size          int       `form:"Size"`                  //максимальное количество дисков
+	Used          int       `form:"Used"`                  //общее количество установленных дисков
+	IpAddress     string    `form:"IpAddress"`             //IP apec
+	IpAddressNext string    `form:"IpAddressNext"`         //IP apec 2
+	TotalSizeRAW  float64   `form:"TotalSizeRAW"`          //размер дисков СХД (сырой)
+	UsedPercent   float64   `form:"UsedPercent"`           //использовано в %
+	WWNMask       string    `form:"WWNMask"`               //WWN маска дисков
+	Firmware      string    `form:"Firmware"`              //версия прошивки
+	SerialNum     string    `form:"SerialNum"`             //серийный номер
+	Power         int       `form:"Power"`                 //0 выключен 1 включен
+	ApiType       int       `form:"ApiType"`               //тип API 0 не указано 1 - VNX CLI, 2 -Unity Rest 3 - Dorado rest  4- OceanStor 5- Lenovo Rest
+	Ad            bool      `form:"Ad"`                    //в AD
+	Ldaps         bool      `form:"Ldaps"`                 //Ldaps
+	AdCert        bool      `form:"AdCert"`                //сертификат AD
+	AdCertDate    time.Time `orm:"null" form:"AdCertDate"` //Дата истечения сертификата
+	Owner         string    `form:"Owner"`                 //владелец
+	Anotation     string    `form:"Anotation"`             //Описание
+	StartUnitPos  int       `form:"StartUnitPos"`          //стартовая позиция в шкафу (юнит с которого начинается шасси, в случае нескольких шкафов писать через запятую)
+	EndUnitPos    int       `form:"EndUnitPos"`            //конечнкая позиция в шкафу (юнит с которого заканчивается шасси, в случае нескольких шкафов писать через запятую)
+	SizeUnit      int       `form:"SizeUnit"`              //размер в юнитах
 	// RackCabinetId - FK на models.RackCabinet.Id (новый справочник шкафов,
 	// см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum,
 	// не заменяет их (та же схема, что и у ServerHardware.RackCabinetId и
@@ -1363,26 +1360,26 @@ type StorageSystems struct {
 	// проставить вручную через форму редактирования; пока поле пустое,
 	// /admin/hwinfra продолжает сопоставлять СХД со шкафом по тексту
 	// (см. controllers/adminhwinfra.go).
-	RackCabinetId   int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`
-	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
-	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа
-	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная
-	DateInvoice     time.Time `orm:"null" form:"DateInvoice"`     //дата накладной
-	Counterparty    string    `orm:"null" form:"Counterparty"`    //контрагент
-	InventoryNum    string    `form:"InventoryNum"`               //Инвентарный номер
-	InventoryNumBuh string    `form:"InventoryNumBuh"`            //Инвентарный номер Бухгалтерский
-	DateService     time.Time `orm:"null" form:"DateService"`     //дата до которой есть гарантия или сервис контракт
-	ServiceContract string    `form:"ServiceContract"`            //данные по сервисному контракту, уровень сервиса
-	Id_User         int64     `form:"Id_User"`                    //
-	Time_Mfy        time.Time `form:"Time_Mfy"`                   //
+	RackCabinetId     int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`
+	ContractDoc       string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
+	DateContractDoc   time.Time `orm:"null" form:"DateContractDoc"` //дата документа
+	Invoice           string    `form:"Invoice"`                    //счет фактура, накладная
+	DateInvoice       time.Time `orm:"null" form:"DateInvoice"`     //дата накладной
+	Counterparty      string    `orm:"null" form:"Counterparty"`    //контрагент
+	InventoryNum      string    `form:"InventoryNum"`               //Инвентарный номер
+	InventoryNumBuh   string    `form:"InventoryNumBuh"`            //Инвентарный номер Бухгалтерский
+	TechnicalNumberIT string    `form:"TechnicalNumberIT"`          //технический номер ИТ
+	DateService       time.Time `orm:"null" form:"DateService"`     //дата до которой есть гарантия или сервис контракт
+	ServiceContract   string    `form:"ServiceContract"`            //данные по сервисному контракту, уровень сервиса
+	Id_User           int64     `form:"Id_User"`                    //
+	Time_Mfy          time.Time `form:"Time_Mfy"`                   //
 	// SourceUpdateType - источник последнего обновления ЗАПИСИ СПРАВОЧНИКА СХД
-	// (значения StorageSourceUpdate* ниже). На практике сама запись
-	// StorageSystems заводится и правится ТОЛЬКО вручную через
-	// /sprsrv/storagesystemsedit (controllers/sprstoragesystems.go) - никакой
-	// автоматический код не создаёт и не правит StorageSystems - поэтому
-	// сейчас это поле всегда StorageSourceUpdateManual. Заведено по аналогии
-	// с ServerSprRecords.SourceUpdateType и на будущее (если появится
-	// автоматическое обнаружение/регистрация СХД).
+	// (значения StorageSourceUpdate* ниже). Запись StorageSystems заводится и
+	// правится вручную через /sprsrv/storagesystemsedit (controllers/
+	// sprstoragesystems.go) либо массовым импортом из Итиллиум (2026-09-08,
+	// см. itilliumimport/importstorages.go:ImportItiliumStorage) - оба пути
+	// проставляют StorageSourceUpdateManual (импорт из Итиллиум - тоже
+	// административное ручное действие, а не автообнаружение оборудования).
 	SourceUpdateType int `form:"SourceUpdateType"`
 	// LastScanTime/LastScanOK/LastScanError - результат последней попытки
 	// опроса ЭТОЙ КОНКРЕТНОЙ СХД автосинхронизацией томов
