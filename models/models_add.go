@@ -1439,8 +1439,24 @@ type StorageSystemPlacement struct {
 	Id int64 `form:"Id"`
 	// StorageSystemsId - FK на StorageSystems.Id (какая СХД размещена).
 	StorageSystemsId int64 `form:"StorageSystemsId"`
-	// RackCabinetId - FK на RackCabinet.Id (в каком шкафу размещена часть СХД).
+	// RackCabinetId - FK на RackCabinet.Id (в каком шкафу размещена часть
+	// СХД). МОЖЕТ быть 0 - см. DatacenterSiteId ниже.
 	RackCabinetId int64 `form:"RackCabinetId"`
+	// DatacenterSiteId - FK на DatacenterSite.Id (2026-09-10, по запросу
+	// пользователя: у СХД IT-0000041888 в колонке "Местоположение" был
+	// указан адрес/площадка, но "Размещение в шкафу/стойке" - пусто, и ЦОД
+	// в итоге вообще нигде не отображался, хотя в исходных данных он
+	// известен). Раньше единственным способом связать СХД с площадкой был
+	// RackCabinetId -> RackCabinet.DatacenterSiteId, то есть без известного
+	// шкафа связать с площадкой было нечем - при импорте такая строка молча
+	// оставалась без какого-либо размещения вовсе. Теперь ЦОД может быть
+	// известен и БЕЗ конкретного шкафа: если RackCabinetId==0, то площадка
+	// берётся напрямую отсюда; если RackCabinetId>0 - это поле избыточно
+	// (площадка резолвится штатно через RackCabinet.DatacenterSiteId) и не
+	// заполняется. Ровно один из двух источников площадки используется за
+	// раз - см. controllers/sprstoragesystems.go:storageSystemsPlacementByStorageId
+	// и itilliumimport/importstorages.go.
+	DatacenterSiteId int64 `form:"DatacenterSiteId"`
 	// StartUnitPos/EndUnitPos - позиция в ЭТОМ шкафу (юнит начала/конца) -
 	// та же семантика, что раньше была у StorageSystems.StartUnitPos/
 	// EndUnitPos, но теперь относится к конкретной записи размещения, а не
@@ -1481,6 +1497,7 @@ func (u *StorageSystemPlacement) TableIndex() [][]string {
 	return [][]string{
 		[]string{"StorageSystemsId"},
 		[]string{"RackCabinetId"},
+		[]string{"DatacenterSiteId"},
 	}
 }
 

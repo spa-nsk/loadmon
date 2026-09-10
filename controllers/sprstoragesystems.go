@@ -267,10 +267,21 @@ func storageSystemsPlacementByStorageId(o orm.Ormer, rows []models.StorageSystem
 
 	cabinetIds := make([]int64, 0, len(placements))
 	seenCabinet := map[int64]bool{}
+	// siteOnlyIds - площадки БЕЗ конкретного шкафа (RackCabinetId==0,
+	// DatacenterSiteId>0, см. models.StorageSystemPlacement.DatacenterSiteId
+	// и upsertStorageSystemPlacementSiteOnly в itilliumimport/importstorages.go,
+	// 2026-09-10) - собираются отдельно от cabinetIds, т.к. резолвятся
+	// напрямую из DatacenterSite, а не через RackCabinet.
+	siteOnlyIds := make([]int64, 0)
+	seenSite := map[int64]bool{}
 	for _, p := range placements {
 		if p.RackCabinetId > 0 && !seenCabinet[p.RackCabinetId] {
 			seenCabinet[p.RackCabinetId] = true
 			cabinetIds = append(cabinetIds, p.RackCabinetId)
+		}
+		if p.RackCabinetId == 0 && p.DatacenterSiteId > 0 && !seenSite[p.DatacenterSiteId] {
+			seenSite[p.DatacenterSiteId] = true
+			siteOnlyIds = append(siteOnlyIds, p.DatacenterSiteId)
 		}
 	}
 	cabinetText := map[int64]string{} // Id шкафа -> "ЦОД / Шкаф"
@@ -306,9 +317,29 @@ func storageSystemsPlacementByStorageId(o orm.Ormer, rows []models.StorageSystem
 		}
 	}
 
+	// siteOnlyText - Id площадки -> "ЦОД (без шкафа)" - явная пометка "без
+	// шкафа" в тексте, чтобы это не выглядело как опечатка/пропуск при
+	// сравнении со строками "ЦОД / Шкаф" у остальных размещений.
+	siteOnlyText := map[int64]string{}
+	if len(siteOnlyIds) > 0 {
+		var sites []models.DatacenterSite
+		if _, err := o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteOnlyIds).All(&sites); err == nil {
+			for _, s := range sites {
+				if s.Name != "" {
+					siteOnlyText[s.Id] = s.Name + " (без шкафа)"
+				}
+			}
+		}
+	}
+
 	byStorage := map[int64][]string{}
 	for _, p := range placements {
-		text := cabinetText[p.RackCabinetId]
+		var text string
+		if p.RackCabinetId > 0 {
+			text = cabinetText[p.RackCabinetId]
+		} else if p.DatacenterSiteId > 0 {
+			text = siteOnlyText[p.DatacenterSiteId]
+		}
 		if text == "" {
 			continue
 		}
@@ -712,19 +743,31 @@ func (this *MainController) SprStorageSystemsEdit() {
 // одной СХД небольшое (единицы), поэтому производительность не важна, а
 // код значительно проще diff'а по Id существующих записей.
 //
-// Строки с пустым/нулевым/некорректным RackCabinetId пропускаются молча
-// (это позволяет отправлять форму с "пустыми" добавленными, но не
-// заполненными строками без ошибки). IsPrimary=true проставляется ПЕРВОЙ
-// успешно разобранной строке (порядок как в форме, обычно совпадает с
-// порядком добавления пользователем) - используется там, где на экране
-// можно показать только одно "основное" место размещения.
+// Строки с пустым/нулевым/некорректным RackCabinetId И пустым/нулевым
+// DatacenterSiteId пропускаются молча (это позволяет отправлять форму с
+// "пустыми" добавленными, но не заполненными строками без ошибки).
+// IsPrimary=true проставляется ПЕРВОЙ успешно разобранной строке (порядок
+// как в форме, обычно совпадает с порядком добавления пользователем) -
+// используется там, где на экране можно показать только одно "основное"
+// место размещения.
 //
 // 2026-09-09, по запросу пользователя "СХД может размещаться в нескольких
 // шкафах" - вариант "A" (таблица связи), см. models.StorageSystemPlacement.
+//
+// ИЗМЕНЕНО (2026-09-10, по запросу пользователя про IT-0000041888 -
+// "Местоположение указано, но данных по шкафу нет и информация по
+// размещению в ЦОД пропала"): строка формы с выбранным ЦОД, но БЕЗ шкафа
+// (RackCabinetId==0), теперь сохраняется как "site-only" размещение
+// (models.StorageSystemPlacement.DatacenterSiteId заполнен,
+// RackCabinetId==0) вместо того, чтобы молча пропадать - см. параллельный
+// массив "PlacementDatacenterSiteId" (storagesystemsedit.tpl) и аналогичную
+// логику на стороне импорта - itilliumimport/importstorages.go:
+// upsertStorageSystemPlacementSiteOnly.
 func (this *MainController) saveStorageSystemPlacements(o orm.Ormer, storageId int64) error {
 	rackIds := this.GetStrings("PlacementRackCabinetId")
 	startVals := this.GetStrings("PlacementStartUnitPos")
 	endVals := this.GetStrings("PlacementEndUnitPos")
+	dcIds := this.GetStrings("PlacementDatacenterSiteId")
 
 	trn, err := o.Begin()
 	if err != nil {
@@ -738,31 +781,40 @@ func (this *MainController) saveStorageSystemPlacements(o orm.Ormer, storageId i
 
 	first := true
 	for i, rackStr := range rackIds {
-		rackId, err := strconv.ParseInt(strings.TrimSpace(rackStr), 10, 64)
-		if err != nil || rackId <= 0 {
+		rackId, _ := strconv.ParseInt(strings.TrimSpace(rackStr), 10, 64)
+		var dcId int64
+		if i < len(dcIds) {
+			dcId, _ = strconv.ParseInt(strings.TrimSpace(dcIds[i]), 10, 64)
+		}
+		if rackId <= 0 && dcId <= 0 {
 			continue // пустая/незаполненная строка формы - не ошибка, просто пропускается
-		}
-		start := 0
-		if i < len(startVals) {
-			start, _ = strconv.Atoi(strings.TrimSpace(startVals[i]))
-		}
-		end := 0
-		if i < len(endVals) {
-			end, _ = strconv.Atoi(strings.TrimSpace(endVals[i]))
-		}
-		sizeUnit := 0
-		if end >= start && start > 0 {
-			sizeUnit = end - start + 1
 		}
 		p := models.StorageSystemPlacement{
 			StorageSystemsId: storageId,
-			RackCabinetId:    rackId,
-			StartUnitPos:     start,
-			EndUnitPos:       end,
-			SizeUnit:         sizeUnit,
 			IsPrimary:        first,
 			Id_User:          9999,
 			Time_Mfy:         time.Now().Local(),
+		}
+		if rackId > 0 {
+			start := 0
+			if i < len(startVals) {
+				start, _ = strconv.Atoi(strings.TrimSpace(startVals[i]))
+			}
+			end := 0
+			if i < len(endVals) {
+				end, _ = strconv.Atoi(strings.TrimSpace(endVals[i]))
+			}
+			sizeUnit := 0
+			if end >= start && start > 0 {
+				sizeUnit = end - start + 1
+			}
+			p.RackCabinetId = rackId
+			p.StartUnitPos = start
+			p.EndUnitPos = end
+			p.SizeUnit = sizeUnit
+		} else {
+			// Шкаф не выбран, но выбран ЦОД - site-only размещение.
+			p.DatacenterSiteId = dcId
 		}
 		first = false
 		if _, err := trn.Insert(&p); err != nil {
