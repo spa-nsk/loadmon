@@ -3,7 +3,6 @@ package itilliumimport
 import (
 	"loadmon/models"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
@@ -69,14 +68,13 @@ func ImportItiliumStorage(name string) {
 //     StorageSystems.RackCabinetId не позволяет реализовать учет
 //     размещения") - НЕ поле самой StorageSystems, а отдельная запись
 //     models.StorageSystemPlacement, см. upsertStorageSystemPlacement ниже.
-//     Текущая версия rack_storage.yaml разбирает РОВНО ОДНО размещение на
-//     строку файла (колонка "Размещение в шкафу/стойке") - пользователь
-//     предупредил, что пришлёт отдельно xlsx-пример с СХД в НЕСКОЛЬКИХ
-//     шкафах; когда он появится, эту функцию нужно будет научить проходить
-//     по нескольким сегментам размещения и вызывать
-//     upsertStorageSystemPlacement для каждого (сама функция уже написана
-//     так, что вызывать её несколько раз для одной СХД безопасно - см. её
-//     комментарий).
+//     ОДНА строка файла может содержать НЕСКОЛЬКО шкафов сразу в колонке
+//     "Размещение в шкафу/стойке" (2026-09-10, по запросу пользователя "в
+//     импорте СХД, если несколько шкафов то загрузка некорректна... Оно по
+//     сути продолжение поля Местоположение") - все сегменты разбираются
+//     parseStoragePlacementSegments (storageplacement.go) из сырой строки
+//     колонки, и upsertStorageSystemPlacement вызывается по разу на каждый
+//     разобранный шкаф (см. цикл по placements ниже).
 //
 // job (см. progress.go) отражает ход выполнения для страницы-опросчика -
 // job.finish(...) вызывается ЛЮБЫМ путём выхода из функции (defer).
@@ -129,9 +127,13 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 		}
 
 		datacenterRoom := r.Extra["datacenter_room"]
-		rackId := int64(0)
+		// ownSiteId - ЦОД, резолвленный по колонке "Местоположение"
+		// (location_split) - используется как площадка ПО УМОЛЧАНИЮ для
+		// сегментов размещения без собственного имени ЦОД перед "/" (см.
+		// storagePlacementSegment.DatacenterSiteName и разбор ниже).
+		ownSiteId := int64(0)
 		if !flNotWorking {
-			// --- ЦОД (models.DatacenterSite) --------------------------------
+			// --- ЦОД (models.DatacenterSite) по "Местоположение" ------------
 			datacenter := models.DatacenterSite{
 				Name:       datacenterRoom + " " + r.Extra["location_room_code"],
 				Annotation: "ЦОД по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
@@ -145,27 +147,57 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 					continue
 				}
 			}
-			datacenterId := datacenter.Id
-
-			// --- Шкаф (models.RackCabinet) - резолвится ПАРОЙ (Name,
-			// DatacenterSiteId), см. resolveRackCabinet: одинаковое имя
-			// шкафа допустимо на разных площадках -----------------------
-			var errRack error
-			rackId, errRack = resolveRackCabinet(trn, r.Extra["rack_num"], datacenterId,
-				"Шкаф по адресу: "+datacenterRoom+" этаж:"+r.Extra["location_zone_code"]+" комната: "+r.Extra["location_room_code"])
-			if errRack != nil {
-				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва rack:", errRack)
-				trn.Rollback()
-				continue
-			}
+			ownSiteId = datacenter.Id
 		}
 
-		// Юнит начала/конца - разобраны composite rack_unit_split
-		// (rack_storage.yaml) в extra.start_unit_pos/extra.end_unit_pos (НЕ
-		// в поля StorageSystems - см. комментарий у runImportItiliumStorage
-		// выше про переход на models.StorageSystemPlacement).
-		startU, _ := strconv.Atoi(strings.TrimSpace(r.Extra["start_unit_pos"]))
-		endU, _ := strconv.Atoi(strings.TrimSpace(r.Extra["end_unit_pos"]))
+		// --- Размещение (models.StorageSystemPlacement) - ОДИН или
+		// НЕСКОЛЬКО шкафов на одну СХД (2026-09-10, по запросу пользователя
+		// "в импорте СХД, если несколько шкафов то загрузка некорректна...
+		// не рассматривается поле Размещение в шкафу/стойке. Оно по сути
+		// продолжение поля Местоположение") - разбирается напрямую из сырой
+		// строки extra.rack_placement_raw (не из старого rack_unit_split,
+		// который поддерживал ровно один шкаф на строку файла, см. подробный
+		// комментарий у parseStoragePlacementSegments в storageplacement.go).
+		var placements []struct {
+			rackId int64
+			startU int
+			endU   int
+		}
+		if !flNotWorking {
+			segments := parseStoragePlacementSegments(r.Extra["rack_placement_raw"])
+			for _, seg := range segments {
+				siteId := ownSiteId
+				if seg.DatacenterSiteName != "" {
+					// Colocation-сегмент со своим именем ЦОД перед "/" -
+					// резолвится ОТДЕЛЬНО от "Местоположение" (см.
+					// resolveDatacenterSiteByName и комментарий у
+					// storagePlacementSegment.DatacenterSiteName - имя может
+					// текстуально отличаться от ЦОД в "Местоположение" для
+					// той же строки, это не ошибка данных, а два разных
+					// идентификатора одной площадки).
+					var errSite error
+					siteId, errSite = resolveDatacenterSiteByName(trn, seg.DatacenterSiteName)
+					if errSite != nil {
+						log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва ЦОД для сегмента размещения", seg.DatacenterSiteName, ":", errSite)
+						continue
+					}
+				}
+				if siteId <= 0 {
+					continue
+				}
+				rackId, errRack := resolveRackCabinet(trn, seg.CabinetCode, siteId,
+					"Шкаф по данным импорта СХД из Итиллиум (колонка \"Размещение в шкафу/стойке\")")
+				if errRack != nil {
+					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва rack для сегмента", seg.CabinetCode, ":", errRack)
+					continue
+				}
+				placements = append(placements, struct {
+					rackId int64
+					startU int
+					endU   int
+				}{rackId: rackId, startU: seg.StartUnitPos, endU: seg.EndUnitPos})
+			}
+		}
 
 		// --- Anotation: "Статус" (по запросу пользователя) В НАЧАЛЕ, затем
 		// сырое значение колонки "Размещение в шкафу/стойке" (если было) -
@@ -229,13 +261,24 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 			}
 		}
 
-		// --- Размещение (models.StorageSystemPlacement) --------------------
-		if rackId > 0 {
-			if err := upsertStorageSystemPlacement(trn, st.Id, rackId, startU, endU); err != nil {
-				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения размещения (StorageSystemsId=", st.Id, ", RackCabinetId=", rackId, "):", err)
-				trn.Rollback()
+		// --- Размещение (models.StorageSystemPlacement) - один вызов
+		// upsertStorageSystemPlacement НА КАЖДЫЙ разобранный шкаф (см.
+		// placements выше) - безопасно вызывать несколько раз подряд для
+		// одной СХД, см. комментарий у upsertStorageSystemPlacement.
+		placementErr := false
+		for _, p := range placements {
+			if p.rackId <= 0 {
 				continue
 			}
+			if err := upsertStorageSystemPlacement(trn, st.Id, p.rackId, p.startU, p.endU); err != nil {
+				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения размещения (StorageSystemsId=", st.Id, ", RackCabinetId=", p.rackId, "):", err)
+				placementErr = true
+				break
+			}
+		}
+		if placementErr {
+			trn.Rollback()
+			continue
 		}
 
 		// TODO: r.Extra содержит поля без прямого соответствия в схеме
