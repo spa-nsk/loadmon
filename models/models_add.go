@@ -2110,19 +2110,36 @@ func (u *ConfigurationUnitLink) TableIndex() [][]string {
 // itilliumimport/importrackservers.go) либо вручную через
 // /sprsrv/datacentersitelist(edit) и /sprsrv/rackcabinetlist(edit).
 
-// DatacenterSite - справочник ЦОД (физических площадок/серверных), по аналогии
-// с oneview2.Datacenter (см. oneview2/models.go). Наполняется вручную через
-// UI (/sprsrv/datacentersitelist(edit)) или импортом из Итиллиум (см.
+// DatacenterSite - справочник площадок/ЦОД (физических площадок/серверных),
+// по аналогии с oneview2.Datacenter (см. oneview2/models.go). Название формы в
+// UI изменено (2026-09-10) с "Справочник ЦОД" на "Справочник Площадок/ЦОД" -
+// в данных из Итиллиум помимо настоящих ЦОД встречаются склады и виртуальные
+// площадки для списанного оборудования, которые физически ЦОД не являются
+// (см. поле IsDatacenter ниже). Наполняется вручную через UI
+// (/sprsrv/datacentersitelist(edit)) или импортом из Итиллиум (см.
 // itilliumimport/importrackservers.go) - НЕ синхронизируется из HP OneView.
 type DatacenterSite struct {
-	Id         int64     `form:"Id" orm:"auto" csv:"id"`                             //
-	Name       string    `form:"Name" csv:"Наименование"`                            //основное наименование ЦОД
-	AltName    string    `form:"AltName" csv:"Альтернативное наименование"`          //альтернативное наименование (короткий код/старое название и т.п.)
-	Width      int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Datacenter.Width
-	Height     int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Datacenter.Height
-	Annotation string    `orm:"null" form:"Annotation" csv:"Описание"`               //
-	Id_User    int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
-	Time_Mfy   time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
+	Id      int64  `form:"Id" orm:"auto" csv:"id"`                    //
+	Name    string `form:"Name" csv:"Наименование"`                   //основное наименование площадки
+	AltName string `form:"AltName" csv:"Альтернативное наименование"` //альтернативное наименование (короткий код/старое название и т.п.)
+	// IsDatacenter - признак "ЦОД" (2026-09-10, по запросу пользователя
+	// "переименую в формах Справочник ЦОД в Справочник Площадок/ЦОД...
+	// добавь поле признак ЦОД"): в данных из Итиллиум помимо настоящих ЦОД
+	// встречаются склады и виртуальные площадки для списанного оборудования
+	// - это тоже места (площадки), но там нет активного серверного
+	// оборудования, которое может быть включено/выключено. true - площадка
+	// является ЦОД (там размещается активное оборудование, которое может
+	// быть выключено); false - просто площадка размещения без признаков
+	// активного оборудования (склад, рабочая комната, "виртуальная"
+	// площадка для списанного и т.п.). Проставляется вручную в форме
+	// редактирования - импорт из Итиллиум это поле не трогает (там нет
+	// прямого признака ЦОД/склад в исходных данных).
+	IsDatacenter bool      `orm:"default(true)" form:"IsDatacenter" csv:"Признак ЦОД"`
+	Width        int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Datacenter.Width
+	Height       int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Datacenter.Height
+	Annotation   string    `orm:"null" form:"Annotation" csv:"Описание"`               //
+	Id_User      int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
+	Time_Mfy     time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
 }
 
 // TableName возвращает имя таблицы БД для модели DatacenterSite (используется beego ORM).

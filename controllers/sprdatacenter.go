@@ -158,6 +158,11 @@ func (this *MainController) SprDatacenterSiteEdit() {
 			flash.Store(&this.Controller)
 			return
 		}
+	} else {
+		// По умолчанию новая площадка считается ЦОД (типичный случай) -
+		// чекбокс в форме создания сразу отмечен, поле IsDatacenter
+		// добавлено в модель 2026-09-10.
+		rec.IsDatacenter = true
 	}
 
 	if this.Ctx.Input.Method() == "POST" {
@@ -167,6 +172,12 @@ func (this *MainController) SprDatacenterSiteEdit() {
 		}
 		rec.Name = this.GetString("Name")
 		rec.AltName = this.GetString("AltName")
+		// IsDatacenter - чекбокс в форме; несданный чекбокс не приходит в
+		// POST вовсе (стандартное поведение HTML-форм), поэтому его
+		// отсутствие в этом запросе однозначно означает "снят" - тот же
+		// приём, что и для прочих bool-полей проекта, отправляемых через
+		// <input type="checkbox">.
+		rec.IsDatacenter = this.GetString("IsDatacenter") != ""
 		rec.Width, _ = strconv.ParseInt(this.GetString("Width"), 10, 64)
 		rec.Height, _ = strconv.ParseInt(this.GetString("Height"), 10, 64)
 		rec.Annotation = this.GetString("Annotation")

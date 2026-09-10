@@ -99,25 +99,31 @@
 
                 <h6>Размещение</h6>
                 <div class="row g-3">
-                    <!-- ИЗМЕНЕНО (2026-09-08, по запросу пользователя "исправь ...
-                         в самой карточке редактирования"): вместо свободных
-                         текстовых полей "ЦОД"/"Номер стойки" (старые данные
-                         Итиллиум/OneView) - каскадный выбор ЦОД -> Шкаф из
-                         справочников (models.DatacenterSite/models.RackCabinet),
-                         тот же приём, что уже в bladesystemsedit.tpl - см. JS
-                         внизу файла. ЦОД (DatacenterSiteId) сам никуда не
-                         сохраняется (нет name), сохраняется только
-                         RackCabinetId. Старые текстовые
-                         DatacenterRoom/RackNum/DatacenterName/RackName оставлены
-                         ниже как read-only справочная информация (последнее
-                         известное значение из Итиллиум/OneView) - на случай
-                         расхождения со справочником, для ручной сверки. -->
+                    <!-- ИЗМЕНЕНО (2026-09-10, по запросу пользователя "удали
+                         поля ЦОД (текст, Итиллиум)/Номер стойки (текст,
+                         Итиллиум)/Помещение (OneView)/Шкаф (OneView). По
+                         другим полям блока приведи в соответствие с новой
+                         концепцией размещения"): 4 старых read-only текстовых
+                         поля (последние известные значения из Итиллиум/
+                         OneView, до перехода на справочник) убраны -
+                         единственный источник истины теперь справочники
+                         models.DatacenterSite/models.RackCabinet ниже.
+                         Подпись "ЦОД" переименована в "Площадка/ЦОД"
+                         (согласуется с переименованием самого справочника,
+                         см. CHANGELOG - в нём есть не только настоящие ЦОД, но
+                         и склады/виртуальные площадки для списанного); опции
+                         помечают площадки без признака IsDatacenter как
+                         "(не ЦОД)", чтобы при выборе было видно, что это не
+                         серверная. Каскад ЦОД -> Шкаф - тот же приём, что уже
+                         в bladesystemsedit.tpl, см. JS внизу файла. Площадка
+                         (DatacenterSiteId) сама никуда не сохраняется (нет
+                         name), сохраняется только RackCabinetId. -->
                     <div class="col-6">
-                        <label for="hwEditDatacenterSiteId" class="form-label">ЦОД</label>
+                        <label for="hwEditDatacenterSiteId" class="form-label">Площадка/ЦОД</label>
                         <select id="hwEditDatacenterSiteId" class="form-select">
                             <option value="0">-</option>
                             {{range $dc := .DatacenterSites}}
-                            <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                            <option value="{{$dc.Id}}">{{$dc.Name}}{{if not $dc.IsDatacenter}} (не ЦОД){{end}}</option>
                             {{end}}
                         </select>
                     </div>
@@ -137,22 +143,6 @@
                     <div class="col-6">
                         <label for="SizeUnit" class="form-label">Занимаемых юнитов</label>
                         <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.HW.SizeUnit}}">
-                    </div>
-                    <div class="col-6">
-                        <label for="DatacenterRoom" class="form-label">ЦОД (текст, Итиллиум)</label>
-                        <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.HW.DatacenterRoom}}" readonly>
-                    </div>
-                    <div class="col-6">
-                        <label for="RackNum" class="form-label">Номер стойки (текст, Итиллиум)</label>
-                        <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.HW.RackNum}}" readonly>
-                    </div>
-                    <div class="col-6">
-                        <label for="DatacenterName" class="form-label">Помещение (OneView)</label>
-                        <input type="text" id="DatacenterName" name="DatacenterName" class="form-control" value="{{.HW.DatacenterName}}" readonly>
-                    </div>
-                    <div class="col-6">
-                        <label for="RackName" class="form-label">Шкаф (OneView)</label>
-                        <input type="text" id="RackName" name="RackName" class="form-control" value="{{.HW.RackName}}" readonly>
                     </div>
                 </div>
             </div>

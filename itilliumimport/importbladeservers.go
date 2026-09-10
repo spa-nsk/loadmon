@@ -254,8 +254,18 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		} else {
 			r.Spr.Id = sprsrv.Id
 			sprsrv.HWSprId = r.Spr.HWSprId
-			sprsrv.Name = r.Spr.Name
-			sprsrv.NameFQDN = r.Spr.NameFQDN
+			// ИСПРАВЛЕНО (2026-09-10, баг стирания имён - см. тот же фикс в
+			// importrackservers.go): Name/NameFQDN перезаписываются
+			// значением из файла ТОЛЬКО если оно не пусто - r.Spr.Name/
+			// NameFQDN может быть "" просто из-за пустой/"nan"/"-"/"n/a"
+			// ячейки в выгрузке Итиллиум (ConvertRow/setTarget пропускает
+			// такое поле молча), а не потому что сервер безымянный.
+			if r.Spr.Name != "" {
+				sprsrv.Name = r.Spr.Name
+			}
+			if r.Spr.NameFQDN != "" {
+				sprsrv.NameFQDN = r.Spr.NameFQDN
+			}
 			sprsrv.Stat = r.Spr.Stat
 			sprsrv.Active = r.Spr.Active
 			sprsrv.PowerState = r.Spr.PowerState

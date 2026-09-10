@@ -1,6 +1,6 @@
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
-        <h2>{{if .IsNew}}Новый ЦОД{{else}}ЦОД{{end}}</h2>
+        <h2>{{if .IsNew}}Новая площадка/ЦОД{{else}}Площадка/ЦОД{{end}}</h2>
         <div class="text-muted">{{if .IsNew}}Запись ещё не создана{{else}}Id записи: <b>{{.Id}}</b>{{end}}</div>
     </div>
     <a href="/sprsrv/datacentersitelist/0" class="btn btn-outline-secondary rounded-pill px-3">К списку</a>
@@ -25,6 +25,13 @@
             <div class="col-6">
                 <label for="AltName" class="form-label">Альтернативное наименование</label>
                 <input type="text" id="AltName" name="AltName" class="form-control" value="{{.DC.AltName}}">
+            </div>
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="IsDatacenter" name="IsDatacenter" value="1" {{if .DC.IsDatacenter}}checked{{end}}>
+                    <label class="form-check-label" for="IsDatacenter">Признак "ЦОД"</label>
+                </div>
+                <div class="form-text">Отмечено - площадка является ЦОД, там размещается активное оборудование (которое может быть выключено). Снято - это просто площадка размещения без активного оборудования (склад, рабочая комната, площадка для списанного и т.п.).</div>
             </div>
             <div class="col-3">
                 <label for="Width" class="form-label">Ширина</label>

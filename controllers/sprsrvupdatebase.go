@@ -199,7 +199,16 @@ func (this *MainController) SprSrvUpdateBase() {
 		record.Anotation = strings.TrimSpace(form.Anotation)
 		record.Role = strings.TrimSpace(form.Role)
 		record.Details = strings.TrimSpace(form.Details)
-		record.DPCOffice = form.DPCOffice
+		// record.DPCOffice больше НЕ читается из формы (2026-09-10, по
+		// запросу пользователя "убери поле ввода ЦОД: адрес и площадка -
+		// в этом блоке уже есть отображение правильного размещения") -
+		// select с DPCOffice убран из updatebase.tpl, старое размещение
+		// (ЦОД/Шкаф по новой схеме) показывается через PlacementText выше.
+		// Если оставить `record.DPCOffice = form.DPCOffice` без изменений,
+		// отсутствующее в форме поле дало бы form.DPCOffice==0 и затёрло бы
+		// уже сохранённое значение нулём при каждом сохранении карточки -
+		// то есть DPCOffice просто не трогается этой формой вовсе (поле
+		// оставлено в модели/БД как есть, историческое значение сохраняется).
 		record.SZHistory = strings.TrimSpace(form.SZHistory)
 		record.Monitoring = form.Monitoring
 		record.Backuped = form.Backuped
