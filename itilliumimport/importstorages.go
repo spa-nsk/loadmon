@@ -286,9 +286,36 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 			}
 		}
 		if !placementErr && len(placements) == 0 && ownSiteId > 0 {
-			if err := upsertStorageSystemPlacementSiteOnly(trn, st.Id, ownSiteId); err != nil {
-				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения площадки без шкафа (StorageSystemsId=", st.Id, ", DatacenterSiteId=", ownSiteId, "):", err)
-				placementErr = true
+			// ИЗМЕНЕНО (2026-09-10, по запросу пользователя про IT-0000042272
+			// - "Местоположение" вида "... | Colocation | Зал 205 | Шкаф
+			// 2.4.4 | Unit 15", т.е. шкаф/юнит указаны ПРЯМО в
+			// "Местоположение", а не в отдельной колонке "Размещение в
+			// шкафу/стойке"): прежде чем падать на "безшкафное" размещение,
+			// пробуем разобрать extra["location_tail"] (см.
+			// compositeLocationSplit в convert.go) через
+			// parseLocationEmbeddedPlacement - если там нашёлся шкаф,
+			// заводим полноценное размещение с шкафом/юнитом вместо
+			// site-only записи.
+			usedCabinet := false
+			if cabinetCode, startU, endU, ok := parseLocationEmbeddedPlacement(r.Extra["location_tail"]); ok {
+				rackId, errRack := resolveRackCabinet(trn, cabinetCode, ownSiteId,
+					"Шкаф по данным импорта СХД из Итиллиум (колонка \"Местоположение\")")
+				if errRack != nil {
+					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва rack из Местоположение", cabinetCode, ":", errRack)
+				} else if rackId > 0 {
+					if err := upsertStorageSystemPlacement(trn, st.Id, rackId, startU, endU); err != nil {
+						log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения размещения из Местоположение (StorageSystemsId=", st.Id, ", RackCabinetId=", rackId, "):", err)
+						placementErr = true
+					} else {
+						usedCabinet = true
+					}
+				}
+			}
+			if !placementErr && !usedCabinet {
+				if err := upsertStorageSystemPlacementSiteOnly(trn, st.Id, ownSiteId); err != nil {
+					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения площадки без шкафа (StorageSystemsId=", st.Id, ", DatacenterSiteId=", ownSiteId, "):", err)
+					placementErr = true
+				}
 			}
 		}
 		if placementErr {

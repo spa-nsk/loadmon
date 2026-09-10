@@ -1,6 +1,7 @@
 package itilliumimport
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -139,6 +140,53 @@ func parseStoragePlacementSegments(raw string) []storagePlacementSegment {
 		result = append(result, *merged[k])
 	}
 	return result
+}
+
+// locationCabinetRe/locationUnitRe распознают токены "Шкаф <код>" и
+// "Unit <число>[-<число>]" внутри extra["location_tail"] (см.
+// compositeLocationSplit в convert.go) - формат встречается у части строк
+// Итиллиум, где шкаф/юнит указаны ПРЯМО в колонке "Местоположение" (пример:
+// "Новосибирск, ЦОД РТК, Менделеева 1 | Colocation | Зал 205 | Шкаф 2.4.4 |
+// Unit 15"), а отдельная колонка "Размещение в шкафу/стойке" при этом пуста.
+var locationCabinetRe = regexp.MustCompile(`(?i)^шкаф\s*(.+)$`)
+var locationUnitRe = regexp.MustCompile(`(?i)^unit\s*(\d+)(?:\s*-\s*(\d+))?$`)
+
+// parseLocationEmbeddedPlacement разбирает tail (extra["location_tail"],
+// сегменты "Местоположение" после индекса 2, разделённые тем же separator,
+// что и сам location_split) на код шкафа + диапазон юнитов - запасной
+// источник размещения, когда parseStoragePlacementSegments (колонка
+// "Размещение в шкафу/стойке") не дала ни одного сегмента. Если в tail
+// указан только "Unit N" (одно число, без диапазона "N-M") - StartUnitPos ==
+// EndUnitPos == N (один юнит, SizeUnit=1 - вычисляется дальше в
+// upsertStorageSystemPlacement). Если "Шкаф" не найден - возвращает ok=false
+// (нечем размещать, вызывающий код падает обратно на site-only размещение).
+func parseLocationEmbeddedPlacement(tail string) (cabinetCode string, startUnit, endUnit int, ok bool) {
+	tail = strings.TrimSpace(tail)
+	if tail == "" {
+		return "", 0, 0, false
+	}
+	for _, chunk := range strings.Split(tail, "|") {
+		chunk = strings.TrimSpace(chunk)
+		if chunk == "" {
+			continue
+		}
+		if m := locationCabinetRe.FindStringSubmatch(chunk); m != nil {
+			cabinetCode = strings.TrimSpace(m[1])
+			continue
+		}
+		if m := locationUnitRe.FindStringSubmatch(chunk); m != nil {
+			startUnit, _ = strconv.Atoi(m[1])
+			if m[2] != "" {
+				endUnit, _ = strconv.Atoi(m[2])
+			} else {
+				endUnit = startUnit
+			}
+		}
+	}
+	if cabinetCode == "" {
+		return "", 0, 0, false
+	}
+	return cabinetCode, startUnit, endUnit, true
 }
 
 // resolveDatacenterSiteByName ищет/заводит models.DatacenterSite СТРОГО по
