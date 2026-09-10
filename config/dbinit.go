@@ -157,6 +157,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.SprBusinesAllocation))
 	orm.RegisterModel(new(models.BladeSystems))
 	orm.RegisterModel(new(models.StorageSystems))
+	orm.RegisterModel(new(models.StorageSystemPlacement))
 	orm.RegisterModel(new(models.Datastore))
 	orm.RegisterModel(new(models.ServerHardware))
 	orm.RegisterModel(new(models.ServerHardwareComponents))
@@ -240,11 +241,28 @@ func DBInit() {
 	orm.RegisterModel(new(models.StorageMetric))
 	orm.RegisterModel(new(models.StorageMetricRecord))
 
+	// Одноразовая дедупликация RackCabinet ДО создания композитного
+	// уникального индекса (Name, DatacenterSiteId) - см. комментарий у
+	// RackCabinet в models_add.go и dedupeDuplicateRackCabinets ниже.
+	// Должна выполняться ДО RunSyncdb("default", ...), иначе ADD UNIQUE
+	// INDEX упадёт на уже существующих дублях шкафов с одинаковым Name
+	// на разных площадках (баг импорта СХД/блейд-корзин/rack-серверов,
+	// искавших шкаф только по Name, без учёта DatacenterSiteId).
+	dedupeDuplicateRackCabinets()
+
 	err := orm.RunSyncdb("default", false, false)
 	logSyncdbErr("default", err)
 
 	err = orm.RunSyncdb("default-add", false, false)
 	logSyncdbErr("default-add", err)
+
+	// Одноразовый перенос старых данных размещения СХД (RackCabinetId/
+	// StartUnitPos/EndUnitPos/SizeUnit) из уже "осиротевших" колонок
+	// storage_systems в новую таблицу StorageSystemPlacement - см. её
+	// комментарий в models_add.go и migrateStorageSystemsPlacement ниже.
+	// Вызывается ПОСЛЕ RunSyncdb, т.к. таблица storage_system_placement
+	// должна уже существовать.
+	migrateStorageSystemsPlacement()
 
 	/*
 		name := "default"
@@ -255,4 +273,166 @@ func DBInit() {
 			log.Println(err)
 		}
 	*/
+}
+
+// migrateStorageSystemsPlacement переносит одноразово данные старой схемы
+// размещения СХД (одиночный FK на шкаф прямо на StorageSystems) в новую
+// таблицу-связку models.StorageSystemPlacement - по одной записи на каждую
+// СХД, у которой в старых колонках было проставлено размещение,
+// IsPrimary=true (см. подробный комментарий у полей StorageSystems и у
+// StorageSystemPlacement в models_add.go, запись 2026-09-09 в CHANGELOG.md).
+//
+// Колонки rack_cabinet_id/start_unit_pos/end_unit_pos/size_unit таблицы
+// storage_systems больше не описаны в Go-структуре models.StorageSystems
+// (RunSyncdb удаляет только отсутствующее - ДОБАВЛЯЕТ недостающие
+// таблицы/колонки, но никогда не убирает лишние), поэтому они читаются
+// сырым SQL через o.Raw(...), а не через ORM-запрос по структуре.
+//
+// Идемпотентна и безопасна для многократного вызова при каждом старте
+// приложения: переносится только та StorageSystems.Id, для которой в
+// storage_system_placement ЕЩЁ НЕТ ни одной записи - повторный перенос
+// новых записей второй раз не создаёт. Если старых колонок в БД уже нет
+// (например, на свежей базе, где storage_systems создана заново уже без
+// них) - o.Raw(...).QueryRows вернёт ошибку, которая тихо игнорируется:
+// переносить в этом случае просто нечего.
+func migrateStorageSystemsPlacement() {
+	o := orm.NewOrm()
+
+	type legacyStoragePlacement struct {
+		Id            int64
+		RackCabinetId int64
+		StartUnitPos  int
+		EndUnitPos    int
+		SizeUnit      int
+	}
+	var rows []legacyStoragePlacement
+	_, err := o.Raw("SELECT id, rack_cabinet_id, start_unit_pos, end_unit_pos, size_unit FROM storage_systems WHERE rack_cabinet_id IS NOT NULL AND rack_cabinet_id > 0").QueryRows(&rows)
+	if err != nil {
+		// Старых колонок уже нет в БД либо иная ошибка чтения - переносить
+		// нечего, это не считается сбоем инициализации.
+		return
+	}
+	if len(rows) == 0 {
+		return
+	}
+
+	migrated := 0
+	for _, r := range rows {
+		// ИСПРАВЛЕНО: в используемой версии beego/v2/client/orm
+		// QuerySeter.Exist() возвращает только bool (без error) - в отличие
+		// от некоторых других методов ORM здесь нечего проверять на ошибку.
+		exists := o.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId", r.Id).Exist()
+		if exists {
+			// Для этой СХД размещение уже перенесено (или заведено заново
+			// вручную через новую форму) - не трогаем.
+			continue
+		}
+		p := models.StorageSystemPlacement{
+			StorageSystemsId: r.Id,
+			RackCabinetId:    r.RackCabinetId,
+			StartUnitPos:     r.StartUnitPos,
+			EndUnitPos:       r.EndUnitPos,
+			SizeUnit:         r.SizeUnit,
+			IsPrimary:        true,
+			Id_User:          9999,
+			Time_Mfy:         time.Now().Local(),
+		}
+		if _, err := o.Insert(&p); err != nil {
+			log.Println("config.migrateStorageSystemsPlacement: ошибка вставки размещения для StorageSystems.Id=", r.Id, ":", err)
+			continue
+		}
+		migrated++
+	}
+	if migrated > 0 {
+		log.Println("config.migrateStorageSystemsPlacement: перенесено размещений СХД из старой схемы:", migrated)
+	}
+}
+
+// dedupeDuplicateRackCabinets устраняет дубли RackCabinet ПЕРЕД тем, как
+// RunSyncdb попытается создать композитный уникальный индекс
+// (Name, DatacenterSiteId) - см. комментарий у RackCabinet в
+// models_add.go.
+//
+// Причина дублей: импорт из Итиллиум (importstorages.go/importrackservers.go
+// /importblades.go) до этого исправления искал существующий шкаф методом
+// trn.Read(&rack, "Name") - строго по имени, БЕЗ учёта DatacenterSiteId.
+// Так как имена шкафов ("3.1-A-08" и т.п.) переиспользуются на разных
+// площадках, первый найденный шкаф с таким Name считался "тем самым" и его
+// DatacenterSiteId тихо перезаписывался на площадку из последней
+// импортированной строки - вместо того чтобы завести второй шкаф с тем же
+// именем на другой площадке. Прямых дублей строк (Name, DatacenterSiteId)
+// это не создавало, зато создавало ситуацию, когда один и тот же
+// RackCabinet.Id к моменту исправления бага может быть "перепривязан" не к
+// той площадке, к которой относилось оборудование, размещённое в нём
+// раньше - см. предупреждение в конце этой функции.
+//
+// Сама дедупликация нужна на случай штатных дублей: если ДО этого фикса
+// пользователь вручную завёл (или тот же импорт успел завести, например, в
+// параллельных горутинах/повторных запусках) две записи RackCabinet с
+// одинаковой парой (Name, DatacenterSiteId) - без неё ADD UNIQUE INDEX в
+// RunSyncdb упадёт с ошибкой и приложение не сможет синхронизировать схему.
+//
+// Идемпотентна: при повторном запуске дублей уже не будет (уникальный
+// индекс их не позволит создать), функция просто ничего не найдёт и сразу
+// вернётся.
+func dedupeDuplicateRackCabinets() {
+	o := orm.NewOrm()
+
+	type cabinetRow struct {
+		Id               int64
+		Name             string
+		DatacenterSiteId int64
+	}
+	var rows []cabinetRow
+	_, err := o.Raw("SELECT id, name, datacenter_site_id FROM cmdb_rack_cabinet ORDER BY id").QueryRows(&rows)
+	if err != nil {
+		// Таблицы ещё нет (первый запуск на чистой БД) либо иная ошибка
+		// чтения - дедуплицировать нечего, RunSyncdb сам создаст таблицу
+		// сразу с уникальным индексом.
+		return
+	}
+
+	// Группируем по (Name, DatacenterSiteId); первый увиденный Id в группе
+	// (наименьший, т.к. rows отсортированы по id) остаётся "каноническим",
+	// остальные - дубли на удаление с переносом ссылок на канонический Id.
+	type groupKey struct {
+		Name             string
+		DatacenterSiteId int64
+	}
+	canonical := map[groupKey]int64{}
+	duplicates := map[int64]int64{} // dupId -> canonicalId
+
+	for _, r := range rows {
+		key := groupKey{Name: r.Name, DatacenterSiteId: r.DatacenterSiteId}
+		if canonicalId, ok := canonical[key]; ok {
+			duplicates[r.Id] = canonicalId
+			continue
+		}
+		canonical[key] = r.Id
+	}
+
+	if len(duplicates) == 0 {
+		return
+	}
+
+	log.Println("config.dedupeDuplicateRackCabinets: найдено дублей RackCabinet (одинаковые Name+DatacenterSiteId):", len(duplicates), "- переносим ссылки и удаляем дубли")
+
+	for dupId, canonicalId := range duplicates {
+		// Переносим ссылки во всех таблицах, где есть RackCabinetId FK -
+		// storage_system_placement, blade_systems, server_hardware (см.
+		// комментарий в models_add.go у RackCabinet: "Связывается с
+		// BladeSystems (BladeSystems.RackCabinetId) и ServerHardware
+		// (ServerHardware.RackCabinetId)").
+		for _, table := range []string{"storage_system_placement", "blade_systems", "server_hardware"} {
+			sql := "UPDATE " + table + " SET rack_cabinet_id = ? WHERE rack_cabinet_id = ?"
+			if _, err := o.Raw(sql, canonicalId, dupId).Exec(); err != nil {
+				log.Println("config.dedupeDuplicateRackCabinets: ошибка переноса ссылок из", table, "с dup Id=", dupId, "на canonical Id=", canonicalId, ":", err)
+			}
+		}
+		if _, err := o.Raw("DELETE FROM cmdb_rack_cabinet WHERE id = ?", dupId).Exec(); err != nil {
+			log.Println("config.dedupeDuplicateRackCabinets: ошибка удаления дубля RackCabinet.Id=", dupId, ":", err)
+		}
+	}
+
+	log.Println("config.dedupeDuplicateRackCabinets: дедупликация RackCabinet завершена. ВНИМАНИЕ: из-за исторического бага поиска шкафа только по Name (без DatacenterSiteId) часть оборудования, ранее размещённого в 'схлопнутых' шкафах, могла быть привязана не к той площадке - при необходимости сверьте размещение СХД/блейд-корзин/rack-серверов вручную через справочники.")
 }

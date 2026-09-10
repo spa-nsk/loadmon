@@ -105,6 +105,29 @@ func (this *MainController) SprSrvUpdateBase() {
 	this.Data["ModifiedByName"] = auditlog.ResolveUserDisplayName(o, record.Id_User)
 	this.Data["CreatedByName"] = auditlog.ResolveUserDisplayName(o, record.CreatorUser)
 
+	// Размещение (ЦОД/Шкаф из нового справочника RackCabinet/DatacenterSite) -
+	// read-only справка в карточке, по запросу пользователя ("проверь
+	// корректность отображения... при просмотре не отображалось" -
+	// на этой форме размещение вообще не показывалось, в отличие от
+	// hwconflist/hwconfedit/storagesystemsedit/view2, куда оно уже перенесено
+	// с прежнего текстового DPCOffice). Само поле RackCabinetId живёт на
+	// models.ServerHardware (для Type 0/2) или резолвится через хост (для
+	// VM, Type 1) - на этой форме оно НЕ редактируется (редактирование
+	// остаётся на /sprsrv/hwconfedit/:HWSprId, чтобы не дублировать
+	// источник истины) - здесь только отображение со ссылкой на карточку
+	// оборудования.
+	this.Data["PlacementText"] = ""
+	this.Data["PlacementHWSprId"] = int64(0)
+	switch record.Type {
+	case 0, 2:
+		if record.HWSprId > 0 {
+			this.Data["PlacementHWSprId"] = record.HWSprId
+			this.Data["PlacementText"] = resolveServerPlacementText(o, record.HWSprId)
+		}
+	case 1:
+		this.Data["PlacementText"] = resolveVMPlacementText(o, record.VMSprId)
+	}
+
 	if this.Ctx.Input.Method() == "POST" {
 
 		if !this.RequireEditReference() {
@@ -256,6 +279,84 @@ func (this *MainController) SprSrvUpdateBase() {
 	}
 
 	this.Data["record"] = record
+}
+
+// resolveServerPlacementText возвращает read-only текст размещения
+// "ЦОД / Шкаф" для аппаратного сервера/гипервизора по Id его записи
+// models.ServerHardware (ServerSprRecords.HWSprId), либо "" если у него нет
+// связанной ServerHardware или размещение (RackCabinetId) не проставлено.
+// Используется только для отображения на /sprsrv/updatebase - тот же
+// справочник RackCabinet/DatacenterSite, что и в hwconflist/view2, но здесь
+// без редактирования (редактирование - на /sprsrv/hwconfedit/:HWSprId).
+func resolveServerPlacementText(o orm.Ormer, hwSprId int64) string {
+	if hwSprId <= 0 {
+		return ""
+	}
+	var hw models.ServerHardware
+	if err := o.QueryTable(new(models.ServerHardware)).Filter("Id", hwSprId).One(&hw, "Id", "RackCabinetId"); err != nil {
+		return ""
+	}
+	return placementTextByCabinetId(o, hw.RackCabinetId)
+}
+
+// resolveVMPlacementText возвращает read-only текст размещения для
+// виртуальной машины - у неё самой нет физического размещения, оно
+// наследуется от хоста (гипервизора), на котором она выполняется. Связь
+// VM->хост - только по имени (models.VMSprRecord.Vm_HostName сравнивается
+// без учёта регистра с Name/NameFQDN хоста), прямой FK-связи в схеме нет -
+// тот же приём, что уже используется в
+// controllers/sprsrvview2.go:placementServerSprIds для фильтра по шкафу.
+func resolveVMPlacementText(o orm.Ormer, vmSprId int64) string {
+	if vmSprId <= 0 {
+		return ""
+	}
+	var vm models.VMSprRecord
+	if err := o.QueryTable(new(models.VMSprRecord)).Filter("Id", vmSprId).One(&vm, "Vm_HostName"); err != nil {
+		return ""
+	}
+	hostName := strings.TrimSpace(vm.Vm_HostName)
+	if hostName == "" {
+		return ""
+	}
+
+	var host models.ServerSprRecords
+	cond := orm.NewCondition().
+		And("Type", 2).
+		AndCond(orm.NewCondition().Or("Name__iexact", hostName).Or("NameFQDN__iexact", hostName))
+	if err := o.QueryTable(new(models.ServerSprRecords)).SetCond(cond).One(&host, "Id", "Name", "HWSprId"); err != nil {
+		return ""
+	}
+	if host.HWSprId <= 0 {
+		return ""
+	}
+	text := resolveServerPlacementText(o, host.HWSprId)
+	if text == "" {
+		return ""
+	}
+	return text + " (унаследовано от хоста \"" + host.Name + "\")"
+}
+
+// placementTextByCabinetId форматирует "ЦОД / Шкаф" по Id шкафа
+// (models.RackCabinet.Id), либо "" если шкаф не указан/не найден.
+func placementTextByCabinetId(o orm.Ormer, rackCabinetId int64) string {
+	if rackCabinetId <= 0 {
+		return ""
+	}
+	var rc models.RackCabinet
+	if err := o.QueryTable(new(models.RackCabinet)).Filter("Id", rackCabinetId).One(&rc, "Id", "Name", "DatacenterSiteId"); err != nil {
+		return ""
+	}
+	siteName := ""
+	if rc.DatacenterSiteId > 0 {
+		var site models.DatacenterSite
+		if err := o.QueryTable(new(models.DatacenterSite)).Filter("Id", rc.DatacenterSiteId).One(&site, "Name"); err == nil {
+			siteName = site.Name
+		}
+	}
+	if siteName == "" {
+		return rc.Name
+	}
+	return siteName + " / " + rc.Name
 }
 
 func correctServerSprRecord(record *models.ServerSprRecords, itsysRec *models.ItSystemRecord) {

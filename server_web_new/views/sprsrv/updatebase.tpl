@@ -547,6 +547,17 @@
         <div class="card-header fw-semibold">Расположение и обслуживание</div>
         <div class="card-body">
             <div class="row g-3">
+                {{if .PlacementText}}
+                <div class="col-12">
+                    <label class="form-label">Физическое размещение (ЦОД / Шкаф)</label>
+                    <div class="form-control-plaintext">
+                        {{.PlacementText}}
+                        {{if .PlacementHWSprId}}
+                        <a href="/sprsrv/hwconfedit/{{.PlacementHWSprId}}" class="ms-2 small" title="Изменить размещение в карточке оборудования">изменить в карточке оборудования</a>
+                        {{end}}
+                    </div>
+                </div>
+                {{end}}
                 <div class="col-sm-8 col-md-6">
                     <label for="DPCOffice" class="form-label">ЦОД: адрес и площадка</label>
                     <select name="DPCOffice" id="DPCOffice" class="form-select">

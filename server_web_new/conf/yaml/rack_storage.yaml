@@ -127,15 +127,30 @@ composites:
 
   # "Размещение в шкафу/стойке": "3.1-A-08 | 25-36" - шкаф | диапазон юнитов.
   # В части строк примера колонка пуста (composite тогда ничего не
-  # заполняет). StartUnitPos/EndUnitPos - реальные числовые поля схемы
-  # (importstorages.go дополнительно вычисляет из них SizeUnit, тот же приём,
-  # что и для BladeSystems в importblades.go).
+  # заполняет).
+  #
+  # ИЗМЕНЕНО (2026-09-09, по запросу пользователя "СХД может размещаться в
+  # нескольких шкафах и схема со ссылкой StorageSystems.RackCabinetId не
+  # позволяет реализовать учет размещения"): размещение СХД больше не поле
+  # самой StorageSystems, а отдельная таблица связи models.
+  # StorageSystemPlacement (см. её комментарий в models_add.go) - поэтому
+  # targets ниже указывают в extra.* (не в StorageSystems.*, там таких полей
+  # больше нет), а не в поля модели напрямую. importstorages.go сам собирает
+  # extra.rack_num/extra.start_unit_pos/extra.end_unit_pos в ОДНУ запись
+  # StorageSystemPlacement (SizeUnit вычисляется из Start/End) - при
+  # текущем виде выгрузки колонка содержит ровно ОДНО размещение на строку
+  # файла. Пользователь предупредил, что пришлёт отдельно xlsx-пример с
+  # НЕСКОЛЬКИМИ шкафами на одну СХД - когда он появится, здесь нужно будет
+  # научиться разбирать несколько сегментов (скорее всего разделённых
+  # запятой/точкой с запятой внутри той же колонки или в отдельных строках
+  # выгрузки на одну и ту же S/N) и заводить по одной StorageSystemPlacement
+  # на каждый сегмент в importstorages.go.
   - name: rack_unit_split
     sources: ["Размещение в шкафу/стойке"]
     targets:
       - "extra.rack_num"
-      - "StorageSystems.StartUnitPos"
-      - "StorageSystems.EndUnitPos"
+      - "extra.start_unit_pos"
+      - "extra.end_unit_pos"
     params:
       separator: "|"
 

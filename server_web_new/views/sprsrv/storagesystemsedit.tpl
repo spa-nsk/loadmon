@@ -162,53 +162,72 @@
         <div class="col-12">
             <div class="hw-card">
                 <h6>Размещение</h6>
-                <!-- ИЗМЕНЕНО (2026-09-08, по запросу пользователя "Проверь
-                     структуру StorageSystems, она изменилась"): у модели
-                     models.StorageSystems больше нет текстовых полей City/
-                     DatacenterRoom/RackNum/Allocation/StartUnit (string) -
-                     размещение теперь описывается ТОЛЬКО через каскадный
-                     select ЦОД -> Шкаф (RackCabinetId, FK на
-                     models.RackCabinet) и числовые StartUnitPos/EndUnitPos/
-                     SizeUnit - тот же набор полей, что у BladeSystems, см.
-                     bladesystemsedit.tpl. Старая версия этого блока
-                     ссылалась на уже не существующие поля модели (баг,
-                     оставшийся с прошлой правки models_add.go) - исправлено
-                     здесь заодно. -->
-                    <div class="row g-3">
-                    <div class="col-6">
-                        <label for="stEditDatacenterSiteId" class="form-label">ЦОД</label>
-                        <select id="stEditDatacenterSiteId" class="form-select">
-                            <option value="0">-</option>
-                            {{range $dc := .DatacenterSites}}
-                            <option value="{{$dc.Id}}">{{$dc.Name}}</option>
-                            {{end}}
-                        </select>
-                    </div>
-                    <div class="col-6">
-                        <label for="RackCabinetId" class="form-label">Шкаф (справочник)</label>
-                        <select id="RackCabinetId" name="RackCabinetId" class="form-select">
-                            <option value="0">-</option>
-                            {{range $rc := .RackCabinets}}
-                            <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.ST.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
-                            {{end}}
-                        </select>
-                    </div>
-                    <div class="col-4">
-                        <label for="StartUnitPos" class="form-label">Юнит начала</label>
-                        <input type="number" id="StartUnitPos" name="StartUnitPos" class="form-control" value="{{.ST.StartUnitPos}}">
-                    </div>
-                    <div class="col-4">
-                        <label for="EndUnitPos" class="form-label">Юнит окончания</label>
-                        <input type="number" id="EndUnitPos" name="EndUnitPos" class="form-control" value="{{.ST.EndUnitPos}}">
-                    </div>
-                    <div class="col-4">
-                        <label for="SizeUnit" class="form-label">Размер, юнитов</label>
-                        <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.ST.SizeUnit}}">
-                    </div>
+                <!-- ИЗМЕНЕНО (2026-09-09, по запросу пользователя "СХД может
+                     размещаться в нескольких шкафах и схема со ссылкой
+                     StorageSystems.RackCabinetId не позволяет реализовать
+                     учет размещения"): одиночный select "Шкаф" +
+                     StartUnitPos/EndUnitPos/SizeUnit ПРЯМО на StorageSystems
+                     заменены на динамический список строк "шкаф" - каждая
+                     строка это одна запись models.StorageSystemPlacement
+                     (см. models_add.go). Строки повторяют один и тот же
+                     набор полей формы (name="PlacementRackCabinetId" и
+                     т.д. без индексов в имени) - контроллер
+                     (SprStorageSystemsEdit/saveStorageSystemPlacements в
+                     controllers/sprstoragesystems.go) читает их как
+                     параллельные массивы через GetStrings и сопоставляет по
+                     порядку. SizeUnit не показывается отдельным полем -
+                     вычисляется на сервере из StartUnitPos/EndUnitPos (тот
+                     же приём, что и в bladesystemsedit.tpl). -->
+                <div class="row g-3">
                     <div class="col-6">
                         <label for="TechnicalNumberIT" class="form-label">Технический номер ИТ</label>
                         <input type="text" id="TechnicalNumberIT" name="TechnicalNumberIT" class="form-control" value="{{.ST.TechnicalNumberIT}}">
                     </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="text-muted small">
+                        Одна СХД может занимать несколько шкафов одновременно (например, контроллеры в одном шкафу, дисковые полки расширения - в другом) - добавьте по одной строке на каждый шкаф.
+                    </div>
+                    <button type="button" id="placementAddRow" class="btn btn-outline-secondary btn-sm">+ Добавить шкаф</button>
+                </div>
+
+                <div id="placementRows">
+                    {{range $i, $p := .Placements}}
+                    <div class="row g-3 align-items-end placement-row mb-2">
+                        <div class="col-3">
+                            <label class="form-label">ЦОД</label>
+                            <select class="form-select placement-dc-select">
+                                <option value="0">-</option>
+                                {{range $dc := $.DatacenterSites}}
+                                <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                                {{end}}
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label">Шкаф</label>
+                            <select name="PlacementRackCabinetId" class="form-select placement-rack-select">
+                                <option value="0">-</option>
+                                {{range $rc := $.RackCabinets}}
+                                <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $p.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
+                                {{end}}
+                            </select>
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label">Юнит начала</label>
+                            <input type="number" name="PlacementStartUnitPos" class="form-control" value="{{if gt $p.StartUnitPos 0}}{{$p.StartUnitPos}}{{end}}">
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label">Юнит окончания</label>
+                            <input type="number" name="PlacementEndUnitPos" class="form-control" value="{{if gt $p.EndUnitPos 0}}{{$p.EndUnitPos}}{{end}}">
+                        </div>
+                        <div class="col-2">
+                            <button type="button" class="btn btn-outline-danger btn-sm placement-remove-row">Удалить</button>
+                        </div>
+                    </div>
+                    {{end}}
                 </div>
 
                 <hr class="my-3">
@@ -292,45 +311,87 @@
 </style>
 
 <script>
-    // Каскадный select "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя
-    // "добавь в models.StorageSystems поле RackCabinetId и сделай
-    // соответствующую обработку и отображение в справочнике СХД и форме
-    // редактирования СХД") - select ЦОД (stEditDatacenterSiteId) сам никуда
-    // не отправляется (нет атрибута name), он только сужает список опций
-    // select "Шкаф" (RackCabinetId, единственное поле, которое реально уходит
-    // в форму) по атрибуту data-dc каждой опции - тот же приём, что уже
-    // используется в hwconfedit.tpl / hwconflist.tpl / view2.tpl.
+    // Динамический список размещений СХД в нескольких шкафах (2026-09-09, по
+    // запросу пользователя "СХД может размещаться в нескольких шкафах и
+    // схема со ссылкой StorageSystems.RackCabinetId не позволяет
+    // реализовать учет размещения") - каждая строка .placement-row это одна
+    // будущая запись models.StorageSystemPlacement. Внутри строки работает
+    // тот же каскад "ЦОД -> Шкаф", что и раньше в этой форме (select ЦОД сам
+    // никуда не отправляется, он только сужает список опций select "Шкаф" по
+    // атрибуту data-dc), но теперь применяется к КАЖДОЙ строке независимо
+    // через closest/querySelector вместо фиксированных id (id не могут
+    // повторяться при клонировании строк).
     (function () {
-        var dcSelect = document.getElementById('stEditDatacenterSiteId');
-        var rackSelect = document.getElementById('RackCabinetId');
-        if (!dcSelect || !rackSelect) return;
+        var container = document.getElementById('placementRows');
+        var addBtn = document.getElementById('placementAddRow');
+        if (!container) return;
 
-        var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+        function bindCascade(row) {
+            var dcSelect = row.querySelector('.placement-dc-select');
+            var rackSelect = row.querySelector('.placement-rack-select');
+            if (!dcSelect || !rackSelect) return;
 
-        function applyFilter(preserveSelection) {
-            var dc = dcSelect.value;
-            var currentValue = rackSelect.value;
-            rackSelect.innerHTML = '';
-            allRackOptions.forEach(function (opt) {
-                var optDc = opt.getAttribute('data-dc') || '0';
-                if (opt.value === '0' || dc === '0' || optDc === dc) {
-                    rackSelect.appendChild(opt);
-                }
-            });
-            if (preserveSelection) {
-                var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
-                    return opt.value === currentValue;
+            var allOptions = Array.prototype.slice.call(rackSelect.options);
+
+            function applyFilter(preserveSelection) {
+                var dc = dcSelect.value;
+                var currentValue = rackSelect.value;
+                rackSelect.innerHTML = '';
+                allOptions.forEach(function (opt) {
+                    var optDc = opt.getAttribute('data-dc') || '0';
+                    if (opt.value === '0' || dc === '0' || optDc === dc) {
+                        rackSelect.appendChild(opt);
+                    }
                 });
-                rackSelect.value = stillPresent ? currentValue : '0';
+                if (preserveSelection) {
+                    var stillPresent = Array.prototype.some.call(rackSelect.options, function (opt) {
+                        return opt.value === currentValue;
+                    });
+                    rackSelect.value = stillPresent ? currentValue : '0';
+                }
             }
+
+            var selectedOption = allOptions.find(function (opt) { return opt.selected; });
+            if (selectedOption && selectedOption.value !== '0') {
+                dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+            }
+            applyFilter(true);
+
+            dcSelect.addEventListener('change', function () { applyFilter(true); });
         }
 
-        var selectedOption = allRackOptions.find(function (opt) { return opt.selected; });
-        if (selectedOption && selectedOption.value !== '0') {
-            dcSelect.value = selectedOption.getAttribute('data-dc') || '0';
+        function bindRemove(row) {
+            var btn = row.querySelector('.placement-remove-row');
+            if (!btn) return;
+            btn.addEventListener('click', function () {
+                if (container.querySelectorAll('.placement-row').length <= 1) {
+                    // Последнюю строку не удаляем совсем (иначе нечего будет
+                    // клонировать для "+ Добавить шкаф") - просто очищаем её.
+                    row.querySelectorAll('select').forEach(function (s) { s.value = '0'; });
+                    row.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+                    return;
+                }
+                row.remove();
+            });
         }
-        applyFilter(true);
 
-        dcSelect.addEventListener('change', function () { applyFilter(true); });
+        Array.prototype.forEach.call(container.querySelectorAll('.placement-row'), function (row) {
+            bindCascade(row);
+            bindRemove(row);
+        });
+
+        if (addBtn) {
+            addBtn.addEventListener('click', function () {
+                var rows = container.querySelectorAll('.placement-row');
+                var template = rows[rows.length - 1];
+                if (!template) return;
+                var clone = template.cloneNode(true);
+                clone.querySelectorAll('select').forEach(function (s) { s.value = '0'; });
+                clone.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+                container.appendChild(clone);
+                bindCascade(clone);
+                bindRemove(clone);
+            });
+        }
     })();
 </script>

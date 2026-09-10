@@ -1035,8 +1035,29 @@ func placementServerSprIds(o orm.Ormer, rackCabinetId int64) []int64 {
 		return result
 	}
 
+	// Раньше здесь читалась ВСЯ таблица vm_spr_record целиком (по запросу
+	// пользователя - ~10000 VM, заметная лишняя нагрузка на каждый вызов
+	// фильтра при том, что реально нужны только VM найденных выше хостов,
+	// которых на практике мало - обычно один шкаф/несколько гипервизоров).
+	// Вместо сырого SQL (пришлось бы гадать реальное имя колонки для
+	// нестандартного по стилю имени поля Vm_HostName) используется ORM-
+	// условие с __iexact (регистронезависимое точное сравнение,
+	// эквивалентно прежнему strings.ToLower сравнению) через
+	// orm.NewCondition, объединяющее варианты написания имени каждого хоста
+	// через OR - beego сам резолвит имя колонки по регистрации модели.
+	condVM := orm.NewCondition()
+	first := true
+	for n := range hostNames {
+		c := orm.NewCondition().And("Vm_HostName__iexact", n)
+		if first {
+			condVM = c
+			first = false
+		} else {
+			condVM = condVM.OrCond(c)
+		}
+	}
 	var vms []models.VMSprRecord
-	o.QueryTable("vm_spr_record").All(&vms, "Id", "Vm_HostName")
+	o.QueryTable(new(models.VMSprRecord)).SetCond(condVM).All(&vms, "Id", "Vm_HostName")
 	vmIds := make([]int64, 0)
 	for _, vm := range vms {
 		n := strings.ToLower(strings.TrimSpace(vm.Vm_HostName))

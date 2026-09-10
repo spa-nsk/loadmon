@@ -69,11 +69,24 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 		room, rack string
 	}
 	cabinetById := map[int64]cabinetPlacement{}
-	if len(chassisRows) > 0 {
-		cabinetIds := make([]int64, 0, len(chassisRows))
+	{
+		cabinetIds := make([]int64, 0, len(chassisRows)+len(rackServers))
 		for _, ch := range chassisRows {
 			if ch.RackCabinetId > 0 {
 				cabinetIds = append(cabinetIds, ch.RackCabinetId)
+			}
+		}
+		// ДОБАВЛЕНО (2026-09-09, по запросу пользователя "реализуй
+		// аналогичную обработку... и других где отображается
+		// ServerHardware"): rack-серверы (не блейд) раньше группировались
+		// на канвасе ТОЛЬКО по легаси-текстовым hw.DatacenterRoom/hw.RackNum
+		// (см. fallback ниже), хотя у ServerHardware уже есть актуальный FK
+		// RackCabinetId - используем тот же lookup RackCabinetId->(ЦОД,
+		// Шкаф), что и для блейд-корзин выше, чтобы канвас не расходился с
+		// /sprsrv/hwconflist/hwconfedit, которые давно на новой схеме.
+		for _, hw := range rackServers {
+			if hw.RackCabinetId > 0 {
+				cabinetIds = append(cabinetIds, hw.RackCabinetId)
 			}
 		}
 		if len(cabinetIds) > 0 {
@@ -201,7 +214,18 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 		if startU <= 0 {
 			startU = parseStartUnit(hw.StartUnit)
 		}
-		r := ensureRack(hw.DatacenterRoom, hw.RackNum)
+		// Размещение - в приоритете новая схема (RackCabinetId->RackCabinet/
+		// DatacenterSite, тот же lookup cabinetById, что и у блейд-корзин
+		// выше); если RackCabinetId не проставлен (старые данные, ещё не
+		// мигрированные через /sprsrv/hwconfedit) - fallback на легаси
+		// текстовые поля DatacenterRoom/RackNum, чтобы такие серверы не
+		// пропали с канваса молча.
+		placement := cabinetById[hw.RackCabinetId]
+		room, rack := hw.DatacenterRoom, hw.RackNum
+		if hw.RackCabinetId > 0 && (strings.TrimSpace(placement.room) != "" || strings.TrimSpace(placement.rack) != "") {
+			room, rack = placement.room, placement.rack
+		}
+		r := ensureRack(room, rack)
 		r.RackServers = append(r.RackServers, payload.RackServer{
 			Name:      name,
 			Model:     hw.Model,
@@ -222,20 +246,41 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 		return storageRows[i].ShortName < storageRows[j].ShortName
 	})
 
-	// ИЗМЕНЕНО (2026-09-08): models.StorageSystems лишился текстовых
-	// DatacenterRoom/RackNum - расположение СХД теперь определяется только
-	// через RackCabinetId (FK на models.RackCabinet), точно так же, как ранее
-	// было исправлено для BladeSystems выше (см. cabinetById/cabinetPlacement
-	// там) - здесь довычисляются недостающие записи cabinetById для шкафов,
-	// на которые ссылаются СХД (RackCabinetId у корзин и у СХД может
-	// пересекаться, но необязательно совпадать полностью, поэтому нельзя
-	// просто переиспользовать карту как есть без дозагрузки).
+	// ИЗМЕНЕНО (2026-09-09, по запросу пользователя "СХД может размещаться в
+	// нескольких шкафах и схема со ссылкой StorageSystems.RackCabinetId не
+	// позволяет реализовать учет размещения"): расположение СХД теперь
+	// определяется через отдельную таблицу связи models.
+	// StorageSystemPlacement (см. её комментарий в models_add.go) - ОДНА
+	// СХД может иметь НЕСКОЛЬКО записей размещения. Этот легаси-канвас
+	// (payload.Storage) - плоский список сбоку от стоек (в отличие от
+	// /admin/hwinfra, где СХД физически повторяется В КАЖДОМ шкафу на
+	// canvas, см. controllers/adminhwinfra.go), поэтому здесь все
+	// размещения одной СХД просто склеиваются в Room/RackNum через "; " -
+	// довычисляются недостающие записи cabinetById для шкафов, на которые
+	// ссылаются размещения СХД (RackCabinetId у блейд-корзин и у размещений
+	// СХД может пересекаться, но необязательно совпадать полностью, поэтому
+	// нельзя просто переиспользовать карту как есть без дозагрузки).
+	storageIds := make([]int64, 0, len(storageRows))
+	for _, st := range storageRows {
+		storageIds = append(storageIds, st.Id)
+	}
+	placementsByStorage := map[int64][]models.StorageSystemPlacement{}
+	if len(storageIds) > 0 {
+		var placements []models.StorageSystemPlacement
+		if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId__in", storageIds).OrderBy("-IsPrimary", "Id").All(&placements); err == nil {
+			for _, p := range placements {
+				placementsByStorage[p.StorageSystemsId] = append(placementsByStorage[p.StorageSystemsId], p)
+			}
+		}
+	}
 	{
 		missingCabinetIds := make([]int64, 0)
-		for _, st := range storageRows {
-			if st.RackCabinetId > 0 {
-				if _, ok := cabinetById[st.RackCabinetId]; !ok {
-					missingCabinetIds = append(missingCabinetIds, st.RackCabinetId)
+		for _, placements := range placementsByStorage {
+			for _, p := range placements {
+				if p.RackCabinetId > 0 {
+					if _, ok := cabinetById[p.RackCabinetId]; !ok {
+						missingCabinetIds = append(missingCabinetIds, p.RackCabinetId)
+					}
 				}
 			}
 		}
@@ -270,7 +315,16 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 		if diskMax <= 0 && st.Used > 0 {
 			diskMax = st.Used
 		}
-		placement := cabinetById[st.RackCabinetId]
+		var rooms, racks []string
+		for _, p := range placementsByStorage[st.Id] {
+			placement := cabinetById[p.RackCabinetId]
+			if placement.room != "" {
+				rooms = append(rooms, placement.room)
+			}
+			if placement.rack != "" {
+				racks = append(racks, placement.rack)
+			}
+		}
 		storageItems = append(storageItems, payload.Storage{
 			ShortName:   st.ShortName,
 			Vendor:      st.Vendor,
@@ -279,8 +333,8 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 			DiskMax:     diskMax,
 			TotalSizeTB: st.TotalSizeRAW,
 			UsedPercent: st.UsedPercent,
-			Room:        placement.room,
-			RackNum:     placement.rack,
+			Room:        strings.Join(rooms, "; "),
+			RackNum:     strings.Join(racks, "; "),
 			PowerOn:     st.Power == 1,
 		})
 	}

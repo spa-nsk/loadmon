@@ -123,31 +123,17 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		}
 		datacenterId := datacenter.Id
 
-		// --- Шкаф (models.RackCabinet) ----------------------------------
-		rack := models.RackCabinet{
-			Name:             r.Hw.RackNum,
-			DatacenterSiteId: datacenterId,
-			Annotation:       "Шкаф по адресу: " + r.Hw.DatacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-			Id_User:          9999,
-			Time_Mfy:         time.Now().Local(),
+		// --- Шкаф (models.RackCabinet) - резолвится ПАРОЙ (Name,
+		// DatacenterSiteId), см. resolveRackCabinet: одинаковое имя шкафа
+		// допустимо на разных площадках --------------------------------
+		rackId, errRack := resolveRackCabinet(trn, r.Hw.RackNum, datacenterId,
+			"Шкаф по адресу: "+r.Hw.DatacenterRoom+" этаж:"+r.Extra["location_zone_code"]+" комната: "+r.Extra["location_room_code"])
+		if errRack != nil {
+			log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка резолва rack:", errRack)
+			trn.Rollback()
+			continue
 		}
-		if err := trn.Read(&rack, "Name"); err != nil {
-			if _, err := trn.Insert(&rack); err != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка вставки rack:", err)
-				trn.Rollback()
-				continue
-			}
-		} else if rack.DatacenterSiteId != datacenterId {
-			// Шкаф уже существовал (например, из более ранней выгрузки) -
-			// подтягиваем актуальный ЦОД, если он изменился.
-			rack.DatacenterSiteId = datacenterId
-			if _, err := trn.Update(&rack, "DatacenterSiteId"); err != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления rack:", err)
-				trn.Rollback()
-				continue
-			}
-		}
-		r.Hw.RackCabinetId = rack.Id
+		r.Hw.RackCabinetId = rackId
 
 		// --- Статус/питание ----------------------------------------------
 		r.Spr.SourceUpdateType = models.SourceUpdateManual
