@@ -447,8 +447,8 @@ document.addEventListener('DOMContentLoaded', function () {
              и /sprsrv/hwconflist (см. sprsrvview2.go:placementServerSprIds
              про правила определения размещения для разных типов записей). -->
         <div class="row">
-            <div class="form-group col-sm-3">
-                <label for="view2DatacenterSiteId">ЦОД</label>
+            <div class="form-group col-sm-6">
+                <label for="view2DatacenterSiteId">Площадка/ЦОД</label>
                 <select id="view2DatacenterSiteId" class="form-control">
                     <option value="0">Все</option>
                     {{range $dc := .DatacenterSites}}
@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     {{end}}
                 </select>
             </div>
-            <div class="form-group col-sm-3">
+            <div class="form-group col-sm-6">
                 <label for="RackCabinetId">Шкаф</label>
                 <select id="RackCabinetId" name="RackCabinetId" size="1" class="form-control">
                     <option value="0">Все</option>

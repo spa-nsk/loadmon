@@ -291,8 +291,15 @@ func (this *MainController) SprSrvViewV2() {
 	}
 	this.Data["RackCabinetId"] = rackCabinetId
 
+	// Фильтр "Площадка/ЦОД" на этой форме - по запросу пользователя
+	// (2026-09-10) - показывает только площадки с признаком "ЦОД"
+	// (models.DatacenterSite.IsDatacenter): смысл фильтра - найти серверы по
+	// месту размещения активного оборудования, а склады/виртуальные
+	// площадки для списанного (IsDatacenter=false, см. запись (55) про
+	// переименование справочника) активного оборудования не содержат и как
+	// цель поиска здесь не нужны.
 	var dcSites []models.DatacenterSite
-	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&dcSites)
+	o.QueryTable("cmdb_datacenter_site").Filter("IsDatacenter", true).OrderBy("Name").All(&dcSites)
 	this.Data["DatacenterSites"] = dcSites
 
 	var rackCabinets []models.RackCabinet

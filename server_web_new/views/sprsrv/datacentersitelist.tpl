@@ -1,5 +1,5 @@
 <div class="hero-text mb-3">
-    <h2>Справочник ЦОД</h2>
+    <h2>Справочник Площадок/ЦОД</h2>
 </div>
 
 {{if .flash.error}}
@@ -26,7 +26,7 @@
         <div class="row mt-3">
             <div class="col-12 d-flex flex-wrap align-items-center gap-2">
                 <button type="submit" title="Просмотреть данные с учётом фильтров" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Просмотр</button>
-                <a href="/sprsrv/datacentersiteedit/0" title="Добавить новый ЦОД" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
+                <a href="/sprsrv/datacentersiteedit/0" title="Добавить новую площадку/ЦОД" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
         <div class="row mt-2">
@@ -46,6 +46,7 @@
                 <th class="text-center">Id</th>
                 <th>Наименование</th>
                 <th>Альт. наименование</th>
+                <th class="text-center">ЦОД</th>
                 <th class="text-end">Ширина</th>
                 <th class="text-end">Высота</th>
                 <th>Описание</th>
@@ -57,6 +58,13 @@
                 <td class="text-end">{{$dc.Id}}</td>
                 <td><a href="/sprsrv/datacentersiteedit/{{$dc.Id}}" target="_blank">{{$dc.Name}}</a></td>
                 <td>{{$dc.AltName}}</td>
+                <td class="text-center">
+                    {{if $dc.IsDatacenter}}
+                    <span class="badge bg-primary" title="Площадка является ЦОД - размещается активное оборудование">ЦОД</span>
+                    {{else}}
+                    <span class="badge bg-secondary" title="Не ЦОД - площадка размещения без активного оборудования (склад, комната и т.п.)">площадка</span>
+                    {{end}}
+                </td>
                 <td class="text-end">{{$dc.Width}}</td>
                 <td class="text-end">{{$dc.Height}}</td>
                 <td>{{$dc.Annotation}}</td>
@@ -66,7 +74,7 @@
             </tr>
             {{else}}
             <tr>
-                <td colspan="6" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
+                <td colspan="7" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
             </tr>
             {{end}}
         </tbody>

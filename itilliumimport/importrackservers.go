@@ -222,8 +222,25 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		} else {
 			r.Spr.Id = sprsrv.Id
 			sprsrv.HWSprId = r.Spr.HWSprId
-			sprsrv.Name = r.Spr.Name
-			sprsrv.NameFQDN = r.Spr.NameFQDN
+			// ИСПРАВЛЕНО (2026-09-10, баг стирания имён): Name/NameFQDN
+			// перезаписываются значением из файла ТОЛЬКО если оно не пусто.
+			// r.Spr.Name/NameFQDN приходят из ConvertRow (convert.go) через
+			// setTarget, который вообще не трогает поле при пустой/"nan"/
+			// "-"/"n/a" ячейке (см. cleanString) - то есть r.Spr.Name может
+			// быть "" не потому что сервер реально безымянный, а просто
+			// потому что в этой строке выгрузки Итиллиум ячейка была
+			// пустой. Раньше это безусловно затирало уже сохранённое
+			// непустое имя записи sprsrv (прочитанной из БД чуть выше) при
+			// повторном импорте - ровно симптом "стёрлись имена серверов и
+			// FQDN по части аппаратных серверов и гипервизоров". Тот же
+			// принцип защиты уже применяется в cmdb/updatehwsprhp.go для
+			// HP OneView-синхронизации.
+			if r.Spr.Name != "" {
+				sprsrv.Name = r.Spr.Name
+			}
+			if r.Spr.NameFQDN != "" {
+				sprsrv.NameFQDN = r.Spr.NameFQDN
+			}
 			sprsrv.Stat = r.Spr.Stat
 			sprsrv.Active = r.Spr.Active
 			sprsrv.PowerState = r.Spr.PowerState

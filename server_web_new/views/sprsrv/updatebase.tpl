@@ -558,21 +558,6 @@
                     </div>
                 </div>
                 {{end}}
-                <div class="col-sm-8 col-md-6">
-                    <label for="DPCOffice" class="form-label">ЦОД: адрес и площадка</label>
-                    <select name="DPCOffice" id="DPCOffice" class="form-select">
-                        <option value="0" {{if eq .record.DPCOffice 0}}selected{{end}}>не выбрано</option>
-                        <option value="101" {{if eq .record.DPCOffice 101}}selected{{end}}>623к, г. Новосибирск, ул. Советская 37</option>
-                        <option value="102" {{if eq .record.DPCOffice 102}}selected{{end}}>624к, г. Новосибирск, ул. Советская 37</option>
-                        <option value="103" {{if eq .record.DPCOffice 103}}selected{{end}}>316к, г. Новосибирск, ул. Советская 37</option>
-                        <option value="121" {{if eq .record.DPCOffice 121}}selected{{end}}>Мегафон, г. Новосибирск, ул. Толмачевская 19а к3</option>
-                        <option value="131" {{if eq .record.DPCOffice 131}}selected{{end}}>Ростелеком, г. Новосибирск, ул. Менделеева 1</option>
-                        <option value="201" {{if eq .record.DPCOffice 201}}selected{{end}}>3-02 г. Москва, ул. Мира 69</option>
-                        <option value="202" {{if eq .record.DPCOffice 202}}selected{{end}}>4-19 г. Москва, ул. Мира 69</option>
-                        <option value="281" {{if eq .record.DPCOffice 281}}selected{{end}}>DSP г. Москва, ул. Шарикоподшипниковская улица 11/9</option>
-                        <option value="291" {{if eq .record.DPCOffice 291}}selected{{end}}>М1 г. Москва, ул. Варшавское шоссе 125</option>
-                    </select>
-                </div>
                 <div class="col-sm-4 col-md-6">
                     <label for="SZHistory" class="form-label">Номера СЗ</label>
                     <input name="SZHistory" id="SZHistory" class="form-control" type="text" value="{{.record.SZHistory}}" title="Через пробел, в хронологическом порядке" />

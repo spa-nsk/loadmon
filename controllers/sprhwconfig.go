@@ -704,10 +704,18 @@ func (this *MainController) SprHwConfigEdit() {
 		rec.CoreMHz, _ = strconv.Atoi(this.GetString("CoreMHz"))
 		rec.MemoryMb, _ = strconv.Atoi(this.GetString("MemoryMb"))
 
-		rec.DatacenterRoom = this.GetString("DatacenterRoom")
-		rec.RackNum = this.GetString("RackNum")
-		rec.DatacenterName = this.GetString("DatacenterName")
-		rec.RackName = this.GetString("RackName")
+		// DatacenterRoom/RackNum/DatacenterName/RackName больше НЕ читаются
+		// из формы (2026-09-10, по запросу пользователя "удали поля ЦОД
+		// (текст, Итиллиум)/Номер стойки (текст, Итиллиум)/Помещение
+		// (OneView)/Шкаф (OneView)") - соответствующие read-only поля убраны
+		// из hwconfedit.tpl. Если оставить `rec.X = this.GetString("X")` без
+		// изменений, отсутствующее в форме поле дало бы "" и затёрло бы уже
+		// сохранённое историческое значение при каждом сохранении карточки
+		// (та же категория бага, что запись про Name/NameFQDN в
+		// itilliumimport и про DPCOffice в updatebase) - поэтому эти 4 поля
+		// этой формой просто не трогаются вовсе, значение в БД остаётся как
+		// есть. Источник истины для размещения теперь только RackCabinetId
+		// (справочник) ниже.
 		rec.StartUnitPos, _ = strconv.Atoi(this.GetString("StartUnitPos"))
 		rec.SizeUnit, _ = strconv.Atoi(this.GetString("SizeUnit"))
 		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
