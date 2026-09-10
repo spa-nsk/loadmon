@@ -291,6 +291,21 @@ func (this *MainController) SprSrvViewV2() {
 	}
 	this.Data["RackCabinetId"] = rackCabinetId
 
+	// ИЗМЕНЕНО (2026-09-10, по запросу пользователя "фильтр по Площадка/ЦОД и
+	// Шкаф не работает"): раньше select "Площадка/ЦОД" был ЧИСТО клиентским
+	// (без name, только сужал список опций "Шкаф", см. view2.tpl) - выбор
+	// ЦОД БЕЗ конкретного шкафа никак не отправлялся на сервер и вообще не
+	// влиял на список, что и воспринималось как "фильтр не работает". Теперь
+	// select тоже отправляется (name="DatacenterSiteId") и используется как
+	// запасной уровень фильтра, когда конкретный шкаф не выбран (rackCabinetId
+	// пуст/"0") - см. применение ниже в baseFilter.
+	datacenterSiteId, _ := m["FilterDatacenterSiteId"].(string)
+	if isPost {
+		datacenterSiteId = this.GetString("DatacenterSiteId")
+		m["FilterDatacenterSiteId"] = datacenterSiteId
+	}
+	this.Data["FilterDatacenterSiteId"] = datacenterSiteId
+
 	// Фильтр "Площадка/ЦОД" на этой форме - по запросу пользователя
 	// (2026-09-10) - показывает только площадки с признаком "ЦОД"
 	// (models.DatacenterSite.IsDatacenter): смысл фильтра - найти серверы по
@@ -429,6 +444,24 @@ func (this *MainController) SprSrvViewV2() {
 					// ничего не размещено в выбранном шкафу - гарантированно
 					// пустой результат вместо некорректного "Id__in" с пустым
 					// списком (часть ORM-драйверов не умеет "IN ()").
+					cond = cond.And("Id", int64(-1))
+				} else {
+					cond = cond.And("Id__in", placementIds)
+				}
+			}
+		} else if datacenterSiteId != "" && datacenterSiteId != "0" {
+			// Конкретный шкаф не выбран, но выбрана площадка/ЦОД целиком -
+			// фильтруем по ВСЕМ шкафам этой площадки разом (2026-09-10, см.
+			// комментарий у чтения datacenterSiteId выше).
+			if v, errDc := strconv.ParseInt(datacenterSiteId, 10, 64); errDc == nil && v > 0 {
+				var racksInSite []models.RackCabinet
+				o.QueryTable(new(models.RackCabinet)).Filter("DatacenterSiteId", v).All(&racksInSite, "Id")
+				rackIds := make([]int64, 0, len(racksInSite))
+				for _, rc := range racksInSite {
+					rackIds = append(rackIds, rc.Id)
+				}
+				placementIds := placementServerSprIdsByRacks(o, rackIds)
+				if len(placementIds) == 0 {
 					cond = cond.And("Id", int64(-1))
 				} else {
 					cond = cond.And("Id__in", placementIds)
@@ -961,11 +994,38 @@ func CalcPercentFilled(rec *models.ServerSprView) {
 //     затем берём все ServerSprRecords с Type==1, чей VMSprId ссылается на
 //     найденную запись models.VMSprRecord.
 func placementServerSprIds(o orm.Ormer, rackCabinetId int64) []int64 {
+	return placementServerSprIdsByRacks(o, []int64{rackCabinetId})
+}
+
+// placementServerSprIdsByRacks - обобщённый вариант placementServerSprIds на
+// НАБОР шкафов rackCabinetIds (а не один) - используется, когда фильтр
+// "Площадка/ЦОД" на /sprsrv/view2 выбран БЕЗ конкретного шкафа (2026-09-10,
+// по запросу пользователя "фильтр по Площадка/ЦОД и Шкаф не работает" - до
+// этого select "Площадка/ЦОД" был чисто клиентским, сужал список шкафов, но
+// сам никуда не отправлялся - выбор только ЦОД без конкретного шкафа не
+// фильтровал список вообще, что и воспринималось как "фильтр не работает").
+// Логика размещения (аппаратные серверы/гипервизоры, блейд-сервера по
+// корзине, VM по хосту) идентична placementServerSprIds, только сравнение
+// "RackCabinetId == искомый" заменено на "RackCabinetId в наборе".
+func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
+	if len(rackCabinetIds) == 0 {
+		return nil
+	}
+	rackSet := make(map[int64]bool, len(rackCabinetIds))
+	for _, id := range rackCabinetIds {
+		if id > 0 {
+			rackSet[id] = true
+		}
+	}
+	if len(rackSet) == 0 {
+		return nil
+	}
+
 	// --- аппаратные серверы/гипервизоры - прямое совпадение RackCabinetId
 	// (сюда попадают и блейд-сервера с собственным RackCabinetId, если у их
 	// корзины размещение не указано - см. ниже) -------------------------
 	var directHw []models.ServerHardware
-	o.QueryTable("server_hardware").Filter("RackCabinetId", rackCabinetId).All(&directHw, "ServerId")
+	o.QueryTable("server_hardware").Filter("RackCabinetId__in", rackCabinetIds).All(&directHw, "ServerId")
 
 	matchedServerIds := map[int64]bool{}
 	for _, hw := range directHw {
@@ -1003,7 +1063,7 @@ func placementServerSprIds(o orm.Ormer, rackCabinetId int64) []int64 {
 				// (уже в matchedServerIds, если совпал, иначе не совпал).
 				continue
 			}
-			if chassisRack == rackCabinetId {
+			if rackSet[chassisRack] {
 				matchedServerIds[hw.ServerId] = true
 			} else {
 				// корзина размещена в ДРУГОМ шкафу - у размещения корзины
