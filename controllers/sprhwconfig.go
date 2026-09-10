@@ -59,6 +59,13 @@ type HWConfigRow struct {
 	models.ServerHardware
 	ServerName     string
 	ServerNameFQDN string
+	// Placement - человекочитаемое "ЦОД / Шкаф" по RackCabinetId (тот же
+	// текст, что показывается в колонке "Размещение" hwconflist.tpl через
+	// Data["HWConfigPlacement"]) - добавлено в CSV/XLSX-экспорт (2026-09-09,
+	// по запросу пользователя "реализуй аналогичную обработку... и других
+	// где отображается ServerHardware"), чтобы выгрузка не отдавала только
+	// сырой числовой RackCabinetId без резолва в имя.
+	Placement string `csv:"Размещение (ЦОД / Шкаф)"`
 }
 
 // SprHwConfig отображает список записей справочника аппаратной конфигурации
@@ -283,6 +290,23 @@ func (this *MainController) SprHwConfig() {
 		}
 	}
 
+	// Размещение "ЦОД / Шкаф" по RackCabinetId (2026-09-08, по запросу
+	// пользователя "исправь размещение в списке конфигураций серверов
+	// аналогично блэйд корзинам") - тот же приём (и тот же lookup-паттерн),
+	// что уже применяется в bladesystemslist.tpl, см.
+	// sprbladesystems.go:bladeSystemsPlacementByCabinetId. Вычисляется ДО
+	// ветвления на экспорт (было только после - экспорт получал сырой
+	// RackCabinetId без резолва, см. HWConfigRow.Placement выше, добавлено
+	// по запросу "реализуй аналогичную обработку... и других где
+	// отображается ServerHardware") - используется и для HTML-колонки, и
+	// для CSV/XLSX.
+	placementByCabinetId := hwConfigPlacementByCabinetId(o, records)
+	for i := range rows {
+		if rows[i].RackCabinetId > 0 {
+			rows[i].Placement = placementByCabinetId[rows[i].RackCabinetId]
+		}
+	}
+
 	if exportXLSX {
 		this.exportHWConfigXLSX(rows, flash)
 		return
@@ -292,13 +316,7 @@ func (this *MainController) SprHwConfig() {
 		return
 	}
 
-	// Размещение в колонке списка (2026-09-08, по запросу пользователя
-	// "исправь размещение в списке конфигураций серверов аналогично блэйд
-	// корзинам") - вместо старых текстовых DatacenterRoom/RackNum теперь
-	// "ЦОД / Шкаф" по RackCabinetId, тот же приём (и тот же lookup-паттерн),
-	// что уже применяется в bladesystemslist.tpl, см.
-	// sprbladesystems.go:bladeSystemsPlacementByCabinetId.
-	this.Data["HWConfigPlacement"] = hwConfigPlacementByCabinetId(o, records)
+	this.Data["HWConfigPlacement"] = placementByCabinetId
 
 	this.renderHWConfigPage(rows, totalRecords, page, pageSize)
 }

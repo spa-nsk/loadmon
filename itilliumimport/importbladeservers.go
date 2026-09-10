@@ -12,7 +12,7 @@ import (
 // mappingConfigFileNameBladeServer - имя файла соответствий для импорта
 // блейд-серверов внутри каталога, заданного ключом "yaml" в app.conf (см.
 // mappingConfigDir() в importrackservers.go - переиспользуется как есть).
-const mappingConfigFileNameBladeServer = "blade_server.yaml"
+const mappingConfigFileNameBladeServer = "blade_servers.yaml"
 
 // mappingConfigPathBladeServer - полный путь к yaml-файлу соответствий,
 // читаемому в ImportItiliumBladeServer. Сам файл нужно положить в каталог,
@@ -146,28 +146,17 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		// завели бы мусорную запись RackCabinet с пустым Name) - реальная
 		// привязка к шкафу приходит ниже, через блейд-корзину.
 		if strings.TrimSpace(r.Hw.RackNum) != "" {
-			rack := models.RackCabinet{
-				Name:             r.Hw.RackNum,
-				DatacenterSiteId: datacenterId,
-				Annotation:       "Шкаф по адресу: " + r.Hw.DatacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-				Id_User:          9999,
-				Time_Mfy:         time.Now().Local(),
+			// Резолвится ПАРОЙ (Name, DatacenterSiteId), см.
+			// resolveRackCabinet: одинаковое имя шкафа допустимо на разных
+			// площадках.
+			rackId, errRack := resolveRackCabinet(trn, r.Hw.RackNum, datacenterId,
+				"Шкаф по адресу: "+r.Hw.DatacenterRoom+" этаж:"+r.Extra["location_zone_code"]+" комната: "+r.Extra["location_room_code"])
+			if errRack != nil {
+				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка резолва rack:", errRack)
+				trn.Rollback()
+				continue
 			}
-			if err := trn.Read(&rack, "Name"); err != nil {
-				if _, err := trn.Insert(&rack); err != nil {
-					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки rack:", err)
-					trn.Rollback()
-					continue
-				}
-			} else if rack.DatacenterSiteId != datacenterId {
-				rack.DatacenterSiteId = datacenterId
-				if _, err := trn.Update(&rack, "DatacenterSiteId"); err != nil {
-					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления rack:", err)
-					trn.Rollback()
-					continue
-				}
-			}
-			r.Hw.RackCabinetId = rack.Id
+			r.Hw.RackCabinetId = rackId
 		}
 
 		// --- Привязка к блейд-корзине (models.BladeSystems) - ДОПОЛНИТЕЛЬНО

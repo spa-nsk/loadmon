@@ -19,12 +19,12 @@ import (
 // В отличие от старого infracanvas (controllers/infrastructure_canvas.go),
 // который группирует стойки по текстовым полям DatacenterRoom/RackNum, эта
 // страница строит иерархию по актуальным справочникам
-// DatacenterSite -> RackCabinet (FK RackCabinetId у ServerHardware/
-// BladeSystems), т.к. наполнение ЦОД/Шкафов теперь идёт из Итиллиум
-// (см. kontext/03-data-model.md). Для СХД (у StorageSystems нет FK на
-// RackCabinet) используется сопоставление по тексту (RackNum/DatacenterRoom
-// сверяются с Name/AltName шкафа и ЦОД) - лучшее из возможного без миграции
-// данных СХД на FK.
+// DatacenterSite -> RackCabinet: FK RackCabinetId у ServerHardware/
+// BladeSystems (один шкаф на запись), и через отдельную таблицу связи
+// models.StorageSystemPlacement у StorageSystems (2026-09-09 - одна СХД
+// может занимать НЕСКОЛЬКО шкафов одновременно, см. её комментарий в
+// models_add.go) - наполнение ЦОД/Шкафов идёт из Итиллиум (см.
+// kontext/03-data-model.md).
 
 // HWInfraDisk - упрощённое представление "заполнения дисками" СХД для
 // визуализации (без выгрузки каждого физического диска - это агрегат
@@ -127,6 +127,24 @@ func buildHWInfraData() (HWInfraData, error) {
 	var storageRows []models.StorageSystems
 	if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Status", 1).All(&storageRows); err != nil {
 		return data, err
+	}
+	// Размещение СХД (2026-09-09) - отдельная таблица связи "многие-ко-
+	// многим" models.StorageSystemPlacement (одна СХД может занимать
+	// несколько шкафов), а не поле прямо на StorageSystems - см. её
+	// комментарий в models_add.go. Грузится списком под все активные СХД
+	// сразу, группировка по StorageSystemsId - ниже.
+	storageIds := make([]int64, 0, len(storageRows))
+	for _, st := range storageRows {
+		storageIds = append(storageIds, st.Id)
+	}
+	placementsByStorage := map[int64][]models.StorageSystemPlacement{}
+	if len(storageIds) > 0 {
+		var placements []models.StorageSystemPlacement
+		if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId__in", storageIds).All(&placements); err == nil {
+			for _, p := range placements {
+				placementsByStorage[p.StorageSystemsId] = append(placementsByStorage[p.StorageSystemsId], p)
+			}
+		}
 	}
 	var sprRows []models.ServerSprRecords
 	if _, err := o.QueryTable(new(models.ServerSprRecords)).
@@ -270,44 +288,45 @@ func buildHWInfraData() (HWInfraData, error) {
 		})
 	}
 
-	// СХД: размещение определяется ТОЛЬКО через FK StorageSystems.RackCabinetId
-	// (см. models_add.go) - заполняется вручную через /sprsrv/storagesystemsedit
-	// либо массовым импортом из Итиллиум (itilliumimport/importstorages.go).
-	// ИЗМЕНЕНО (2026-09-08): текстовый fallback по имени шкафа/ЦОД (RackNum/
-	// DatacenterRoom) убран вместе с самими полями - у models.StorageSystems
-	// их больше нет.
+	// СХД: размещение определяется через models.StorageSystemPlacement
+	// (2026-09-09, см. комментарий выше и в models_add.go) - ОДНА СХД может
+	// иметь НЕСКОЛЬКО записей размещения (несколько шкафов) - в этом случае
+	// она добавляется в КАЖДЫЙ соответствующий шкаф на канве отдельным
+	// элементом (с одними и теми же Name/Vendor/Model/... - юниты у каждого
+	// элемента свои, из своей записи StorageSystemPlacement). Если у СХД
+	// нет ни одной записи размещения - она показывается один раз без
+	// привязки к шкафу (siteID=0, cabID=0, тот же приём, что раньше был
+	// единственным путём).
 	for _, st := range storageRows {
 		diskMax := st.Size
 		if diskMax <= 0 && st.Used > 0 {
 			diskMax = st.Used
 		}
-		// ИСПРАВЛЕНО (2026-09-08): models.StorageSystems лишился текстовых
-		// DatacenterRoom/RackNum и StartUnit/SizeUnit(string) - размещение
-		// теперь определяется ТОЛЬКО через RackCabinetId (FK), а
-		// StartUnitPos/SizeUnit - уже числа (int), без парсинга. Текстовый
-		// fallback по cabinetByName/siteByName для СХД больше не нужен - см.
-		// комментарий в начале файла про новую схему размещения через
-		// DatacenterSite -> RackCabinet.
-		item := HWInfraStorage{
+		baseItem := HWInfraStorage{
 			Name: st.ShortName, Vendor: st.Vendor, Model: st.Model,
 			DiskUsed: st.Used, DiskMax: diskMax, TotalSizeTB: st.TotalSizeRAW,
 			UsedPercent: st.UsedPercent, PowerOn: st.Power == 1,
-			StartUnit: st.StartUnitPos,
-			SizeUnit:  st.SizeUnit,
 		}
-		if item.SizeUnit <= 0 {
+
+		placements := placementsByStorage[st.Id]
+		if len(placements) == 0 {
+			item := baseItem
 			item.SizeUnit = 4
+			r := ensureRack(0, 0)
+			r.storage = append(r.storage, item)
+			continue
 		}
-		var cabID int64
-		if st.RackCabinetId > 0 {
-			cabID = st.RackCabinetId
+		for _, p := range placements {
+			item := baseItem
+			item.StartUnit = p.StartUnitPos
+			item.SizeUnit = p.SizeUnit
+			if item.SizeUnit <= 0 {
+				item.SizeUnit = 4
+			}
+			siteID := siteOfCabinet(p.RackCabinetId)
+			r := ensureRack(siteID, p.RackCabinetId)
+			r.storage = append(r.storage, item)
 		}
-		var siteID int64
-		if cabID > 0 {
-			siteID = siteOfCabinet(cabID)
-		}
-		r := ensureRack(siteID, cabID)
-		r.storage = append(r.storage, item)
 	}
 
 	// Сборка итоговой структуры.

@@ -150,7 +150,23 @@ func (this *MainController) SprStorageSystems() {
 	}
 	if filter.RackCabinetId != "" && filter.RackCabinetId != "0" {
 		if v, err := strconv.ParseInt(filter.RackCabinetId, 10, 64); err == nil && v > 0 {
-			qs = qs.Filter("RackCabinetId", v)
+			// ИЗМЕНЕНО (2026-09-09): RackCabinetId больше не хранится прямо
+			// на StorageSystems (см. models.StorageSystemPlacement) -
+			// фильтр по шкафу теперь ищет Id СХД, у которых есть хотя бы
+			// одно размещение в этом шкафу, через отдельную таблицу связи -
+			// тот же приём (список подходящих Id -> Filter("Id__in", ...)),
+			// что уже применён в sprsrvview2.go:placementServerSprIds.
+			ids, err := storageSystemsIdsByCabinetId(o, v)
+			if err != nil {
+				flash.Error("Ошибка выборки размещения СХД: %v", err)
+				flash.Store(&this.Controller)
+				return
+			}
+			if len(ids) == 0 {
+				qs = qs.Filter("Id", int64(-1))
+			} else {
+				qs = qs.Filter("Id__in", ids)
+			}
 		}
 	}
 
@@ -196,64 +212,110 @@ func (this *MainController) SprStorageSystems() {
 		return
 	}
 
-	// Размещение в колонке списка (2026-09-08) - "ЦОД / Шкаф" по
-	// RackCabinetId вместо старых текстовых DatacenterRoom/RackNum, тот же
-	// приём, что sprbladesystems.go:bladeSystemsPlacementByCabinetId и
-	// sprhwconfig.go:hwConfigPlacementByCabinetId.
-	this.Data["StorageSystemsPlacement"] = storageSystemsPlacementByCabinetId(o, records)
+	// Размещение в колонке списка (2026-09-09) - "ЦОД / Шкаф" по ВСЕМ
+	// записям StorageSystemPlacement данной СХД (может быть несколько),
+	// ключ карты - Id самой СХД (не Id шкафа, как было раньше при одиночном
+	// FK) - см. storageSystemsPlacementByStorageId.
+	this.Data["StorageSystemsPlacement"] = storageSystemsPlacementByStorageId(o, records)
 
 	this.renderStorageSystemsPage(records, totalRecords, page, pageSize)
 }
 
-// storageSystemsPlacementByCabinetId строит по списку записей
-// models.StorageSystems (только по их RackCabinetId) карту "Id шкафа ->
-// "ЦОД / шкаф"" - для колонки "Размещение" в storagesystemslist.tpl. Полный
-// аналог sprbladesystems.go:bladeSystemsPlacementByCabinetId /
-// sprhwconfig.go:hwConfigPlacementByCabinetId (для models.BladeSystems /
-// models.ServerHardware соответственно) - продублирован здесь для
-// models.StorageSystems по тем же причинам (разные типы среза записей).
-func storageSystemsPlacementByCabinetId(o orm.Ormer, rows []models.StorageSystems) map[int64]string {
-	result := map[int64]string{}
-	cabinetIds := make([]int64, 0, len(rows))
+// storageSystemsIdsByCabinetId возвращает список Id записей StorageSystems,
+// у которых есть хотя бы одна запись StorageSystemPlacement в шкафу
+// cabinetId - используется для фильтра списка по шкафу (RackCabinetId
+// больше не хранится прямо на StorageSystems, см. models.
+// StorageSystemPlacement и её комментарий).
+func storageSystemsIdsByCabinetId(o orm.Ormer, cabinetId int64) ([]int64, error) {
+	var placements []models.StorageSystemPlacement
+	if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("RackCabinetId", cabinetId).All(&placements, "StorageSystemsId"); err != nil {
+		return nil, err
+	}
 	seen := map[int64]bool{}
+	ids := make([]int64, 0, len(placements))
+	for _, p := range placements {
+		if !seen[p.StorageSystemsId] {
+			seen[p.StorageSystemsId] = true
+			ids = append(ids, p.StorageSystemsId)
+		}
+	}
+	return ids, nil
+}
+
+// storageSystemsPlacementByStorageId строит по списку записей
+// models.StorageSystems карту "Id СХД -> текст размещения" - для колонки
+// "Размещение" в storagesystemslist.tpl. В ОТЛИЧИЕ от прежней версии этой
+// функции (storageSystemsPlacementByCabinetId, ключ был Id шкафа - см.
+// историю в CHANGELOG.md), ключ теперь Id самой СХД: одна СХД может занимать
+// НЕСКОЛЬКО шкафов (models.StorageSystemPlacement), поэтому значение -
+// список "ЦОД / Шкаф" всех её размещений, склеенный через "; " (основное,
+// IsPrimary=true, - первым).
+func storageSystemsPlacementByStorageId(o orm.Ormer, rows []models.StorageSystems) map[int64]string {
+	result := map[int64]string{}
+	if len(rows) == 0 {
+		return result
+	}
+	storageIds := make([]int64, 0, len(rows))
 	for _, r := range rows {
-		if r.RackCabinetId > 0 && !seen[r.RackCabinetId] {
-			seen[r.RackCabinetId] = true
-			cabinetIds = append(cabinetIds, r.RackCabinetId)
-		}
+		storageIds = append(storageIds, r.Id)
 	}
-	if len(cabinetIds) == 0 {
+
+	var placements []models.StorageSystemPlacement
+	if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId__in", storageIds).OrderBy("-IsPrimary", "Id").All(&placements); err != nil || len(placements) == 0 {
 		return result
 	}
-	var cabinets []models.RackCabinet
-	if _, err := o.QueryTable(new(models.RackCabinet)).Filter("Id__in", cabinetIds).All(&cabinets); err != nil {
-		return result
-	}
-	siteIds := make([]int64, 0, len(cabinets))
-	for _, c := range cabinets {
-		if c.DatacenterSiteId > 0 {
-			siteIds = append(siteIds, c.DatacenterSiteId)
+
+	cabinetIds := make([]int64, 0, len(placements))
+	seenCabinet := map[int64]bool{}
+	for _, p := range placements {
+		if p.RackCabinetId > 0 && !seenCabinet[p.RackCabinetId] {
+			seenCabinet[p.RackCabinetId] = true
+			cabinetIds = append(cabinetIds, p.RackCabinetId)
 		}
 	}
-	siteNameById := map[int64]string{}
-	if len(siteIds) > 0 {
-		var sites []models.DatacenterSite
-		if _, err := o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteIds).All(&sites); err == nil {
-			for _, s := range sites {
-				siteNameById[s.Id] = s.Name
+	cabinetText := map[int64]string{} // Id шкафа -> "ЦОД / Шкаф"
+	if len(cabinetIds) > 0 {
+		var cabinets []models.RackCabinet
+		if _, err := o.QueryTable(new(models.RackCabinet)).Filter("Id__in", cabinetIds).All(&cabinets); err == nil {
+			siteIds := make([]int64, 0, len(cabinets))
+			for _, c := range cabinets {
+				if c.DatacenterSiteId > 0 {
+					siteIds = append(siteIds, c.DatacenterSiteId)
+				}
+			}
+			siteNameById := map[int64]string{}
+			if len(siteIds) > 0 {
+				var sites []models.DatacenterSite
+				if _, err := o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteIds).All(&sites); err == nil {
+					for _, s := range sites {
+						siteNameById[s.Id] = s.Name
+					}
+				}
+			}
+			for _, c := range cabinets {
+				site := siteNameById[c.DatacenterSiteId]
+				switch {
+				case site != "" && c.Name != "":
+					cabinetText[c.Id] = site + " / " + c.Name
+				case c.Name != "":
+					cabinetText[c.Id] = c.Name
+				default:
+					cabinetText[c.Id] = site
+				}
 			}
 		}
 	}
-	for _, c := range cabinets {
-		site := siteNameById[c.DatacenterSiteId]
-		switch {
-		case site != "" && c.Name != "":
-			result[c.Id] = site + " / " + c.Name
-		case c.Name != "":
-			result[c.Id] = c.Name
-		default:
-			result[c.Id] = site
+
+	byStorage := map[int64][]string{}
+	for _, p := range placements {
+		text := cabinetText[p.RackCabinetId]
+		if text == "" {
+			continue
 		}
+		byStorage[p.StorageSystemsId] = append(byStorage[p.StorageSystemsId], text)
+	}
+	for id, texts := range byStorage {
+		result[id] = strings.Join(texts, "; ")
 	}
 	return result
 }
@@ -538,20 +600,6 @@ func (this *MainController) SprStorageSystemsEdit() {
 		rec.UsedPercent = parseFloatField("Использовано, %", "UsedPercent")
 		rec.WWNMask = this.GetString("WWNMask")
 
-		// ИСПРАВЛЕНО (2026-09-08, по запросу пользователя "Проверь структуру
-		// StorageSystems, она изменилась"): models.StorageSystems больше не
-		// содержит текстовых полей City/DatacenterRoom/RackNum/Allocation, а
-		// StartUnitPos/EndUnitPos/SizeUnit - числовые (int), а не строки -
-		// код здесь ссылался на уже не существующие поля модели (эта форма
-		// не собиралась бы компилятором) - приведено в соответствие с
-		// текущим models.StorageSystems (та же схема размещения, что у
-		// BladeSystems: RackCabinetId + StartUnitPos/EndUnitPos/SizeUnit).
-		// Разбор через parseIntField ДО проверки parseErrors ниже - иначе
-		// опечатка в этих полях молча терялась бы, минуя общую проверку.
-		rec.StartUnitPos = parseIntField("Юнит начала", "StartUnitPos")
-		rec.EndUnitPos = parseIntField("Юнит окончания", "EndUnitPos")
-		rec.SizeUnit = parseIntField("Размер, юнитов", "SizeUnit")
-
 		if len(parseErrors) > 0 {
 			flash.Error("Не удалось сохранить - проверьте числовые поля: %s", strings.Join(parseErrors, "; "))
 			flash.Store(&this.Controller)
@@ -564,7 +612,6 @@ func (this *MainController) SprStorageSystemsEdit() {
 		rec.AdCert = this.GetString("AdCert") == "on"
 		rec.AdCertDate = parseStorageSystemsDate(this.GetString("AdCertDate"))
 
-		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
 		rec.TechnicalNumberIT = this.GetString("TechnicalNumberIT")
 
 		rec.Owner = this.GetString("Owner")
@@ -595,6 +642,10 @@ func (this *MainController) SprStorageSystemsEdit() {
 				this.Data["ST"] = rec
 				return
 			}
+			if err := this.saveStorageSystemPlacements(o, rec.Id); err != nil {
+				flash.Error("Запись создана (Id=%d), но не удалось сохранить размещение в шкафах: %v", rec.Id, err)
+				flash.Store(&this.Controller)
+			}
 			RegisterRequest(this, LogTypeEditReference) // создание записи справочника СХД
 			this.Redirect(fmt.Sprintf("/sprsrv/storagesystemsedit/%d", rec.Id), 302)
 			return
@@ -606,10 +657,14 @@ func (this *MainController) SprStorageSystemsEdit() {
 			this.Data["ST"] = rec
 			return
 		}
+		if err := this.saveStorageSystemPlacements(o, rec.Id); err != nil {
+			flash.Error("Запись сохранена, но не удалось сохранить размещение в шкафах: %v", err)
+			flash.Store(&this.Controller)
+		} else {
+			flash.Notice("Запись сохранена.")
+			flash.Store(&this.Controller)
+		}
 		RegisterRequest(this, LogTypeEditReference) // изменение записи справочника СХД
-
-		flash.Notice("Запись сохранена.")
-		flash.Store(&this.Controller)
 	}
 
 	var racks []models.RackCabinet
@@ -622,11 +677,101 @@ func (this *MainController) SprStorageSystemsEdit() {
 	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&dcSites)
 	this.Data["DatacenterSites"] = dcSites
 
+	// Размещения СХД (2026-09-09, вариант "A" - таблица связи "многие-ко-
+	// многим", см. models.StorageSystemPlacement и обсуждение в
+	// CHANGELOG.md) - грузятся ПОСЛЕ возможного сохранения выше, чтобы
+	// форма после POST сразу отражала актуальный набор строк. Если у записи
+	// пока нет ни одного размещения (новая запись либо СХД, у которой ещё
+	// не указан ни один шкаф) - в шаблон передаётся ОДНА пустая строка,
+	// чтобы было от чего склонировать следующую (см. JS в
+	// storagesystemsedit.tpl) и чтобы форма не выглядела "сломанной".
+	var placements []models.StorageSystemPlacement
+	if rec.Id > 0 {
+		o.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId", rec.Id).OrderBy("-IsPrimary", "Id").All(&placements)
+	}
+	if len(placements) == 0 {
+		placements = []models.StorageSystemPlacement{{}}
+	}
+	this.Data["Placements"] = placements
+
 	this.Data["ST"] = rec
 	this.Data["AdCertDateStr"] = formatStorageSystemsDate(rec.AdCertDate)
 	this.Data["DateContractDocStr"] = formatStorageSystemsDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatStorageSystemsDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatStorageSystemsDate(rec.DateService)
+}
+
+// saveStorageSystemPlacements сохраняет набор размещений (models.
+// StorageSystemPlacement) записи СХД storageId по данным формы -
+// параллельные массивы полей "PlacementRackCabinetId"/"PlacementStartUnitPos"/
+// "PlacementEndUnitPos" (одно и то же имя поля повторяется в форме на каждую
+// строку "шкаф", см. storagesystemsedit.tpl - GetStrings собирает все
+// значения одноимённого поля по порядку их появления в форме, что и даёт
+// параллельные срезы). Простая схема "удалить все старые размещения этой
+// СХД, вставить заново из формы целиком" - количество строк размещения у
+// одной СХД небольшое (единицы), поэтому производительность не важна, а
+// код значительно проще diff'а по Id существующих записей.
+//
+// Строки с пустым/нулевым/некорректным RackCabinetId пропускаются молча
+// (это позволяет отправлять форму с "пустыми" добавленными, но не
+// заполненными строками без ошибки). IsPrimary=true проставляется ПЕРВОЙ
+// успешно разобранной строке (порядок как в форме, обычно совпадает с
+// порядком добавления пользователем) - используется там, где на экране
+// можно показать только одно "основное" место размещения.
+//
+// 2026-09-09, по запросу пользователя "СХД может размещаться в нескольких
+// шкафах" - вариант "A" (таблица связи), см. models.StorageSystemPlacement.
+func (this *MainController) saveStorageSystemPlacements(o orm.Ormer, storageId int64) error {
+	rackIds := this.GetStrings("PlacementRackCabinetId")
+	startVals := this.GetStrings("PlacementStartUnitPos")
+	endVals := this.GetStrings("PlacementEndUnitPos")
+
+	trn, err := o.Begin()
+	if err != nil {
+		return err
+	}
+
+	if _, err := trn.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId", storageId).Delete(); err != nil {
+		trn.Rollback()
+		return err
+	}
+
+	first := true
+	for i, rackStr := range rackIds {
+		rackId, err := strconv.ParseInt(strings.TrimSpace(rackStr), 10, 64)
+		if err != nil || rackId <= 0 {
+			continue // пустая/незаполненная строка формы - не ошибка, просто пропускается
+		}
+		start := 0
+		if i < len(startVals) {
+			start, _ = strconv.Atoi(strings.TrimSpace(startVals[i]))
+		}
+		end := 0
+		if i < len(endVals) {
+			end, _ = strconv.Atoi(strings.TrimSpace(endVals[i]))
+		}
+		sizeUnit := 0
+		if end >= start && start > 0 {
+			sizeUnit = end - start + 1
+		}
+		p := models.StorageSystemPlacement{
+			StorageSystemsId: storageId,
+			RackCabinetId:    rackId,
+			StartUnitPos:     start,
+			EndUnitPos:       end,
+			SizeUnit:         sizeUnit,
+			IsPrimary:        first,
+			Id_User:          9999,
+			Time_Mfy:         time.Now().Local(),
+		}
+		first = false
+		if _, err := trn.Insert(&p); err != nil {
+			trn.Rollback()
+			return err
+		}
+	}
+
+	return trn.Commit()
 }
 
 // StorageEnclosureWithDisks - одна полка/сторадж-процессор (models.StorageEnclosure)

@@ -131,7 +131,7 @@
                 <td>{{$st.SerialNum}}</td>
                 <td class="text-end">{{printf "%.1f" $st.TotalSizeRAW}}</td>
                 <td class="text-end">{{printf "%.1f" $st.UsedPercent}}</td>
-                <td>{{index $.StorageSystemsPlacement $st.RackCabinetId}}</td>
+                <td>{{index $.StorageSystemsPlacement $st.Id}}</td>
                 <td id="stRowMenu{{$st.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemsedit/{{$st.Id}}" target="_blank">Редактировать</a>
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemconfigview/{{$st.Id}}" target="_blank">Конфигурация СХД</a>

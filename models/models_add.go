@@ -1349,18 +1349,19 @@ type StorageSystems struct {
 	AdCertDate    time.Time `orm:"null" form:"AdCertDate"` //Дата истечения сертификата
 	Owner         string    `form:"Owner"`                 //владелец
 	Anotation     string    `form:"Anotation"`             //Описание
-	StartUnitPos  int       `form:"StartUnitPos"`          //стартовая позиция в шкафу (юнит с которого начинается шасси, в случае нескольких шкафов писать через запятую)
-	EndUnitPos    int       `form:"EndUnitPos"`            //конечнкая позиция в шкафу (юнит с которого заканчивается шасси, в случае нескольких шкафов писать через запятую)
-	SizeUnit      int       `form:"SizeUnit"`              //размер в юнитах
-	// RackCabinetId - FK на models.RackCabinet.Id (новый справочник шкафов,
-	// см. RackCabinet) - дополняет старые текстовые DatacenterRoom/RackNum,
-	// не заменяет их (та же схема, что и у ServerHardware.RackCabinetId и
-	// BladeSystems.RackCabinetId). На момент добавления поля (2026-09-06)
-	// связь ЕЩЁ НЕ ЗАПОЛНЕНА ни у одной записи СХД - значения нужно
-	// проставить вручную через форму редактирования; пока поле пустое,
-	// /admin/hwinfra продолжает сопоставлять СХД со шкафом по тексту
-	// (см. controllers/adminhwinfra.go).
-	RackCabinetId     int64     `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов"`
+	// ИЗМЕНЕНО (2026-09-09, по запросу пользователя "СХД может размещаться в
+	// нескольких шкафах и схема со ссылкой StorageSystems.RackCabinetId не
+	// позволяет реализовать учет размещения"): поля RackCabinetId/
+	// StartUnitPos/EndUnitPos/SizeUnit УБРАНЫ отсюда - схема "один FK на
+	// шкаф прямо на StorageSystems" в принципе не поддерживала размещение
+	// одной физической СХД сразу в нескольких стойках (контроллер в одном
+	// шкафу, дисковые полки - в соседних). Размещение теперь - отдельная
+	// таблица связи "многие-ко-многим", см. StorageSystemPlacement ниже
+	// (одна запись StorageSystems может иметь 0, 1 или несколько записей
+	// StorageSystemPlacement). Старые колонки physически остаются в БД
+	// (beego ORM не удаляет столбцы при RunSyncdb) - их значения переносятся
+	// в StorageSystemPlacement одноразовой миграцией при старте, см.
+	// config/dbinit.go:migrateStorageSystemsPlacement.
 	ContractDoc       string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения
 	DateContractDoc   time.Time `orm:"null" form:"DateContractDoc"` //дата документа
 	Invoice           string    `form:"Invoice"`                    //счет фактура, накладная
@@ -1417,6 +1418,68 @@ func (u *StorageSystems) TableIndex() [][]string {
 		[]string{"ShortName"},
 		[]string{"InventoryNum"},
 		[]string{"SerialNum"},
+	}
+}
+
+// StorageSystemPlacement - размещение ОДНОЙ записи справочника СХД
+// (StorageSystems) в ОДНОМ шкафу (RackCabinet). Одна СХД может занимать
+// несколько шкафов одновременно (например, контроллеры в одном шкафу,
+// дисковые полки расширения - в соседних) - поэтому связь
+// StorageSystems -> RackCabinet вынесена в отдельную таблицу
+// "многие-ко-многим", а не хранится как одиночный FK прямо на
+// StorageSystems (как это раньше было реализовано и как до сих пор сделано
+// для models.BladeSystems/models.ServerHardware, у которых один физический
+// юнит гарантированно занимает ровно один шкаф).
+//
+// 2026-09-09, по запросу пользователя "СХД может размещаться в нескольких
+// шкафах и схема со ссылкой StorageSystems.RackCabinetId не позволяет
+// реализовать учет размещения" - вариант "A" из предложенных (таблица
+// связи), см. обсуждение в CHANGELOG.md.
+type StorageSystemPlacement struct {
+	Id int64 `form:"Id"`
+	// StorageSystemsId - FK на StorageSystems.Id (какая СХД размещена).
+	StorageSystemsId int64 `form:"StorageSystemsId"`
+	// RackCabinetId - FK на RackCabinet.Id (в каком шкафу размещена часть СХД).
+	RackCabinetId int64 `form:"RackCabinetId"`
+	// StartUnitPos/EndUnitPos - позиция в ЭТОМ шкафу (юнит начала/конца) -
+	// та же семантика, что раньше была у StorageSystems.StartUnitPos/
+	// EndUnitPos, но теперь относится к конкретной записи размещения, а не
+	// ко всей СХД сразу.
+	StartUnitPos int `form:"StartUnitPos"`
+	EndUnitPos   int `form:"EndUnitPos"`
+	// SizeUnit - размер в юнитах В ЭТОМ шкафу, вычисляется из StartUnitPos/
+	// EndUnitPos перед сохранением (тот же приём, что у BladeSystems/
+	// ServerHardware) - хранится отдельным полем ради дешёвого отображения
+	// в списках без пересчёта на каждый рендер.
+	SizeUnit int `form:"SizeUnit"`
+	// IsPrimary - какое из размещений СХД считать "основным" - используется
+	// там, где на экране можно показать только одно место (например,
+	// краткая колонка "Шкаф" в списках, если решат её оставить односложной)
+	// - у ровно одной записи StorageSystemPlacement на каждую StorageSystems
+	// должно быть IsPrimary=true (контролируется в контроллере при
+	// сохранении формы, не на уровне БД).
+	IsPrimary bool `form:"IsPrimary"`
+	// Annotation - опциональная пометка ЭТОГО конкретного места размещения
+	// (например, "Дисковая полка 2", "Контроллеры") - в отличие от
+	// StorageSystems.Anotation, который описывает саму СХД целиком.
+	Annotation string    `form:"Annotation"`
+	Id_User    int64     `form:"Id_User"`
+	Time_Mfy   time.Time `form:"Time_Mfy"`
+}
+
+// TableName возвращает имя таблицы БД для модели StorageSystemPlacement (используется beego ORM).
+func (a *StorageSystemPlacement) TableName() string {
+	return "storage_system_placement"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели
+// StorageSystemPlacement в beego ORM - оба FK индексируются отдельно:
+// StorageSystemsId для "все места размещения этой СХД" (карточка/список),
+// RackCabinetId для "что размещено в этом шкафу" (фильтр списка,
+// /admin/hwinfra, /admin/infrastructure).
+func (u *StorageSystemPlacement) TableIndex() [][]string {
+	return [][]string{
+		[]string{"StorageSystemsId"},
 		[]string{"RackCabinetId"},
 	}
 }
@@ -2082,9 +2145,9 @@ func (u *DatacenterSite) TableIndex() [][]string {
 // Связывается с BladeSystems (BladeSystems.RackCabinetId) и ServerHardware
 // (ServerHardware.RackCabinetId).
 type RackCabinet struct {
-	Id               int64     `form:"Id" orm:"auto" csv:"%"`                              //
-	DatacenterSiteId int64     `orm:"null" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"`     //FK на DatacenterSite.Id
-	Name             string    `form:"Name" csv:"Наименование"`                            //основное наименование шкафа
+	Id               int64     `form:"Id" orm:"auto" csv:"%"`                                            //
+	DatacenterSiteId int64     `orm:"null;unique(cabinet_site)" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"` //FK на DatacenterSite.Id. Уникальность шкафа определяется ПАРОЙ (Name, DatacenterSiteId) — одинаковое имя шкафа допустимо на разных площадках, см. resolveRackCabinet в itilliumimport
+	Name             string    `form:"Name" orm:"unique(cabinet_site)" csv:"Наименование"`               //основное наименование шкафа
 	AltName          string    `form:"AltName" csv:"Альтернативное наименование"`          //альтернативное наименование/старый номер шкафа
 	Model            string    `orm:"null" form:"Model" csv:"Модель"`                      //по аналогии с oneview2.Rack.Model
 	SerialNumber     string    `orm:"null" form:"SerialNumber" csv:"Серийный номер"`       //по аналогии с oneview2.Rack.SerialNumber
