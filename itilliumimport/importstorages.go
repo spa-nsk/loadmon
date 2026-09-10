@@ -308,6 +308,18 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 						placementErr = true
 					} else {
 						usedCabinet = true
+						// Убираем "безшкафную" запись (RackCabinetId=0),
+						// если она осталась от предыдущего импорта ДО
+						// того, как шкаф удалось распознать из
+						// "Местоположение" - иначе у СХД остались бы ДВЕ
+						// записи размещения одновременно (старая
+						// site-only + новая с шкафом).
+						if _, err := trn.QueryTable(new(models.StorageSystemPlacement)).
+							Filter("StorageSystemsId", st.Id).
+							Filter("RackCabinetId", 0).
+							Delete(); err != nil {
+							log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка удаления устаревшей site-only записи (StorageSystemsId=", st.Id, "):", err)
+						}
 					}
 				}
 			}
