@@ -147,6 +147,30 @@ func compositeLocationSplitStorage(res *ResultStorage, row map[string]string, c 
 	if len(parts) > 2 && parts[2] != "" {
 		res.Extra[prefix+"_room_code"] = parts[2]
 	}
+
+	// ИЗМЕНЕНО (2026-09-10, по запросу пользователя про IT-0000042272 -
+	// "Местоположение" вида "Новосибирск, ЦОД РТК, Менделеева 1 |
+	// Colocation | Зал 205 | Шкаф 2.4.4 | Unit 15", т.е. шкаф/юнит указаны
+	// ПРЯМО в "Местоположение" вместо отдельной колонки "Размещение в
+	// шкафу/стойке"): части после индекса 2 (если есть) сохраняются целиком
+	// в extra[prefix+"_tail"] - разбор конкретно на "Шкаф"/"Unit" делает
+	// itilliumimport/storageplacement.go:parseLocationEmbeddedPlacement,
+	// используется importstorages.go как запасной источник размещения,
+	// когда отдельная колонка "Размещение в шкафу/стойке" пуста.
+	//
+	// ⚠️ ИСТОРИЯ ОШИБКИ: этот же код изначально был добавлен только в
+	// compositeLocationSplit (convert.go) - универсальную версию для
+	// серверов/блейд-корзин. Импорт СХД идёт через ОТДЕЛЬНУЮ реализацию
+	// (applyCompositeStorage -> compositeLocationSplitStorage, этот файл,
+	// работает с ResultStorage/setTargetStorage, а не с общим Result) -
+	// поэтому для СХД правка не действовала, пока не была продублирована
+	// сюда.
+	if len(parts) > 3 {
+		tail := strings.Join(parts[3:], sep)
+		if strings.TrimSpace(tail) != "" {
+			res.Extra[prefix+"_tail"] = tail
+		}
+	}
 }
 
 // compositeRackUnitSplitStorage - аналог compositeRackUnitSplitBlade
