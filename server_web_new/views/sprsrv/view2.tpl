@@ -449,10 +449,17 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="row">
             <div class="form-group col-sm-6">
                 <label for="view2DatacenterSiteId">Площадка/ЦОД</label>
-                <select id="view2DatacenterSiteId" class="form-control">
+                <!-- ИЗМЕНЕНО (2026-09-10, по запросу пользователя "фильтр по
+                     Площадка/ЦОД и Шкаф не работает"): добавлен
+                     name="DatacenterSiteId" - раньше select был чисто
+                     клиентским (сужал только список "Шкаф"), выбор ЦОД БЕЗ
+                     конкретного шкафа никак не фильтровал список (см.
+                     sprsrvview2.go: datacenterSiteId используется как
+                     запасной уровень фильтра, когда "Шкаф" оставлен "Все"). -->
+                <select id="view2DatacenterSiteId" name="DatacenterSiteId" class="form-control">
                     <option value="0">Все</option>
                     {{range $dc := .DatacenterSites}}
-                    <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                    <option value="{{$dc.Id}}" {{if eq $.FilterDatacenterSiteId (printf "%d" $dc.Id)}}selected{{end}}>{{$dc.Name}}</option>
                     {{end}}
                 </select>
             </div>
@@ -467,11 +474,14 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         </div>
         <script>
-            // Каскадный фильтр "ЦОД -> Шкаф" - select ЦОД (view2DatacenterSiteId)
-            // сам никуда не отправляется (нет атрибута name), он только сужает
-            // список опций select "Шкаф" (RackCabinetId, единственное поле,
-            // которое реально уходит в фильтр) по атрибуту data-dc каждой
-            // опции - идентично /sprsrv/hwconflist и bladesystemsedit.tpl.
+            // Каскадный фильтр "ЦОД -> Шкаф" - select ЦОД
+            // (view2DatacenterSiteId, name="DatacenterSiteId" - с 2026-09-10
+            // тоже отправляется на сервер и используется КАК ЗАПАСНОЙ
+            // уровень фильтра, если "Шкаф" не выбран, см. sprsrvview2.go)
+            // ещё и сужает список опций select "Шкаф" (RackCabinetId - если
+            // выбран конкретный шкаф, он в приоритете) по атрибуту data-dc
+            // каждой опции - идентично /sprsrv/hwconflist и
+            // bladesystemsedit.tpl.
             (function () {
                 var dcSelect = document.getElementById('view2DatacenterSiteId');
                 var rackSelect = document.getElementById('RackCabinetId');
