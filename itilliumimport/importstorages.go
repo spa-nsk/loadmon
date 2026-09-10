@@ -265,6 +265,15 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 		// upsertStorageSystemPlacement НА КАЖДЫЙ разобранный шкаф (см.
 		// placements выше) - безопасно вызывать несколько раз подряд для
 		// одной СХД, см. комментарий у upsertStorageSystemPlacement.
+		//
+		// ЕСЛИ ни одного шкафа не разобрано (колонка "Размещение в
+		// шкафу/стойке" пуста или не распозналась), но площадка (ЦОД) по
+		// "Местоположение" известна (ownSiteId>0) - заводим "безшкафную"
+		// запись размещения через upsertStorageSystemPlacementSiteOnly
+		// (2026-09-10, по запросу пользователя: СХД IT-0000041888 с
+		// известным "Местоположение", но пустым "Размещение в
+		// шкафу/стойке" оставалась вовсе без площадки в списке/карточке -
+		// раньше связать с площадкой без шкафа было нечем).
 		placementErr := false
 		for _, p := range placements {
 			if p.rackId <= 0 {
@@ -274,6 +283,12 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения размещения (StorageSystemsId=", st.Id, ", RackCabinetId=", p.rackId, "):", err)
 				placementErr = true
 				break
+			}
+		}
+		if !placementErr && len(placements) == 0 && ownSiteId > 0 {
+			if err := upsertStorageSystemPlacementSiteOnly(trn, st.Id, ownSiteId); err != nil {
+				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения площадки без шкафа (StorageSystemsId=", st.Id, ", DatacenterSiteId=", ownSiteId, "):", err)
+				placementErr = true
 			}
 		}
 		if placementErr {
@@ -361,6 +376,58 @@ func upsertStorageSystemPlacement(trn orm.TxOrmer, storageId, rackCabinetId int6
 		StartUnitPos:     startUnitPos,
 		EndUnitPos:       endUnitPos,
 		SizeUnit:         sizeUnit,
+		IsPrimary:        isPrimary,
+		Id_User:          9999,
+		Time_Mfy:         time.Now().Local(),
+	}
+	_, insErr := trn.Insert(&p)
+	return insErr
+}
+
+// upsertStorageSystemPlacementSiteOnly - вариант upsertStorageSystemPlacement
+// для случая "площадка (ЦОД) известна из колонки «Местоположение», а
+// конкретный шкаф - нет" (2026-09-10, по запросу пользователя: у СХД с
+// известным "Местоположение", но пустой колонкой "Размещение в шкафу/
+// стойке" площадка вообще нигде не отображалась - раньше единственная связь
+// с площадкой шла через RackCabinetId -> RackCabinet.DatacenterSiteId, а без
+// шкафа связать было нечем).
+//
+// Заводит/обновляет запись models.StorageSystemPlacement с RackCabinetId=0 и
+// заполненным DatacenterSiteId - StartUnitPos/EndUnitPos/SizeUnit в этом
+// случае лишены смысла (нет конкретного шкафа) и остаются нулевыми.
+// Совпадение существующей записи ищется по паре (StorageSystemsId,
+// RackCabinetId=0) - т.е. у СХД может быть только ОДНА "безшкафная" запись
+// размещения одновременно (при появлении в следующем импорте конкретного
+// шкафа для той же площадки эта функция не вызывается вовсе - см. вызывающий
+// код в runImportItiliumStorage, который выбирает один из двух путей).
+func upsertStorageSystemPlacementSiteOnly(trn orm.TxOrmer, storageId, datacenterSiteId int64) error {
+	if datacenterSiteId <= 0 {
+		return nil
+	}
+
+	var existing models.StorageSystemPlacement
+	err := trn.QueryTable(new(models.StorageSystemPlacement)).
+		Filter("StorageSystemsId", storageId).
+		Filter("RackCabinetId", 0).
+		One(&existing)
+	if err == nil {
+		if existing.DatacenterSiteId == datacenterSiteId {
+			return nil
+		}
+		existing.DatacenterSiteId = datacenterSiteId
+		existing.Time_Mfy = time.Now().Local()
+		_, updErr := trn.Update(&existing, "DatacenterSiteId", "Time_Mfy")
+		return updErr
+	}
+
+	isPrimary := false
+	if cnt, cErr := trn.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId", storageId).Count(); cErr == nil && cnt == 0 {
+		isPrimary = true
+	}
+	p := models.StorageSystemPlacement{
+		StorageSystemsId: storageId,
+		RackCabinetId:    0,
+		DatacenterSiteId: datacenterSiteId,
 		IsPrimary:        isPrimary,
 		Id_User:          9999,
 		Time_Mfy:         time.Now().Local(),

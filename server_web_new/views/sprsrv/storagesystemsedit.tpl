@@ -199,10 +199,19 @@
                     <div class="row g-3 align-items-end placement-row mb-2">
                         <div class="col-3">
                             <label class="form-label">ЦОД</label>
-                            <select class="form-select placement-dc-select">
+                            <!-- ИЗМЕНЕНО (2026-09-10, по запросу пользователя про IT-0000041888
+                                 "Местоположение указано, но данных по шкафу нет и информация по
+                                 размещению в ЦОД пропала"): добавлен name="PlacementDatacenterSiteId",
+                                 чтобы значение отправлялось на сервер - теперь строка может задавать
+                                 ЦОД БЕЗ выбора шкафа (site-only размещение, см.
+                                 models.StorageSystemPlacement.DatacenterSiteId и
+                                 saveStorageSystemPlacements в controllers/sprstoragesystems.go).
+                                 Если у строки уже выбран шкаф, каскадная JS-логика ниже всё равно
+                                 держит это поле синхронизированным с data-dc выбранного шкафа. -->
+                            <select name="PlacementDatacenterSiteId" class="form-select placement-dc-select">
                                 <option value="0">-</option>
                                 {{range $dc := $.DatacenterSites}}
-                                <option value="{{$dc.Id}}">{{$dc.Name}}</option>
+                                <option value="{{$dc.Id}}" {{if and (eq $p.RackCabinetId 0) (eq $p.DatacenterSiteId $dc.Id)}}selected{{end}}>{{$dc.Name}}</option>
                                 {{end}}
                             </select>
                         </div>
