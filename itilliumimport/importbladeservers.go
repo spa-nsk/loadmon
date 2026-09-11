@@ -149,8 +149,26 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			// Резолвится ПАРОЙ (Name, DatacenterSiteId), см.
 			// resolveRackCabinet: одинаковое имя шкафа допустимо на разных
 			// площадках.
-			rackId, errRack := resolveRackCabinet(trn, r.Hw.RackNum, datacenterId,
-				"Шкаф по адресу: "+r.Hw.DatacenterRoom+" этаж:"+r.Extra["location_zone_code"]+" комната: "+r.Extra["location_room_code"])
+			//
+			// ИЗМЕНЕНО (2026-09-11, тот же баг, что исправлен в
+			// importblades.go/importstorages.go): "Размещение в
+			// шкафу/стойке" может указывать colocation-площадку ПЕРЕД "/",
+			// отличную от "Местоположение" строки - см.
+			// resolvecabinet.go:splitColocationCabinetName.
+			colocationDc, cabinetCode := splitColocationCabinetName(r.Hw.RackNum)
+			rackSiteId := datacenterId
+			rackAnnotation := "Шкаф по адресу: " + r.Hw.DatacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
+			if colocationDc != "" {
+				var errSite error
+				rackSiteId, errSite = resolveDatacenterSiteByName(trn, colocationDc)
+				if errSite != nil {
+					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка резолва colocation ЦОД", colocationDc, ":", errSite)
+					trn.Rollback()
+					continue
+				}
+				rackAnnotation = "Шкаф на colocation-площадке \"" + colocationDc + "\" (по данным импорта из Итиллиум)"
+			}
+			rackId, errRack := resolveRackCabinet(trn, cabinetCode, rackSiteId, rackAnnotation)
 			if errRack != nil {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка резолва rack:", errRack)
 				trn.Rollback()
