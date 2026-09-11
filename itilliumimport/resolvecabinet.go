@@ -2,10 +2,45 @@ package itilliumimport
 
 import (
 	"loadmon/models"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
 )
+
+// splitColocationCabinetName разбирает "сырой" код шкафа вида "ЦОД_имя /
+// код_шкафа" (например "ЦОД М1 / R15-1") на имя ЦОД (dcName) и собственно
+// код шкафа (cabinetCode) - формат colocation-площадок, где перед кодом
+// шкафа явно указано имя стороннего дата-центра, отличное от площадки самой
+// строки выгрузки ("Местоположение"). Если "/" не найдено - dcName == "",
+// cabinetCode == raw (без изменений).
+//
+// 2026-09-11, по запросу пользователя (RackCabinet.Name в справочнике
+// оказывался вида "ЦОД М1 / R15-1" целиком, ПРИВЯЗАННЫЙ к площадке из
+// "Местоположение" строки, а не к реальному "ЦОД М1" - видно на /sprsrv/
+// rackcabinetlist и в каскадном фильтре /sprsrv/view2, где под одной
+// площадкой оказывались чужие шкафы): при исправлении аналогичного бага для
+// импорта СХД (см. storageplacement.go:parseStoragePlacementSegments,
+// CHANGELOG про многошкафный разбор) colocation-разбор был реализован
+// ТОЛЬКО там - импорт rack-серверов/блейд-корзин/блейд-серверов
+// (importrackservers.go/importblades.go/importbladeservers.go) продолжал
+// использовать старый простой composite rack_unit_split (convert.go/
+// convertblade.go), который берёт код шкафа ЦЕЛИКОМ, включая "ЦОД_имя /"
+// префикс, и резолвит его как обычный шкаф НА ПЛОЩАДКЕ СТРОКИ (ownSiteId) -
+// именно так colocation-размещение оборудования (СХД, серверы, блейд-корзины
+// физически стоящие в СТОРОННЕМ дата-центре) оказывалось привязано к
+// площадке из "Местоположение", а не к реальному ЦОД, названному перед "/".
+// Эта функция вынесена сюда (а не продублирована), чтобы использоваться
+// ВСЕМИ импортёрами одинаково - см. importblades.go/importbladeservers.go/
+// importrackservers.go.
+func splitColocationCabinetName(raw string) (dcName, cabinetCode string) {
+	raw = strings.TrimSpace(raw)
+	idx := strings.Index(raw, "/")
+	if idx < 0 {
+		return "", raw
+	}
+	return strings.TrimSpace(raw[:idx]), strings.TrimSpace(raw[idx+1:])
+}
 
 // resolveRackCabinet ищет или заводит запись models.RackCabinet по ПАРЕ
 // (name, datacenterSiteId), а не только по name.

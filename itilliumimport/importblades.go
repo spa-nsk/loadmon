@@ -136,9 +136,31 @@ func runImportItiliumBlade(name string, job *ImportProgress) {
 			// --- Шкаф (models.RackCabinet) - резолвится ПАРОЙ (Name,
 			// DatacenterSiteId), см. resolveRackCabinet: одинаковое имя
 			// шкафа допустимо на разных площадках -------------------------
+			//
+			// ИЗМЕНЕНО (2026-09-11, по запросу пользователя - шкафы вида
+			// "ЦОД М1 / R15-1" оказывались в справочнике привязаны к
+			// площадке САМОЙ СТРОКИ, а не к реальному "ЦОД М1"): "Размещение
+			// в шкафу/стойке" может указывать colocation-площадку ПЕРЕД "/",
+			// отличную от "Местоположение" строки - см.
+			// resolvecabinet.go:splitColocationCabinetName (та же логика,
+			// что раньше была исправлена только для импорта СХД, см.
+			// storageplacement.go).
+			rawRackNum := strings.TrimSpace(r.Extra["rack_num"])
+			colocationDc, cabinetCode := splitColocationCabinetName(rawRackNum)
+			rackSiteId := datacenterId
+			rackAnnotation := "Шкаф по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
+			if colocationDc != "" {
+				var errSite error
+				rackSiteId, errSite = resolveDatacenterSiteByName(trn, colocationDc)
+				if errSite != nil {
+					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка резолва colocation ЦОД", colocationDc, ":", errSite)
+					trn.Rollback()
+					continue
+				}
+				rackAnnotation = "Шкаф на colocation-площадке \"" + colocationDc + "\" (по данным импорта СХД/блейд-корзин из Итиллиум)"
+			}
 			var errRack error
-			rackId, errRack = resolveRackCabinet(trn, r.Extra["rack_num"], datacenterId,
-				"Шкаф по адресу: "+datacenterRoom+" этаж:"+r.Extra["location_zone_code"]+" комната: "+r.Extra["location_room_code"])
+			rackId, errRack = resolveRackCabinet(trn, cabinetCode, rackSiteId, rackAnnotation)
 			if errRack != nil {
 				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка резолва rack:", errRack)
 				trn.Rollback()
