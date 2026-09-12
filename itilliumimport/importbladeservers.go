@@ -55,6 +55,7 @@ func mappingConfigPathBladeServer() string {
 //     корзина не найдена (например, ещё не импортирована через
 //     /admin/importblades) - используется результат стандартного разбора,
 //     событие логируется как предупреждение.
+//
 // StartImportItiliumBladeServer регистрирует новое задание импорта
 // блейд-серверов под ключом jobId (см. ImportProgress в progress.go) и
 // запускает сам разбор и сохранение файла (runImportItiliumBladeServer) в
@@ -221,6 +222,10 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			hwFound = trn.Read(&hw, "SerialNum") == nil
 		}
 		if !hwFound {
+
+			r.Hw.Time_Mfy = time.Now().Local()
+			r.Hw.Id_User = 9999 //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+
 			if _, err := trn.Insert(&r.Hw); err != nil {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки hw:", err)
 				trn.Rollback()
@@ -256,6 +261,10 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			sprFound = trn.Read(&sprsrv) == nil
 		}
 		if !sprFound {
+
+			r.Spr.Time_Mfy = time.Now().Local()
+			r.Spr.Id_User = 9999 //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+
 			sprId, err := trn.Insert(&r.Spr)
 			if err != nil {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки sprsrv:", err)

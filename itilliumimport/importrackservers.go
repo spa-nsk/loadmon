@@ -154,8 +154,6 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		r.Hw.RackCabinetId = rackId
 
 		// --- Статус/питание ----------------------------------------------
-		r.Spr.SourceUpdateType = models.SourceUpdateManual
-		r.Hw.SourceUpdateType = models.SourceUpdateManual
 		if r.Hw.SerialNum != "" {
 			r.Spr.SerialNumber = r.Hw.SerialNum
 		} else {
@@ -169,16 +167,23 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 
 		// --- ServerHardware ------------------------------------------------
 		var hw models.ServerHardware
-		hwFound := r.Hw.SerialNum != ""
-		if hwFound {
-			hw = models.ServerHardware{SerialNum: r.Hw.SerialNum}
-			hwFound = trn.Read(&hw, "SerialNum") == nil
+		if r.Hw.SerialNum == "" { //если в файле нет серийника, то используем технический номер
+			r.Hw.SerialNum = r.Hw.TechnicalNumberIT
 		}
+
+		hw = models.ServerHardware{SerialNum: r.Hw.SerialNum}
+		hwFound := trn.Read(&hw, "SerialNum") == nil //если запись найдена, то обновляем только поля, которые однозначно должен приносить импорт (место в стойке, состояние питания, источник обновления), НЕ перезаписывая остальные поля существующей записи данными из файла - на случай, если они были вручную скорректированы в интерфейсе после прошлой синхронизации (тот же принцип приоритета ручных правок, что и для СХД, см. kontext/05-conventions-and-gotchas.md). Если нужно перезаписывать больше полей при повторном импорте - перечислите их здесь и передайте именами в trn.Update (сейчас обновляются только явно перечисленные 3 колонки).
+
 		if !hwFound {
 			// Новая запись - вставляем указатель на r.Hw (не значение!),
 			// иначе автосгенерированный Id не запишется обратно (см.
 			// beego/v2/client/orm/orm.go:InsertWithCtx - Insert требует
 			// указатель, чтобы установить Id через reflect после вставки).
+
+			r.Hw.Time_Mfy = time.Now().Local()
+			r.Hw.Id_User = 9999                               //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Hw.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
+
 			hwId, err := trn.Insert(&r.Hw)
 			if err != nil {
 				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка вставки hw:", err)
@@ -197,12 +202,16 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// kontext/05-conventions-and-gotchas.md). Если нужно
 			// перезаписывать больше полей при повторном импорте -
 			// перечислите их здесь и передайте именами в trn.Update
-			// (сейчас обновляются только явно перечисленные 3 колонки).
+			// (сейчас обновляются только явно перечисленные 4 колонки).
 			r.Hw.Id = hw.Id
 			hw.RackCabinetId = r.Hw.RackCabinetId
-			hw.PowerState = r.Hw.PowerState
-			hw.SourceUpdateType = r.Hw.SourceUpdateType
-			if _, err := trn.Update(&hw, "RackCabinetId", "PowerState", "SourceUpdateType"); err != nil {
+			if hw.SourceUpdateType == models.SourceUpdateManual {
+				hw.PowerState = r.Hw.PowerState
+				if hw.PowerState == 1 {
+					hw.Active = 1 //если питание включено и режим в базе обозначен как ручной импорт, то сервер активен
+				}
+			}
+			if _, err := trn.Update(&hw, "RackCabinetId", "PowerState", "Active"); err != nil {
 				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw:", err)
 				trn.Rollback()
 				continue
@@ -219,6 +228,11 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			sprFound = trn.Read(&sprsrv) == nil
 		}
 		if !sprFound {
+
+			r.Spr.Time_Mfy = time.Now().Local()
+			r.Spr.Id_User = 9999                               //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
+
 			sprId, err := trn.Insert(&r.Spr)
 			if err != nil {
 				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка вставки sprsrv:", err)
@@ -238,31 +252,14 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 				continue
 			}
 		} else {
+			//удалено обновление имен так как тут актуально только изменение статусов и питания, а имена могут быть изменены вручную в интерфейсе
 			r.Spr.Id = sprsrv.Id
 			sprsrv.HWSprId = r.Spr.HWSprId
-			// ИСПРАВЛЕНО (2026-09-10, баг стирания имён): Name/NameFQDN
-			// перезаписываются значением из файла ТОЛЬКО если оно не пусто.
-			// r.Spr.Name/NameFQDN приходят из ConvertRow (convert.go) через
-			// setTarget, который вообще не трогает поле при пустой/"nan"/
-			// "-"/"n/a" ячейке (см. cleanString) - то есть r.Spr.Name может
-			// быть "" не потому что сервер реально безымянный, а просто
-			// потому что в этой строке выгрузки Итиллиум ячейка была
-			// пустой. Раньше это безусловно затирало уже сохранённое
-			// непустое имя записи sprsrv (прочитанной из БД чуть выше) при
-			// повторном импорте - ровно симптом "стёрлись имена серверов и
-			// FQDN по части аппаратных серверов и гипервизоров". Тот же
-			// принцип защиты уже применяется в cmdb/updatehwsprhp.go для
-			// HP OneView-синхронизации.
-			if r.Spr.Name != "" {
-				sprsrv.Name = r.Spr.Name
+			if sprsrv.SourceUpdateType == models.SourceUpdateManual {
+				sprsrv.Stat = r.Spr.Stat
+				sprsrv.Active = r.Spr.Active
+				sprsrv.PowerState = r.Spr.PowerState
 			}
-			if r.Spr.NameFQDN != "" {
-				sprsrv.NameFQDN = r.Spr.NameFQDN
-			}
-			sprsrv.Stat = r.Spr.Stat
-			sprsrv.Active = r.Spr.Active
-			sprsrv.PowerState = r.Spr.PowerState
-			sprsrv.SourceUpdateType = r.Spr.SourceUpdateType
 			if _, err := trn.Update(&sprsrv, "HWSprId", "Name", "NameFQDN", "Stat", "Active", "PowerState", "SourceUpdateType"); err != nil {
 				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления sprsrv:", err)
 				trn.Rollback()
