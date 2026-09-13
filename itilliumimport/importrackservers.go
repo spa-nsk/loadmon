@@ -154,7 +154,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		r.Hw.RackCabinetId = rackId
 
 		// --- Статус/питание ----------------------------------------------
-		if r.Hw.SerialNum != "" {
+		if r.Hw.SerialNum != "" { //если серийный номер отсутствует делаем симуляцию в виде технического номера, чтобы не потерять запись в справочнике серверов
 			r.Spr.SerialNumber = r.Hw.SerialNum
 		} else {
 			r.Spr.SerialNumber = r.Hw.TechnicalNumberIT
@@ -167,12 +167,8 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 
 		// --- ServerHardware ------------------------------------------------
 		var hw models.ServerHardware
-		if r.Hw.SerialNum == "" { //если в файле нет серийника, то используем технический номер
-			r.Hw.SerialNum = r.Hw.TechnicalNumberIT
-		}
-
-		hw = models.ServerHardware{SerialNum: r.Hw.SerialNum}
-		hwFound := trn.Read(&hw, "SerialNum") == nil //если запись найдена, то обновляем только поля, которые однозначно должен приносить импорт (место в стойке, состояние питания, источник обновления), НЕ перезаписывая остальные поля существующей записи данными из файла - на случай, если они были вручную скорректированы в интерфейсе после прошлой синхронизации (тот же принцип приоритета ручных правок, что и для СХД, см. kontext/05-conventions-and-gotchas.md). Если нужно перезаписывать больше полей при повторном импорте - перечислите их здесь и передайте именами в trn.Update (сейчас обновляются только явно перечисленные 3 колонки).
+		hw = models.ServerHardware{SerialNum: r.Hw.SerialNum} //корректировка поля с провркой выше
+		hwFound := trn.Read(&hw, "SerialNum") == nil          //если запись найдена, то обновляем только поля, которые однозначно должен приносить импорт (место в стойке, состояние питания, источник обновления), НЕ перезаписывая остальные поля существующей записи данными из файла - на случай, если они были вручную скорректированы в интерфейсе после прошлой синхронизации (тот же принцип приоритета ручных правок, что и для СХД, см. kontext/05-conventions-and-gotchas.md). Если нужно перезаписывать больше полей при повторном импорте - перечислите их здесь и передайте именами в trn.Update (сейчас обновляются только явно перечисленные 3 колонки).
 
 		if !hwFound {
 			// Новая запись - вставляем указатель на r.Hw (не значение!),
@@ -204,8 +200,8 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// перечислите их здесь и передайте именами в trn.Update
 			// (сейчас обновляются только явно перечисленные 4 колонки).
 			r.Hw.Id = hw.Id
-			hw.RackCabinetId = r.Hw.RackCabinetId
-			if hw.SourceUpdateType == models.SourceUpdateManual {
+			hw.RackCabinetId = r.Hw.RackCabinetId                 //обновляем в любом случае, так как мастер система по размещению оборудования в стойках - итиллиум, и если там поменяли стойку, то нужно обновить и у нас
+			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
 				if hw.PowerState == 1 {
 					hw.Active = 1 //если питание включено и режим в базе обозначен как ручной импорт, то сервер активен
@@ -228,7 +224,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			sprFound = trn.Read(&sprsrv) == nil
 		}
 		if !sprFound {
-
+			//новый сервер не обнаруженный системами сбора метрик и HP One View, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
 			r.Spr.Time_Mfy = time.Now().Local()
 			r.Spr.Id_User = 9999                               //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
@@ -245,11 +241,20 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// указывает на ServerHardware, а обратной ссылки не будет,
 			// как это устроено во всех остальных точках синхронизации,
 			// см. cmdb/updatehwsprhp.go).
-			r.Hw.ServerId = sprId
-			if _, err := trn.Update(&r.Hw, "ServerId"); err != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw.ServerId:", err)
-				trn.Rollback()
-				continue
+			if !hwFound { //если hwFound == false, то r.Hw.Id уже содержит Id вставленной записи, иначе hw.Id содержит Id существующей записи
+				r.Hw.ServerId = sprId
+				if _, err := trn.Update(&r.Hw, "ServerId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления r.Hw.ServerId:", err)
+					trn.Rollback()
+					continue
+				}
+			} else {
+				hw.ServerId = sprId
+				if _, err := trn.Update(hw, "ServerId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw.ServerId:", err)
+					trn.Rollback()
+					continue
+				}
 			}
 		} else {
 			//удалено обновление имен так как тут актуально только изменение статусов и питания, а имена могут быть изменены вручную в интерфейсе
