@@ -60,8 +60,6 @@ func ServerSprRecodToMessage(in *models.ServerSprRecords, out *pb.ServerSprRecor
 	out.Anotation = in.Anotation                                        //string    описане сервера
 	out.Role = in.Role                                                  //string    роль сервера (сервер баз данных, сервер приложений, хост)
 	out.Details = in.Details                                            //string    детали по серверу в свободном формате (примечание)
-	out.DPCAddress = int32(in.DPCAddress)                               //int       ЦОД по справочнику адрес
-	out.DPCOffice = int32(in.DPCOffice)                                 //int       ЦОД по справочнику комната с адресом
 	out.SZhistory = in.SZHistory                                        //string    номера сз через пробел в хронологическом порядке
 	out.Warning = in.Warning                                            //string
 	out.Level = in.Level                                                //float64

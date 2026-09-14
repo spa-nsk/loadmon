@@ -92,7 +92,6 @@ var serverSprFieldsToTrack = []struct {
 	{"Active", func(r *models.ServerSprRecords) string { return strconv.Itoa(r.Active) }},
 	{"Monitoring", func(r *models.ServerSprRecords) string { return strconv.Itoa(r.Monitoring) }},
 	{"Backuped", func(r *models.ServerSprRecords) string { return strconv.Itoa(r.Backuped) }},
-	{"DPCOffice", func(r *models.ServerSprRecords) string { return strconv.Itoa(r.DPCOffice) }},
 	{"Details", func(r *models.ServerSprRecords) string { return r.Details }},
 	{"Anotation", func(r *models.ServerSprRecords) string { return r.Anotation }},
 }

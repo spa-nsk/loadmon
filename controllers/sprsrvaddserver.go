@@ -108,7 +108,6 @@ func (this *MainController) SprAddServer() {
 		record.Anotation = strings.TrimSpace(form.Anotation)
 		record.Role = strings.TrimSpace(form.Role)
 		record.Details = strings.TrimSpace(form.Details)
-		record.DPCOffice = form.DPCOffice
 		record.SZHistory = strings.TrimSpace(form.SZHistory)
 		record.Monitoring = form.Monitoring
 		record.Backuped = form.Backuped

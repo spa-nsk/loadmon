@@ -175,8 +175,6 @@ func (this *MainController) SprSrvViewV2() {
 			CriticalLevel:    0,
 			PowerState:       1,
 			Active:           active,
-			DPCAddress:       0,
-			DPCOffice:        0,
 			ServiceId:        0,
 		}
 		m["FilterServer"] = record
@@ -939,12 +937,6 @@ func CalcPercentFilled(rec *models.ServerSprView) {
 		count++
 	}
 	if rec.S.CriticalLevel != 0 {
-		count++
-	}
-	if rec.S.DPCAddress != 0 {
-		count++
-	}
-	if rec.S.DPCOffice != 0 {
 		count++
 	}
 	if strings.TrimSpace(rec.S.Details) != "" {
