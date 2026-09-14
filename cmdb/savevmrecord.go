@@ -536,7 +536,6 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 		/* отключена запись гостевых дисков
 		if len(vm.Disk) > 0 {
 			for _, disk := range vm.Disk {
-				// TODO: truncated in screenshot — field name cut off at disk.Percent
 				discRecord := models.VMRecordGuestDiskInfo{VMRecordId: vmRecordId, DiskPath: disk.DiskPath, CapacityGb: disk.CapacityGb, FreeSpaceGb: disk.FreeSpaceGb, PercentUsed: disk.PercentUsed}
 				_, err := o.Insert(&discRecord)
 				if err != nil {
