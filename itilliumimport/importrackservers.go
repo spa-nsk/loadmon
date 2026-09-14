@@ -165,6 +165,11 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Hw.PowerState = 1
 			r.Spr.Stat = 1
 			r.Spr.Active = 1
+		} else {
+			r.Spr.PowerState = 2
+			r.Hw.PowerState = 2
+			r.Spr.Stat = 2
+			r.Spr.Active = 2
 		}
 
 		// --- ServerHardware ------------------------------------------------
