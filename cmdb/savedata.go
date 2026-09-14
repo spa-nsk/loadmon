@@ -104,6 +104,10 @@ func UpdateHostSprRecord(hs vsphere.HostInfo, cl *vsphere.Cluster) (int64, error
 			_, errH = trn.Update(&hwspr)
 			hwId = hwspr.Id
 		} else {
+			// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+			// (10002 - VMware/vSphere) для новой записи ServerHardware.
+			hwspr.TimeCreate = time.Now().Local()
+			hwspr.CreatorUser = 10002
 			hwId, errH = trn.Insert(&hwspr)
 		}
 
@@ -117,6 +121,10 @@ func UpdateHostSprRecord(hs vsphere.HostInfo, cl *vsphere.Cluster) (int64, error
 		} else {
 			srvspr.Stat = 1
 			srvspr.TypeWork = cl.TypeWork
+			// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+			// (10002 - VMware/vSphere) для новой записи ServerSprRecords.
+			srvspr.TimeCreate = time.Now().Local()
+			srvspr.CreatorUser = 10002
 			srvId, errS = trn.Insert(&srvspr)
 		}
 		hwspr.Id = hwId
@@ -233,6 +241,10 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 					hw2.Active = srvspr.Active
 				}
 				hw2.Time_Mfy = time.Now().Local()
+				// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+				// (10002 - VMware/vSphere) для новой записи ServerHardware.
+				hw2.TimeCreate = time.Now().Local()
+				hw2.CreatorUser = 10002
 				HWSprId, err := o.Insert(&hw2)
 				if err != nil {
 					fmt.Println("Ошибка вставки записи конфигурации сервера:", srvspr.Name, srvspr.NameFQDN, err)
@@ -247,6 +259,10 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 	srvspr.SourceUpdateType = models.SourceUpdateVMware
 
 	if !foundSrvSpr {
+		// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+		// (10002 - VMware/vSphere) для новой записи ServerSprRecords.
+		srvspr.TimeCreate = time.Now().Local()
+		srvspr.CreatorUser = 10002
 		if Id, err := o.Insert(&srvspr); err != nil {
 			fmt.Println("Ошибка вставки в справочник серверов", err)
 			return 0, err
@@ -420,6 +436,10 @@ func SaveHostCMDBData(cl *vsphere.Cluster, clusterID int64, currentTime time.Tim
 				srvhw.Id_User = 0
 				srvhw.Time_Mfy = time.Now().Local()
 				srvhw.SourceUpdateType = models.SourceUpdateVMware // поля выше берутся из host.* (vSphere), не из hw.* (HP OneView)
+				// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+				// (10002 - VMware/vSphere) для новой записи ServerHardware.
+				srvhw.TimeCreate = time.Now().Local()
+				srvhw.CreatorUser = 10002
 				if srvhw.SerialNum != "" {
 					srvhw.Id, err = o.Insert(&srvhw) //вставляем запись и запоминаем значение Id для повторного чтения
 					if err != nil {
@@ -619,6 +639,10 @@ func SaveVMCMDBData(cl *vsphere.Cluster, clusterId int64, currentTime time.Time,
 			srvspr.Type = 1
 			srvspr.Stat = 1
 			srvspr.Details = " Добавлен из Vsphere, пребуется правка"
+			// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+			// (10002 - VMware/vSphere) для новой записи ServerSprRecords.
+			srvspr.TimeCreate = time.Now().Local()
+			srvspr.CreatorUser = 10002
 			serverId, err = trn.Insert(&srvspr)
 			if err != nil {
 				fmt.Println("Ошибка вставки в справочник серверов: ", err)

@@ -201,6 +201,10 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 			srvSpr.VMSprId = VMSprId
 			srvSpr.Time_Mfy = time.Now().Local() // время модификации
 			srvSpr.SourceUpdateType = models.SourceUpdateVMware
+			// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+			// (10002 - VMware/vSphere) для новой записи ServerSprRecords.
+			srvSpr.TimeCreate = time.Now().Local()
+			srvSpr.CreatorUser = 10002
 			serverId, err = trn.Insert(&srvSpr)
 			if err != nil {
 				fmt.Println("Ошибка вставки в справочник серверов: ", err)

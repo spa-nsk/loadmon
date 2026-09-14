@@ -143,6 +143,10 @@ func SaveHostRecordOld(cl *vsphere.Cluster, clusterId int64, currentTime time.Ti
 				srvhw.Id_User = 0
 				srvhw.Time_Mfy = time.Now().Local()
 				srvhw.SourceUpdateType = models.SourceUpdateVMware // поля выше берутся из host.* (vSphere), не из hw.* (HP OneView)
+				// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+				// (10002 - VMware/vSphere) для новой записи ServerHardware.
+				srvhw.TimeCreate = time.Now().Local()
+				srvhw.CreatorUser = 10002
 				if srvhw.SerialNum != "" {
 					srvhw.Id, err = o.Insert(&srvhw) //вставляем запись и запоминаем значение Id для повторного чтения
 					if err != nil {

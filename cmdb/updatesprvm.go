@@ -288,6 +288,10 @@ func UpdateSprVM() {
 			srvspr.VMSprId = VMSprId
 			srvspr.Time_Mfy = time.Now() // время модификации
 			srvspr.SourceUpdateType = models.SourceUpdateVMware
+			// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+			// (10002 - VMware/vSphere) для новой записи ServerSprRecords.
+			srvspr.TimeCreate = time.Now().Local()
+			srvspr.CreatorUser = 10002
 			serverId, err = o.Insert(&srvspr)
 			if err != nil {
 				fmt.Println("Ошибка записи в справочник виртуальных машин: ", err)
