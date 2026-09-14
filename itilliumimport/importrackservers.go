@@ -268,7 +268,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 				}
 			} else {
 				hw.ServerId = sprId
-				if _, err := trn.Update(hw, "ServerId"); err != nil {
+				if _, err := trn.Update(&hw, "ServerId"); err != nil {
 					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw.ServerId:", err)
 					trn.Rollback()
 					continue
