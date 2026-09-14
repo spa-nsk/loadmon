@@ -792,8 +792,6 @@ type ServerSprRecords struct {
 	TagDescription       string    `form:"TagDescription" json:"TagDescription"`                        //Описание тэга для виртуальных машин
 	Role                 string    `form:"Role" json:"Role"`                                            //роль сервера (сервер баз данных, сервер приложений, хост)
 	Details              string    `form:"Details" json:"Details" csv:"-"`                              //детали по серверу в свободном формате (примечание)
-	DPCAddress           int       `form:"DPCAddress" json:"DPCAddress"`                                //удалить ЦОД по справочнику адрес
-	DPCOffice            int       `form:"DPCOffice" json:"DPCOffice"`                                  //ЦОД по справочнику комната с адресом
 	SZHistory            string    `form:"SZHistory" json:"SZHistory"`                                  //номера сз через пробел в хронологическом порядке
 	Warning              string    `form:"Warning" json:"Warning"`                                      //предупреждение (CPU RAM)
 	Level                float64   `form:"Level" json:"Level"`                                          //уровень в процентах

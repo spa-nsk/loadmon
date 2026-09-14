@@ -432,8 +432,6 @@ func MessageToServerSprRecord(in *pb.ServerSprRecords, out *models.ServerSprReco
 	out.Anotation = in.Anotation
 	out.Role = in.Role
 	out.Details = in.Details
-	out.DPCAddress = int(in.DPCAddress)
-	out.DPCOffice = int(in.DPCOffice)
 	out.SZHistory = in.SZhistory
 	out.Warning = in.Warning
 	out.Level = in.Level
