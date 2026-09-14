@@ -89,8 +89,10 @@ function vmMetricsExportPagerChangePageSize(size) {
     <div class="text-muted small">
         Данные посчитаны по суточным записям в таблице vm_record (заполняются ежесуточно),
         дополнены в начале колонками Vcenter/Datacenter/Cluster/Vm_Name из связанной записи
-        справочника vm_spr_record. Экспорт (CSV/XLSX) выгружает весь набор по текущему фильтру
-        и периоду, а не только показанную на экране страницу.
+        справочника vm_spr_record, а также ITSystemKey/TypeWork/TagName/TagDescription из
+        справочника серверов server_spr_records (по связи vm_record.ServerId). Экспорт
+        (CSV/XLSX) выгружает весь набор по текущему фильтру и периоду, а не только показанную
+        на экране страницу.
     </div>
     {{if .flash.error}}
     <blockquote>{{.flash.error}}</blockquote>
@@ -164,6 +166,10 @@ function vmMetricsExportPagerChangePageSize(size) {
             <th>Datacenter</th>
             <th>Cluster</th>
             <th>Vm_Name</th>
+            <th>ITSystemKey</th>
+            <th>TypeWork</th>
+            <th>TagName</th>
+            <th>TagDescription</th>
             <th>Дата</th>
             <th class="text-end">VM DISK (Gb)</th>
             <th class="text-end">VM DISK Free (Gb)</th>
@@ -186,6 +192,10 @@ function vmMetricsExportPagerChangePageSize(size) {
             <td>{{$r.Datacenter}}</td>
             <td>{{$r.Cluster}}</td>
             <td>{{$r.Vm_Name}}</td>
+            <td>{{$r.ITSystemKey}}</td>
+            <td>{{$r.TypeWork}}</td>
+            <td>{{$r.TagName}}</td>
+            <td>{{$r.TagDescription}}</td>
             <td>{{$r.Date.Format "2006-01-02"}}</td>
             <td class="text-end">{{printf "%.1f" $r.Vm_CapacityGb}}</td>
             <td class="text-end">{{printf "%.1f" $r.Vm_FreeSpaceGb}}</td>

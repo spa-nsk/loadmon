@@ -19,14 +19,20 @@ import (
 // VMRecordExportRow - строка выгрузки метрик виртуальной машины из vm_record
 // за период, дополненная в начале колонками Vcenter/Datacenter/Cluster/
 // Vm_Name, прочитанными из связанной справочной записи vm_spr_record
-// (VMRecord.VMSprId -> VMSprRecord.Id) - по запросу пользователя. Остальные
-// колонки - как в models.VMRecord (набор и подписи колонок определяются её
-// собственными тегами csv, см. models/models_add.go).
+// (VMRecord.VMSprId -> VMSprRecord.Id), и следом - ITSystemKey/TypeWork/
+// TagName/TagDescription из справочника серверов server_spr_records
+// (VMRecord.ServerId -> ServerSprRecords.Id) - по запросу пользователя.
+// Остальные колонки - как в models.VMRecord (набор и подписи колонок
+// определяются её собственными тегами csv, см. models/models_add.go).
 type VMRecordExportRow struct {
-	Vcenter    string `csv:"Vcenter"`
-	Datacenter string `csv:"Datacenter"`
-	Cluster    string `csv:"Cluster"`
-	Vm_Name    string `csv:"Vm_Name"`
+	Vcenter        string `csv:"Vcenter"`
+	Datacenter     string `csv:"Datacenter"`
+	Cluster        string `csv:"Cluster"`
+	Vm_Name        string `csv:"Vm_Name"`
+	ITSystemKey    string `csv:"ITSystemKey"`
+	TypeWork       int    `csv:"TypeWork"`
+	TagName        string `csv:"TagName"`
+	TagDescription string `csv:"TagDescription"`
 	models.VMRecord
 }
 
@@ -133,18 +139,54 @@ func (this *MainController) SprVMMetricsExport() {
 			flash.Error("Ошибка чтения данных виртуальных машин за период (vm_record): %v", err)
 			flash.Store(&this.Controller)
 		}
+
+		// справочник серверов - только для колонок ITSystemKey/TypeWork/
+		// TagName/TagDescription, по связи VMRecord.ServerId ->
+		// ServerSprRecords.Id (по запросу пользователя); один запрос по
+		// всем встретившимся ServerId, а не по одной записи на строку.
+		serverIdSet := make(map[int64]struct{}, len(recs))
+		for i := range recs {
+			if recs[i].ServerId > 0 {
+				serverIdSet[recs[i].ServerId] = struct{}{}
+			}
+		}
+		srvSprById := make(map[int64]*models.ServerSprRecords, len(serverIdSet))
+		if len(serverIdSet) > 0 {
+			serverIds := make([]int64, 0, len(serverIdSet))
+			for id := range serverIdSet {
+				serverIds = append(serverIds, id)
+			}
+			var srvSprList []*models.ServerSprRecords
+			if _, err := o.QueryTable("server_spr_records").
+				Filter("Id__in", serverIds).
+				All(&srvSprList, "Id", "ITSystemKey", "TypeWork", "TagName", "TagDescription"); err != nil {
+				flash.Error("Ошибка чтения справочника серверов: %v", err)
+				flash.Store(&this.Controller)
+			}
+			for _, s := range srvSprList {
+				srvSprById[s.Id] = s
+			}
+		}
+
 		for i := range recs {
 			spr := sprById[recs[i].VMSprId]
 			if spr == nil {
 				continue
 			}
-			rows = append(rows, VMRecordExportRow{
+			row := VMRecordExportRow{
 				Vcenter:    spr.Vcenter,
 				Datacenter: spr.Datacenter,
 				Cluster:    spr.Cluster,
 				Vm_Name:    spr.Vm_Name,
 				VMRecord:   recs[i],
-			})
+			}
+			if srvSpr := srvSprById[recs[i].ServerId]; srvSpr != nil {
+				row.ITSystemKey = srvSpr.ITSystemKey
+				row.TypeWork = srvSpr.TypeWork
+				row.TagName = srvSpr.TagName
+				row.TagDescription = srvSpr.TagDescription
+			}
+			rows = append(rows, row)
 		}
 	}
 	sort.Slice(rows, func(i, j int) bool {
