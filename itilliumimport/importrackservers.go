@@ -160,18 +160,23 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Spr.SerialNumber = r.Hw.TechnicalNumberIT
 			r.Hw.SerialNum = r.Hw.TechnicalNumberIT
 		}
+
 		if r.Spr.Stat == 1 || r.Spr.Active == 1 {
 			r.Spr.PowerState = 1
 			r.Hw.PowerState = 1
 			r.Spr.Stat = 1
 			r.Spr.Active = 1
 			r.Hw.Active = 1
+			r.Spr.ActivatorUser = 9999                         //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
 		} else {
 			r.Spr.PowerState = 2
 			r.Hw.PowerState = 2
-			r.Spr.Stat = 2
+			r.Spr.Stat = 0
 			r.Spr.Active = 2
 			r.Hw.Active = 2
+			r.Spr.TimeDeActiveState = time.Now().Local()
+			r.Spr.DeActivatorUser = 9999 //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 		}
 
 		// --- ServerHardware ------------------------------------------------
@@ -244,8 +249,8 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Spr.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
 			r.Spr.CreatorUser = 9999              //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.Time_Mfy = time.Now().Local()
-			r.Spr.Id_User = 9999                               //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
-			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
+			r.Spr.Id_User = 9999                       //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.TimeActiveState = time.Now().Local() //фиксируем времяя активации и автора
 
 			sprId, err := trn.Insert(&r.Spr)
 			if err != nil {

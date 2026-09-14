@@ -85,6 +85,11 @@ func insertNewSprRecord(srv *oneview.Server) (int64, error) {
 	srvspr.Details = srv.Identity.SerialNumber + " Добавлен из HP One, требуется правка"
 	srvspr.Time_Mfy = time.Now().Local()
 
+	// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+	// (10003 - HPE OneView) для новой записи ServerSprRecords.
+	srvspr.TimeCreate = time.Now().Local()
+	srvspr.CreatorUser = 10003
+
 	if Id, err := o.Insert(&srvspr); err != nil {
 		fmt.Println("Ошибка записи справочника серверов", err)
 		return 0, err
@@ -425,6 +430,11 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 
 		ImportHWSprRecord(trn, &hw, srv, ov) //заполняем данные в models.ServerHardware
 		hw.SourceUpdateType = models.SourceUpdateOneView
+		// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+		// (10003 - HPE OneView) для новой записи ServerHardware (если foundHwBySN
+		// окажется false и ниже сработает Insert, а не Update).
+		hw.TimeCreate = time.Now().Local()
+		hw.CreatorUser = 10003
 		if foundHwBySN {
 			//                 srvspr.Id = hw.ServerId
 			//
@@ -446,6 +456,11 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 
 		ImportServerSprFromHW(&srvspr, srv) //заполняем данные в models.ServerSprRecords
 		srvspr.SourceUpdateType = models.SourceUpdateOneView
+		// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+		// (10003 - HPE OneView) для новой записи ServerSprRecords (если ниже
+		// сработает Insert, а не Update).
+		srvspr.TimeCreate = time.Now().Local()
+		srvspr.CreatorUser = 10003
 		srvspr.Name, _ = SplitNameFQDN(oneview.GetHWserverName(srv))
 		srvspr.NameFQDN = oneview.GetHWserverNameFQDN(srv)
 		serverName := srvspr.NameFQDN
@@ -595,6 +610,11 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 
 		ImportHWSprRecord(trn, &hw, srv, ov) //заполняем данные в models.ServerHardware
 		hw.SourceUpdateType = models.SourceUpdateOneView
+		// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+		// (10003 - HPE OneView) для новой записи ServerHardware (если foundHwBySN
+		// окажется false и ниже сработает Insert, а не Update).
+		hw.TimeCreate = time.Now().Local()
+		hw.CreatorUser = 10003
 		if foundHwBySN {
 			srvspr.HWSprId = hw.Id
 
@@ -608,6 +628,11 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 
 		ImportServerSprFromHWInfra(&srvspr, srv, infra) //заполняем данные в models.ServerSprRecords, снапшот vSphere передан явным параметром
 		srvspr.SourceUpdateType = models.SourceUpdateOneView
+		// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+		// (10003 - HPE OneView) для новой записи ServerSprRecords (если ниже
+		// сработает Insert, а не Update).
+		srvspr.TimeCreate = time.Now().Local()
+		srvspr.CreatorUser = 10003
 		srvspr.Name, _ = SplitNameFQDN(oneview.GetHWserverName(srv))
 		srvspr.NameFQDN = oneview.GetHWserverNameFQDN(srv)
 		serverName := srvspr.NameFQDN

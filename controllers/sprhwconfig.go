@@ -739,6 +739,10 @@ func (this *MainController) SprHwConfigEdit() {
 		rec.Time_Mfy = time.Now().Local()
 
 		if isNew {
+			// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+			// (9999 - ручное создание карточки через форму /sprsrv/hwconfedit) для новой записи ServerHardware.
+			rec.TimeCreate = time.Now().Local()
+			rec.CreatorUser = 9999
 			if _, err := o.Insert(&rec); err != nil {
 				flash.Error("Ошибка создания записи: %v", err)
 				flash.Store(&this.Controller)

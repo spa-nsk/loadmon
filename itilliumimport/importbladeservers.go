@@ -214,12 +214,16 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			r.Spr.Stat = 1
 			r.Spr.Active = 1
 			r.Hw.Active = 1
+			r.Spr.ActivatorUser = 9999                         //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
 		} else {
 			r.Spr.PowerState = 2
 			r.Hw.PowerState = 2
-			r.Spr.Stat = 2
+			r.Spr.Stat = 0 //выведен из эксплуатации (см. cmdb/updatehwsprhp.go)
 			r.Spr.Active = 2
 			r.Hw.Active = 2
+			r.Spr.TimeDeActiveState = time.Now().Local()
+			r.Spr.DeActivatorUser = 9999 //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 		}
 
 		// --- ServerHardware ------------------------------------------------

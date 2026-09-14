@@ -576,7 +576,7 @@ type VMSprRecord struct {
 	ClusterId            string  `form:"ClusterId"`   //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
 	Production           int     `form:"Production"`  //среда 0-не заполнено 1-продуктовая с бизнес приложениями 2-тестовая
 	WorkStation          bool    `form:"WorkStation"` //признак рабочей станции windows
-	TypeWork             int     `form:"TypeWork"`
+	TypeWork             int     `form:"TypeWork"`    ////0 - не указано 1 - продуктовая среда 2 - внутренний тест 3 - внешний тест
 	Vm_Name              string  `form:"Vm_Name"`
 	Vm_HostName          string  `form:"Vm_HostName"`
 	Vm_DomainName        string  `form:"Vm_DomainName"`        //
@@ -734,66 +734,66 @@ func (u *VMPerfRecord) TableIndex() [][]string {
 
 // ServerSprRecords описывает запись/справочник БД loadmon, соответствующую сущности ServerSprRecords.
 type ServerSprRecords struct {
-	Id                   int64     `form:"Id" json:"Id"`
-	OldId                int64     `form:"OldId" json:"OldId"`                                          //ссылка на историческую запись после переименования. 0 если такой нет. Может быть цепочка записей.
-	Type                 int       `form:"Type" json:"Type"`                                            //0 - физический сервер 1 - виртуальный 2-host vmware
-	SerialNumber         string    `form:"SerialNumber" json:"SerialNumber"`                            //серийный номер для type 0 и 2
-	Vcenter              string    `form:"Vcenter" json:"Vcenter"`                                      //для type 1 и 2
-	Datacenter           string    `form:"Datacenter" json:"Datacenter"`                                //для type 1 и 2
-	Cluster              string    `form:"Cluster" json:"Cluster"`                                      //для type 1 и 2
-	ClusterId            string    `form:"ClusterId" json:"ClusterId"`                                  //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	VMSprId              int64     `form:"VMSprId" json:"VMSprId"`                                      //ссылка на справочник VM если Type = 1 иначе null
-	HWSprId              int64     `form:"HWSprId" json:"HWSprId"`                                      //ссылка на ServerHardware
-	ZabbixHostId         int64     `form:"ZabbixHostId" json:"ZabbixHostId"`                            //ссылка на ZabbixHost.Id если есть данные из Zabbix по этому серверу
-	TypeMicroservice     int       `form:"TypeMicroservice" json:"TypeMicroservice"`                    // 0 не указано принадлежность к микросервисам, роль в этом пространстве
-	RoleType             int       `form:"RoleType" json:"RoleType"`                                    //не указано 1-APP 2-DB
-	TypeWork             int       `form:"TypeWork" json:"TypeWork"`                                    //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	CriticalLevel        int       `form:"CriticalLevel" json:"CriticalLevel"`                          //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
-	Stat                 int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
-	PowerState           int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием
-	Active               int       `form:"Active" json:"Active"`                                        //1 активен 2 выведен из эксплуатации
-	TimeActiveState      time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //время изменения статуса активности введения в эксплуатацию
-	ActivatorUser        int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"`               //автор записи
-	TimeDeActiveState    time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"`       //время выведения из эксплуатации
-	DeActivatorUser      int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"`           //автор записи
-	TimeCreate           time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
-	CreatorUser          int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
-	BusinesPrivilage     int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"`         //ограничение по редактированию если указано 0 объект открыт
-	Name                 string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
-	NameFQDN             string    `form:"NameFQDN" json:"NameFQDN"`                                    //полное имя сервера
-	NameInfo             string    `orm:"null" form:"NameInfo" json:"NameInfo"`                         //альтернативное имя сервера
-	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную
-	MacAddress           string    `form:"MacAddress"`                                                  //список через разделитель ;
-	IPSharedVIP          string    `orm:"null" form:"IPSharedVIP" json:"IPSharedVIP"`                   //удалить разделяемый IP вводится вручную
-	Network              string    `orm:"null" form:"Network" json:"Network"`                           //сеть vlan144
-	NetworkName          string    `orm:"null" form:"NetworkName" json:"NetworkName"`                   //наименование сети сеть DMZ Prom
-	CPUCount             float64   `orm:"null" form:"CPUCount" json:"CPUCount"`                         //Количество физических процессоров
-	CPULogical           float64   `form:"CPULogical" json:"CPULogical"`                                //количество логических CPU
-	MemSize              float64   `form:"MemSize" json:"MemSize"`                                      //размер оперативной памяти сервера
-	DiskSize             float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков
-	Service              string    `form:"Service" json:"Service"`                                      //удалить сервис в котором задействован сервер
-	ServiceId            int64     `form:"ServiceId" json:"ServiceId"`                                  //удалить ссылка на базу сервисов
-	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId
-	OS                   string    `form:"OS" json:"OS"`                                                //операционная система
-	Component            string    `form:"Component" json:"Component"`                                  //удалить компонента Kafka, service BD ....
-	Owner                string    `form:"Owner" json:"Owner" csv:"-"`                                  //владелец сервера (ответственный за сервер)
-	BusinessOwner        string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"`                  //владелец от бизнеса
-	ITOwner              string    `form:"ITOwner" json:"ITOwner" csv:"-"`                              //владелец со стороны ИТ
-	ProductOwner         string    `form:"ProductOwner" json:"ProductOwner" csv:"-"`                    //Владелец продукта
-	Support              string    `form:"Support" json:"Support" csv:"-"`                              //ответственные за поддержку
-	SupportTeam          string    `form:"SupportTeam" json:"SupportTeam" csv:"-"`                      //Подразделение поддержки
-	SystemType           string    `form:"SystemType" json:"SystemType"`                                //тип системы техническая ...
-	LicensingType        string    `form:"LicensingType" json:"LicensingType"`                          //тип лицензирования
-	SolutionType         string    `form:"SolutionType" json:"SolutionType"`                            //вариант решения (коробочной)
-	Users                string    `form:"Users" json:"Users" csv:"-"`                                  //пользователи системы
-	Allocation           string    `form:"Allocation" json:"Allocation"`                                //аллокация (подразделение)
-	Anotation            string    `form:"Anotation" json:"Anotation" csv:"-"`                          //описание сервера
-	TagName              string    `form:"TagName" json:"TagName"`                                      //Имя тэга для виртуальных машин (Код для справочника)
-	TagDescription       string    `form:"TagDescription" json:"TagDescription"`                        //Описание тэга для виртуальных машин
-	Role                 string    `form:"Role" json:"Role"`                                            //роль сервера (сервер баз данных, сервер приложений, хост)
-	Details              string    `form:"Details" json:"Details" csv:"-"`                              //детали по серверу в свободном формате (примечание)
-	DPCAddress           int       `form:"DPCAddress" json:"DPCAddress"`                                //удалить ЦОД по справочнику адрес
-	DPCOffice            int       `form:"DPCOffice" json:"DPCOffice"`                                  //ЦОД по справочнику комната с адресом
+	Id                int64     `form:"Id" json:"Id"`
+	OldId             int64     `form:"OldId" json:"OldId"`                                          //ссылка на историческую запись после переименования. 0 если такой нет. Может быть цепочка записей.
+	Type              int       `form:"Type" json:"Type"`                                            //0 - физический сервер 1 - виртуальный 2-host vmware
+	SerialNumber      string    `form:"SerialNumber" json:"SerialNumber"`                            //серийный номер для type 0 и 2
+	Vcenter           string    `form:"Vcenter" json:"Vcenter"`                                      //для type 1 и 2
+	Datacenter        string    `form:"Datacenter" json:"Datacenter"`                                //для type 1 и 2
+	Cluster           string    `form:"Cluster" json:"Cluster"`                                      //для type 1 и 2
+	ClusterId         string    `form:"ClusterId" json:"ClusterId"`                                  //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	VMSprId           int64     `form:"VMSprId" json:"VMSprId"`                                      //ссылка на справочник VM если Type = 1 иначе null
+	HWSprId           int64     `form:"HWSprId" json:"HWSprId"`                                      //ссылка на ServerHardware
+	ZabbixHostId      int64     `form:"ZabbixHostId" json:"ZabbixHostId"`                            //ссылка на ZabbixHost.Id если есть данные из Zabbix по этому серверу
+	TypeMicroservice  int       `form:"TypeMicroservice" json:"TypeMicroservice"`                    // 0 не указано принадлежность к микросервисам, роль в этом пространстве
+	RoleType          int       `form:"RoleType" json:"RoleType"`                                    //не указано 1-APP 2-DB
+	TypeWork          int       `form:"TypeWork" json:"TypeWork"`                                    //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
+	CriticalLevel     int       `form:"CriticalLevel" json:"CriticalLevel"`                          //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
+	Stat              int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
+	PowerState        int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием // TODO: comment truncated in screenshot
+	Active            int       `form:"Active" json:"Active"`                                        //1 активен 2 выведен из эксплуатации
+	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //время изменения статуса активности введения в эксплуатацию
+	ActivatorUser     int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"`               //автор записи
+	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"`       //время выведения из эксплуатации
+	DeActivatorUser   int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"`           //автор записи
+	TimeCreate        time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
+	CreatorUser       int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
+	BusinesPrivilage  int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"`         //ограничение по редактированию если указано 0 объект открыт // TODO: comment truncated in screenshot
+	Name              string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
+	NameFQDN          string    `form:"NameFQDN" json:"NameFQDN"`                                    //полное имя сервера
+	NameInfo          string    `orm:"null" form:"NameInfo" json:"NameInfo"`                         //альтернативное имя сервера
+	IPAddress         string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
+	MacAddress        string    `form:"MacAddress"`                                                  //список через разделитель ;
+	IPSharedVIP       string    `orm:"null" form:"IPSharedVIP" json:"IPSharedVIP"`                   //удалить разделяемый IP вводится вручную
+	Network           string    `orm:"null" form:"Network" json:"Network"`                           //сеть vlan144
+	NetworkName       string    `orm:"null" form:"NetworkName" json:"NetworkName"`                   //наименование сети сеть DMZ Prom
+	CPUCount          float64   `orm:"null" form:"CPUCount" json:"CPUCount"`                         //Количество физических процессоров
+	CPULogical        float64   `form:"CPULogical" json:"CPULogical"`                                //количество логических CPU
+	MemSize           float64   `form:"MemSize" json:"MemSize"`                                      //размер оперативной памяти сервера
+	DiskSize          float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков
+	Service           string    `form:"Service" json:"Service"`                                      //удалить сервис в котором задействован сервер
+	ServiceId         int64     `form:"ServiceId" json:"ServiceId"`                                  //удалить ссылка на базу сервисов
+	ITSystemKey       string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
+	OS                string    `form:"OS" json:"OS"`                                                //операционная система
+	Component         string    `form:"Component" json:"Component"`                                  //удалить компонента Kafka, service BD ....
+	Owner             string    `form:"Owner" json:"Owner" csv:"-"`                                  //владелец сервера (ответственный за сервер)
+	BusinessOwner     string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"`                  //владелец от бизнеса
+	ITOwner           string    `form:"ITOwner" json:"ITOwner" csv:"-"`                              //владелец со стороны ИТ
+	ProductOwner      string    `form:"ProductOwner" json:"ProductOwner" csv:"-"`                    //Владелец продукта
+	Support           string    `form:"Support" json:"Support" csv:"-"`                              //ответственные за поддержку
+	SupportTeam       string    `form:"SupportTeam" json:"SupportTeam" csv:"-"`                      //Подразделение поддержки
+	SystemType        string    `form:"SystemType" json:"SystemType"`                                //тип системы техническая ...
+	LicensingType     string    `form:"LicensingType" json:"LicensingType"`                          //тип лицензирования
+	SolutionType      string    `form:"SolutionType" json:"SolutionType"`                            //вариант решения (коробочной)
+	Users             string    `form:"Users" json:"Users" csv:"-"`                                  //пользователи системы
+	Allocation        string    `form:"Allocation" json:"Allocation"`                                //аллокация (подразделение)
+	Anotation         string    `form:"Anotation" json:"Anotation" csv:"-"`                          //описание сервера
+	TagName           string    `form:"TagName" json:"TagName"`                                      //Имя тэга для виртуальных машин (Код для справочника)
+	TagDescription    string    `form:"TagDescription" json:"TagDescription"`                        //Описание тэга для виртуальных машин
+	Role              string    `form:"Role" json:"Role"`                                            //роль сервера (сервер баз данных, сервер приложений, хост)
+	Details           string    `form:"Details" json:"Details" csv:"-"`                              //детали по серверу в свободном формате (примечание)
+	//DPCAddress           int       `form:"DPCAddress" json:"DPCAddress"`                                //удалить ЦОД по справочнику адрес
+	//DPCOffice            int       `form:"DPCOffice" json:"DPCOffice"`                                  //ЦОД по справочнику комната с адресом
 	SZHistory            string    `form:"SZHistory" json:"SZHistory"`                                  //номера сз через пробел в хронологическом порядке
 	Warning              string    `form:"Warning" json:"Warning"`                                      //предупреждение (CPU RAM)
 	Level                float64   `form:"Level" json:"Level"`                                          //уровень в процентах

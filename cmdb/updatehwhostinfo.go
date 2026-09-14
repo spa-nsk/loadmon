@@ -77,6 +77,10 @@ func insertNewHostSprRecord(hs vsphere.HostInfo, serialNum string, hw *oneview.S
 		}
 	}
 
+	// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+	// (10002 - VMware/vSphere) для новой записи ServerSprRecords.
+	srvspr.TimeCreate = time.Now().Local()
+	srvspr.CreatorUser = 10002
 	Id, err := o.Insert(&srvspr)
 	if err != nil {
 		fmt.Println("Ошибка записи справочника серверов", err)

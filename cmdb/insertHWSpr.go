@@ -27,6 +27,10 @@ func InsertHWSpr(srv *oneview.Server, srvspr *models.ServerSprRecords, ov *onevi
 	}
 	hw.Time_Mfy = time.Now().Local()
 	hw.SourceUpdateType = models.SourceUpdateOneView
+	// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
+	// (10003 - HPE OneView) для новой записи ServerHardware.
+	hw.TimeCreate = time.Now().Local()
+	hw.CreatorUser = 10003
 	HWSprId, err := o.Insert(&hw)
 	if err != nil {
 		fmt.Println("Ошибка вставки записи конфигурации сервера:", srvspr.Name, srvspr.NameFQDN, err)
