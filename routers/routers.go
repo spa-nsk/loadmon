@@ -67,6 +67,7 @@ func init() {
 	//beego.Router("/sprsrv/hs/:Vcenter/:Datacenter/:Cluster/:HS", &controllers.MainController{}, "get,post:SprHost") // метод SprHost не реализован в controllers
 	beego.Router("/sprsrv/cluster/:Vcenter/:Datacenter/:Cluster", &controllers.MainController{}, "get,post:SprCluster")
 	beego.Router("/sprsrv/clusterperioddb", &controllers.MainController{}, "get,post:SprClusterPeriodDB") // список кластеров/хостов с метриками за период, посчитанными по данным БД (cluster_record/host_record/vm_record), аналогично /sprsrv/cluster, но без обращения к live vSphere через gRPC
+	beego.Router("/sprsrv/vmmetricsexport", &controllers.MainController{}, "get,post:SprVMMetricsExport") // выгрузка метрик виртуальных машин за период (vm_record, дополненный Vcenter/Datacenter/Cluster/Vm_Name из vm_spr_record) в CSV/XLSX
 	//beego.Router("/sprsrv/clusterperiod/:Vcenter/:Datacenter/:Cluster", &controllers.MainController{}, "get,post:SprClusterPeriod") // метод SprClusterPeriod не реализован в controllers
 	//beego.Router("/sprsrv/vmperf/:Id", &controllers.MainController{}, "get,post:SprSrvVMPerf") // метод SprSrvVMPerf не реализован в controllers
 	//beego.Router("/sprsrv/vmperfkeytest/:Vcenter/:Datacenter/:Cluster/:VM", &controllers.MainController{}, "get,post:SprSrvVMPerfKeyTest") //тестовой вывод метрик по виртуальной машине // метод SprSrvVMPerfKeyTest не реализован в controllers

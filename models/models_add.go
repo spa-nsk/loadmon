@@ -204,7 +204,7 @@ type VMRecord struct {
 	ServerId                            int64     `form:"ServerId" csv:"-"`                         //новая ссылка на справочник серверов. Добавить запись значений.
 	VMSprId                             int64     `orm:"column(v_m_spr_id)" form:"VMSprId" csv:"-"` //ссылка на справочник VM (vm_spr_record.Id)
 	ClusterId                           int64     `form:"ClusterId" csv:"-"`
-	Date                                time.Time `form:"Date" csv:"-"`
+	Date                                time.Time `form:"Date" csv:"Дата"`
 	Vm_NumCPU                           int32     `form:"Vm_NumCPU" csv:"-"`
 	Vm_NumCores                         int32     `form:"Vm_NumCores" csv:"-"`
 	Vm_MemorySizeGB                     float64   `form:"Vm_MemorySizeGB" csv:"-"`
