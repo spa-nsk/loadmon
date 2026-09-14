@@ -167,7 +167,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 
 		// --- ServerHardware ------------------------------------------------
 		var hw models.ServerHardware
-		hw = models.ServerHardware{SerialNum: r.Hw.SerialNum} //корректировка поля с провркой выше
+		hw = models.ServerHardware{SerialNum: r.Hw.SerialNum} //корректировка поля с проверкой выше
 		hwFound := trn.Read(&hw, "SerialNum") == nil          //если запись найдена, то обновляем только поля, которые однозначно должен приносить импорт (место в стойке, состояние питания, источник обновления), НЕ перезаписывая остальные поля существующей записи данными из файла - на случай, если они были вручную скорректированы в интерфейсе после прошлой синхронизации (тот же принцип приоритета ручных правок, что и для СХД, см. kontext/05-conventions-and-gotchas.md). Если нужно перезаписывать больше полей при повторном импорте - перечислите их здесь и передайте именами в trn.Update (сейчас обновляются только явно перечисленные 3 колонки).
 
 		if !hwFound {
@@ -175,7 +175,9 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// иначе автосгенерированный Id не запишется обратно (см.
 			// beego/v2/client/orm/orm.go:InsertWithCtx - Insert требует
 			// указатель, чтобы установить Id через reflect после вставки).
-
+			r.Hw.FormFactor = 1                  //rack-сервер
+			r.Hw.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Hw.CreatorUser = 9999              //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 			r.Hw.Time_Mfy = time.Now().Local()
 			r.Hw.Id_User = 9999                               //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 			r.Hw.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
@@ -200,6 +202,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// перечислите их здесь и передайте именами в trn.Update
 			// (сейчас обновляются только явно перечисленные 4 колонки).
 			r.Hw.Id = hw.Id
+			hw.FormFactor = 1                                     //rack-сервер
 			hw.RackCabinetId = r.Hw.RackCabinetId                 //обновляем в любом случае, так как мастер система по размещению оборудования в стойках - итиллиум, и если там поменяли стойку, то нужно обновить и у нас
 			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
@@ -225,6 +228,8 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		}
 		if !sprFound {
 			//новый сервер не обнаруженный системами сбора метрик и HP One View, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
+			r.Spr.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Spr.CreatorUser = 9999              //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.Time_Mfy = time.Now().Local()
 			r.Spr.Id_User = 9999                               //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
