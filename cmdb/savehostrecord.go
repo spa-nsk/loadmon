@@ -191,7 +191,6 @@ func SaveHostRecordOld(cl *vsphere.Cluster, clusterId int64, currentTime time.Ti
 					default: //есть запись, но конфигурация с таким серийным номерам привязана к другому серверу
 						chksrv := models.ServerSprRecords{Id: srvhw.ServerId}
 						o.Read(&chksrv, "Id")
-						// TODO: truncated in screenshot — remainder of message after "\nОборудование при" not visible
 						fmt.Println("!!! На хосте", host.Name, "изменилось оборудование, новый инвентарный и серийный номера", srvhw.InventoryNum, host.SerialNumber, "\nОборудование при")
 						srvhw.ServerId = serverId
 

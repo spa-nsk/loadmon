@@ -750,7 +750,7 @@ type ServerSprRecords struct {
 	TypeWork             int       `form:"TypeWork" json:"TypeWork"`                                    //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
 	CriticalLevel        int       `form:"CriticalLevel" json:"CriticalLevel"`                          //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
 	Stat                 int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
-	PowerState           int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием // TODO: comment truncated in screenshot
+	PowerState           int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием
 	Active               int       `form:"Active" json:"Active"`                                        //1 активен 2 выведен из эксплуатации
 	TimeActiveState      time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //время изменения статуса активности введения в эксплуатацию
 	ActivatorUser        int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"`               //автор записи
@@ -758,11 +758,11 @@ type ServerSprRecords struct {
 	DeActivatorUser      int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"`           //автор записи
 	TimeCreate           time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
 	CreatorUser          int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
-	BusinesPrivilage     int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"`         //ограничение по редактированию если указано 0 объект открыт // TODO: comment truncated in screenshot
+	BusinesPrivilage     int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"`         //ограничение по редактированию если указано 0 объект открыт
 	Name                 string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
 	NameFQDN             string    `form:"NameFQDN" json:"NameFQDN"`                                    //полное имя сервера
 	NameInfo             string    `orm:"null" form:"NameInfo" json:"NameInfo"`                         //альтернативное имя сервера
-	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
+	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную
 	MacAddress           string    `form:"MacAddress"`                                                  //список через разделитель ;
 	IPSharedVIP          string    `orm:"null" form:"IPSharedVIP" json:"IPSharedVIP"`                   //удалить разделяемый IP вводится вручную
 	Network              string    `orm:"null" form:"Network" json:"Network"`                           //сеть vlan144
@@ -773,7 +773,7 @@ type ServerSprRecords struct {
 	DiskSize             float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков
 	Service              string    `form:"Service" json:"Service"`                                      //удалить сервис в котором задействован сервер
 	ServiceId            int64     `form:"ServiceId" json:"ServiceId"`                                  //удалить ссылка на базу сервисов
-	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
+	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId
 	OS                   string    `form:"OS" json:"OS"`                                                //операционная система
 	Component            string    `form:"Component" json:"Component"`                                  //удалить компонента Kafka, service BD ....
 	Owner                string    `form:"Owner" json:"Owner" csv:"-"`                                  //владелец сервера (ответственный за сервер)
@@ -803,7 +803,7 @@ type ServerSprRecords struct {
 	MonitoringSZ         string    `form:"MonitoringSZ" json:"MonitoringSZ"`                            //основание постановки на мониторинг
 	Id_User              int64     `form:"Id_User" json:"Id_User"`                                      //
 	Time_Mfy             time.Time `form:"Time_Mfy" json:"Time_Mfy"`                                    //
-	Privilage            int       `form:"Privilage" json:"Privilage"`                                  //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя) // TODO: comment truncated in screenshot
+	Privilage            int       `form:"Privilage" json:"Privilage"`                                  //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя)
 	// SourceUpdateType - источник последнего обновления записи: 0 - не
 	// указано, 1 - добавлен/изменён вручную, 2 - VMware, 3 - HPE OneView,
 	// 4 - Zabbix. См. константы SourceUpdate* и комментарий к одноимённому
@@ -1890,17 +1890,17 @@ type ServerSpr struct {
 	RoleType             int       `form:"RoleType" json:"RoleType"`                                    //0-не указано 1- гипервизор vmware 2-APP 3-DB 4-app+DB
 	TypeWork             int       `form:"TypeWork" json:"TypeWork"`                                    //0- не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
 	CriticalLevel        int       `form:"CriticalLevel" json:"CriticalLevel"`                          //уровень критичности 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
-	Stat                 int       `form:"Stat" json:"Stat"`                                            //0- историческая запись 911 новое добавлено автоматически (требуется правка) 1- не активное 2- в эксплуатации // TODO: comment truncated in screenshot
+	Stat                 int       `form:"Stat" json:"Stat"`                                            //0- историческая запись 911 новое добавлено автоматически (требуется правка) 1- не активное 2- в эксплуатации
 	Monitoring           int       `form:"Monitoring" json:"Monitoring"`                                //0 - не указано 1-включен мониторинг 2-отключен мониторинг
 	Backuped             int       `form:"Backuped" json:"Backuped"`                                    //0 - не указано 1-включено резервное копирование 2-отключено резервное копирование
 	Network              string    `orm:"null" form:"Network" json:"Network"`                           //сети через ; vlan144
-	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера через ; при наличие информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
+	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера через ; при наличие информации подгружается из конфигурации VM или вводится вручную
 	CPUCount             float64   `form:"CPUCount" json:"CPUCount"`                                    //Количество физических процессоров (корпусов, гнёзд)
 	CPULogical           float64   `form:"CPULogical" json:"CPULogical"`                                //общее количество логических CPU (ядер)
 	MemSize              float64   `form:"MemSize" json:"MemSize"`                                      //размер оперативной памяти сервера гигабайт
 	DiskSize             float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков гигабайт
 	OS                   string    `form:"OS" json:"OS"`                                                //операционная система
-	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
+	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId
 	TimeCreate           time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
 	CreatorUser          int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
 	TimeActiveState      time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //дата ввода в эксплуатацию
@@ -2063,7 +2063,6 @@ type ConfigurationUnit struct {
 }
 
 /*
-// TODO: commented-out purchase/contract fields block truncated in screenshot
 OwnerFromFGId int64
 CounterpartyId int64
 ContractDoc string
@@ -2411,7 +2410,7 @@ func (u *ComponentsCPU) TableIndex() [][]string {
 type ComponentsRAM struct {
 	Id                int64  `form:"Id" orm:"auto" csv:"#"`                    //
 	Code              int64  `form:"Code" csv:"Код"`                           //код памяти
-	Model             string `form:"Model" csv:"Модель"`                       //fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa // TODO: comment truncated in screenshot
+	Model             string `form:"Model" csv:"Модель"`                       //fmt.Sprintf("%.0fGb", float64(mem.CapacityMiB)/1024.0) + " " + mem.BaseModuleType + " " + mem.MemoryDeviceType + " " + strconv.Itoa
 	CapacityMiB       int    `form:"CapacityMiB" csv:"Емкость Мб"`             //объём в мегабайтах
 	BaseModuleType    string `form:"BaseModuleType" csv:"Тип модуля"`          //
 	MemoryDeviceType  string `form:"MemoryDeviceType" csv:"Тип устройства"`    //
@@ -2796,7 +2795,7 @@ type UserLog struct {
 	UserId  int64     `orm:"null" form:"userid"` // id пользователя
 	Login   time.Time `orm:"null" form:"login"`  // время регистрации
 	Time    time.Time `orm:"null" form:"last"`   // время операции
-	Type    int       `form:"type"`              // тип операции (1 авторизация, 2 выход, 3 сброс пароля, 4 обновление профиля, 5 чтение справочника, 6 изменение данных справочника, 7 чтение таблицы загрузки // TODO: comment truncated in screenshot
+	Type    int       `form:"type"`              // тип операции (1 авторизация, 2 выход, 3 сброс пароля, 4 обновление профиля, 5 чтение справочника, 6 изменение данных справочника, 7 чтение таблицы загрузки
 	Request string    `form:"request"`           // текст запроса
 }
 
@@ -2844,9 +2843,9 @@ type ItSystemRecord struct {
 	Key                          string    `form:"Key" json:"key"`                                                   //0
 	FullName                     string    `form:"FullName" json:"fullName"`                                         //1
 	ShortName                    string    `form:"ShortName" json:"shortName"`                                       //2
-	LevelCriticality             string    `form:"LevelCriticality" json:"levelCriticality"`                         //3 "Критически важные (Vital),Критические для бизнеса (Critical),Важные для бизнеса (Secondary) // TODO: comment truncated in screenshot
+	LevelCriticality             string    `form:"LevelCriticality" json:"levelCriticality"`                         //3 "Критически важные (Vital),Критические для бизнеса (Critical),Важные для бизнеса (Secondary)
 	Description                  string    `form:"Description" json:"description"`                                   //4
-	Status                       string    `form:"Status" json:"status"`                                             //5 "Планируется, Проектируется, Разрабатывается, Тестируется, Выведено на прод, Заморожено, В архиве // TODO: comment truncated in screenshot
+	Status                       string    `form:"Status" json:"status"`                                             //5 "Планируется, Проектируется, Разрабатывается, Тестируется, Выведено на прод, Заморожено, В архиве
 	IsMonitored                  bool      `form:"IsMonitored" json:"isMonitored"`                                   //6
 	IsBackuped                   bool      `form:"IsBackuped" json:"isBackuped"`                                     //7
 	SystemType                   string    `form:"SystemType" json:"systemType"`                                     //8 "Бизнес, Техническая"
