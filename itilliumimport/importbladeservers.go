@@ -213,11 +213,13 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			r.Hw.PowerState = 1
 			r.Spr.Stat = 1
 			r.Spr.Active = 1
+			r.Hw.Active = 1
 		} else {
 			r.Spr.PowerState = 2
 			r.Hw.PowerState = 2
 			r.Spr.Stat = 2
 			r.Spr.Active = 2
+			r.Hw.Active = 2
 		}
 
 		// --- ServerHardware ------------------------------------------------
@@ -251,15 +253,18 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 
 			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
-				if hw.PowerState == 1 {
-					hw.Active = 1 //если питание включено и режим в базе обозначен как ручной импорт, то сервер активен
+				hw.Active = r.Hw.Active
+				if _, err := trn.Update(&hw, "RackCabinetId", "BladeSystemId", "BladeNum", "FormFactor", "PowerState", "SourceUpdateType", "Active"); err != nil {
+					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw:", err)
+					trn.Rollback()
+					continue
 				}
-			}
-
-			if _, err := trn.Update(&hw, "RackCabinetId", "BladeSystemId", "BladeNum", "FormFactor", "PowerState", "SourceUpdateType", "Active"); err != nil {
-				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw:", err)
-				trn.Rollback()
-				continue
+			} else {
+				if _, err := trn.Update(&hw, "RackCabinetId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw:", err)
+					trn.Rollback()
+					continue
+				}
 			}
 		}
 
@@ -294,26 +299,21 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		} else {
 			r.Spr.Id = sprsrv.Id
 			sprsrv.HWSprId = r.Spr.HWSprId
-			// ИСПРАВЛЕНО (2026-09-10, баг стирания имён - см. тот же фикс в
-			// importrackservers.go): Name/NameFQDN перезаписываются
-			// значением из файла ТОЛЬКО если оно не пусто - r.Spr.Name/
-			// NameFQDN может быть "" просто из-за пустой/"nan"/"-"/"n/a"
-			// ячейки в выгрузке Итиллиум (ConvertRow/setTarget пропускает
-			// такое поле молча), а не потому что сервер безымянный.
-			if r.Spr.Name != "" {
-				sprsrv.Name = r.Spr.Name
-			}
-			if r.Spr.NameFQDN != "" {
-				sprsrv.NameFQDN = r.Spr.NameFQDN
-			}
-			sprsrv.Stat = r.Spr.Stat
-			sprsrv.Active = r.Spr.Active
-			sprsrv.PowerState = r.Spr.PowerState
-			sprsrv.SourceUpdateType = r.Spr.SourceUpdateType
-			if _, err := trn.Update(&sprsrv, "HWSprId", "Name", "NameFQDN", "Stat", "Active", "PowerState", "SourceUpdateType"); err != nil {
-				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления sprsrv:", err)
-				trn.Rollback()
-				continue
+			if sprsrv.SourceUpdateType == models.SourceUpdateManual {
+				sprsrv.Stat = r.Spr.Stat
+				sprsrv.Active = r.Spr.Active
+				sprsrv.PowerState = r.Spr.PowerState
+				if _, err := trn.Update(&sprsrv, "HWSprId", "Stat", "Active", "PowerState", "SourceUpdateType"); err != nil {
+					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления sprsrv:", err)
+					trn.Rollback()
+					continue
+				}
+			} else {
+				if _, err := trn.Update(&sprsrv, "HWSprId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления sprsrv:", err)
+					trn.Rollback()
+					continue
+				}
 			}
 		}
 

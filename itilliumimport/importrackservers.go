@@ -165,11 +165,13 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Hw.PowerState = 1
 			r.Spr.Stat = 1
 			r.Spr.Active = 1
+			r.Hw.Active = 1
 		} else {
 			r.Spr.PowerState = 2
 			r.Hw.PowerState = 2
 			r.Spr.Stat = 2
 			r.Spr.Active = 2
+			r.Hw.Active = 2
 		}
 
 		// --- ServerHardware ------------------------------------------------
@@ -213,14 +215,18 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			hw.RackCabinetId = r.Hw.RackCabinetId                 //обновляем в любом случае, так как мастер система по размещению оборудования в стойках - итиллиум, и если там поменяли стойку, то нужно обновить и у нас
 			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
-				if hw.PowerState == 1 {
-					hw.Active = 1 //если питание включено и режим в базе обозначен как ручной импорт, то сервер активен
+				hw.Active = r.Hw.Active
+				if _, err := trn.Update(&hw, "RackCabinetId", "PowerState", "Active"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw:", err)
+					trn.Rollback()
+					continue
 				}
-			}
-			if _, err := trn.Update(&hw, "RackCabinetId", "PowerState", "Active"); err != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw:", err)
-				trn.Rollback()
-				continue
+			} else {
+				if _, err := trn.Update(&hw, "RackCabinetId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw:", err)
+					trn.Rollback()
+					continue
+				}
 			}
 		}
 
@@ -276,14 +282,19 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 				sprsrv.Stat = r.Spr.Stat
 				sprsrv.Active = r.Spr.Active
 				sprsrv.PowerState = r.Spr.PowerState
-			}
-			if _, err := trn.Update(&sprsrv, "HWSprId", "Name", "NameFQDN", "Stat", "Active", "PowerState", "SourceUpdateType"); err != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления sprsrv:", err)
-				trn.Rollback()
-				continue
+				if _, err := trn.Update(&sprsrv, "HWSprId", "Stat", "Active", "PowerState"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления sprsrv:", err)
+					trn.Rollback()
+					continue
+				}
+			} else {
+				if _, err := trn.Update(&sprsrv, "HWSprId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления sprsrv:", err)
+					trn.Rollback()
+					continue
+				}
 			}
 		}
-
 		// TODO: r.Extra содержит поля без прямого соответствия в схеме
 		// (см. itilliumimport/README.md, таблица "Что осталось в Extra и
 		// почему") - на данный момент они нигде не сохраняются (ни в БД,
