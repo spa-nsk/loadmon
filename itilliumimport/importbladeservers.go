@@ -290,11 +290,20 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 				continue
 			}
 			r.Spr.Id = sprId
-			r.Hw.ServerId = sprId
-			if _, err := trn.Update(&r.Hw, "ServerId"); err != nil {
-				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw.ServerId:", err)
-				trn.Rollback()
-				continue
+			if !hwFound { //если hwFound == false, то r.Hw.Id уже содержит Id вставленной записи, иначе hw.Id содержит Id существующей записи
+				r.Hw.ServerId = sprId
+				if _, err := trn.Update(&r.Hw, "ServerId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления r.Hw.ServerId:", err)
+					trn.Rollback()
+					continue
+				}
+			} else {
+				hw.ServerId = sprId
+				if _, err := trn.Update(&hw, "ServerId"); err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw.ServerId:", err)
+					trn.Rollback()
+					continue
+				}
 			}
 		} else {
 			r.Spr.Id = sprsrv.Id
