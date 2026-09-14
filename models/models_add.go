@@ -417,67 +417,67 @@ func (u *HostRecord) TableIndex() [][]string {
 
 // ClusterRecord описывает запись/справочник БД loadmon, соответствующую сущности ClusterRecord.
 type ClusterRecord struct {
-	Id                                  int64     `form:"Id"`
-	ClusterId                           int64     `form:"ClusterId"`
-	Date                                time.Time `form:"Date"`
-	Vcenter                             string    `form:"Vcenter"`
-	Datacenter                          string    `form:"Datacenter"`
-	Name                                string    `form:"Name"`
-	CpuMhzAvg                           int32     `form:"CpuMhzAvg"`
-	AllNumCpuPkgs                       int16     `form:"AllNumCpuPkgs"`
-	AllNumCpuCores                      int16     `form:"AllNumCpuCores"`
-	AllNumCpuThreads                    int16     `form:"AllNumCpuThreads"`
-	AllMemorySizeGB                     float64   `form:"AllMemorySizeGB"`
-	AllCapacityGb                       float64   `form:"AllCapacityGb"`
-	AllFreeSpaceGb                      float64   `form:"AllFreeSpaceGb"`
-	AllPercentUsed                      float64   `form:"AllPercentUsed"`
-	Cpu_usage_maximum                   float64   `orm:"null" form:"Cpu_usage_maximum"`
-	Cpu_usage_maximum_time              time.Time `orm:"null" form:"Cpu_usage_maximum_time"`
-	Cpu_usage_average                   float64   `orm:"null" form:"Cpu_usage_average"`
-	Cpu_usage_minimum                   float64   `orm:"null" form:"Cpu_usage_minimum"`
-	Cpu_usage_minimum_time              time.Time `orm:"null" form:"Cpu_usage_minimum_time"`
-	Mem_usage_maximum                   float64   `orm:"null" form:"Mem_usage_maximum"`
-	Mem_usage_maximum_time              time.Time `orm:"null" form:"Mem_usage_maximum_time"`
-	Mem_usage_average                   float64   `orm:"null" form:"Mem_usage_average"`
-	Mem_usage_minimum                   float64   `orm:"null" form:"Mem_usage_minimum"`
-	Mem_usage_minimum_time              time.Time `orm:"null" form:"Mem_usage_minimum_time"`
-	Disk_usage_maximum                  float64   `orm:"null" form:"Disk_usage_maximum"`
-	Disk_usage_maximum_time             time.Time `orm:"null" form:"Disk_usage_maximum_time"`
-	Disk_usage_average                  float64   `orm:"null" form:"Disk_usage_average"`
-	Disk_usage_minimum                  float64   `orm:"null" form:"Disk_usage_minimum"`
-	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time"`
-	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum"`
-	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time"`
-	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average"`
-	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum"`
-	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time"`
-	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum"`
-	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time"`
-	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average"`
-	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum"`
-	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time"`
-	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum"`
-	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time"`
-	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average"`
-	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimun"`
-	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time"`
-	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun"`
-	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time"`
-	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average"`
-	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimun"`
-	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time"`
-	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun"`
-	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximun_time"`
-	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average"`
-	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimun"`
-	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time"`
-	CpuBilling                          float64   `form:"CpuBilling"`  // в мегагерц часах
-	DiskBilling                         float64   `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
-	MemBilling                          float64   `form:"MemBilling"`  // в мегабайт часах
-	NetBilling                          float64   `form:"NetBilling"`  // в мегабайт часах
-	HostCount                           int64     `form:"HostCount"`
-	VMCount                             int64     `form:"VMCount"`
-	StorageCount                        int64     `form:"StorageCount"`
+	Id                                  int64     `form:"Id" csv:"-"`
+	ClusterId                           int64     `form:"ClusterId" csv:"-"`
+	Date                                time.Time `form:"Date" csv:"Дата"`
+	Vcenter                             string    `form:"Vcenter" csv:"-"`
+	Datacenter                          string    `form:"Datacenter" csv:"-"`
+	Name                                string    `form:"Name" csv:"-"`
+	CpuMhzAvg                           int32     `form:"CpuMhzAvg" csv:"-"`
+	AllNumCpuPkgs                       int16     `form:"AllNumCpuPkgs" csv:"-"`
+	AllNumCpuCores                      int16     `form:"AllNumCpuCores" csv:"-"`
+	AllNumCpuThreads                    int16     `form:"AllNumCpuThreads" csv:"-"`
+	AllMemorySizeGB                     float64   `form:"AllMemorySizeGB" csv:"-"`
+	AllCapacityGb                       float64   `form:"AllCapacityGb" csv:"Cluster DISK (Gb)"`
+	AllFreeSpaceGb                      float64   `form:"AllFreeSpaceGb" csv:"Cluster DISK Free (Gb)"`
+	AllPercentUsed                      float64   `form:"AllPercentUsed" csv:"Cluster DISK Used %"`
+	Cpu_usage_maximum                   float64   `orm:"null" form:"Cpu_usage_maximum" csv:"Cluster CPU max %"`
+	Cpu_usage_maximum_time              time.Time `orm:"null" form:"Cpu_usage_maximum_time" csv:"Cluster CPU max time"`
+	Cpu_usage_average                   float64   `orm:"null" form:"Cpu_usage_average" csv:"Cluster CPU avg %"`
+	Cpu_usage_minimum                   float64   `orm:"null" form:"Cpu_usage_minimum" csv:"Cluster CPU min %"`
+	Cpu_usage_minimum_time              time.Time `orm:"null" form:"Cpu_usage_minimum_time" csv:"Cluster CPU min time"`
+	Mem_usage_maximum                   float64   `orm:"null" form:"Mem_usage_maximum" csv:"Cluster MEM max %"`
+	Mem_usage_maximum_time              time.Time `orm:"null" form:"Mem_usage_maximum_time" csv:"Cluster MEM max time"`
+	Mem_usage_average                   float64   `orm:"null" form:"Mem_usage_average" csv:"Cluster MEM avg %"`
+	Mem_usage_minimum                   float64   `orm:"null" form:"Mem_usage_minimum" csv:"Cluster MEM min %"`
+	Mem_usage_minimum_time              time.Time `orm:"null" form:"Mem_usage_minimum_time" csv:"Cluster MEM min time"`
+	Disk_usage_maximum                  float64   `orm:"null" form:"Disk_usage_maximum" csv:"Cluster DISK Usage max %"`
+	Disk_usage_maximum_time             time.Time `orm:"null" form:"Disk_usage_maximum_time" csv:"Cluster DISK Usage max time"`
+	Disk_usage_average                  float64   `orm:"null" form:"Disk_usage_average" csv:"Cluster DISK Usage avg %"`
+	Disk_usage_minimum                  float64   `orm:"null" form:"Disk_usage_minimum" csv:"Cluster DISK Usage min %"`
+	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"Cluster DISK Usage min time"`
+	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum" csv:"-"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
+	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average" csv:"-"`
+	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum" csv:"-"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
+	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum" csv:"-"`
+	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"-"`
+	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average" csv:"-"`
+	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum" csv:"-"`
+	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"-"`
+	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum" csv:"-"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
+	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average" csv:"-"`
+	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimun" csv:"-"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
+	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun" csv:"-"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
+	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average" csv:"-"`
+	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimun" csv:"-"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
+	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun" csv:"-"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximun_time" csv:"-"`
+	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average" csv:"-"`
+	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimun" csv:"-"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
+	CpuBilling                          float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
+	DiskBilling                         float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
+	MemBilling                          float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
+	NetBilling                          float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
+	HostCount                           int64     `form:"HostCount" csv:"-"`
+	VMCount                             int64     `form:"VMCount" csv:"-"`
+	StorageCount                        int64     `form:"StorageCount" csv:"-"`
 }
 
 // TableName возвращает имя таблицы БД для модели ClusterRecord (используется beego ORM).
