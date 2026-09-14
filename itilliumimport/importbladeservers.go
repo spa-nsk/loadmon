@@ -55,6 +55,7 @@ func mappingConfigPathBladeServer() string {
 //     корзина не найдена (например, ещё не импортирована через
 //     /admin/importblades) - используется результат стандартного разбора,
 //     событие логируется как предупреждение.
+//
 // StartImportItiliumBladeServer регистрирует новое задание импорта
 // блейд-серверов под ключом jobId (см. ImportProgress в progress.go) и
 // запускает сам разбор и сохранение файла (runImportItiliumBladeServer) в
@@ -200,8 +201,6 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		}
 
 		// --- Статус/питание ----------------------------------------------
-		r.Spr.SourceUpdateType = models.SourceUpdateManual
-		r.Hw.SourceUpdateType = models.SourceUpdateManual
 		if r.Hw.SerialNum != "" {
 			r.Spr.SerialNumber = r.Hw.SerialNum
 		} else {
@@ -215,12 +214,16 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 
 		// --- ServerHardware ------------------------------------------------
 		var hw models.ServerHardware
-		hwFound := r.Hw.SerialNum != ""
-		if hwFound {
-			hw = models.ServerHardware{SerialNum: r.Hw.SerialNum}
-			hwFound = trn.Read(&hw, "SerialNum") == nil
-		}
+		hw = models.ServerHardware{SerialNum: r.Hw.SerialNum}
+		hwFound := trn.Read(&hw, "SerialNum") == nil
 		if !hwFound {
+			r.Hw.FormFactor = 2                  // блейд (1-rack, 2-blade, см. ServerHardware.FormFactor)
+			r.Hw.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Hw.CreatorUser = 9999              //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Hw.Time_Mfy = time.Now().Local()
+			r.Hw.Id_User = 9999 //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Hw.SourceUpdateType = models.SourceUpdateManual
+
 			if _, err := trn.Insert(&r.Hw); err != nil {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки hw:", err)
 				trn.Rollback()
@@ -237,9 +240,15 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			hw.BladeSystemId = r.Hw.BladeSystemId
 			hw.BladeNum = r.Hw.BladeNum
 			hw.FormFactor = r.Hw.FormFactor
-			hw.PowerState = r.Hw.PowerState
-			hw.SourceUpdateType = r.Hw.SourceUpdateType
-			if _, err := trn.Update(&hw, "RackCabinetId", "BladeSystemId", "BladeNum", "FormFactor", "PowerState", "SourceUpdateType"); err != nil {
+
+			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
+				hw.PowerState = r.Hw.PowerState
+				if hw.PowerState == 1 {
+					hw.Active = 1 //если питание включено и режим в базе обозначен как ручной импорт, то сервер активен
+				}
+			}
+
+			if _, err := trn.Update(&hw, "RackCabinetId", "BladeSystemId", "BladeNum", "FormFactor", "PowerState", "SourceUpdateType", "Active"); err != nil {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw:", err)
 				trn.Rollback()
 				continue
@@ -256,6 +265,11 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			sprFound = trn.Read(&sprsrv) == nil
 		}
 		if !sprFound {
+			r.Spr.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Spr.CreatorUser = 9999              //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.Time_Mfy = time.Now().Local()
+			r.Spr.Id_User = 9999 //вставка из итиллиум - пользователь 9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.SourceUpdateType = models.SourceUpdateManual
 			sprId, err := trn.Insert(&r.Spr)
 			if err != nil {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки sprsrv:", err)

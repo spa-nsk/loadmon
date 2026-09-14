@@ -1829,6 +1829,8 @@ type ServerHardware struct {
 	ServiceContract   string    `form:"ServiceContract" csv:"Сервисный контракт" json:"ServiceContract"`                            // данные по сервисному контракту, уровень сервиса
 	Id_User           int64     `form:"Id_User" csv:"-" json:"Id_User"`                                                             //
 	Time_Mfy          time.Time `form:"Time_Mfy" csv:"-" json:"Time_Mfy"`                                                           //
+	TimeCreate        time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                                                    //время создания записи
+	CreatorUser       int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                                                  //автор записи
 	SourceUpdate      string    `form:"SourceUpdate" csv:"Источник данных" json:"SourceUpdate"`                                     //
 	// SourceUpdateType - источник последнего обновления записи (числовой
 	// код, в отличие от свободного текстового SourceUpdate выше):
@@ -2179,19 +2181,19 @@ func (u *DatacenterSite) TableIndex() [][]string {
 // Связывается с BladeSystems (BladeSystems.RackCabinetId) и ServerHardware
 // (ServerHardware.RackCabinetId).
 type RackCabinet struct {
-	Id               int64     `form:"Id" orm:"auto" csv:"%"`                                            //
+	Id               int64     `form:"Id" orm:"auto" csv:"%"`                                               //
 	DatacenterSiteId int64     `orm:"null;unique(cabinet_site)" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"` //FK на DatacenterSite.Id. Уникальность шкафа определяется ПАРОЙ (Name, DatacenterSiteId) — одинаковое имя шкафа допустимо на разных площадках, см. resolveRackCabinet в itilliumimport
-	Name             string    `form:"Name" orm:"unique(cabinet_site)" csv:"Наименование"`               //основное наименование шкафа
-	AltName          string    `form:"AltName" csv:"Альтернативное наименование"`          //альтернативное наименование/старый номер шкафа
-	Model            string    `orm:"null" form:"Model" csv:"Модель"`                      //по аналогии с oneview2.Rack.Model
-	SerialNumber     string    `orm:"null" form:"SerialNumber" csv:"Серийный номер"`       //по аналогии с oneview2.Rack.SerialNumber
-	Width            int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Rack.Width
-	Depth            int64     `orm:"null" form:"Depth" csv:"Глубина"`                     //по аналогии с oneview2.Rack.Depth
-	Height           int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Rack.Height
-	UHeight          int64     `orm:"null" form:"UHeight" csv:"Высота, юниты"`             //по аналогии с oneview2.Rack.UHeight
-	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`               //
-	Id_User          int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
-	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
+	Name             string    `form:"Name" orm:"unique(cabinet_site)" csv:"Наименование"`                  //основное наименование шкафа
+	AltName          string    `form:"AltName" csv:"Альтернативное наименование"`                           //альтернативное наименование/старый номер шкафа
+	Model            string    `orm:"null" form:"Model" csv:"Модель"`                                       //по аналогии с oneview2.Rack.Model
+	SerialNumber     string    `orm:"null" form:"SerialNumber" csv:"Серийный номер"`                        //по аналогии с oneview2.Rack.SerialNumber
+	Width            int64     `orm:"null" form:"Width" csv:"Ширина"`                                       //по аналогии с oneview2.Rack.Width
+	Depth            int64     `orm:"null" form:"Depth" csv:"Глубина"`                                      //по аналогии с oneview2.Rack.Depth
+	Height           int64     `orm:"null" form:"Height" csv:"Высота"`                                      //по аналогии с oneview2.Rack.Height
+	UHeight          int64     `orm:"null" form:"UHeight" csv:"Высота, юниты"`                              //по аналогии с oneview2.Rack.UHeight
+	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`                                //
+	Id_User          int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"`                  //
+	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`                            //
 }
 
 // TableName возвращает имя таблицы БД для модели RackCabinet (используется beego ORM).
