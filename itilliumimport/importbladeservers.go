@@ -207,9 +207,17 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			r.Spr.SerialNumber = r.Hw.TechnicalNumberIT
 			r.Hw.SerialNum = r.Hw.TechnicalNumberIT
 		}
-		if r.Spr.Stat == 1 && r.Spr.Active == 1 {
+
+		if r.Spr.Stat == 1 || r.Spr.Active == 1 {
 			r.Spr.PowerState = 1
 			r.Hw.PowerState = 1
+			r.Spr.Stat = 1
+			r.Spr.Active = 1
+		} else {
+			r.Spr.PowerState = 2
+			r.Hw.PowerState = 2
+			r.Spr.Stat = 2
+			r.Spr.Active = 2
 		}
 
 		// --- ServerHardware ------------------------------------------------
