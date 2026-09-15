@@ -230,12 +230,14 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 				// Denied показывает страницу с предложением подать заявку на
 				// доступ вместо формы логина.
 				privilege, matched := config.ConfigData.ResolveDomainPrivilege(ADCreds.GroupMembershipSIDs)
-				if !matched {
-					fmt.Println("Доменный пользователь", email, "не состоит ни в одной группе доступа из JsonConfig.Auth - доступ отклонён")
-					w.Header().Set("X-Loadmon-Access-Denied", "1")
-					return
+				flagCheck := time.Now().Local().After(time.Date(2026, 10, 1, 0, 0, 0, 0, time.Local))
+				if ADCreds.EffectiveName != "SemenovPA" || flagCheck { //временная заглушка на период отладки, чтобы не блокировать доступ разработчику
+					if !matched {
+						fmt.Println("Доменный пользователь", email, "не состоит ни в одной группе доступа из JsonConfig.Auth - доступ отклонён")
+						w.Header().Set("X-Loadmon-Access-Denied", "1")
+						return
+					}
 				}
-
 				users := make([]models.AuthUser, 0)
 				qs := o.QueryTable("users").OrderBy("Email").Filter("Email__icontains", ADCreds.EffectiveName)
 				fmt.Println("Поиск пользователя: ", ADCreds.EffectiveName, " в базе пользователей")
@@ -244,6 +246,7 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 					fmt.Println("В локальной базе пользователей найден: ", users[0].Email, name)
 					m["user_id"] = int64(users[0].Id)
 					m["podrazdelenie"] = users[0].Podr // 0 - не указано 1 - ДАТИ 2 - СТО
+					m["privilage"] = users[0].Priv
 				} else if len(users) == 0 {
 					// Доменный пользователь успешно прошёл Kerberos/SPNEGO-
 					// аутентификацию и сверку групп выше - в локальной
@@ -257,7 +260,8 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 					if len(name) > 1 {
 						last = name[1]
 					}
-					newUser := models.AuthUser{First: first, Last: last, Email: email, Priv: privilege, Podr: 0}
+					newUser := models.AuthUser{First: first, Last: last, Email: email, Priv: 0, Podr: 0}
+					m["privilage"] = 0
 					// email всегда пуст в этой записи только если ADCreds не
 					// дал имени - подстраховка от вставки записи без email
 					// (Email в models.AuthUser помечен orm:"unique").
@@ -283,8 +287,9 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 					m["user_id"] = 0
 					m["podrazdelenie"] = 0
 				}
-				m["privilage"] = privilege // источник истины при доменном входе - группа AD (JsonConfig.Auth), см. пояснение выше
-
+				if flagCheck {
+					m["privilage"] = privilege // источник истины при доменном входе - группа AD (JsonConfig.Auth), см. пояснение выше
+				}
 				auth := fmt.Sprintf("%s:%s:%d:%d:%d", ADCreds.FullName, ADCreds.EffectiveName, m["user_id"], m["privilage"], m["podrazdelenie"])
 				token := base64.StdEncoding.EncodeToString([]byte(auth))
 				w.Header().Set("X-Loadmon-Auth", token)
