@@ -12,6 +12,12 @@
 	"ORMdebug": false,
 	"WorkMode": "web",
 	"AuthMode": "local",
+	"Auth": [
+		{"Privilege": 3, "Name": "loadmon-admins", "ObjectSID": "S-1-5-21-000000000-000000000-000000000-1101"},
+		{"Privilege": 1, "Name": "loadmon-editors", "ObjectSID": "S-1-5-21-000000000-000000000-000000000-1102"},
+		{"Privilege": 0, "Name": "loadmon-viewers", "ObjectSID": "S-1-5-21-000000000-000000000-000000000-1103"}
+	],
+	"AccessRequestURL": "https://helpdesk.example.local/requests/new?service=loadmon",
 	"HttpKey": "http_proxy",
 	"HttpsKey": "https_proxy",
 	"GRPCSrvDBAddr": "127.0.0.1",
