@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"loadmon/config"
 	models "loadmon/models"
 	pk "loadmon/utilities/pbkdf2"
 	"log"
@@ -39,6 +40,18 @@ func (this *MainController) Login() {
 	log.Println("back is", back)
 
 	h := this.Ctx.ResponseWriter.Header()
+
+	// Доменный пользователь прошёл Kerberos/SPNEGO-аутентификацию, но ни
+	// одна из его групп AD не найдена в config.ConfigData.Auth (см.
+	// appHandler в server_web_new/main_web.go и ResolveDomainPrivilege в
+	// config/config.go) - вместо формы логина и вместо создания сессии
+	// показываем страницу с предложением подать заявку на доступ.
+	if h.Get("X-Loadmon-Access-Denied") == "1" {
+		this.activeContent("user/accessdenied")
+		this.Data["AccessRequestURL"] = config.ConfigData.AccessRequestURL
+		return
+	}
+
 	xAuth, ok := h["X-Loadmon-Auth"]
 	if ok {
 		if xAuth[0] != "" {

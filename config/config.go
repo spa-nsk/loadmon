@@ -33,37 +33,64 @@ type OvEndpoint struct {
 	OperationTimeoutSec int // таймаут одной HTTP-операции к appliance; 0 — OneViewOperationTimeoutSec
 }
 
+// AuthenticationGroup описывает соответствие одной группы MS Active
+// Directory уровню привилегий loadmon (см. JsonConfig.Auth) - используется
+// при доменной (Kerberos/SPNEGO) аутентификации: список групп пользователя,
+// полученный из PAC Kerberos-билета (ADCredentials.GroupMembershipSIDs, см.
+// server_web_new/main_web.go:appHandler), сверяется с ObjectSID записей
+// этого списка.
+type AuthenticationGroup struct {
+	Privilege  int    // уровень привилегий loadmon: 0 - просмотр, 1 - редактирование справочников, 3 - администрирование (те же значения, что и models.AuthUser.Priv)
+	Name       string // имя группы в MS Active Directory (справочно, в сверке не участвует - PAC-билет имён групп не содержит)
+	ObjectGUID string // ObjectGUID группы в MS Active Directory (справочно, зарезервировано на случай перехода на LDAP-сверку)
+	ObjectSID  string // ObjectSID группы в MS Active Directory - именно по этому полю происходит сверка с группами пользователя из Kerberos-билета
+}
+
 // JsonConfig — структура конфигурации приложения, загружаемая из файла app2.json:
 // параметры подключения к БД, режимы работы, адреса gRPC-серверов и клиентов,
 // список опрашиваемых vCenter и OneView.
 type JsonConfig struct {
-	AliasName      string
-	DriverName     string
-	UserName       string
-	Password       string
-	DBName         string
-	DBFile         string // путь к файлу sqlite3 (DBFile в app2.json); относительный — от каталога conf
-	DBFileAdd      string // путь ко второй sqlite3 (default-add); относительный — от conf
-	HostName       string
-	Port           int
-	SSLmode        string
-	ORMdebug       bool
-	WorkMode       string
-	AuthMode       string // режим авторизации пользователей веб-интерфейса: "domain" - Kerberos/SPNEGO (Active Directory), "local" - логин/пароль по локальной таблице models.AuthUser. Пусто или неизвестное значение трактуется как "domain" (поведение по умолчанию, сохраняет совместимость)
-	HttpKey        string
-	HttpsKey       string
-	GRPCSrvDBAddr  string
-	GRPCSrvDBPort  int64
-	GRPCCliDBAddr  string
-	GRPCCliDBPort  int64
-	GRPCSrvApiAddr string
-	GRPCSrvApiPort int64
-	GRPCCliApiAddr string
-	GRPCCliApiPort int64
-	GRPCSwitchAddr string
-	GRPCSwitchPort int64
-	ConfigVCenters []vspheremetrics.VCenter
-	ConfigOV       []OvEndpoint
+	AliasName  string
+	DriverName string
+	UserName   string
+	Password   string
+	DBName     string
+	DBFile     string // путь к файлу sqlite3 (DBFile в app2.json); относительный — от каталога conf
+	DBFileAdd  string // путь ко второй sqlite3 (default-add); относительный — от conf
+	HostName   string
+	Port       int
+	SSLmode    string
+	ORMdebug   bool
+	WorkMode   string
+	AuthMode   string // режим авторизации пользователей веб-интерфейса: "domain" - Kerberos/SPNEGO (Active Directory), "local" - логин/пароль по локальной таблице models.AuthUser. Пусто или неизвестное значение трактуется как "domain" (поведение по умолчанию, сохраняет совместимость)
+	// Auth - соответствие групп MS Active Directory уровням привилегий
+	// loadmon, используется при доменной (Kerberos/SPNEGO) аутентификации
+	// (см. AuthenticationGroup и ResolveDomainPrivilege ниже). Если ни одна
+	// из групп пользователя не найдена в этом списке (в т.ч. если сам
+	// список пуст) - доступ отклоняется, пользователю показывается
+	// страница с предложением подать заявку на доступ вместо создания
+	// сессии (см. controllers/user2.go:Login).
+	Auth []AuthenticationGroup
+	// AccessRequestURL - адрес формы/системы подачи заявки ("служебной
+	// записки") на предоставление доступа, показывается доменному
+	// пользователю, чьи группы AD не найдены в Auth. Пусто - ссылка на
+	// странице отказа в доступе не показывается, только текстовая
+	// инструкция обратиться к администратору.
+	AccessRequestURL string
+	HttpKey          string
+	HttpsKey         string
+	GRPCSrvDBAddr    string
+	GRPCSrvDBPort    int64
+	GRPCCliDBAddr    string
+	GRPCCliDBPort    int64
+	GRPCSrvApiAddr   string
+	GRPCSrvApiPort   int64
+	GRPCCliApiAddr   string
+	GRPCCliApiPort   int64
+	GRPCSwitchAddr   string
+	GRPCSwitchPort   int64
+	ConfigVCenters   []vspheremetrics.VCenter
+	ConfigOV         []OvEndpoint
 	// OneViewOperationTimeoutSec — таймаут одной HTTP-операции к HPE OneView (сек).
 	OneViewOperationTimeoutSec int
 	// OneViewCollectTimeoutSec — общий таймаут на групповой сбор инвентаризации OneView (сек).
@@ -81,7 +108,7 @@ type JsonConfig struct {
 	// (в проекте уже есть beego conf/app.conf для фреймворка и app2.json
 	// для бизнес-логики - см. kontext/05-conventions-and-gotchas.md).
 	SmtpHost string // адрес SMTP-сервера, например "smtp.company.local"
-	SmtpPort int     // порт SMTP-сервера (обычно 25/465/587); 0 -> defaultSmtpPort (25)
+	SmtpPort int    // порт SMTP-сервера (обычно 25/465/587); 0 -> defaultSmtpPort (25)
 	// SmtpUseAuth - использовать ли SMTP AUTH (PLAIN) с SmtpUsername/
 	// SmtpPassword; false - анонимная отправка без авторизации (типично
 	// для внутренних релеев без аутентификации).
@@ -381,6 +408,35 @@ func (s *JsonConfig) IsLocalAuth() bool {
 // с конфигурациями, где параметр ещё не указан.
 func (s *JsonConfig) IsDomainAuth() bool {
 	return !s.IsLocalAuth()
+}
+
+// ResolveDomainPrivilege сопоставляет список SID групп Active Directory
+// пользователя, прошедшего Kerberos/SPNEGO-аутентификацию (PAC-билет,
+// ADCredentials.GroupMembershipSIDs), с настроенными в Auth соответствиями
+// "группа -> привилегия". Если пользователь состоит сразу в нескольких
+// группах, перечисленных в Auth, с разными Privilege - возвращается
+// максимальный из найденных уровней. found == false означает, что ни одна
+// группа пользователя не найдена в Auth (в т.ч. когда сам список Auth ещё
+// не заполнен) - в этом случае доступ должен быть отклонён, а не выдан с
+// каким-то значением по умолчанию.
+func (s *JsonConfig) ResolveDomainPrivilege(groupSIDs []string) (privilege int, found bool) {
+	if len(s.Auth) == 0 || len(groupSIDs) == 0 {
+		return 0, false
+	}
+	sids := make(map[string]bool, len(groupSIDs))
+	for _, sid := range groupSIDs {
+		sids[sid] = true
+	}
+	for _, g := range s.Auth {
+		if g.ObjectSID == "" || !sids[g.ObjectSID] {
+			continue
+		}
+		if !found || g.Privilege > privilege {
+			privilege = g.Privilege
+		}
+		found = true
+	}
+	return privilege, found
 }
 
 func pollVCenter(vc *vspheremetrics.VCenter) {
