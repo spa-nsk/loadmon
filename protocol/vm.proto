@@ -557,6 +557,15 @@ message VMPoint {
   string ToolsStatus = 73;
   string DomainName = 74;
   int64 PerfCount = 75;
+  // ИЗМЕНЕНО (2026-09-15, по факту найденной пользователем ошибки): HostName
+  // (поле 4 выше) - это ИМЯ ГОСТЕВОЙ ОС виртуальной машины (из VMware Tools,
+  // см. vspheremetrics/importdata.go: vmp.HostName = vm.Guest.HostName), а
+  // НЕ имя физического хоста ESXi, на котором запущена VM - реальный ESXi-
+  // хост резолвится при импорте через vm.Summary.Runtime.Host, но раньше
+  // никуда не сохранялся. EsxHost - имя (HostInfo.Name) ЭТОГО хоста,
+  // нужен для корректного определения "на каком хосте физически размещена
+  // VM" (см. controllers/sprsrvview2.go: placementServerSprIdsByRacks).
+  string EsxHost = 76;
 }
 
 //

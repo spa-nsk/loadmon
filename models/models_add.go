@@ -578,7 +578,13 @@ type VMSprRecord struct {
 	WorkStation          bool    `form:"WorkStation"` //признак рабочей станции windows
 	TypeWork             int     `form:"TypeWork"`    ////0 - не указано 1 - продуктовая среда 2 - внутренний тест 3 - внешний тест
 	Vm_Name              string  `form:"Vm_Name"`
-	Vm_HostName          string  `form:"Vm_HostName"`
+	Vm_HostName          string  `form:"Vm_HostName"` //имя ГОСТЕВОЙ ОС (из VMware Tools) - НЕ путать с Vm_EsxHost ниже
+	// Vm_EsxHost - имя РЕАЛЬНОГО физического хоста ESXi, на котором запущена
+	// VM (2026-09-15, по факту найденной пользователем ошибки - см.
+	// комментарий у EsxHost в protocol/vm.proto: Vm_HostName выше долгое
+	// время ошибочно использовался как "хост размещения" в фильтре
+	// /sprsrv/view2, хотя на деле это гостевое имя самой VM).
+	Vm_EsxHost           string  `form:"Vm_EsxHost"`
 	Vm_DomainName        string  `form:"Vm_DomainName"`        //
 	Vm_ToolsStatus       string  `form:"Vm_ToolsStatus"`       // статус установки vmware tools
 	Vm_GuestFullName     string  `form:"Vm_GuestFullName"`     //

@@ -3144,8 +3144,17 @@ type VMPoint struct {
 	ToolsStatus          string                 `protobuf:"bytes,73,opt,name=ToolsStatus,proto3" json:"ToolsStatus,omitempty"`
 	DomainName           string                 `protobuf:"bytes,74,opt,name=DomainName,proto3" json:"DomainName,omitempty"`
 	PerfCount            int64                  `protobuf:"varint,75,opt,name=PerfCount,proto3" json:"PerfCount,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// ИЗМЕНЕНО (2026-09-15, по факту найденной пользователем ошибки): HostName
+	// (поле 4 выше) - это ИМЯ ГОСТЕВОЙ ОС виртуальной машины (из VMware Tools,
+	// см. vspheremetrics/importdata.go: vmp.HostName = vm.Guest.HostName), а
+	// НЕ имя физического хоста ESXi, на котором запущена VM - реальный ESXi-
+	// хост резолвится при импорте через vm.Summary.Runtime.Host, но раньше
+	// никуда не сохранялся. EsxHost - имя (HostInfo.Name) ЭТОГО хоста,
+	// нужен для корректного определения "на каком хосте физически размещена
+	// VM" (см. controllers/sprsrvview2.go: placementServerSprIdsByRacks).
+	EsxHost       string `protobuf:"bytes,76,opt,name=EsxHost,proto3" json:"EsxHost,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *VMPoint) Reset() {
@@ -3701,6 +3710,13 @@ func (x *VMPoint) GetPerfCount() int64 {
 		return x.PerfCount
 	}
 	return 0
+}
+
+func (x *VMPoint) GetEsxHost() string {
+	if x != nil {
+		return x.EsxHost
+	}
+	return ""
 }
 
 type VMPointShort struct {
@@ -10554,7 +10570,7 @@ const file_vm_proto_rawDesc = "" +
 	"\bScsiLuns\x18\x02 \x03(\v2\x11.protocol.ScsiLunR\bScsiLuns\":\n" +
 	"\x06Metric\x12\x1a\n" +
 	"\bInstance\x18\x01 \x01(\tR\bInstance\x12\x14\n" +
-	"\x05Value\x18\x02 \x01(\x01R\x05Value\"\x84\x19\n" +
+	"\x05Value\x18\x02 \x01(\x01R\x05Value\"\x9e\x19\n" +
 	"\aVMPoint\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x12\n" +
 	"\x04Name\x18\x02 \x01(\tR\x04Name\x12$\n" +
@@ -10649,7 +10665,8 @@ const file_vm_proto_rawDesc = "" +
 	"\n" +
 	"DomainName\x18J \x01(\tR\n" +
 	"DomainName\x12\x1c\n" +
-	"\tPerfCount\x18K \x01(\x03R\tPerfCount\"\xd4\x13\n" +
+	"\tPerfCount\x18K \x01(\x03R\tPerfCount\x12\x18\n" +
+	"\aEsxHost\x18L \x01(\tR\aEsxHost\"\xd4\x13\n" +
 	"\fVMPointShort\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x12\n" +
 	"\x04Name\x18\x02 \x01(\tR\x04Name\x12$\n" +
