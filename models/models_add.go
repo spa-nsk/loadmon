@@ -205,15 +205,15 @@ type VMRecord struct {
 	VMSprId                             int64     `orm:"column(v_m_spr_id)" form:"VMSprId" csv:"-"` //ссылка на справочник VM (vm_spr_record.Id)
 	ClusterId                           int64     `form:"ClusterId" csv:"-"`
 	Date                                time.Time `form:"Date" csv:"Дата"`
-	Vm_NumCPU                           int32     `form:"Vm_NumCPU" csv:"-"`
-	Vm_NumCores                         int32     `form:"Vm_NumCores" csv:"-"`
-	Vm_MemorySizeGB                     float64   `form:"Vm_MemorySizeGB" csv:"-"`
-	Vm_IpAddress                        string    `form:"Vm_IpAddress" csv:"-"`
-	Vm_Network                          string    `form:"Vm_Network" csv:"-"`
-	Vm_NumEthernetCards                 int32     `form:"Vm_NumEthernetCards" csv:"-"`
-	Vm_NumVirtualDisks                  int32     `form:"Vm_NumVirtualDisks" csv:"-"`
-	Vm_DiskCommittedGB                  float64   `form:"Vm_DiskCommittedGB" csv:"-"`
-	Vm_DiskUncommittedGB                float64   `form:"Vm_DiskUncommittedGB" csv:"-"`
+	Vm_NumCPU                           int32     `form:"Vm_NumCPU" csv:"VM CPU Count"`
+	Vm_NumCores                         int32     `form:"Vm_NumCores" csv:"VM CPU Cores"`
+	Vm_MemorySizeGB                     float64   `form:"Vm_MemorySizeGB" csv:"VM Memory (GB)"`
+	Vm_IpAddress                        string    `form:"Vm_IpAddress" csv:"VM IP Address"`
+	Vm_Network                          string    `form:"Vm_Network" csv:"VM Network"`
+	Vm_NumEthernetCards                 int32     `form:"Vm_NumEthernetCards" csv:"VM Ethernet Cards"`
+	Vm_NumVirtualDisks                  int32     `form:"Vm_NumVirtualDisks" csv:"VM Virtual Disks"`
+	Vm_DiskCommittedGB                  float64   `form:"Vm_DiskCommittedGB" csv:"VM Disk Committed (GB)"`
+	Vm_DiskUncommittedGB                float64   `form:"Vm_DiskUncommittedGB" csv:"VM Disk Uncommitted (GB)"`
 	Vm_CapacityGb                       float64   `form:"Vm_CapacityGb" csv:"VM DISK (Gb)"`
 	Vm_FreeSpaceGb                      float64   `form:"Vm_FreeSpaceGb" csv:"VM DISK Free (Gb)"`
 	Vm_PercentUsed                      float64   `form:"Vm_PercentUsed" csv:"VM DISK Used %"`
@@ -232,35 +232,35 @@ type VMRecord struct {
 	Disk_usage_average                  float64   `form:"Disk_usage_average" csv:"VM DISK Usage avg %"`
 	Disk_usage_minimum                  float64   `form:"Disk_usage_minimum" csv:"VM DISK Usage min %"`
 	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"VM DISK Usage min time"`
-	Disk_totalReadLatency_maximum       float64   `form:"Disk_totalReadLatency_maximum" csv:"-"`
-	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
-	Disk_totalReadLatency_average       float64   `form:"Disk_totalReadLatency_average" csv:"-"`
-	Disk_totalReadLatency_minimum       float64   `form:"Disk_totalReadLatency_minimum" csv:"-"`
-	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
-	Disk_totalWriteLatency_maximum      float64   `form:"Disk_totalWriteLatency_maximum" csv:"-"`
-	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"-"`
-	Disk_totalWriteLatency_average      float64   `form:"Disk_totalWriteLatency_average" csv:"-"`
-	Disk_totalWriteLatency_minimum      float64   `form:"Disk_totalWriteLatency_minimum" csv:"-"`
-	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"-"`
-	Disk_write_maximum                  float64   `form:"Disk_write_maximum" csv:"-"`
-	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
-	Disk_write_average                  float64   `form:"Disk_write_average" csv:"-"`
-	Disk_write_minimum                  float64   `form:"Disk_write_minimum" csv:"-"`
-	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
-	Disk_read_maximum                   float64   `form:"Disk_read_maximum" csv:"-"`
-	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
-	Disk_read_average                   float64   `form:"Disk_read_average" csv:"-"`
-	Disk_read_minimum                   float64   `form:"Disk_read_minimum" csv:"-"`
-	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
-	Net_usage_maximum                   float64   `form:"Net_usage_maximum" csv:"-"`
-	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"-"`
-	Net_usage_average                   float64   `form:"Net_usage_average" csv:"-"`
-	Net_usage_minimum                   float64   `form:"Net_usage_minimum" csv:"-"`
-	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
-	CpuBilling                          float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
-	MemBilling                          float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
-	DiskBilling                         float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
-	NetBilling                          float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
+	Disk_totalReadLatency_maximum       float64   `form:"Disk_totalReadLatency_maximum" csv:"VM DISK Read Latency max (ms)"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"VM DISK Read Latency max time"`
+	Disk_totalReadLatency_average       float64   `form:"Disk_totalReadLatency_average" csv:"VM DISK Read Latency avg (ms)"`
+	Disk_totalReadLatency_minimum       float64   `form:"Disk_totalReadLatency_minimum" csv:"VM DISK Read Latency min (ms)"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"VM DISK Read Latency min time"`
+	Disk_totalWriteLatency_maximum      float64   `form:"Disk_totalWriteLatency_maximum" csv:"VM DISK Write Latency max (ms)"`
+	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"VM DISK Write Latency max time"`
+	Disk_totalWriteLatency_average      float64   `form:"Disk_totalWriteLatency_average" csv:"VM DISK Write Latency avg (ms)"`
+	Disk_totalWriteLatency_minimum      float64   `form:"Disk_totalWriteLatency_minimum" csv:"VM DISK Write Latency min (ms)"`
+	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"VM DISK Write Latency min time"`
+	Disk_write_maximum                  float64   `form:"Disk_write_maximum" csv:"VM DISK Write max (KB/s)"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"VM DISK Write max time"`
+	Disk_write_average                  float64   `form:"Disk_write_average" csv:"VM DISK Write avg (KB/s)"`
+	Disk_write_minimum                  float64   `form:"Disk_write_minimum" csv:"VM DISK Write min (KB/s)"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"VM DISK Write min time"`
+	Disk_read_maximum                   float64   `form:"Disk_read_maximum" csv:"VM DISK Read max (KB/s)"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"VM DISK Read max time"`
+	Disk_read_average                   float64   `form:"Disk_read_average" csv:"VM DISK Read avg (KB/s)"`
+	Disk_read_minimum                   float64   `form:"Disk_read_minimum" csv:"VM DISK Read min (KB/s)"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"VM DISK Read min time"`
+	Net_usage_maximum                   float64   `form:"Net_usage_maximum" csv:"VM NET Usage max (KB/s)"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"VM NET Usage max time"`
+	Net_usage_average                   float64   `form:"Net_usage_average" csv:"VM NET Usage avg (KB/s)"`
+	Net_usage_minimum                   float64   `form:"Net_usage_minimum" csv:"VM NET Usage min (KB/s)"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"VM NET Usage min time"`
+	CpuBilling                          float64   `form:"CpuBilling" csv:"VM CPU Billing (MHz*h)"`  // в мегагерц часах
+	MemBilling                          float64   `form:"MemBilling" csv:"VM MEM Billing (MB*h)"`   // в мегабайт часах
+	DiskBilling                         float64   `form:"DiskBilling" csv:"VM DISK Billing (GB*h)"` // по занимаемому месту в гигабайт часах
+	NetBilling                          float64   `form:"NetBilling" csv:"VM NET Billing (MB*h)"`   // в мегабайт часах
 }
 
 // TableName возвращает имя таблицы БД для модели VMRecord (используется beego ORM).
@@ -423,11 +423,11 @@ type ClusterRecord struct {
 	Vcenter                             string    `form:"Vcenter" csv:"-"`
 	Datacenter                          string    `form:"Datacenter" csv:"-"`
 	Name                                string    `form:"Name" csv:"-"`
-	CpuMhzAvg                           int32     `form:"CpuMhzAvg" csv:"-"`
-	AllNumCpuPkgs                       int16     `form:"AllNumCpuPkgs" csv:"-"`
-	AllNumCpuCores                      int16     `form:"AllNumCpuCores" csv:"-"`
-	AllNumCpuThreads                    int16     `form:"AllNumCpuThreads" csv:"-"`
-	AllMemorySizeGB                     float64   `form:"AllMemorySizeGB" csv:"-"`
+	CpuMhzAvg                           int32     `form:"CpuMhzAvg" csv:"Cluster CPU MHz Avg"`
+	AllNumCpuPkgs                       int16     `form:"AllNumCpuPkgs" csv:"Cluster CPU Pkgs"`
+	AllNumCpuCores                      int16     `form:"AllNumCpuCores" csv:"Cluster CPU Cores"`
+	AllNumCpuThreads                    int16     `form:"AllNumCpuThreads" csv:"Cluster CPU Threads"`
+	AllMemorySizeGB                     float64   `form:"AllMemorySizeGB" csv:"Cluster Memory (GB)"`
 	AllCapacityGb                       float64   `form:"AllCapacityGb" csv:"Cluster DISK (Gb)"`
 	AllFreeSpaceGb                      float64   `form:"AllFreeSpaceGb" csv:"Cluster DISK Free (Gb)"`
 	AllPercentUsed                      float64   `form:"AllPercentUsed" csv:"Cluster DISK Used %"`
@@ -446,38 +446,38 @@ type ClusterRecord struct {
 	Disk_usage_average                  float64   `orm:"null" form:"Disk_usage_average" csv:"Cluster DISK Usage avg %"`
 	Disk_usage_minimum                  float64   `orm:"null" form:"Disk_usage_minimum" csv:"Cluster DISK Usage min %"`
 	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"Cluster DISK Usage min time"`
-	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum" csv:"-"`
-	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
-	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average" csv:"-"`
-	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum" csv:"-"`
-	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
-	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum" csv:"-"`
-	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"-"`
-	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average" csv:"-"`
-	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum" csv:"-"`
-	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"-"`
-	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum" csv:"-"`
-	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
-	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average" csv:"-"`
-	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimun" csv:"-"`
-	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
-	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun" csv:"-"`
-	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
-	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average" csv:"-"`
-	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimun" csv:"-"`
-	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
-	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun" csv:"-"`
-	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximun_time" csv:"-"`
-	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average" csv:"-"`
-	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimun" csv:"-"`
-	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
-	CpuBilling                          float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
-	DiskBilling                         float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
-	MemBilling                          float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
-	NetBilling                          float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
-	HostCount                           int64     `form:"HostCount" csv:"-"`
-	VMCount                             int64     `form:"VMCount" csv:"-"`
-	StorageCount                        int64     `form:"StorageCount" csv:"-"`
+	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum" csv:"Cluster DISK Read Latency max (ms)"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"Cluster DISK Read Latency max time"`
+	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average" csv:"Cluster DISK Read Latency avg (ms)"`
+	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum" csv:"Cluster DISK Read Latency min (ms)"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"Cluster DISK Read Latency min time"`
+	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum" csv:"Cluster DISK Write Latency max (ms)"`
+	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"Cluster DISK Write Latency max time"`
+	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average" csv:"Cluster DISK Write Latency avg (ms)"`
+	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum" csv:"Cluster DISK Write Latency min (ms)"`
+	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"Cluster DISK Write Latency min time"`
+	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum" csv:"Cluster DISK Write max (KB/s)"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"Cluster DISK Write max time"`
+	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average" csv:"Cluster DISK Write avg (KB/s)"`
+	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimun" csv:"Cluster DISK Write min (KB/s)"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"Cluster DISK Write min time"`
+	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun" csv:"Cluster DISK Read max (KB/s)"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"Cluster DISK Read max time"`
+	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average" csv:"Cluster DISK Read avg (KB/s)"`
+	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimun" csv:"Cluster DISK Read min (KB/s)"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"Cluster DISK Read min time"`
+	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun" csv:"Cluster NET Usage max (KB/s)"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximun_time" csv:"Cluster NET Usage max time"`
+	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average" csv:"Cluster NET Usage avg (KB/s)"`
+	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimun" csv:"Cluster NET Usage min (KB/s)"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"Cluster NET Usage min time"`
+	CpuBilling                          float64   `form:"CpuBilling" csv:"Cluster CPU Billing (MHz*h)"`  // в мегагерц часах
+	DiskBilling                         float64   `form:"DiskBilling" csv:"Cluster DISK Billing (GB*h)"` // по занимаемому месту в гигабайт часах
+	MemBilling                          float64   `form:"MemBilling" csv:"Cluster MEM Billing (MB*h)"`   // в мегабайт часах
+	NetBilling                          float64   `form:"NetBilling" csv:"Cluster NET Billing (MB*h)"`   // в мегабайт часах
+	HostCount                           int64     `form:"HostCount" csv:"Cluster Host Count"`
+	VMCount                             int64     `form:"VMCount" csv:"Cluster VM Count"`
+	StorageCount                        int64     `form:"StorageCount" csv:"Cluster Storage Count"`
 }
 
 // TableName возвращает имя таблицы БД для модели ClusterRecord (используется beego ORM).
