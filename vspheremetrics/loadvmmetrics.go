@@ -274,6 +274,10 @@ func (infra *VMInfrastructure) LoadVmMetricV4(ctx context.Context, vc VCenter) e
 
 		dcname = hi.Datacenter
 		clname = hi.Cluster
+		// ИЗМЕНЕНО (2026-09-15): сохраняем имя РЕАЛЬНОГО хоста ESXi (hi -
+		// уже отрезолвлен выше по vm.Summary.Runtime.Host) - раньше не
+		// сохранялось никуда, из-за чего фильтр размещения VM ошибочно
+		// сравнивал ГОСТЕВОЕ имя VM (vmp.HostName) с именем хоста.
 
 		key := fmt.Sprintf("%s/%s/%s", vc.Hostname, dcname, clname)
 
@@ -405,6 +409,7 @@ func (infra *VMInfrastructure) LoadVmMetricV4(ctx context.Context, vc VCenter) e
 			vmP.NetUsageMinimum = math.MaxFloat64
 
 			vmP.ImportData(vm, infra, vc.Hostname, dcname, clname)
+			vmP.EsxHost = hi.Name
 
 			//vmP.KeyName = vc.Hostname + "/" + dcname + "/" + clname + "/" + vm.Name
 			vmP.KeyName = keyName
@@ -432,6 +437,7 @@ func (infra *VMInfrastructure) LoadVmMetricV4(ctx context.Context, vc VCenter) e
 				vmP.ClusterID = cl.ClusterID
 			}
 			vmP.ImportData(vm, infra, vc.Hostname, dcname, clname) //обновляем данные
+			vmP.EsxHost = hi.Name
 			vmP.WorkStation = workstation
 			vmP.ClusterID = cl.ClusterID
 			infra.AppendMetricToVM(vmP, resultVM, float64(hi.CPUMhz))

@@ -1132,20 +1132,24 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 		}
 	}
 
+	// ИСПРАВЛЕНО (2026-09-15, ошибку нашёл пользователь): сравнивать нужно
+	// Vm_EsxHost (реальный физический хост ESXi, см. models_add.go и
+	// cmdb/initrec.go), а НЕ Vm_HostName (это имя гостевой ОС самой VM из
+	// VMware Tools - раньше здесь ошибочно использовалось оно, из-за чего
+	// фильтр размещения VM почти никогда не находил ни одной машины).
+	//
 	// Раньше здесь читалась ВСЯ таблица vm_spr_record целиком (по запросу
 	// пользователя - ~10000 VM, заметная лишняя нагрузка на каждый вызов
 	// фильтра при том, что реально нужны только VM найденных выше хостов,
 	// которых на практике мало - обычно один шкаф/несколько гипервизоров).
-	// Вместо сырого SQL (пришлось бы гадать реальное имя колонки для
-	// нестандартного по стилю имени поля Vm_HostName) используется ORM-
-	// условие с __iexact (регистронезависимое точное сравнение,
-	// эквивалентно прежнему strings.ToLower сравнению) через
-	// orm.NewCondition, объединяющее варианты написания имени каждого хоста
-	// через OR - beego сам резолвит имя колонки по регистрации модели.
+	// Вместо сырого SQL используется ORM-условие с __iexact
+	// (регистронезависимое точное сравнение) через orm.NewCondition,
+	// объединяющее варианты написания имени каждого хоста через OR - beego
+	// сам резолвит имя колонки по регистрации модели.
 	condVM := orm.NewCondition()
 	first := true
 	for n := range hostNames {
-		c := orm.NewCondition().And("Vm_HostName__iexact", n)
+		c := orm.NewCondition().And("Vm_EsxHost__iexact", n)
 		if first {
 			condVM = c
 			first = false
@@ -1154,10 +1158,10 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 		}
 	}
 	var vms []models.VMSprRecord
-	o.QueryTable(new(models.VMSprRecord)).SetCond(condVM).All(&vms, "Id", "Vm_HostName")
+	o.QueryTable(new(models.VMSprRecord)).SetCond(condVM).All(&vms, "Id", "Vm_EsxHost")
 	vmIds := make([]int64, 0)
 	for _, vm := range vms {
-		n := strings.ToLower(strings.TrimSpace(vm.Vm_HostName))
+		n := strings.ToLower(strings.TrimSpace(vm.Vm_EsxHost))
 		if n != "" && hostNames[n] {
 			vmIds = append(vmIds, vm.Id)
 			seenVmSprId[vm.Id] = true
@@ -1169,7 +1173,7 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 	// отрабатывает только на аппаратные серверы и гипервизоры, нужно
 	// добавить обработку для виртуальных машин" - локальная vm_spr_record
 	// (блок выше) обновляется только очередным опросом vSphere и может
-	// отставать/не иметь Vm_HostName для части VM): ДОПОЛНИТЕЛЬНО запрашиваем
+	// отставать/не иметь Vm_EsxHost для части VM): ДОПОЛНИТЕЛЬНО запрашиваем
 	// ЖИВОЙ список VM у vSphere через grpc (grpcclient.LoadVMList) - по
 	// каждой УНИКАЛЬНОЙ тройке (Vcenter, Datacenter, Cluster) среди найденных
 	// выше хостов запрашивается список VM всего кластера ОДИН раз, из него
@@ -1197,7 +1201,16 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 		}
 		seenCluster[ck] = true
 		for _, vm := range grpcclient.LoadVMList(vc, dc, cl, "") {
-			hn := strings.ToLower(strings.TrimSpace(vm.HostName))
+			// ИСПРАВЛЕНО (2026-09-15, ошибку нашёл пользователь): vm.HostName -
+			// это ИМЯ ГОСТЕВОЙ ОС внутри VM (из VMware Tools, см.
+			// vspheremetrics/importdata.go: vmp.HostName = vm.Guest.HostName),
+			// а НЕ физический хост ESXi - сравнивать его с именем гипервизора
+			// было неверно (гостевое имя VM совпадает с именем ESXi-хоста
+			// только случайно). Используем новое поле vm.EsxHost - реальный
+			// ESXi-хост, резолвится при импорте через vm.Summary.Runtime.Host
+			// (см. protocol/vm.proto и vspheremetrics/loadvmmetrics.go/
+			// addfunction.go).
+			hn := strings.ToLower(strings.TrimSpace(vm.EsxHost))
 			if hn == "" || !hostNames[hn] {
 				continue
 			}

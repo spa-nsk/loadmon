@@ -312,6 +312,7 @@ func (infra *VMInfrastructure) LoadVmMetric(ctx context.Context, vc VCenter) err
 				vmP.NetUsageMinimum = math.MaxFloat64
 
 				vmP.ImportData(vm, infra, vc.Hostname, dcname, clname)
+				vmP.EsxHost = hi.Name
 
 				vmP.KeyName = vc.Hostname + "/" + dcname + "/" + clname + "/" + vm.Name
 				cl.VM = append(cl.VM, vmP)
@@ -322,6 +323,7 @@ func (infra *VMInfrastructure) LoadVmMetric(ctx context.Context, vc VCenter) err
 				fmt.Printf("Добавлена виртуальная машина %s %s %s %s %s\n", vmRef, vmP.Name, vmP.Cluster, vmP.Datacenter, vmP.Vcenter)
 			} else {
 				vmP.ImportData(vm, infra, vc.Hostname, dcname, clname) //обновляем данные
+				vmP.EsxHost = hi.Name
 				if len(attachedTags) > 0 {
 					if len(attachedTags[0].Tags) > 0 {
 						vmP.TagName = attachedTags[0].Tags[0].Name

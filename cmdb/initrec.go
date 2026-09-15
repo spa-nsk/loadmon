@@ -325,6 +325,7 @@ func CopyVmToSprVm(from vsphere.VMPoint, to *models.VMSprRecord) {
 	*/
 	to.Vm_Name = from.Name
 	to.Vm_HostName = from.HostName
+	to.Vm_EsxHost = from.EsxHost // реальный ESXi-хост, см. protocol/vm.proto (2026-09-15)
 
 	to.Vm_PathName = from.PathName
 	to.Vm_PowerState = from.PowerState
@@ -364,6 +365,7 @@ func CopySprVmToVm(from models.VMSprRecord, to *vsphere.VMPoint) {
 
 	to.GuestFullName = from.Vm_GuestFullName
 	to.HostName = from.Vm_HostName
+	to.EsxHost = from.Vm_EsxHost
 	to.PathName = from.Vm_PathName
 	to.PowerState = from.Vm_PowerState
 	to.UUID = from.Vm_Uuid

@@ -138,6 +138,7 @@ func GetVMPointRPC(in *pb.VMPoint) vsphere.VMPoint {
 
 	vm.GuestFullName = in.GuestFullName
 	vm.HostName = in.HostName
+	vm.EsxHost = in.EsxHost // реальный ESXi-хост, см. protocol/vm.proto (2026-09-15)
 	vm.PathName = in.PathName
 	vm.PowerState = in.PowerState
 	vm.CPUMhz = in.CpuMhz

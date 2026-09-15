@@ -114,6 +114,10 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 
 	out.GuestFullName = vm.GuestFullName
 	out.HostName = vm.HostName
+	// EsxHost - реальный физический хост ESXi (в отличие от HostName выше,
+	// которое остаётся гостевым именем VM) - см. комментарий у поля EsxHost
+	// в protocol/vm.proto (2026-09-15).
+	out.EsxHost = vm.EsxHost
 	out.PathName = vm.PathName
 	out.PowerState = vm.PowerState
 	out.CpuMhz = vm.CPUMhz

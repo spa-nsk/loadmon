@@ -350,7 +350,13 @@ type VMPoint struct {
 	Template                         bool                 `form:"Template"`    //шаблон виртуальной машины
 	TypeWork                         int                  `form:"TypeWork"`
 	Name                             string               `form:"Name"`
-	HostName                         string               `form:"HostName"`
+	HostName                         string               `form:"HostName"` //имя ГОСТЕВОЙ ОС (из VMware Tools) - НЕ путать с EsxHost ниже
+	// EsxHost - имя физического хоста ESXi (HostInfo.Name), на котором
+	// реально запущена эта VM (2026-09-15, по факту найденной пользователем
+	// ошибки - см. комментарий у EsxHost в protocol/vm.proto). Заполняется
+	// при импорте в loadvmmetrics.go/addfunction.go из уже резолвимого там
+	// vm.Summary.Runtime.Host -> HostInfo, который раньше не сохранялся.
+	EsxHost                          string               `form:"EsxHost"`
 	DomainName                       string               `form:"DomainName"`
 	ToolsStatus                      string               `form:"ToolsStatus"`       // статус установки vmware tools
 	GuestFullName                    string               `form:"GuestFullName"`     //гостевая операционная система
