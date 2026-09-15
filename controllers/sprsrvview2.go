@@ -978,13 +978,26 @@ func CalcPercentFilled(rec *models.ServerSprView) {
 //     корзина не найдена, используется запасной вариант - собственный
 //     RackCabinetId сервера (тот же приём, что уже применяется для
 //     PowerState/Active блейд-корзин, см. cmdb/initrec.go);
-//   - виртуальные машины - по размещению их хоста (гипервизора): среди уже
-//     найденных выше хостов (Type==2) ищем совпадение имени с
-//     models.VMSprRecord.Vm_HostName (сравнение без учёта регистра с
-//     Name/NameFQDN хоста - прямой FK-связи VM->хост в схеме нет, только
-//     сопоставление по имени, см. cmdb/initrec.go:CopySprVmToVm/CopyVmToSprVm),
-//     затем берём все ServerSprRecords с Type==1, чей VMSprId ссылается на
-//     найденную запись models.VMSprRecord.
+//   - виртуальные машины - по размещению их хоста (гипервизора), ДВУМЯ
+//     источниками сразу (2026-09-15, по запросу пользователя "фильтр по
+//     размещению отрабатывает только на аппаратные серверы и гипервизоры,
+//     нужно добавить обработку для виртуальных машин"):
+//     1) локальная models.VMSprRecord.Vm_HostName (сравнение без учёта
+//        регистра с Name/NameFQDN хоста - прямой FK-связи VM->хост в схеме
+//        нет, только сопоставление по имени, см. cmdb/initrec.go:
+//        CopySprVmToVm/CopyVmToSprVm) - быстро, но может отставать от
+//        реального состояния vSphere между опросами;
+//     2) ДОПОЛНИТЕЛЬНО - живой запрос к vSphere через
+//        grpcclient.LoadVMList(Vcenter, Datacenter, Cluster, "") по каждому
+//        найденному хосту (один запрос на уникальную тройку
+//        Vcenter/Datacenter/Cluster), из ответа отбираются VM с
+//        VMPoint.HostName, совпавшим с одним из хостов, и сопоставляются с
+//        models.VMSprRecord по KeyName ("Vcenter/Datacenter/Cluster/Vm_Name",
+//        тот же формат, что использует сервер для VMPoint.KeyName).
+//     Оба источника объединяются (без дублей) - см. appendVmSprByVmSprIds
+//     внутри placementServerSprIdsByRacks. В обоих случаях далее берутся
+//     все ServerSprRecords с Type==1, чей VMSprId ссылается на найденную
+//     запись models.VMSprRecord.
 func placementServerSprIds(o orm.Ormer, rackCabinetId int64) []int64 {
 	return placementServerSprIdsByRacks(o, []int64{rackCabinetId})
 }
@@ -1076,7 +1089,8 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 
 	// --- виртуальные машины - по размещению хоста ------------------------
 	var hosts []models.ServerSprRecords
-	o.QueryTable("server_spr_records").Filter("Id__in", result).Filter("Type", 2).All(&hosts, "Id", "Name", "NameFQDN")
+	o.QueryTable("server_spr_records").Filter("Id__in", result).Filter("Type", 2).
+		All(&hosts, "Id", "Name", "NameFQDN", "Vcenter", "Datacenter", "Cluster")
 	if len(hosts) == 0 {
 		return result
 	}
@@ -1092,6 +1106,30 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 	}
 	if len(hostNames) == 0 {
 		return result
+	}
+
+	alreadyInResult := map[int64]bool{}
+	for _, id := range result {
+		alreadyInResult[id] = true
+	}
+	seenVmSprId := map[int64]bool{}
+
+	// appendVmSprByVmSprIds - находит ServerSprRecords (Type=1) по набору
+	// Id справочника VM (VMSprId) и добавляет НОВЫЕ (ещё не встречавшиеся)
+	// в result - общий хвост для обоих источников VM ниже (локальная
+	// таблица vm_spr_record и живой запрос к vSphere).
+	appendVmSprByVmSprIds := func(vmSprIds []int64) {
+		if len(vmSprIds) == 0 {
+			return
+		}
+		var vmSpr []models.ServerSprRecords
+		o.QueryTable("server_spr_records").Filter("Type", 1).Filter("VMSprId__in", vmSprIds).All(&vmSpr, "Id")
+		for _, s := range vmSpr {
+			if !alreadyInResult[s.Id] {
+				alreadyInResult[s.Id] = true
+				result = append(result, s.Id)
+			}
+		}
 	}
 
 	// Раньше здесь читалась ВСЯ таблица vm_spr_record целиком (по запросу
@@ -1122,16 +1160,63 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 		n := strings.ToLower(strings.TrimSpace(vm.Vm_HostName))
 		if n != "" && hostNames[n] {
 			vmIds = append(vmIds, vm.Id)
+			seenVmSprId[vm.Id] = true
 		}
 	}
-	if len(vmIds) == 0 {
-		return result
-	}
+	appendVmSprByVmSprIds(vmIds)
 
-	var vmSpr []models.ServerSprRecords
-	o.QueryTable("server_spr_records").Filter("Type", 1).Filter("VMSprId__in", vmIds).All(&vmSpr, "Id")
-	for _, s := range vmSpr {
-		result = append(result, s.Id)
+	// ИЗМЕНЕНО (2026-09-15, по запросу пользователя "фильтр по размещению
+	// отрабатывает только на аппаратные серверы и гипервизоры, нужно
+	// добавить обработку для виртуальных машин" - локальная vm_spr_record
+	// (блок выше) обновляется только очередным опросом vSphere и может
+	// отставать/не иметь Vm_HostName для части VM): ДОПОЛНИТЕЛЬНО запрашиваем
+	// ЖИВОЙ список VM у vSphere через grpc (grpcclient.LoadVMList) - по
+	// каждой УНИКАЛЬНОЙ тройке (Vcenter, Datacenter, Cluster) среди найденных
+	// выше хостов запрашивается список VM всего кластера ОДИН раз, из него
+	// отбираются только VM, чей VMPoint.HostName совпал с одним из искомых
+	// хостов, и сопоставляются с локальным справочником через
+	// VMSprRecord.KeyName (формат "Vcenter/Datacenter/Cluster/Vm_Name" -
+	// тот же формат и разделитель, что использует grpc-сервер для
+	// VMPoint.KeyName, см. cmdb/savevmrecord.go и
+	// vspheremetrics/addfunction.go). Если grpc-сервер недоступен -
+	// LoadVMList просто вернёт пустой список (сама уже логирует ошибку
+	// подключения), результат локального поиска выше при этом не теряется.
+	type clusterKey struct{ vcenter, datacenter, cluster string }
+	seenCluster := map[clusterKey]bool{}
+	var liveKeyNames []string
+	for _, h := range hosts {
+		vc := strings.TrimSpace(h.Vcenter)
+		dc := strings.TrimSpace(h.Datacenter)
+		cl := strings.TrimSpace(h.Cluster)
+		if vc == "" || dc == "" || cl == "" {
+			continue // у хоста не указана принадлежность vCenter/ДЦ/кластер - живой запрос сделать нечем
+		}
+		ck := clusterKey{vc, dc, cl}
+		if seenCluster[ck] {
+			continue
+		}
+		seenCluster[ck] = true
+		for _, vm := range grpcclient.LoadVMList(vc, dc, cl, "") {
+			hn := strings.ToLower(strings.TrimSpace(vm.HostName))
+			if hn == "" || !hostNames[hn] {
+				continue
+			}
+			if kn := strings.TrimSpace(vm.KeyName); kn != "" {
+				liveKeyNames = append(liveKeyNames, kn)
+			}
+		}
+	}
+	if len(liveKeyNames) > 0 {
+		var liveVms []models.VMSprRecord
+		o.QueryTable(new(models.VMSprRecord)).Filter("KeyName__in", liveKeyNames).All(&liveVms, "Id")
+		liveVmIds := make([]int64, 0, len(liveVms))
+		for _, vm := range liveVms {
+			if !seenVmSprId[vm.Id] {
+				seenVmSprId[vm.Id] = true
+				liveVmIds = append(liveVmIds, vm.Id)
+			}
+		}
+		appendVmSprByVmSprIds(liveVmIds)
 	}
 
 	return result
