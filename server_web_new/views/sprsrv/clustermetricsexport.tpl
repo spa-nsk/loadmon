@@ -176,6 +176,33 @@ function clusterMetricsExportPagerChangePageSize(size) {
             <th class="text-end">Cluster DISK Usage max %</th>
             <th class="text-end">Cluster DISK Usage avg %</th>
             <th class="text-end">Cluster DISK Usage min %</th>
+            <th class="text-end">Cluster CPU MHz Avg</th>
+            <th class="text-end">Cluster CPU Pkgs</th>
+            <th class="text-end">Cluster CPU Cores</th>
+            <th class="text-end">Cluster CPU Threads</th>
+            <th class="text-end">Cluster Memory (GB)</th>
+            <th class="text-end">Cluster DISK Read Latency max (ms)</th>
+            <th class="text-end">Cluster DISK Read Latency avg (ms)</th>
+            <th class="text-end">Cluster DISK Read Latency min (ms)</th>
+            <th class="text-end">Cluster DISK Write Latency max (ms)</th>
+            <th class="text-end">Cluster DISK Write Latency avg (ms)</th>
+            <th class="text-end">Cluster DISK Write Latency min (ms)</th>
+            <th class="text-end">Cluster DISK Write max (KB/s)</th>
+            <th class="text-end">Cluster DISK Write avg (KB/s)</th>
+            <th class="text-end">Cluster DISK Write min (KB/s)</th>
+            <th class="text-end">Cluster DISK Read max (KB/s)</th>
+            <th class="text-end">Cluster DISK Read avg (KB/s)</th>
+            <th class="text-end">Cluster DISK Read min (KB/s)</th>
+            <th class="text-end">Cluster NET Usage max (KB/s)</th>
+            <th class="text-end">Cluster NET Usage avg (KB/s)</th>
+            <th class="text-end">Cluster NET Usage min (KB/s)</th>
+            <th class="text-end">Cluster CPU Billing (MHz*h)</th>
+            <th class="text-end">Cluster MEM Billing (MB*h)</th>
+            <th class="text-end">Cluster DISK Billing (GB*h)</th>
+            <th class="text-end">Cluster NET Billing (MB*h)</th>
+            <th class="text-end">Cluster Host Count</th>
+            <th class="text-end">Cluster VM Count</th>
+            <th class="text-end">Cluster Storage Count</th>
         </tr>
     </thead>
     <tbody>
@@ -197,6 +224,33 @@ function clusterMetricsExportPagerChangePageSize(size) {
             <td class="text-end">{{printf "%.2f" $r.Disk_usage_maximum}}</td>
             <td class="text-end">{{printf "%.2f" $r.Disk_usage_average}}</td>
             <td class="text-end">{{printf "%.2f" $r.Disk_usage_minimum}}</td>
+            <td class="text-end">{{$r.CpuMhzAvg}}</td>
+            <td class="text-end">{{$r.AllNumCpuPkgs}}</td>
+            <td class="text-end">{{$r.AllNumCpuCores}}</td>
+            <td class="text-end">{{$r.AllNumCpuThreads}}</td>
+            <td class="text-end">{{printf "%.1f" $r.AllMemorySizeGB}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalReadLatency_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalReadLatency_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalReadLatency_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalWriteLatency_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalWriteLatency_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalWriteLatency_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_write_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_write_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_write_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_read_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_read_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_read_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Net_usage_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Net_usage_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Net_usage_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.CpuBilling}}</td>
+            <td class="text-end">{{printf "%.2f" $r.MemBilling}}</td>
+            <td class="text-end">{{printf "%.2f" $r.DiskBilling}}</td>
+            <td class="text-end">{{printf "%.2f" $r.NetBilling}}</td>
+            <td class="text-end">{{$r.HostCount}}</td>
+            <td class="text-end">{{$r.VMCount}}</td>
+            <td class="text-end">{{$r.StorageCount}}</td>
         </tr>
         {{end}}
     </tbody>

@@ -183,6 +183,34 @@ function vmMetricsExportPagerChangePageSize(size) {
             <th class="text-end">VM DISK Usage max %</th>
             <th class="text-end">VM DISK Usage avg %</th>
             <th class="text-end">VM DISK Usage min %</th>
+            <th class="text-end">VM CPU Count</th>
+            <th class="text-end">VM CPU Cores</th>
+            <th class="text-end">VM Memory (GB)</th>
+            <th>VM IP Address</th>
+            <th>VM Network</th>
+            <th class="text-end">VM Ethernet Cards</th>
+            <th class="text-end">VM Virtual Disks</th>
+            <th class="text-end">VM Disk Committed (GB)</th>
+            <th class="text-end">VM Disk Uncommitted (GB)</th>
+            <th class="text-end">VM DISK Read Latency max (ms)</th>
+            <th class="text-end">VM DISK Read Latency avg (ms)</th>
+            <th class="text-end">VM DISK Read Latency min (ms)</th>
+            <th class="text-end">VM DISK Write Latency max (ms)</th>
+            <th class="text-end">VM DISK Write Latency avg (ms)</th>
+            <th class="text-end">VM DISK Write Latency min (ms)</th>
+            <th class="text-end">VM DISK Write max (KB/s)</th>
+            <th class="text-end">VM DISK Write avg (KB/s)</th>
+            <th class="text-end">VM DISK Write min (KB/s)</th>
+            <th class="text-end">VM DISK Read max (KB/s)</th>
+            <th class="text-end">VM DISK Read avg (KB/s)</th>
+            <th class="text-end">VM DISK Read min (KB/s)</th>
+            <th class="text-end">VM NET Usage max (KB/s)</th>
+            <th class="text-end">VM NET Usage avg (KB/s)</th>
+            <th class="text-end">VM NET Usage min (KB/s)</th>
+            <th class="text-end">VM CPU Billing (MHz*h)</th>
+            <th class="text-end">VM MEM Billing (MB*h)</th>
+            <th class="text-end">VM DISK Billing (GB*h)</th>
+            <th class="text-end">VM NET Billing (MB*h)</th>
         </tr>
     </thead>
     <tbody>
@@ -209,6 +237,34 @@ function vmMetricsExportPagerChangePageSize(size) {
             <td class="text-end">{{printf "%.2f" $r.Disk_usage_maximum}}</td>
             <td class="text-end">{{printf "%.2f" $r.Disk_usage_average}}</td>
             <td class="text-end">{{printf "%.2f" $r.Disk_usage_minimum}}</td>
+            <td class="text-end">{{$r.Vm_NumCPU}}</td>
+            <td class="text-end">{{$r.Vm_NumCores}}</td>
+            <td class="text-end">{{printf "%.1f" $r.Vm_MemorySizeGB}}</td>
+            <td>{{$r.Vm_IpAddress}}</td>
+            <td>{{$r.Vm_Network}}</td>
+            <td class="text-end">{{$r.Vm_NumEthernetCards}}</td>
+            <td class="text-end">{{$r.Vm_NumVirtualDisks}}</td>
+            <td class="text-end">{{printf "%.1f" $r.Vm_DiskCommittedGB}}</td>
+            <td class="text-end">{{printf "%.1f" $r.Vm_DiskUncommittedGB}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalReadLatency_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalReadLatency_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalReadLatency_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalWriteLatency_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalWriteLatency_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_totalWriteLatency_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_write_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_write_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_write_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_read_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_read_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Disk_read_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Net_usage_maximum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Net_usage_average}}</td>
+            <td class="text-end">{{printf "%.2f" $r.Net_usage_minimum}}</td>
+            <td class="text-end">{{printf "%.2f" $r.CpuBilling}}</td>
+            <td class="text-end">{{printf "%.2f" $r.MemBilling}}</td>
+            <td class="text-end">{{printf "%.2f" $r.DiskBilling}}</td>
+            <td class="text-end">{{printf "%.2f" $r.NetBilling}}</td>
         </tr>
         {{end}}
     </tbody>
