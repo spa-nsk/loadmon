@@ -204,16 +204,16 @@ type VMRecord struct {
 	ServerId                            int64     `form:"ServerId" csv:"-"`                         //новая ссылка на справочник серверов. Добавить запись значений.
 	VMSprId                             int64     `orm:"column(v_m_spr_id)" form:"VMSprId" csv:"-"` //ссылка на справочник VM (vm_spr_record.Id)
 	ClusterId                           int64     `form:"ClusterId" csv:"-"`
-	Date                                time.Time `form:"Date" csv:"-"`
-	Vm_NumCPU                           int32     `form:"Vm_NumCPU" csv:"-"`
-	Vm_NumCores                         int32     `form:"Vm_NumCores" csv:"-"`
-	Vm_MemorySizeGB                     float64   `form:"Vm_MemorySizeGB" csv:"-"`
-	Vm_IpAddress                        string    `form:"Vm_IpAddress" csv:"-"`
-	Vm_Network                          string    `form:"Vm_Network" csv:"-"`
-	Vm_NumEthernetCards                 int32     `form:"Vm_NumEthernetCards" csv:"-"`
-	Vm_NumVirtualDisks                  int32     `form:"Vm_NumVirtualDisks" csv:"-"`
-	Vm_DiskCommittedGB                  float64   `form:"Vm_DiskCommittedGB" csv:"-"`
-	Vm_DiskUncommittedGB                float64   `form:"Vm_DiskUncommittedGB" csv:"-"`
+	Date                                time.Time `form:"Date" csv:"Дата"`
+	Vm_NumCPU                           int32     `form:"Vm_NumCPU" csv:"VM CPU Count"`
+	Vm_NumCores                         int32     `form:"Vm_NumCores" csv:"VM CPU Cores"`
+	Vm_MemorySizeGB                     float64   `form:"Vm_MemorySizeGB" csv:"VM Memory (GB)"`
+	Vm_IpAddress                        string    `form:"Vm_IpAddress" csv:"VM IP Address"`
+	Vm_Network                          string    `form:"Vm_Network" csv:"VM Network"`
+	Vm_NumEthernetCards                 int32     `form:"Vm_NumEthernetCards" csv:"VM Ethernet Cards"`
+	Vm_NumVirtualDisks                  int32     `form:"Vm_NumVirtualDisks" csv:"VM Virtual Disks"`
+	Vm_DiskCommittedGB                  float64   `form:"Vm_DiskCommittedGB" csv:"VM Disk Committed (GB)"`
+	Vm_DiskUncommittedGB                float64   `form:"Vm_DiskUncommittedGB" csv:"VM Disk Uncommitted (GB)"`
 	Vm_CapacityGb                       float64   `form:"Vm_CapacityGb" csv:"VM DISK (Gb)"`
 	Vm_FreeSpaceGb                      float64   `form:"Vm_FreeSpaceGb" csv:"VM DISK Free (Gb)"`
 	Vm_PercentUsed                      float64   `form:"Vm_PercentUsed" csv:"VM DISK Used %"`
@@ -232,35 +232,35 @@ type VMRecord struct {
 	Disk_usage_average                  float64   `form:"Disk_usage_average" csv:"VM DISK Usage avg %"`
 	Disk_usage_minimum                  float64   `form:"Disk_usage_minimum" csv:"VM DISK Usage min %"`
 	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"VM DISK Usage min time"`
-	Disk_totalReadLatency_maximum       float64   `form:"Disk_totalReadLatency_maximum" csv:"-"`
-	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"-"`
-	Disk_totalReadLatency_average       float64   `form:"Disk_totalReadLatency_average" csv:"-"`
-	Disk_totalReadLatency_minimum       float64   `form:"Disk_totalReadLatency_minimum" csv:"-"`
-	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"-"`
-	Disk_totalWriteLatency_maximum      float64   `form:"Disk_totalWriteLatency_maximum" csv:"-"`
-	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"-"`
-	Disk_totalWriteLatency_average      float64   `form:"Disk_totalWriteLatency_average" csv:"-"`
-	Disk_totalWriteLatency_minimum      float64   `form:"Disk_totalWriteLatency_minimum" csv:"-"`
-	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"-"`
-	Disk_write_maximum                  float64   `form:"Disk_write_maximum" csv:"-"`
-	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"-"`
-	Disk_write_average                  float64   `form:"Disk_write_average" csv:"-"`
-	Disk_write_minimum                  float64   `form:"Disk_write_minimum" csv:"-"`
-	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"-"`
-	Disk_read_maximum                   float64   `form:"Disk_read_maximum" csv:"-"`
-	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"-"`
-	Disk_read_average                   float64   `form:"Disk_read_average" csv:"-"`
-	Disk_read_minimum                   float64   `form:"Disk_read_minimum" csv:"-"`
-	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"-"`
-	Net_usage_maximum                   float64   `form:"Net_usage_maximum" csv:"-"`
-	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"-"`
-	Net_usage_average                   float64   `form:"Net_usage_average" csv:"-"`
-	Net_usage_minimum                   float64   `form:"Net_usage_minimum" csv:"-"`
-	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"-"`
-	CpuBilling                          float64   `form:"CpuBilling" csv:"-"`  // в мегагерц часах
-	MemBilling                          float64   `form:"MemBilling" csv:"-"`  // в мегабайт часах
-	DiskBilling                         float64   `form:"DiskBilling" csv:"-"` // по занимаемому месту в гигабайт часах
-	NetBilling                          float64   `form:"NetBilling" csv:"-"`  // в мегабайт часах
+	Disk_totalReadLatency_maximum       float64   `form:"Disk_totalReadLatency_maximum" csv:"VM DISK Read Latency max (ms)"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"VM DISK Read Latency max time"`
+	Disk_totalReadLatency_average       float64   `form:"Disk_totalReadLatency_average" csv:"VM DISK Read Latency avg (ms)"`
+	Disk_totalReadLatency_minimum       float64   `form:"Disk_totalReadLatency_minimum" csv:"VM DISK Read Latency min (ms)"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"VM DISK Read Latency min time"`
+	Disk_totalWriteLatency_maximum      float64   `form:"Disk_totalWriteLatency_maximum" csv:"VM DISK Write Latency max (ms)"`
+	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"VM DISK Write Latency max time"`
+	Disk_totalWriteLatency_average      float64   `form:"Disk_totalWriteLatency_average" csv:"VM DISK Write Latency avg (ms)"`
+	Disk_totalWriteLatency_minimum      float64   `form:"Disk_totalWriteLatency_minimum" csv:"VM DISK Write Latency min (ms)"`
+	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"VM DISK Write Latency min time"`
+	Disk_write_maximum                  float64   `form:"Disk_write_maximum" csv:"VM DISK Write max (KB/s)"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"VM DISK Write max time"`
+	Disk_write_average                  float64   `form:"Disk_write_average" csv:"VM DISK Write avg (KB/s)"`
+	Disk_write_minimum                  float64   `form:"Disk_write_minimum" csv:"VM DISK Write min (KB/s)"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"VM DISK Write min time"`
+	Disk_read_maximum                   float64   `form:"Disk_read_maximum" csv:"VM DISK Read max (KB/s)"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"VM DISK Read max time"`
+	Disk_read_average                   float64   `form:"Disk_read_average" csv:"VM DISK Read avg (KB/s)"`
+	Disk_read_minimum                   float64   `form:"Disk_read_minimum" csv:"VM DISK Read min (KB/s)"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"VM DISK Read min time"`
+	Net_usage_maximum                   float64   `form:"Net_usage_maximum" csv:"VM NET Usage max (KB/s)"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximum_time" csv:"VM NET Usage max time"`
+	Net_usage_average                   float64   `form:"Net_usage_average" csv:"VM NET Usage avg (KB/s)"`
+	Net_usage_minimum                   float64   `form:"Net_usage_minimum" csv:"VM NET Usage min (KB/s)"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"VM NET Usage min time"`
+	CpuBilling                          float64   `form:"CpuBilling" csv:"VM CPU Billing (MHz*h)"`  // в мегагерц часах
+	MemBilling                          float64   `form:"MemBilling" csv:"VM MEM Billing (MB*h)"`   // в мегабайт часах
+	DiskBilling                         float64   `form:"DiskBilling" csv:"VM DISK Billing (GB*h)"` // по занимаемому месту в гигабайт часах
+	NetBilling                          float64   `form:"NetBilling" csv:"VM NET Billing (MB*h)"`   // в мегабайт часах
 }
 
 // TableName возвращает имя таблицы БД для модели VMRecord (используется beego ORM).
@@ -417,67 +417,67 @@ func (u *HostRecord) TableIndex() [][]string {
 
 // ClusterRecord описывает запись/справочник БД loadmon, соответствующую сущности ClusterRecord.
 type ClusterRecord struct {
-	Id                                  int64     `form:"Id"`
-	ClusterId                           int64     `form:"ClusterId"`
-	Date                                time.Time `form:"Date"`
-	Vcenter                             string    `form:"Vcenter"`
-	Datacenter                          string    `form:"Datacenter"`
-	Name                                string    `form:"Name"`
-	CpuMhzAvg                           int32     `form:"CpuMhzAvg"`
-	AllNumCpuPkgs                       int16     `form:"AllNumCpuPkgs"`
-	AllNumCpuCores                      int16     `form:"AllNumCpuCores"`
-	AllNumCpuThreads                    int16     `form:"AllNumCpuThreads"`
-	AllMemorySizeGB                     float64   `form:"AllMemorySizeGB"`
-	AllCapacityGb                       float64   `form:"AllCapacityGb"`
-	AllFreeSpaceGb                      float64   `form:"AllFreeSpaceGb"`
-	AllPercentUsed                      float64   `form:"AllPercentUsed"`
-	Cpu_usage_maximum                   float64   `orm:"null" form:"Cpu_usage_maximum"`
-	Cpu_usage_maximum_time              time.Time `orm:"null" form:"Cpu_usage_maximum_time"`
-	Cpu_usage_average                   float64   `orm:"null" form:"Cpu_usage_average"`
-	Cpu_usage_minimum                   float64   `orm:"null" form:"Cpu_usage_minimum"`
-	Cpu_usage_minimum_time              time.Time `orm:"null" form:"Cpu_usage_minimum_time"`
-	Mem_usage_maximum                   float64   `orm:"null" form:"Mem_usage_maximum"`
-	Mem_usage_maximum_time              time.Time `orm:"null" form:"Mem_usage_maximum_time"`
-	Mem_usage_average                   float64   `orm:"null" form:"Mem_usage_average"`
-	Mem_usage_minimum                   float64   `orm:"null" form:"Mem_usage_minimum"`
-	Mem_usage_minimum_time              time.Time `orm:"null" form:"Mem_usage_minimum_time"`
-	Disk_usage_maximum                  float64   `orm:"null" form:"Disk_usage_maximum"`
-	Disk_usage_maximum_time             time.Time `orm:"null" form:"Disk_usage_maximum_time"`
-	Disk_usage_average                  float64   `orm:"null" form:"Disk_usage_average"`
-	Disk_usage_minimum                  float64   `orm:"null" form:"Disk_usage_minimum"`
-	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time"`
-	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum"`
-	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time"`
-	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average"`
-	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum"`
-	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time"`
-	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum"`
-	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time"`
-	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average"`
-	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum"`
-	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time"`
-	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum"`
-	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time"`
-	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average"`
-	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimun"`
-	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time"`
-	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun"`
-	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time"`
-	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average"`
-	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimun"`
-	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time"`
-	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun"`
-	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximun_time"`
-	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average"`
-	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimun"`
-	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time"`
-	CpuBilling                          float64   `form:"CpuBilling"`  // в мегагерц часах
-	DiskBilling                         float64   `form:"DiskBilling"` // по занимаемому месту в гигабайт часах
-	MemBilling                          float64   `form:"MemBilling"`  // в мегабайт часах
-	NetBilling                          float64   `form:"NetBilling"`  // в мегабайт часах
-	HostCount                           int64     `form:"HostCount"`
-	VMCount                             int64     `form:"VMCount"`
-	StorageCount                        int64     `form:"StorageCount"`
+	Id                                  int64     `form:"Id" csv:"-"`
+	ClusterId                           int64     `form:"ClusterId" csv:"-"`
+	Date                                time.Time `form:"Date" csv:"Дата"`
+	Vcenter                             string    `form:"Vcenter" csv:"-"`
+	Datacenter                          string    `form:"Datacenter" csv:"-"`
+	Name                                string    `form:"Name" csv:"-"`
+	CpuMhzAvg                           int32     `form:"CpuMhzAvg" csv:"Cluster CPU MHz Avg"`
+	AllNumCpuPkgs                       int16     `form:"AllNumCpuPkgs" csv:"Cluster CPU Pkgs"`
+	AllNumCpuCores                      int16     `form:"AllNumCpuCores" csv:"Cluster CPU Cores"`
+	AllNumCpuThreads                    int16     `form:"AllNumCpuThreads" csv:"Cluster CPU Threads"`
+	AllMemorySizeGB                     float64   `form:"AllMemorySizeGB" csv:"Cluster Memory (GB)"`
+	AllCapacityGb                       float64   `form:"AllCapacityGb" csv:"Cluster DISK (Gb)"`
+	AllFreeSpaceGb                      float64   `form:"AllFreeSpaceGb" csv:"Cluster DISK Free (Gb)"`
+	AllPercentUsed                      float64   `form:"AllPercentUsed" csv:"Cluster DISK Used %"`
+	Cpu_usage_maximum                   float64   `orm:"null" form:"Cpu_usage_maximum" csv:"Cluster CPU max %"`
+	Cpu_usage_maximum_time              time.Time `orm:"null" form:"Cpu_usage_maximum_time" csv:"Cluster CPU max time"`
+	Cpu_usage_average                   float64   `orm:"null" form:"Cpu_usage_average" csv:"Cluster CPU avg %"`
+	Cpu_usage_minimum                   float64   `orm:"null" form:"Cpu_usage_minimum" csv:"Cluster CPU min %"`
+	Cpu_usage_minimum_time              time.Time `orm:"null" form:"Cpu_usage_minimum_time" csv:"Cluster CPU min time"`
+	Mem_usage_maximum                   float64   `orm:"null" form:"Mem_usage_maximum" csv:"Cluster MEM max %"`
+	Mem_usage_maximum_time              time.Time `orm:"null" form:"Mem_usage_maximum_time" csv:"Cluster MEM max time"`
+	Mem_usage_average                   float64   `orm:"null" form:"Mem_usage_average" csv:"Cluster MEM avg %"`
+	Mem_usage_minimum                   float64   `orm:"null" form:"Mem_usage_minimum" csv:"Cluster MEM min %"`
+	Mem_usage_minimum_time              time.Time `orm:"null" form:"Mem_usage_minimum_time" csv:"Cluster MEM min time"`
+	Disk_usage_maximum                  float64   `orm:"null" form:"Disk_usage_maximum" csv:"Cluster DISK Usage max %"`
+	Disk_usage_maximum_time             time.Time `orm:"null" form:"Disk_usage_maximum_time" csv:"Cluster DISK Usage max time"`
+	Disk_usage_average                  float64   `orm:"null" form:"Disk_usage_average" csv:"Cluster DISK Usage avg %"`
+	Disk_usage_minimum                  float64   `orm:"null" form:"Disk_usage_minimum" csv:"Cluster DISK Usage min %"`
+	Disk_usage_minimum_time             time.Time `orm:"null" form:"Disk_usage_minimum_time" csv:"Cluster DISK Usage min time"`
+	Disk_totalReadLatency_maximum       float64   `orm:"null" form:"Disk_totalReadLatency_maximum" csv:"Cluster DISK Read Latency max (ms)"`
+	Disk_totalReadLatency_maximum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_maximum_time" csv:"Cluster DISK Read Latency max time"`
+	Disk_totalReadLatency_average       float64   `orm:"null" form:"Disk_totalReadLatency_average" csv:"Cluster DISK Read Latency avg (ms)"`
+	Disk_totalReadLatency_minimum       float64   `orm:"null" form:"Disk_totalReadLatency_minimum" csv:"Cluster DISK Read Latency min (ms)"`
+	Disk_totalReadLatency_minimum_time  time.Time `orm:"null" form:"Disk_totalReadLatency_minimum_time" csv:"Cluster DISK Read Latency min time"`
+	Disk_totalWriteLatency_maximum      float64   `orm:"null" form:"Disk_totalWriteLatency_maximum" csv:"Cluster DISK Write Latency max (ms)"`
+	Disk_totalWriteLatency_maximum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_maximum_time" csv:"Cluster DISK Write Latency max time"`
+	Disk_totalWriteLatency_average      float64   `orm:"null" form:"Disk_totalWriteLatency_average" csv:"Cluster DISK Write Latency avg (ms)"`
+	Disk_totalWriteLatency_minimum      float64   `orm:"null" form:"Disk_totalWriteLatency_minimum" csv:"Cluster DISK Write Latency min (ms)"`
+	Disk_totalWriteLatency_minimum_time time.Time `orm:"null" form:"Disk_totalWriteLatency_minimum_time" csv:"Cluster DISK Write Latency min time"`
+	Disk_write_maximum                  float64   `orm:"null" form:"Disk_write_maximum" csv:"Cluster DISK Write max (KB/s)"`
+	Disk_write_maximum_time             time.Time `orm:"null" form:"Disk_write_maximum_time" csv:"Cluster DISK Write max time"`
+	Disk_write_average                  float64   `orm:"null" form:"Disk_write_average" csv:"Cluster DISK Write avg (KB/s)"`
+	Disk_write_minimum                  float64   `orm:"null" form:"Disk_write_minimun" csv:"Cluster DISK Write min (KB/s)"`
+	Disk_write_minimum_time             time.Time `orm:"null" form:"Disk_write_minimum_time" csv:"Cluster DISK Write min time"`
+	Disk_read_maximum                   float64   `orm:"null" form:"Disk_read_maximun" csv:"Cluster DISK Read max (KB/s)"`
+	Disk_read_maximum_time              time.Time `orm:"null" form:"Disk_read_maximum_time" csv:"Cluster DISK Read max time"`
+	Disk_read_average                   float64   `orm:"null" form:"Disk_read_average" csv:"Cluster DISK Read avg (KB/s)"`
+	Disk_read_minimum                   float64   `orm:"null" form:"Disk_read_minimun" csv:"Cluster DISK Read min (KB/s)"`
+	Disk_read_minimum_time              time.Time `orm:"null" form:"Disk_read_minimum_time" csv:"Cluster DISK Read min time"`
+	Net_usage_maximum                   float64   `orm:"null" form:"Net_usage_maximun" csv:"Cluster NET Usage max (KB/s)"`
+	Net_usage_maximum_time              time.Time `orm:"null" form:"Net_usage_maximun_time" csv:"Cluster NET Usage max time"`
+	Net_usage_average                   float64   `orm:"null" form:"Net_usage_average" csv:"Cluster NET Usage avg (KB/s)"`
+	Net_usage_minimum                   float64   `orm:"null" form:"Net_usage_minimun" csv:"Cluster NET Usage min (KB/s)"`
+	Net_usage_minimum_time              time.Time `orm:"null" form:"Net_usage_minimum_time" csv:"Cluster NET Usage min time"`
+	CpuBilling                          float64   `form:"CpuBilling" csv:"Cluster CPU Billing (MHz*h)"`  // в мегагерц часах
+	DiskBilling                         float64   `form:"DiskBilling" csv:"Cluster DISK Billing (GB*h)"` // по занимаемому месту в гигабайт часах
+	MemBilling                          float64   `form:"MemBilling" csv:"Cluster MEM Billing (MB*h)"`   // в мегабайт часах
+	NetBilling                          float64   `form:"NetBilling" csv:"Cluster NET Billing (MB*h)"`   // в мегабайт часах
+	HostCount                           int64     `form:"HostCount" csv:"Cluster Host Count"`
+	VMCount                             int64     `form:"VMCount" csv:"Cluster VM Count"`
+	StorageCount                        int64     `form:"StorageCount" csv:"Cluster Storage Count"`
 }
 
 // TableName возвращает имя таблицы БД для модели ClusterRecord (используется beego ORM).
@@ -734,66 +734,64 @@ func (u *VMPerfRecord) TableIndex() [][]string {
 
 // ServerSprRecords описывает запись/справочник БД loadmon, соответствующую сущности ServerSprRecords.
 type ServerSprRecords struct {
-	Id                int64     `form:"Id" json:"Id"`
-	OldId             int64     `form:"OldId" json:"OldId"`                                          //ссылка на историческую запись после переименования. 0 если такой нет. Может быть цепочка записей.
-	Type              int       `form:"Type" json:"Type"`                                            //0 - физический сервер 1 - виртуальный 2-host vmware
-	SerialNumber      string    `form:"SerialNumber" json:"SerialNumber"`                            //серийный номер для type 0 и 2
-	Vcenter           string    `form:"Vcenter" json:"Vcenter"`                                      //для type 1 и 2
-	Datacenter        string    `form:"Datacenter" json:"Datacenter"`                                //для type 1 и 2
-	Cluster           string    `form:"Cluster" json:"Cluster"`                                      //для type 1 и 2
-	ClusterId         string    `form:"ClusterId" json:"ClusterId"`                                  //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	VMSprId           int64     `form:"VMSprId" json:"VMSprId"`                                      //ссылка на справочник VM если Type = 1 иначе null
-	HWSprId           int64     `form:"HWSprId" json:"HWSprId"`                                      //ссылка на ServerHardware
-	ZabbixHostId      int64     `form:"ZabbixHostId" json:"ZabbixHostId"`                            //ссылка на ZabbixHost.Id если есть данные из Zabbix по этому серверу
-	TypeMicroservice  int       `form:"TypeMicroservice" json:"TypeMicroservice"`                    // 0 не указано принадлежность к микросервисам, роль в этом пространстве
-	RoleType          int       `form:"RoleType" json:"RoleType"`                                    //не указано 1-APP 2-DB
-	TypeWork          int       `form:"TypeWork" json:"TypeWork"`                                    //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	CriticalLevel     int       `form:"CriticalLevel" json:"CriticalLevel"`                          //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
-	Stat              int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
-	PowerState        int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием // TODO: comment truncated in screenshot
-	Active            int       `form:"Active" json:"Active"`                                        //1 активен 2 выведен из эксплуатации
-	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //время изменения статуса активности введения в эксплуатацию
-	ActivatorUser     int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"`               //автор записи
-	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"`       //время выведения из эксплуатации
-	DeActivatorUser   int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"`           //автор записи
-	TimeCreate        time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
-	CreatorUser       int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
-	BusinesPrivilage  int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"`         //ограничение по редактированию если указано 0 объект открыт // TODO: comment truncated in screenshot
-	Name              string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
-	NameFQDN          string    `form:"NameFQDN" json:"NameFQDN"`                                    //полное имя сервера
-	NameInfo          string    `orm:"null" form:"NameInfo" json:"NameInfo"`                         //альтернативное имя сервера
-	IPAddress         string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную // TODO: comment truncated in screenshot
-	MacAddress        string    `form:"MacAddress"`                                                  //список через разделитель ;
-	IPSharedVIP       string    `orm:"null" form:"IPSharedVIP" json:"IPSharedVIP"`                   //удалить разделяемый IP вводится вручную
-	Network           string    `orm:"null" form:"Network" json:"Network"`                           //сеть vlan144
-	NetworkName       string    `orm:"null" form:"NetworkName" json:"NetworkName"`                   //наименование сети сеть DMZ Prom
-	CPUCount          float64   `orm:"null" form:"CPUCount" json:"CPUCount"`                         //Количество физических процессоров
-	CPULogical        float64   `form:"CPULogical" json:"CPULogical"`                                //количество логических CPU
-	MemSize           float64   `form:"MemSize" json:"MemSize"`                                      //размер оперативной памяти сервера
-	DiskSize          float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков
-	Service           string    `form:"Service" json:"Service"`                                      //удалить сервис в котором задействован сервер
-	ServiceId         int64     `form:"ServiceId" json:"ServiceId"`                                  //удалить ссылка на базу сервисов
-	ITSystemKey       string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId // TODO: URL truncated in screenshot
-	OS                string    `form:"OS" json:"OS"`                                                //операционная система
-	Component         string    `form:"Component" json:"Component"`                                  //удалить компонента Kafka, service BD ....
-	Owner             string    `form:"Owner" json:"Owner" csv:"-"`                                  //владелец сервера (ответственный за сервер)
-	BusinessOwner     string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"`                  //владелец от бизнеса
-	ITOwner           string    `form:"ITOwner" json:"ITOwner" csv:"-"`                              //владелец со стороны ИТ
-	ProductOwner      string    `form:"ProductOwner" json:"ProductOwner" csv:"-"`                    //Владелец продукта
-	Support           string    `form:"Support" json:"Support" csv:"-"`                              //ответственные за поддержку
-	SupportTeam       string    `form:"SupportTeam" json:"SupportTeam" csv:"-"`                      //Подразделение поддержки
-	SystemType        string    `form:"SystemType" json:"SystemType"`                                //тип системы техническая ...
-	LicensingType     string    `form:"LicensingType" json:"LicensingType"`                          //тип лицензирования
-	SolutionType      string    `form:"SolutionType" json:"SolutionType"`                            //вариант решения (коробочной)
-	Users             string    `form:"Users" json:"Users" csv:"-"`                                  //пользователи системы
-	Allocation        string    `form:"Allocation" json:"Allocation"`                                //аллокация (подразделение)
-	Anotation         string    `form:"Anotation" json:"Anotation" csv:"-"`                          //описание сервера
-	TagName           string    `form:"TagName" json:"TagName"`                                      //Имя тэга для виртуальных машин (Код для справочника)
-	TagDescription    string    `form:"TagDescription" json:"TagDescription"`                        //Описание тэга для виртуальных машин
-	Role              string    `form:"Role" json:"Role"`                                            //роль сервера (сервер баз данных, сервер приложений, хост)
-	Details           string    `form:"Details" json:"Details" csv:"-"`                              //детали по серверу в свободном формате (примечание)
-	//DPCAddress           int       `form:"DPCAddress" json:"DPCAddress"`                                //удалить ЦОД по справочнику адрес
-	//DPCOffice            int       `form:"DPCOffice" json:"DPCOffice"`                                  //ЦОД по справочнику комната с адресом
+	Id                   int64     `form:"Id" json:"Id"`
+	OldId                int64     `form:"OldId" json:"OldId"`                                          //ссылка на историческую запись после переименования. 0 если такой нет. Может быть цепочка записей.
+	Type                 int       `form:"Type" json:"Type"`                                            //0 - физический сервер 1 - виртуальный 2-host vmware
+	SerialNumber         string    `form:"SerialNumber" json:"SerialNumber"`                            //серийный номер для type 0 и 2
+	Vcenter              string    `form:"Vcenter" json:"Vcenter"`                                      //для type 1 и 2
+	Datacenter           string    `form:"Datacenter" json:"Datacenter"`                                //для type 1 и 2
+	Cluster              string    `form:"Cluster" json:"Cluster"`                                      //для type 1 и 2
+	ClusterId            string    `form:"ClusterId" json:"ClusterId"`                                  //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	VMSprId              int64     `form:"VMSprId" json:"VMSprId"`                                      //ссылка на справочник VM если Type = 1 иначе null
+	HWSprId              int64     `form:"HWSprId" json:"HWSprId"`                                      //ссылка на ServerHardware
+	ZabbixHostId         int64     `form:"ZabbixHostId" json:"ZabbixHostId"`                            //ссылка на ZabbixHost.Id если есть данные из Zabbix по этому серверу
+	TypeMicroservice     int       `form:"TypeMicroservice" json:"TypeMicroservice"`                    // 0 не указано принадлежность к микросервисам, роль в этом пространстве
+	RoleType             int       `form:"RoleType" json:"RoleType"`                                    //не указано 1-APP 2-DB
+	TypeWork             int       `form:"TypeWork" json:"TypeWork"`                                    //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
+	CriticalLevel        int       `form:"CriticalLevel" json:"CriticalLevel"`                          //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
+	Stat                 int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
+	PowerState           int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием
+	Active               int       `form:"Active" json:"Active"`                                        //1 активен 2 выведен из эксплуатации
+	TimeActiveState      time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //время изменения статуса активности введения в эксплуатацию
+	ActivatorUser        int64     `orm:"null" form:"ActivatorUser" json:"ActivatorUser"`               //автор записи
+	TimeDeActiveState    time.Time `orm:"null" form:"TimeDeActiveState" json:"TimeDeActiveState"`       //время выведения из эксплуатации
+	DeActivatorUser      int64     `orm:"null" form:"DeActivatorUser" json:"DeActivatorUser"`           //автор записи
+	TimeCreate           time.Time `orm:"null" form:"TimeCreate" json:"TimeCreate"`                     //время создания записи
+	CreatorUser          int64     `orm:"null" form:"CreatorUser" json:"CreatorUser"`                   //автор записи
+	BusinesPrivilage     int64     `orm:"null" form:"BusinesPrivilage" json:"BusinesPrivilage"`         //ограничение по редактированию если указано 0 объект открыт
+	Name                 string    `form:"Name,text,Name:" valid:"MinSize(0);MaxSize(256)" json:"Name"` //
+	NameFQDN             string    `form:"NameFQDN" json:"NameFQDN"`                                    //полное имя сервера
+	NameInfo             string    `orm:"null" form:"NameInfo" json:"NameInfo"`                         //альтернативное имя сервера
+	IPAddress            string    `orm:"null" form:"IPAddress" json:"IPAddress"`                       //список IP адресов сервера при наличии информации подгружается из конфигурации VM или вводится вручную
+	MacAddress           string    `form:"MacAddress"`                                                  //список через разделитель ;
+	IPSharedVIP          string    `orm:"null" form:"IPSharedVIP" json:"IPSharedVIP"`                   //удалить разделяемый IP вводится вручную
+	Network              string    `orm:"null" form:"Network" json:"Network"`                           //сеть vlan144
+	NetworkName          string    `orm:"null" form:"NetworkName" json:"NetworkName"`                   //наименование сети сеть DMZ Prom
+	CPUCount             float64   `orm:"null" form:"CPUCount" json:"CPUCount"`                         //Количество физических процессоров
+	CPULogical           float64   `form:"CPULogical" json:"CPULogical"`                                //количество логических CPU
+	MemSize              float64   `form:"MemSize" json:"MemSize"`                                      //размер оперативной памяти сервера
+	DiskSize             float64   `form:"DiskSize" json:"DiskSize"`                                    //суммарный размер всех дисков
+	Service              string    `form:"Service" json:"Service"`                                      //удалить сервис в котором задействован сервер
+	ServiceId            int64     `form:"ServiceId" json:"ServiceId"`                                  //удалить ссылка на базу сервисов
+	ITSystemKey          string    `form:"ITSystemKey" json:"ITSystemKey"`                              //ссылка на ИТ систему из jira https://jira.bcs.ru/rest/assets/latest/aql/objects?qlQuery=objectTypeId
+	OS                   string    `form:"OS" json:"OS"`                                                //операционная система
+	Component            string    `form:"Component" json:"Component"`                                  //удалить компонента Kafka, service BD ....
+	Owner                string    `form:"Owner" json:"Owner" csv:"-"`                                  //владелец сервера (ответственный за сервер)
+	BusinessOwner        string    `form:"BusinessOwner" json:"BusinessOwner" csv:"-"`                  //владелец от бизнеса
+	ITOwner              string    `form:"ITOwner" json:"ITOwner" csv:"-"`                              //владелец со стороны ИТ
+	ProductOwner         string    `form:"ProductOwner" json:"ProductOwner" csv:"-"`                    //Владелец продукта
+	Support              string    `form:"Support" json:"Support" csv:"-"`                              //ответственные за поддержку
+	SupportTeam          string    `form:"SupportTeam" json:"SupportTeam" csv:"-"`                      //Подразделение поддержки
+	SystemType           string    `form:"SystemType" json:"SystemType"`                                //тип системы техническая ...
+	LicensingType        string    `form:"LicensingType" json:"LicensingType"`                          //тип лицензирования
+	SolutionType         string    `form:"SolutionType" json:"SolutionType"`                            //вариант решения (коробочной)
+	Users                string    `form:"Users" json:"Users" csv:"-"`                                  //пользователи системы
+	Allocation           string    `form:"Allocation" json:"Allocation"`                                //аллокация (подразделение)
+	Anotation            string    `form:"Anotation" json:"Anotation" csv:"-"`                          //описание сервера
+	TagName              string    `form:"TagName" json:"TagName"`                                      //Имя тэга для виртуальных машин (Код для справочника)
+	TagDescription       string    `form:"TagDescription" json:"TagDescription"`                        //Описание тэга для виртуальных машин
+	Role                 string    `form:"Role" json:"Role"`                                            //роль сервера (сервер баз данных, сервер приложений, хост)
+	Details              string    `form:"Details" json:"Details" csv:"-"`                              //детали по серверу в свободном формате (примечание)
 	SZHistory            string    `form:"SZHistory" json:"SZHistory"`                                  //номера сз через пробел в хронологическом порядке
 	Warning              string    `form:"Warning" json:"Warning"`                                      //предупреждение (CPU RAM)
 	Level                float64   `form:"Level" json:"Level"`                                          //уровень в процентах

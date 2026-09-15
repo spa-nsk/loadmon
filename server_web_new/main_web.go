@@ -217,6 +217,25 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 				m["last"] = name[1]
 				email := fmt.Sprintf("%s@%s", ADCreds.EffectiveName, ADCreds.LogonDomainName)
 				m["username"] = email
+
+				// Сверка групп AD пользователя (из PAC Kerberos-билета) с
+				// config.ConfigData.Auth - ОБЯЗАТЕЛЬНА для любого доменного
+				// входа. При доменной аутентификации именно эта сверка (а
+				// не users[0].Priv из локальной таблицы users) определяет
+				// уровень привилегий пользователя: см. AuthenticationGroup и
+				// ResolveDomainPrivilege в config/config.go. Если ни одна
+				// группа пользователя не найдена (в т.ч. пока Auth не
+				// заполнен) - доступ отклоняется без создания сессии;
+				// controllers/user2.go:Login по заголовку X-Loadmon-Access-
+				// Denied показывает страницу с предложением подать заявку на
+				// доступ вместо формы логина.
+				privilege, matched := config.ConfigData.ResolveDomainPrivilege(ADCreds.GroupMembershipSIDs)
+				if !matched {
+					fmt.Println("Доменный пользователь", email, "не состоит ни в одной группе доступа из JsonConfig.Auth - доступ отклонён")
+					w.Header().Set("X-Loadmon-Access-Denied", "1")
+					return
+				}
+
 				users := make([]models.AuthUser, 0)
 				qs := o.QueryTable("users").OrderBy("Email").Filter("Email__icontains", ADCreds.EffectiveName)
 				fmt.Println("Поиск пользователя: ", ADCreds.EffectiveName, " в базе пользователей")
@@ -224,30 +243,27 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 				if len(users) == 1 {
 					fmt.Println("В локальной базе пользователей найден: ", users[0].Email, name)
 					m["user_id"] = int64(users[0].Id)
-					m["privilage"] = users[0].Priv     // 0 - обычный пользователь 1 - разрешено редактировать справочник
 					m["podrazdelenie"] = users[0].Podr // 0 - не указано 1 - ДАТИ 2 - СТО
 				} else if len(users) == 0 {
 					// Доменный пользователь успешно прошёл Kerberos/SPNEGO-
-					// аутентификацию, но в локальной таблице users записи о
-					// нём ещё нет (первый вход) - заводим её автоматически с
-					// правами просмотра (Priv=0 - "обычный пользователь"),
-					// чтобы не требовать от администратора ручного заведения
-					// каждого доменного пользователя заранее. Права при
-					// необходимости повышаются вручную через существующий
-					// UI управления пользователями.
+					// аутентификацию и сверку групп выше - в локальной
+					// таблице users записи о нём ещё нет (первый вход),
+					// заводим её автоматически с уровнем привилегий,
+					// определённым по группе AD (privilege), чтобы не
+					// требовать от администратора ручного заведения каждого
+					// доменного пользователя заранее.
 					first := name[0]
 					last := ""
 					if len(name) > 1 {
 						last = name[1]
 					}
-					newUser := models.AuthUser{First: first, Last: last, Email: email, Priv: 0, Podr: 0}
+					newUser := models.AuthUser{First: first, Last: last, Email: email, Priv: privilege, Podr: 0}
 					// email всегда пуст в этой записи только если ADCreds не
 					// дал имени - подстраховка от вставки записи без email
 					// (Email в models.AuthUser помечен orm:"unique").
 					if newUser.Email == "" {
 						fmt.Println("Не удалось создать запись доменного пользователя: пустой email", ADCreds.EffectiveName)
 						m["user_id"] = 0
-						m["privilage"] = 0
 						m["podrazdelenie"] = 0
 					} else if newID, errIns := o.Insert(&newUser); errIns != nil {
 						// Гонка (два одновременных первых входа одного и того
@@ -256,20 +272,18 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 						// следующего успешного разрешения.
 						fmt.Println("Ошибка создания записи доменного пользователя: ", email, errIns)
 						m["user_id"] = 0
-						m["privilage"] = 0
 						m["podrazdelenie"] = 0
 					} else {
-						fmt.Println("Создана запись доменного пользователя (права просмотра): ", email)
+						fmt.Println("Создана запись доменного пользователя (права по группе AD, Privilege=", privilege, "): ", email)
 						m["user_id"] = newID
-						m["privilage"] = newUser.Priv
 						m["podrazdelenie"] = newUser.Podr
 					}
 				} else {
 					fmt.Println("В локальной базе пользователей неоднозначное совпадение (", len(users), "): ", ADCreds.EffectiveName)
 					m["user_id"] = 0
-					m["privilage"] = 0
 					m["podrazdelenie"] = 0
 				}
+				m["privilage"] = privilege // источник истины при доменном входе - группа AD (JsonConfig.Auth), см. пояснение выше
 
 				auth := fmt.Sprintf("%s:%s:%d:%d:%d", ADCreds.FullName, ADCreds.EffectiveName, m["user_id"], m["privilage"], m["podrazdelenie"])
 				token := base64.StdEncoding.EncodeToString([]byte(auth))

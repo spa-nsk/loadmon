@@ -84,7 +84,6 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 		typeWork := form.TypeWork                 // 0 = не менять
 		criticalLevel := form.CriticalLevel       // 0 = не менять
 		active := form.Active                     // 0 = не менять (значения 1/2)
-		dpcOffice := form.DPCOffice               // 0 = не менять
 		monitoring := form.Monitoring             // 0 = не менять
 		backuped := form.Backuped                 // 0 = не менять
 
@@ -112,7 +111,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 		// считаются пустыми и не должны приводить к "успешному" сохранению,
 		// если реально нечего применять
 		anyFilled := typeMicroservice != 0 || roleType != 0 || typeWork != 0 || criticalLevel != 0 ||
-			active != 0 || dpcOffice != 0 || monitoring != 0 || backuped != 0 ||
+			active != 0 || monitoring != 0 || backuped != 0 ||
 			itSystemKey != "" || osName != "" || owner != "" || businessOwner != "" || itOwner != "" ||
 			productOwner != "" || support != "" || supportTeam != "" || systemType != "" ||
 			licensingType != "" || solutionType != "" || users != "" || allocation != "" ||
@@ -214,9 +213,6 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 			}
 			if details != "" {
 				rec.Details = details
-			}
-			if dpcOffice != 0 {
-				rec.DPCOffice = dpcOffice
 			}
 			if szHistory != "" {
 				rec.SZHistory = szHistory

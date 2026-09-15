@@ -908,12 +908,6 @@ func RestoreSprData(to *models.ServerSprRecords, from models.ServerSprRecords) {
 	if to.Details == "" {
 		to.Details = from.Details
 	}
-	if to.DPCAddress == 0 {
-		to.DPCAddress = from.DPCAddress
-	}
-	if to.DPCOffice == 0 {
-		to.DPCOffice = from.DPCOffice
-	}
 	if to.SZHistory == "" {
 		to.SZHistory = from.SZHistory
 	}

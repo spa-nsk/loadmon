@@ -371,6 +371,16 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Загрузка кластеров и хостов за
                 период (по данным БД)</a>
             </li>
+            <li>
+              <a href="/sprsrv/clustermetricsexport"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка метрик кластеров за
+                период</a>
+            </li>
+            <li>
+              <a href="/sprsrv/vmmetricsexport"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка метрик виртуальных
+                машин за период</a>
+            </li>
           </ul>
         </div>
       </li>

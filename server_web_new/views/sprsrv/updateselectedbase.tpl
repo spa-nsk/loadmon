@@ -176,21 +176,6 @@
         <div class="card-header fw-semibold">Расположение и обслуживание</div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-sm-8 col-md-6">
-                    <label for="DPCOffice" class="form-label">ЦОД: адрес и площадка</label>
-                    <select name="DPCOffice" id="DPCOffice" class="form-select">
-                        <option value="0">Не менять</option>
-                        <option value="101">623к, г. Новосибирск, ул. Советская 37</option>
-                        <option value="102">624к, г. Новосибирск, ул. Советская 37</option>
-                        <option value="103">316к, г. Новосибирск, ул. Советская 37</option>
-                        <option value="121">Мегафон, г. Новосибирск, ул. Толмачевская 19а к3</option>
-                        <option value="131">Ростелеком, г. Новосибирск, ул. Менделеева 1</option>
-                        <option value="201">3-02 г. Москва, ул. Мира 69</option>
-                        <option value="202">4-19 г. Москва, ул. Мира 69</option>
-                        <option value="281">DSP г. Москва, ул. Шарикоподшипниковская улица 11/9</option>
-                        <option value="291">М1 г. Москва, ул. Варшавское шоссе 125</option>
-                    </select>
-                </div>
                 <div class="col-sm-4 col-md-6">
                     <label for="SZHistory" class="form-label">Номера СЗ</label>
                     <input name="SZHistory" id="SZHistory" class="form-control" type="text" placeholder="оставить без изменений" title="Через пробел, в хронологическом порядке" />
