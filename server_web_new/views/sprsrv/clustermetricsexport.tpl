@@ -36,51 +36,6 @@ function clusterMetricsExportPagerChangePageSize(size) {
     url.searchParams.set('page', '1');
     window.location.href = url.toString();
 }
-
-// Закрепление панели фильтра вверху экрана можно отключить чекбоксом -
-// приём идентичен /sprsrv/clusterperioddb (сохраняется отдельным ключом в localStorage).
-(function () {
-    var STORAGE_KEY = 'clustermetricsexport.filterSticky';
-    var bar = document.querySelector('.cluster-filter-bar');
-    var toggle = document.getElementById('clusterMetricsExportFilterStickyToggle');
-
-    function updateTheadOffset() {
-        if (!bar) return;
-        var offset = 0;
-        if (!bar.classList.contains('cluster-filter-bar-unpinned')) {
-            offset = bar.offsetHeight;
-        }
-        document.documentElement.style.setProperty('--spr-thead-top', offset + 'px');
-    }
-
-    function applySticky(sticky) {
-        if (!bar || !toggle) return;
-        bar.classList.toggle('cluster-filter-bar-unpinned', !sticky);
-        toggle.checked = sticky;
-        updateTheadOffset();
-    }
-
-    function init() {
-        if (!bar || !toggle) return;
-        var stored = null;
-        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
-        applySticky(stored === null ? true : stored === '1');
-
-        window.clusterMetricsExportToggleFilterSticky = function (sticky) {
-            applySticky(sticky);
-            try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
-        };
-
-        window.addEventListener('resize', updateTheadOffset);
-        window.addEventListener('load', updateTheadOffset);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
 </script>
 
 <div class="container-fluid d-grid gap-2">
@@ -155,8 +110,53 @@ function clusterMetricsExportPagerChangePageSize(size) {
     </div>
 </div>
 
+<script>
+// Закрепление панели фильтра вверху экрана можно отключить чекбоксом -
+// приём идентичен /sprsrv/clusterperioddb (сохраняется отдельным ключом в
+// localStorage). Скрипт размещён здесь, ПОСЛЕ .cluster-filter-bar в разметке -
+// document.querySelector должен найти уже существующий в DOM элемент (см.
+// такое же размещение в /sprsrv/hwviewlist.tpl); если разместить его раньше
+// панели фильтра, bar/toggle будут пойманы как null безвозвратно, даже
+// внутри обработчика DOMContentLoaded.
+(function () {
+    var STORAGE_KEY = 'clustermetricsexport.filterSticky';
+    var bar = document.querySelector('.cluster-filter-bar');
+    var toggle = document.getElementById('clusterMetricsExportFilterStickyToggle');
+    if (!bar || !toggle) return;
+
+    function updateTheadOffset() {
+        var offset = 0;
+        if (!bar.classList.contains('cluster-filter-bar-unpinned')) {
+            offset = bar.offsetHeight;
+        }
+        document.documentElement.style.setProperty('--spr-thead-top', offset + 'px');
+    }
+
+    function applySticky(sticky) {
+        bar.classList.toggle('cluster-filter-bar-unpinned', !sticky);
+        toggle.checked = sticky;
+        updateTheadOffset();
+    }
+
+    var stored = null;
+    try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+    applySticky(stored === null ? true : stored === '1');
+
+    window.clusterMetricsExportToggleFilterSticky = function (sticky) {
+        applySticky(sticky);
+        try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
+    };
+
+    window.addEventListener('resize', updateTheadOffset);
+    window.addEventListener('load', updateTheadOffset);
+})();
+</script>
+
 {{if .Rows}}
-<div style="overflow-x:auto">
+<!-- Без обёртки overflow-x:auto у таблицы - см. пояснение в
+     views/admin/viewexportlist.tpl: единственный скролл-контейнер страницы -
+     .content-panel (header.tpl), и обёртка вокруг таблицы ломает
+     position:sticky у thead и у панели фильтра выше. -->
 <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
     <thead>
         <tr>
@@ -255,7 +255,6 @@ function clusterMetricsExportPagerChangePageSize(size) {
         {{end}}
     </tbody>
 </table>
-</div>
 
 <div class="pager-bar pager-bar-sticky d-flex justify-content-between align-items-center mt-2">
     <span class="text-muted small">Показано {{.PageFrom}}&ndash;{{.PageTo}} из {{.RowCount}}</span>
