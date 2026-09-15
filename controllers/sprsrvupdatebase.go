@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"loadmon/auditlog"
+	"loadmon/grpcclient"
 	"loadmon/itsystem"
 	"loadmon/models"
 	"strconv"
@@ -310,20 +311,48 @@ func resolveServerPlacementText(o orm.Ormer, hwSprId int64) string {
 
 // resolveVMPlacementText возвращает read-only текст размещения для
 // виртуальной машины - у неё самой нет физического размещения, оно
-// наследуется от хоста (гипервизора), на котором она выполняется. Связь
-// VM->хост - только по имени (models.VMSprRecord.Vm_HostName сравнивается
-// без учёта регистра с Name/NameFQDN хоста), прямой FK-связи в схеме нет -
-// тот же приём, что уже используется в
-// controllers/sprsrvview2.go:placementServerSprIds для фильтра по шкафу.
+// наследуется от хоста (гипервизора), на котором она выполняется В МОМЕНТ
+// ЗАПРОСА страницы (2026-09-15, по прямому запросу пользователя "добавь...
+// отображение размещения для виртуальных машин исходя из местоположения
+// гипервизора, на котором она выполняется, в момент запроса").
+//
+// Раньше здесь использовалась локальная models.VMSprRecord.Vm_HostName
+// (обновляется только очередным фоновым опросом vSphere, могла отставать) -
+// и, что важнее, это ИМЯ ГОСТЕВОЙ ОС внутри VM, а НЕ хост ESXi (та же
+// ошибка, что была найдена и исправлена пользователем в фильтре
+// /sprsrv/view2, см. CHANGELOG (67); задел под неё - поле
+// models.VMSprRecord.Vm_EsxHost - здесь намеренно не используется, т.к.
+// пользователь прямо просит показывать состояние "в момент запроса", а не
+// последнее известное из фонового опроса).
+//
+// Вместо этого делается ЖИВОЙ запрос к vCenter через
+// grpcclient.GetVMByKeyDirect (см. её комментарий - отдельное govmomi-
+// соединение, минуя закэшированный в памяти пул сборщика) по Vcenter/
+// Datacenter/Cluster/Vm_Name записи справочника ВМ - получаем актуальный на
+// сейчас VMPoint.EsxHost (имя ESXi-хоста), а дальше ищем размещение этого
+// хоста как обычно - по его собственной записи ServerSprRecords (Type=2) и
+// связанной ServerHardware.RackCabinetId. Прямой запрос к vCenter заметно
+// медленнее кэшированного чтения, но карточка сервера открывается по одной
+// записи за раз, а не массово - см. предупреждение в комментарии
+// GetVMByKeyDirect о недопустимости массовых вызовов.
 func resolveVMPlacementText(o orm.Ormer, vmSprId int64) string {
 	if vmSprId <= 0 {
 		return ""
 	}
 	var vm models.VMSprRecord
-	if err := o.QueryTable(new(models.VMSprRecord)).Filter("Id", vmSprId).One(&vm, "Vm_HostName"); err != nil {
+	if err := o.QueryTable(new(models.VMSprRecord)).Filter("Id", vmSprId).
+		One(&vm, "Vcenter", "Datacenter", "Cluster", "Vm_Name"); err != nil {
 		return ""
 	}
-	hostName := strings.TrimSpace(vm.Vm_HostName)
+	if strings.TrimSpace(vm.Vcenter) == "" || strings.TrimSpace(vm.Vm_Name) == "" {
+		return ""
+	}
+
+	live, err := grpcclient.GetVMByKeyDirect(vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name)
+	if err != nil {
+		return "не удалось определить (ошибка обращения к vCenter: " + err.Error() + ")"
+	}
+	hostName := strings.TrimSpace(live.EsxHost)
 	if hostName == "" {
 		return ""
 	}
@@ -333,14 +362,14 @@ func resolveVMPlacementText(o orm.Ormer, vmSprId int64) string {
 		And("Type", 2).
 		AndCond(orm.NewCondition().Or("Name__iexact", hostName).Or("NameFQDN__iexact", hostName))
 	if err := o.QueryTable(new(models.ServerSprRecords)).SetCond(cond).One(&host, "Id", "Name", "HWSprId"); err != nil {
-		return ""
+		return "хост \"" + hostName + "\" (не найден в справочнике серверов)"
 	}
 	if host.HWSprId <= 0 {
-		return ""
+		return "хост \"" + host.Name + "\" (размещение хоста не указано)"
 	}
 	text := resolveServerPlacementText(o, host.HWSprId)
 	if text == "" {
-		return ""
+		return "хост \"" + host.Name + "\" (размещение хоста не указано)"
 	}
 	return text + " (унаследовано от хоста \"" + host.Name + "\")"
 }
