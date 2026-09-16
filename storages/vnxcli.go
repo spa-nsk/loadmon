@@ -108,6 +108,22 @@ type VNXHBA struct {
 	PortList             []*VNXHBAPort //
 }
 
+// VNXStoragePool - описание пула хранения СХД EMC VNX, полученное через
+// naviseccli (storagepool -list -description ...). Добавлено 2026-09-16 по
+// запросу пользователя loadmon "для VNX/Unity/Lenovo тоже нужно" (обработка
+// пулов) - см. GetStoragePoolsCmd ниже и cmdb.syncVNXHardware.
+type VNXStoragePool struct {
+	Id                    int64   //Pool ID
+	Name                  string  //Pool Name
+	Description           string  //Description - может быть пустой строкой, если не заполнено администратором СХД
+	RaidType              string  //Raid Type
+	State                 string  //State (Ready/Offline/...)
+	UserCapacityGBs       float64 //User Capacity (GBs)
+	AvailableCapacityGBs  float64 //Available Capacity (GBs)
+	ConsumedCapacityGBs   float64 //Consumed Capacity (GBs)
+	PercentFull           float64 //Percent Full
+}
+
 // VNXDisk - описание физического диска СХД EMC VNX, полученное через naviseccli
 type VNXDisk struct {
 	Id                    int64  //Id в справочнике
@@ -342,6 +358,80 @@ func GetDisksCmd(adress string) ([]*VNXDisk, error) {
 		}
 	}
 	return disks, nil
+}
+
+// GetStoragePoolsCmd получает список пулов хранения СХД EMC VNX через утилиту
+// naviseccli (storagepool -list -description -availableCap -userCap
+// -consumedCap -state -percentFull) - добавлено 2026-09-16 по запросу
+// пользователя loadmon "для VNX/Unity/Lenovo тоже нужно" (обработка пулов),
+// тот же парсинг псевдо-XML-обёртки построчного вывода naviseccli, что и у
+// GetLunsCmd/GetDisksCmd - "Pool Name" служит маркером начала новой записи
+// (первая строка блока для каждого пула в реальном выводе CLI).
+// ⚠️ Как и у остальных VNX-функций, разбор рассчитан на типовой вывод
+// naviseccli - при иной версии прошивки/CLI возможны расхождения по именам
+// полей, требующие правки после первого реального запуска.
+func GetStoragePoolsCmd(adress string) ([]*VNXStoragePool, error) {
+	var msg NavisecMessage
+	var pools []*VNXStoragePool
+	var errorCode uint64
+	var success bool
+
+	cmd := exec.Command("/opt/Navisphere/bin/naviseccli", "-address", adress, "-secfilepath", "/work/loadmon/navikey", "-xml", "storagepool", "-list", "-description", "-availableCap", "-userCap", "-consumedCap", "-state", "-percentFull")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	err := cmd.Run()
+	if err != nil {
+		log.Println("Ошибка запуска процесса: ", err, cmd.String())
+		return nil, errors.New("Error start command")
+	}
+
+	err = xml.Unmarshal(out.Bytes(), &msg)
+	if err != nil {
+		fmt.Println("Ошибка преобразования XML:", err)
+		return nil, errors.New("Error unmarshal XML")
+	}
+
+	for _, stat := range msg.MESSAGE.SIMPLERSP.METHODRESPONSE.RETURNVALUE.VALUENAMEDINSTANCE.INSTANCE.PROPERTY {
+		switch {
+		case stat.NAME == "errorCode" && stat.TYPE == "uint32":
+			errorCode, _ = strconv.ParseUint(stat.VALUE, 10, 32)
+		case stat.NAME == "success" && stat.TYPE == "boolean":
+			success, _ = strconv.ParseBool(stat.VALUE)
+		}
+	}
+
+	if errorCode != 0 || !success {
+		fmt.Println("Ошибка в сообщении NaviSecCLI:", errorCode, success)
+		return nil, errors.New("Error return message NaviSecCLI")
+	}
+
+	i := 0
+	for _, val := range msg.MESSAGE.SIMPLERSP.METHODRESPONSE.PARAMVALUE.VALUE.PARAMVALUE {
+		switch {
+		case val.NAME == "Pool Name" && val.TYPE == "string":
+			pools = append(pools, new(VNXStoragePool))
+			i++
+			pools[i-1].Name = val.VALUE
+		case val.NAME == "Pool ID" && val.TYPE == "string":
+			pools[i-1].Id, _ = strconv.ParseInt(val.VALUE, 10, 64)
+		case val.NAME == "Description" && val.TYPE == "string":
+			pools[i-1].Description = val.VALUE
+		case val.NAME == "Raid Type" && val.TYPE == "string":
+			pools[i-1].RaidType = val.VALUE
+		case val.NAME == "State" && val.TYPE == "string":
+			pools[i-1].State = val.VALUE
+		case val.NAME == "User Capacity (GBs)" && val.TYPE == "string":
+			pools[i-1].UserCapacityGBs, _ = strconv.ParseFloat(val.VALUE, 64)
+		case val.NAME == "Available Capacity (GBs)" && val.TYPE == "string":
+			pools[i-1].AvailableCapacityGBs, _ = strconv.ParseFloat(val.VALUE, 64)
+		case val.NAME == "Consumed Capacity (GBs)" && val.TYPE == "string":
+			pools[i-1].ConsumedCapacityGBs, _ = strconv.ParseFloat(val.VALUE, 64)
+		case val.NAME == "Percent Full" && val.TYPE == "string":
+			pools[i-1].PercentFull, _ = strconv.ParseFloat(val.VALUE, 64)
+		}
+	}
+	return pools, nil
 }
 
 // GetLunsCmd получает список томов (LUN) СХД EMC VNX через утилиту naviseccli (lun -list)

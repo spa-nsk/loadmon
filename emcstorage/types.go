@@ -147,14 +147,19 @@ type BasicSystemInfo struct {
 	} `json:"entries"`
 }
 
-// PoolContent - содержимое сведений о пуле хранения (pool)
+// PoolContent - содержимое сведений о пуле хранения (pool). Поля
+// Description/Health добавлены 2026-09-16 по запросу пользователя loadmon
+// "для VNX/Unity/Lenovo тоже нужно" (обработка пулов, обязательно с полем
+// description) - см. GetPool (запрошены в fields) и cmdb.syncUnityHardware.
 type PoolContent struct {
-	ID             string `json:"id"`             //Unique identifier of the pool instance.
-	Name           string `json:"name"`           //Pool name, unique in the storage system.
-	SizeFree       uint64 `json:"sizeFree"`       //Size of free space available in the pool.
-	SizeTotal      uint64 `json:"sizeTotal"`      //The total size of space from the pool, which will be the sum of sizeFree, sizeUsed and sizePreallocated space.
-	SizeUsed       uint64 `json:"sizeUsed"`       //Size allocated from the pool by storage resources, used for storing data. This will be the sum of the sizeAllocated values of each storage resource in t
-	SizeSubscribed uint64 `json:"sizeSubscribed"` //Size of space requested by the storage resources allocated in the pool for possible future allocations. If this value is greater than the total size of t
+	ID             string     `json:"id"`             //Unique identifier of the pool instance.
+	Name           string     `json:"name"`           //Pool name, unique in the storage system.
+	Description    string     `json:"description"`    //Description задаётся администратором СХД - может быть пустой строкой
+	Health         HealthInfo `json:"health"`          //Health information for the pool
+	SizeFree       uint64     `json:"sizeFree"`       //Size of free space available in the pool.
+	SizeTotal      uint64     `json:"sizeTotal"`      //The total size of space from the pool, which will be the sum of sizeFree, sizeUsed and sizePreallocated space.
+	SizeUsed       uint64     `json:"sizeUsed"`       //Size allocated from the pool by storage resources, used for storing data. This will be the sum of the sizeAllocated values of each storage resource in t
+	SizeSubscribed uint64     `json:"sizeSubscribed"` //Size of space requested by the storage resources allocated in the pool for possible future allocations. If this value is greater than the total size of t
 }
 
 // Pool struct

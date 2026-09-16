@@ -73,6 +73,30 @@ func GetUnityDisks(address string) ([]emcstorage.DiskContent, error) {
 	return out, nil
 }
 
+// GetUnityPools возвращает пулы хранения Unity (2026-09-16, добавлено по
+// запросу пользователя loadmon "для VNX/Unity/Lenovo тоже нужно" (обработка
+// пулов) - session.GetPool() уже существовал в emcstorage, но использовался
+// только в закомментированном экспериментальном коде (storages/unity.go:
+// InitData); теперь заведён отдельным обёрточным методом по образцу
+// GetUnityDPE/GetUnityDAE/GetUnityDisks для использования в
+// cmdb.syncUnityHardware).
+func GetUnityPools(address string) ([]emcstorage.PoolContent, error) {
+	session, err := openUnitySession(address)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseSession()
+	resp, err := session.GetPool()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]emcstorage.PoolContent, 0, len(resp.Entries))
+	for _, e := range resp.Entries {
+		out = append(out, e.Content)
+	}
+	return out, nil
+}
+
 // unityKpiLatestPerEntry возвращает последнее по времени значение KPI для каждого
 // экземпляра path (например, отдельный SP в kpi.sp.*.utilization).
 func unityKpiLatestPerEntry(address, path string) ([]float64, bool) {

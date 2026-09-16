@@ -82,3 +82,34 @@ func (m *StorageDisk) TableUnique() [][]string {
 // (см. выше); повтор тех же колонок здесь давал дублирующиеся индексы и
 // падение RunSyncdb на чистой базе (см. models/storage_metric.go и
 // CHANGELOG).
+
+// StoragePool — логический пул хранения СХД (Huawei Dorado/OceanStor
+// storagepool, Lenovo storage-pool и т.п. - модель намеренно вендор-
+// независимая, как StorageEnclosure/StorageDisk). Добавлено 2026-09-16 по
+// прямому запросу пользователя loadmon "добавь обработку пулов и обязательно
+// с полем description" (продолжение задачи по расширению go-dorado-sdk
+// дисками/полками - см. cmdb.syncHuaweiHardware) - Description ОБЯЗАТЕЛЬНО
+// заполняется из вендорского поля DESCRIPTION (у Huawei StoragePools.
+// DESCRIPTION приходит пустой строкой, если пул не аннотирован
+// администратором СХД - это нормально, не ошибка синхронизации).
+type StoragePool struct {
+	Id               int64     `form:"Id" orm:"auto;pk"`
+	StorageSystemsId int64     `form:"StorageSystemsId" orm:"index"`
+	ExternalKey      string    `form:"ExternalKey" orm:"size(128);index"` // стабильный ключ в рамках СХД (huawei:pool:<ID> и т.п.)
+	Name             string    `form:"Name" orm:"size(128)"`
+	Description      string    `form:"Description" orm:"size(255)"` // DESCRIPTION у вендорского API, может быть пустым
+	HealthStatus     int       `form:"HealthStatus"`                // код health API, 0 если неизвестно
+	TotalCapacityGb  float64   `form:"TotalCapacityGb"`
+	FreeCapacityGb   float64   `form:"FreeCapacityGb"`
+	UsedCapacityGb   float64   `form:"UsedCapacityGb"`
+	UsedPercent      float64   `form:"UsedPercent"`
+	Status           int       `form:"Status"` // StorageHWStatus*
+	SourceUpdateType int       `form:"SourceUpdateType"`
+	Time_Mfy         time.Time `form:"Time_Mfy"`
+}
+
+func (m *StoragePool) TableName() string { return "storage_pool" }
+
+func (m *StoragePool) TableUnique() [][]string {
+	return [][]string{{"StorageSystemsId", "ExternalKey"}}
+}

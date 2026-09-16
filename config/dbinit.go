@@ -239,6 +239,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.ServerMetricRecord))
 	orm.RegisterModel(new(models.StorageEnclosure))
 	orm.RegisterModel(new(models.StorageDisk))
+	orm.RegisterModel(new(models.StoragePool))
 	orm.RegisterModel(new(models.StorageMetric))
 	orm.RegisterModel(new(models.StorageMetricRecord))
 
