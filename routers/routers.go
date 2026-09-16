@@ -98,6 +98,11 @@ func init() {
 	beego.Router("/sprsrv/networklist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetwork")
 	beego.Router("/sprsrv/networkedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEdit")
 
+	// Справочник IP-адресов (models.IPAddressSprRecords) - производная таблица,
+	// автосинхронизация из справочника серверов (см. cmdb/syncnetworkip.go),
+	// read-only, без формы редактирования (2026-09-16).
+	beego.Router("/sprsrv/ipaddresslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprIPAddress")
+
 	// Справочник сетевых коммутаторов (models.SwitchSprRecords) со связями с сетями (models.SwitchNetworkLink).
 	beego.Router("/sprsrv/switchlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSwitch")
 	beego.Router("/sprsrv/switchedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSwitchEdit")

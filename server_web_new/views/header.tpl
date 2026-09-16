@@ -459,6 +459,10 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник сетей</a>
             </li>
             <li>
+              <a href="/sprsrv/ipaddresslist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник IP-адресов</a>
+            </li>
+            <li>
               <a href="/sprsrv/switchlist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник коммутаторов</a>
             </li>

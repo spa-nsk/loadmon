@@ -213,6 +213,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.NetworkSprRecords))
 	orm.RegisterModel(new(models.SwitchSprRecords))
 	orm.RegisterModel(new(models.SwitchNetworkLink))
+	orm.RegisterModel(new(models.IPAddressSprRecords))
 	orm.RegisterModel(new(models.ModelEquipment))
 	orm.RegisterModel(new(models.ModelVendor))
 	orm.RegisterModel(new(models.Components))

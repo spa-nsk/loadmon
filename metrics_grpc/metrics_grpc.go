@@ -184,6 +184,22 @@ func main() {
 	tickerZabbix := time.NewTicker(time.Minute * time.Duration(10))
 	defer tickerZabbix.Stop()
 
+	// tickerNetworkIP - ежедневное автообновление справочников сетей/IP-адресов
+	// (cmdb.SyncNetworkAndIPDirectories, см. её комментарий) из полей
+	// ServerSprRecords.Network/IPAddress/MacAddress (2026-09-16, по запросу
+	// пользователя "делай автообновление 1 раз в сутки после сохранения
+	// метрик"). Сделан ОТДЕЛЬНЫМ независимым суточным тикером (а не хвостом
+	// конкретного case ниже, например ticker4/timer.C, который относится
+	// только к сохранению метрик vSphere) - ServerSprRecords пополняется
+	// несколькими независимыми источниками с разными таймерами (VMware -
+	// ticker4/timer, HPE OneView - ticker8, Zabbix - tickerZabbix), поэтому
+	// привязка к любому ОДНОМУ из них не гарантировала бы отражения данных
+	// от остальных. Первый запуск - сразу при старте приложения (см. вызов
+	// cmdb.SyncNetworkAndIPDirectories() ниже, рядом с cmdb.ClearOldMetric()
+	// и остальной стартовой инициализацией), далее - раз в 24 часа по тикеру.
+	tickerNetworkIP := time.NewTicker(time.Hour * time.Duration(24))
+	defer tickerNetworkIP.Stop()
+
 	tickerStorageMetrics := time.NewTicker(time.Minute)
 	defer tickerStorageMetrics.Stop()
 	// (2026-09-04) Сбор поминутных метрик производительности СХД
@@ -205,6 +221,7 @@ func main() {
 	cmdb.ClearOldHardwareEventLog()  // журнал изменений конфигурации серверов/корзин - ретеншен 30 суток, см. cmdb/hardwareeventlog.go
 	auditlog.ClearOldServerSprEventLog() // журнал ручных изменений карточек серверов - ретеншен 180 суток, см. cmdb/serversprchangelog.go
 	zabbix.Get10MinutesHistory()
+	go cmdb.SyncNetworkAndIPDirectories() // первый запуск - сразу при старте, далее - по tickerNetworkIP раз в 24ч (см. ниже)
 
 	go func() {
 		for {
@@ -215,6 +232,7 @@ func main() {
 				ticker8.Stop()
 				ticker9.Stop()
 				ticker10.Stop()
+				tickerNetworkIP.Stop()
 				tickerStorageMetrics.Stop()
 				vspheremetrics.GetGlobalVMInfrastructure().SetDoneVcenter()
 				//c <- "exit" // завершить обработчик сохранения кластеров
@@ -289,6 +307,9 @@ func main() {
 					cmdb.ClearOldHardwareEventLog()  // и журнала изменений конфигурации (ретеншен 30 суток)
 					auditlog.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
 				}()
+
+			case <-tickerNetworkIP.C:
+				go cmdb.SyncNetworkAndIPDirectories()
 
 			case <-tickerZabbix.C:
 				zabbix.Get10MinutesHistory()
