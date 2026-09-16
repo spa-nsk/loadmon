@@ -27,6 +27,14 @@ const (
 	TypeEthernetPort     = 213
 	TypeHyperMetroPair   = 15361
 	TypeHyperMetroDomain = 15362
+	// TypeDisk/TypeEnclosure - объектные типы физического инвентаря
+	// (2026-09-16, добавлено по запросу пользователя loadmon "расширить SDK
+	// для сбора дисков/полок Huawei Dorado/OceanStor" - см. Disk/Enclosure
+	// ниже) - согласно публичной документации Huawei DeviceManager REST API
+	// (объект "disk" = 10, объект "enclosure" = 21 у линейки Dorado/
+	// OceanStor V3/V5/Pacific).
+	TypeDisk      = 10
+	TypeEnclosure = 21
 )
 
 // For HyperMetroPair RUNNINGSTATUS
@@ -74,6 +82,8 @@ var (
 	ErrSnapshotNotFound         = errors.New("snapshot is not found")
 	ErrStoragePoolNotFound      = errors.New("storage pool is not found")
 	ErrTargetPortNotFound       = errors.New("target port is not found")
+	ErrDiskNotFound             = errors.New("disk is not found")
+	ErrEnclosureNotFound        = errors.New("enclosure is not found")
 
 	ErrUnAuthorized = errors.New("failed to authorized token")
 	ErrTimeoutWait  = errors.New("timeout to wait")

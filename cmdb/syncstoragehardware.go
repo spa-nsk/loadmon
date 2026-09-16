@@ -16,18 +16,32 @@ import (
 	"github.com/lovi-cloud/go-dorado-sdk/dorado"
 )
 
-// SyncStorageHardwareForSystem синхронизирует полки и диски одной СХД после
-// успешного опроса томов (вызывается из UpdateVolumeStorage) - обязательно
-// по КАЖДОМУ вендору, представленному в справочнике СХД (2026-09-03):
-//   - VNX (1) и Unity (2) - полная инвентаризация полок и дисков.
+// SyncStorageHardwareForSystem синхронизирует полки, диски и пулы хранения
+// одной СХД после успешного опроса томов (вызывается из UpdateVolumeStorage)
+// - обязательно по КАЖДОМУ вендору, представленному в справочнике СХД
+// (2026-09-03):
+//   - VNX (1) и Unity (2) - полная инвентаризация полок и дисков, плюс пулы
+//     (2026-09-16, "для VNX/Unity/Lenovo тоже нужно" - см.
+//     storages.GetStoragePoolsCmd/GetUnityPools).
 //   - Lenovo (5) - полная инвентаризация полок/дисков через GetGraph
-//     (Tray/Drive), см. syncLenovoHardware.
-//   - Dorado/OceanStor (3, 4) - используемый SDK НЕ даёт листинг физических
-//     дисков/полок (нет соответствующих методов - см. ревью в этой сессии),
-//     поэтому вместо полного hardware-инвентаря обновляется только сводная
-//     сырая ёмкость СХД (StorageSystems.TotalSizeRAW/UsedPercent) из
-//     GetSystem - см. syncHuaweiSystemTotals. Это ограничение конкретного
-//     SDK, а не пропуск вендора.
+//     (Tray/Drive), плюс пулы через уже существовавший
+//     session.GetStoragePools() (2026-09-16, тот же запрос), см.
+//     syncLenovoHardware.
+//   - Dorado/OceanStor (3, 4) - полная инвентаризация полок и дисков через
+//     GetEnclosures()/GetDisks() (2026-09-16, методы добавлены в вендоренный
+//     go-dorado-sdk по запросу пользователя loadmon - см.
+//     go-dorado-sdk/dorado/enclosure.go и disk.go), плюс пулы через уже
+//     существовавший GetStoragePools(), см. syncHuaweiHardware. Сводная
+//     сырая ёмкость/UsedPercent из GetSystem (syncHuaweiSystemTotals)
+//     используется как основа/резерв на случай, если листинг дисков не
+//     поддержан конкретной прошивкой.
+//
+// Во всех четырёх вендорах пулы хранятся в единой вендор-независимой
+// models.StoragePool (см. её комментарий) - поле Description заполняется из
+// вендорского API ОБЯЗАТЕЛЬНО там, где оно доступно (Huawei DESCRIPTION,
+// Unity description, VNX Description из naviseccli); у Lenovo SANtricity API
+// отдельного поля description для дисковых групп/пулов нет, там Description
+// остаётся пустой строкой - ограничение API, не ошибка синхронизации.
 func SyncStorageHardwareForSystem(o orm.Ormer, shd *models.StorageSystems) (err error) {
 	if shd == nil || shd.Id <= 0 || shd.Power != 1 {
 		return nil
@@ -43,16 +57,23 @@ func SyncStorageHardwareForSystem(o orm.Ormer, shd *models.StorageSystems) (err 
 			err = fmt.Errorf("паника при синхронизации hardware: %v", r)
 		}
 	}()
+	// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-16, "по всем СХД не собираются данные по
+	// дискам и полкам, хотя запросы проходят" - без ошибок в логе и без
+	// доступа к БД со стороны пользователя единственный способ понять, на
+	// каком шаге теряются данные - счётчики в лог сразу после каждого
+	// вендорского API-вызова, до upsert; удалить после диагностики).
+	log.Printf("[HW-sync] СХД Id=%d ShortName=%s ApiType=%d Power=%d - запуск синхронизации hardware", shd.Id, shd.ShortName, shd.ApiType, shd.Power)
 	switch shd.ApiType {
 	case 1:
 		return syncVNXHardware(o, shd)
 	case 2:
 		return syncUnityHardware(o, shd)
 	case 3, 4:
-		return syncHuaweiSystemTotals(o, shd)
+		return syncHuaweiHardware(o, shd)
 	case 5:
 		return syncLenovoHardware(o, shd)
 	default:
+		log.Printf("[HW-sync] СХД Id=%d: неизвестный ApiType=%d, hardware не синхронизируется", shd.Id, shd.ApiType)
 		return nil
 	}
 }
@@ -66,6 +87,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("[HW-sync] Unity Id=%d: GetUnityDPE вернул %d записей", shd.Id, len(dpeList))
 	for _, dpe := range dpeList {
 		key := "dpe:" + dpe.ID
 		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
@@ -93,6 +115,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("[HW-sync] Unity Id=%d: GetUnityDAE вернул %d записей", shd.Id, len(daeList))
 	for _, dae := range daeList {
 		key := "dae:" + dae.ID
 		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
@@ -120,6 +143,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("[HW-sync] Unity Id=%d: GetUnityDisks вернул %d записей", shd.Id, len(disks))
 	inUse := 0
 	var totalCapacityGb float64
 	for _, d := range disks {
@@ -151,9 +175,54 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		touchedDisk = append(touchedDisk, id)
 	}
 
+	touchedPool := make([]int64, 0)
+	pools, poolsErr := storages.GetUnityPools(shd.IpAddress)
+	if poolsErr != nil {
+		// GetUnityPools - не фатально для остального hardware-инвентаря (полки
+		// и диски уже собраны выше); при ошибке НЕ вызываем
+		// deactivateAbsentStoragePools ниже, чтобы транзитная ошибка запроса
+		// не деактивировала все реально существующие пулы (2026-09-16, "для
+		// VNX/Unity/Lenovo тоже нужно" - обработка пулов).
+		log.Printf("[HW-sync] Unity Id=%d: GetUnityPools вернул ошибку (не прерывает синхронизацию hardware): %v", shd.Id, poolsErr)
+	} else {
+		log.Printf("[HW-sync] Unity Id=%d: GetUnityPools вернул %d записей", shd.Id, len(pools))
+		for _, p := range pools {
+			totalGb := float64(p.SizeTotal) / (1024 * 1024 * 1024)
+			freeGb := float64(p.SizeFree) / (1024 * 1024 * 1024)
+			usedGb := float64(p.SizeUsed) / (1024 * 1024 * 1024)
+			usedPercent := 0.0
+			if p.SizeTotal > 0 {
+				usedPercent = float64(p.SizeUsed) / float64(p.SizeTotal) * 100
+			}
+			id, err := upsertStoragePool(o, shd.Id, models.StoragePool{
+				ExternalKey: "unity:pool:" + p.ID,
+				Name:        firstNonEmptyStr(p.Name, "Pool "+p.ID),
+				// Description ОБЯЗАТЕЛЬНО заполняется полем description Unity
+				// REST API (по прямому запросу пользователя loadmon) - пустая
+				// строка, если пул не аннотирован администратором СХД, это не
+				// ошибка.
+				Description:      p.Description,
+				HealthStatus:      p.Health.Value,
+				TotalCapacityGb:   totalGb,
+				FreeCapacityGb:    freeGb,
+				UsedCapacityGb:    usedGb,
+				UsedPercent:       usedPercent,
+				Status:            models.StorageHWStatusActive,
+				SourceUpdateType:  models.StorageSourceUpdateStorageAPI,
+				Time_Mfy:          time.Now().Local(),
+			})
+			if err != nil {
+				return err
+			}
+			touchedPool = append(touchedPool, id)
+		}
+		deactivateAbsentStoragePools(o, shd.Id, touchedPool)
+	}
+
 	deactivateAbsentStorageEnclosures(o, shd.Id, touchedEnc)
 	deactivateAbsentStorageDisks(o, shd.Id, touchedDisk)
 	updateStorageSystemsDiskStats(o, shd, len(disks), inUse, totalCapacityGb)
+	log.Printf("[HW-sync] Unity Id=%d: сохранено полок=%d дисков=%d пулов=%d", shd.Id, len(touchedEnc), len(touchedDisk), len(touchedPool))
 	return nil
 }
 
@@ -162,6 +231,7 @@ func syncVNXHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("[HW-sync] VNX Id=%d: GetDisksCmd вернул %d записей", shd.Id, len(disks))
 	encByNum := map[uint32]int64{}
 	touchedEnc := make([]int64, 0)
 	touchedDisk := make([]int64, 0)
@@ -228,9 +298,53 @@ func syncVNXHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		touchedDisk = append(touchedDisk, id)
 	}
 
+	touchedPool := make([]int64, 0)
+	poolsList, poolsErr := storages.GetStoragePoolsCmd(shd.IpAddress)
+	if poolsErr != nil {
+		// naviseccli storagepool -list - не фатально для остального
+		// hardware-инвентаря (полки/диски уже собраны выше); при ошибке НЕ
+		// деактивируем существующие пулы, см. тот же приём у syncUnityHardware
+		// (2026-09-16, "для VNX/Unity/Lenovo тоже нужно" - обработка пулов).
+		log.Printf("[HW-sync] VNX Id=%d: GetStoragePoolsCmd вернул ошибку (не прерывает синхронизацию hardware): %v", shd.Id, poolsErr)
+	} else {
+		log.Printf("[HW-sync] VNX Id=%d: GetStoragePoolsCmd вернул %d записей", shd.Id, len(poolsList))
+		for _, p := range poolsList {
+			if p == nil {
+				continue
+			}
+			usedPercent := 0.0
+			if p.UserCapacityGBs > 0 {
+				usedPercent = p.ConsumedCapacityGBs / p.UserCapacityGBs * 100
+			}
+			id, err := upsertStoragePool(o, shd.Id, models.StoragePool{
+				ExternalKey: fmt.Sprintf("vnx:pool:%d", p.Id),
+				Name:        firstNonEmptyStr(p.Name, fmt.Sprintf("Pool %d", p.Id)),
+				// Description ОБЯЗАТЕЛЬНО заполняется полем Description из
+				// naviseccli storagepool -list -description (по прямому
+				// запросу пользователя loadmon) - у VNX часто приходит пустой
+				// строкой, если пул не аннотирован администратором, это не
+				// ошибка.
+				Description:      p.Description,
+				TotalCapacityGb:  p.UserCapacityGBs,
+				FreeCapacityGb:   p.AvailableCapacityGBs,
+				UsedCapacityGb:   p.ConsumedCapacityGBs,
+				UsedPercent:      usedPercent,
+				Status:           models.StorageHWStatusActive,
+				SourceUpdateType: models.StorageSourceUpdateStorageAPI,
+				Time_Mfy:         time.Now().Local(),
+			})
+			if err != nil {
+				return err
+			}
+			touchedPool = append(touchedPool, id)
+		}
+		deactivateAbsentStoragePools(o, shd.Id, touchedPool)
+	}
+
 	deactivateAbsentStorageEnclosures(o, shd.Id, touchedEnc)
 	deactivateAbsentStorageDisks(o, shd.Id, touchedDisk)
 	updateStorageSystemsDiskStats(o, shd, len(disks), inUse, totalCapacityGb)
+	log.Printf("[HW-sync] VNX Id=%d: сохранено полок=%d дисков=%d пулов=%d", shd.Id, len(touchedEnc), len(touchedDisk), len(touchedPool))
 	return nil
 }
 
@@ -268,6 +382,48 @@ func upsertStorageDisk(o orm.Ormer, storageID int64, row models.StorageDisk) (in
 	}
 	id, err := o.Insert(&row)
 	return id, err
+}
+
+// upsertStoragePool - тот же upsert-по-ExternalKey паттерн, что и у
+// upsertStorageEnclosure/upsertStorageDisk (2026-09-16, добавлено по
+// запросу пользователя loadmon "добавь обработку пулов и обязательно с
+// полем description" - см. syncHuaweiHardware и models.StoragePool).
+func upsertStoragePool(o orm.Ormer, storageID int64, row models.StoragePool) (int64, error) {
+	row.StorageSystemsId = storageID
+	existing := models.StoragePool{}
+	err := o.QueryTable(new(models.StoragePool)).
+		Filter("StorageSystemsId", storageID).
+		Filter("ExternalKey", row.ExternalKey).
+		One(&existing)
+	if err == nil {
+		row.Id = existing.Id
+		if _, err := o.Update(&row); err != nil {
+			return 0, err
+		}
+		return row.Id, nil
+	}
+	id, err := o.Insert(&row)
+	return id, err
+}
+
+func deactivateAbsentStoragePools(o orm.Ormer, storageID int64, touched []int64) {
+	t := map[int64]bool{}
+	for _, id := range touched {
+		t[id] = true
+	}
+	var rows []*models.StoragePool
+	_, _ = o.QueryTable(new(models.StoragePool)).
+		Filter("StorageSystemsId", storageID).
+		Filter("SourceUpdateType", models.StorageSourceUpdateStorageAPI).
+		Filter("Status", models.StorageHWStatusActive).
+		All(&rows)
+	for _, r := range rows {
+		if r == nil || t[r.Id] {
+			continue
+		}
+		r.Status = models.StorageHWStatusRemoved
+		_, _ = o.Update(r, "Status")
+	}
 }
 
 func deactivateAbsentStorageEnclosures(o orm.Ormer, storageID int64, touched []int64) {
@@ -330,12 +486,17 @@ func updateStorageSystemsDiskStats(o orm.Ormer, shd *models.StorageSystems, tota
 }
 
 // syncHuaweiSystemTotals обновляет сводную сырую ёмкость и % использования
-// СХД Huawei Dorado/OceanStor из GetSystem() - единственное, что доступно
-// для этого вендора в подключённом SDK без per-диск/per-полка листинга (см.
-// комментарий у SyncStorageHardwareForSystem). TOTALCAPACITY у Huawei API
-// приходит в Мб (см. GetDoradoLun/GetHuaweyVolume - там же встречается тот
-// же паттерн перевода capacity/sectorsize в Гб), поэтому переводится в Гб
-// делением на 1024.
+// СХД Huawei Dorado/OceanStor из GetSystem(). Изначально (до 2026-09-16) это
+// был единственный доступный для этого вендора источник данных без per-
+// диск/per-полка листинга; теперь используется как первый шаг внутри
+// syncHuaweiHardware - "базовое" значение TotalSizeRAW/UsedPercent, которое
+// при успешном опросе GetDisks()/GetEnclosures() перезаписывается точными
+// суммами по факту собранных физических дисков (как у VNX/Unity/Lenovo), а
+// при ошибке листинга дисков (например, старая прошивка без этих ручек)
+// остаётся единственным источником - см. updateStorageSystemsDiskStats.
+// TOTALCAPACITY у Huawei API приходит в Мб (см. GetDoradoLun/GetHuaweyVolume
+// - там же встречается тот же паттерн перевода capacity/sectorsize в Гб),
+// поэтому переводится в Гб делением на 1024.
 func syncHuaweiSystemTotals(o orm.Ormer, shd *models.StorageSystems) error {
 	key := "spaview"
 	keypass := datamap.GetKeyData(key)
@@ -371,6 +532,197 @@ func syncHuaweiSystemTotals(o orm.Ormer, shd *models.StorageSystems) error {
 	return err
 }
 
+// syncHuaweiHardware синхронизирует полки, диски и пулы хранения СХД Huawei
+// Dorado/OceanStor через GetEnclosures()/GetDisks() (2026-09-16, методы
+// добавлены в вендоренный go-dorado-sdk по запросу пользователя loadmon
+// "расширить SDK для сбора дисков/полок" - см.
+// go-dorado-sdk/dorado/enclosure.go и disk.go) и уже существовавший
+// GetStoragePools() (см. models.StoragePool - добавлена в тот же день по
+// отдельному запросу "добавь обработку пулов и обязательно с полем
+// description"). Тот же mark-and-sweep паттерн (upsert по ExternalKey +
+// деактивация нетронутых), что и
+// syncVNXHardware/syncUnityHardware/syncLenovoHardware.
+//
+// ⚠️ Имена JSON-полей у Disk/Enclosure взяты из общей документации Huawei
+// DeviceManager REST API, а не проверены на реальном устройстве этого
+// пользователя - при первом реальном запуске возможны 1-2 несовпадения
+// (например, если конкретная прошивка называет поле иначе или возвращает
+// пустую строку там, где ожидалось число) - тогда диски/полки будут
+// сохраняться с нулевыми/пустыми отдельными полями, но само наличие записей
+// в справочнике (см. [HW-sync] лог ниже) уже покажет, что запрос дошёл и
+// список получен - поля можно поправить по факту без изменения структуры
+// синхронизации.
+//
+// Сначала обновляются базовые TotalSizeRAW/UsedPercent через
+// syncHuaweiSystemTotals (см. её комментарий) - если GetEnclosures/GetDisks
+// не поддержаны прошивкой (ErrEnclosureNotFound/ErrDiskNotFound - пустой
+// список, не ошибка транспорта), эти базовые значения останутся
+// единственным источником и функция завершится без ошибки.
+func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
+	if err := syncHuaweiSystemTotals(o, shd); err != nil {
+		log.Printf("[HW-sync] Huawei Id=%d: syncHuaweiSystemTotals вернул ошибку (не прерывает синхронизацию hardware): %v", shd.Id, err)
+	}
+
+	key := "spaview"
+	keypass := datamap.GetKeyData(key)
+	remoteIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+	localIps := remoteIps
+
+	client, err := dorado.NewClient(localIps, remoteIps, key, keypass, "", nil)
+	if err != nil {
+		return err
+	}
+
+	enclosures, err := client.LocalDevice.GetEnclosures(context.Background(), nil)
+	if err != nil && err != dorado.ErrEnclosureNotFound {
+		return err
+	}
+	log.Printf("[HW-sync] Huawei Id=%d: GetEnclosures вернул %d записей", shd.Id, len(enclosures))
+
+	encByID := map[string]int64{}
+	touchedEnc := make([]int64, 0, len(enclosures))
+	for _, enc := range enclosures {
+		encType := models.StorageEnclosureTypeData
+		if strings.Contains(strings.ToUpper(enc.TYPE), "CTRL") || strings.Contains(strings.ToUpper(enc.NAME), "CTE") {
+			encType = models.StorageEnclosureTypeManagement
+		}
+		slot, _ := strconv.Atoi(strings.TrimSpace(enc.SLOTNUM))
+		bus, _ := strconv.Atoi(strings.TrimSpace(enc.BUSID))
+		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
+			EnclosureType:    encType,
+			ExternalKey:      "huawei:enc:" + enc.ID,
+			Name:             firstNonEmptyStr(enc.NAME, enc.LOCATION, fmt.Sprintf("Enclosure %s", enc.ID)),
+			Vendor:           firstNonEmptyStr(enc.MANUFACTURER, "Huawei"),
+			Model:            enc.MODEL,
+			SerialNum:        enc.SERIALNUMBER,
+			SlotNumber:       slot,
+			BusId:            bus,
+			HealthStatus:     huaweiHealthStatusCode(enc.HEALTHSTATUS),
+			Status:           models.StorageHWStatusActive,
+			SourceUpdateType: models.StorageSourceUpdateStorageAPI,
+			Time_Mfy:         time.Now().Local(),
+		})
+		if err != nil {
+			return err
+		}
+		encByID[enc.ID] = id
+		touchedEnc = append(touchedEnc, id)
+	}
+
+	disks, err := client.LocalDevice.GetDisks(context.Background(), nil)
+	if err != nil && err != dorado.ErrDiskNotFound {
+		return err
+	}
+	log.Printf("[HW-sync] Huawei Id=%d: GetDisks вернул %d записей", shd.Id, len(disks))
+
+	touchedDisk := make([]int64, 0, len(disks))
+	inUse := 0
+	var totalCapacityGb float64
+	for _, d := range disks {
+		parentID := firstNonEmptyStr(d.ENCLOSUREID, d.PARENTID)
+		slot, _ := strconv.Atoi(strings.TrimSpace(d.SLOTNUM))
+		status := models.StorageHWStatusActive
+		if strings.TrimSpace(d.LOGICTYPE) == "1" {
+			// hot spare - считается "свободным", тот же код статуса, что и у
+			// VNX/Unity/Lenovo для незадействованных дисков.
+			status = 2
+		} else {
+			inUse++
+		}
+		capGb := d.DiskCapacityGb()
+		totalCapacityGb += capGb
+		id, err := upsertStorageDisk(o, shd.Id, models.StorageDisk{
+			StorageEnclosureId: encByID[parentID],
+			ExternalKey:        "huawei:disk:" + firstNonEmptyStr(d.SERIALNUMBER, d.ID),
+			SlotNumber:         slot,
+			Vendor:             firstNonEmptyStr(d.MANUFACTURER, "Huawei"),
+			Model:              d.MODEL,
+			DiskType:           d.DISKTYPE,
+			SerialNum:          d.SERIALNUMBER,
+			CapacityGb:         capGb,
+			Status:             status,
+			SourceUpdateType:   models.StorageSourceUpdateStorageAPI,
+			Time_Mfy:           time.Now().Local(),
+		})
+		if err != nil {
+			return err
+		}
+		touchedDisk = append(touchedDisk, id)
+	}
+
+	pools, err := client.LocalDevice.GetStoragePools(context.Background(), nil)
+	if err != nil && err != dorado.ErrStoragePoolNotFound {
+		return err
+	}
+	log.Printf("[HW-sync] Huawei Id=%d: GetStoragePools вернул %d записей", shd.Id, len(pools))
+
+	touchedPool := make([]int64, 0, len(pools))
+	for _, p := range pools {
+		totalGb := huaweiCapacityMbToGb(p.USERTOTALCAPACITY)
+		freeGb := huaweiCapacityMbToGb(p.USERFREECAPACITY)
+		usedGb := totalGb - freeGb
+		if usedGb < 0 {
+			usedGb = 0
+		}
+		usedPercent, pErr := strconv.ParseFloat(strings.TrimSpace(p.USERCONSUMEDCAPACITYPERCENTAGE), 64)
+		if pErr != nil {
+			usedPercent = 0
+		}
+		id, err := upsertStoragePool(o, shd.Id, models.StoragePool{
+			ExternalKey: fmt.Sprintf("huawei:pool:%d", p.ID),
+			Name:        firstNonEmptyStr(p.NAME, fmt.Sprintf("Pool %d", p.ID)),
+			// Description ОБЯЗАТЕЛЬНО заполняется полем DESCRIPTION вендорского
+			// API (по прямому запросу пользователя loadmon) - у Huawei может
+			// приходить пустой строкой, если пул не аннотирован администратором
+			// СХД, это ожидаемо и не является ошибкой синхронизации.
+			Description:      p.DESCRIPTION,
+			HealthStatus:      huaweiHealthStatusCode(p.HEALTHSTATUS),
+			TotalCapacityGb:   totalGb,
+			FreeCapacityGb:    freeGb,
+			UsedCapacityGb:    usedGb,
+			UsedPercent:       usedPercent,
+			Status:            models.StorageHWStatusActive,
+			SourceUpdateType:  models.StorageSourceUpdateStorageAPI,
+			Time_Mfy:          time.Now().Local(),
+		})
+		if err != nil {
+			return err
+		}
+		touchedPool = append(touchedPool, id)
+	}
+	deactivateAbsentStoragePools(o, shd.Id, touchedPool)
+
+	deactivateAbsentStorageEnclosures(o, shd.Id, touchedEnc)
+	deactivateAbsentStorageDisks(o, shd.Id, touchedDisk)
+	updateStorageSystemsDiskStats(o, shd, len(disks), inUse, totalCapacityGb)
+	log.Printf("[HW-sync] Huawei Id=%d: сохранено полок=%d дисков=%d пулов=%d", shd.Id, len(touchedEnc), len(touchedDisk), len(touchedPool))
+	return nil
+}
+
+// huaweiCapacityMbToGb переводит объёмное поле Huawei StoragePools (строка,
+// значение в Мб - тот же формат, что и TOTALCAPACITY/USEDCAPACITY у
+// GetSystem, см. syncHuaweiSystemTotals) в Гб; при ошибке разбора
+// возвращает 0, чтобы не прерывать синхронизацию пулов.
+func huaweiCapacityMbToGb(raw string) float64 {
+	mb, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil {
+		return 0
+	}
+	return mb / 1024
+}
+
+// huaweiHealthStatusCode разбирает строковое поле HEALTHSTATUS Huawei
+// DeviceManager REST API (см. models.StatusHealth=1 - тот же код "здоров",
+// что и у остальных объектов этого SDK) в целое - при нераспознанном/пустом
+// значении возвращает 0 (соответствует "неизвестно" по остальным вендорам).
+func huaweiHealthStatusCode(raw string) int {
+	v, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
 // syncLenovoHardware синхронизирует полки (Graph.Tray) и диски
 // (Graph.Drive) СХД Lenovo одним вызовом session.GetGraph() -
 // единственным доступным в пакете loadmon/lenovostorage источником
@@ -388,6 +740,7 @@ func syncLenovoHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("[HW-sync] Lenovo Id=%d: GetGraph вернул Tray=%d Drive=%d", shd.Id, len(graph.Tray), len(graph.Drive))
 
 	encByRef := map[string]int64{}
 	touchedEnc := make([]int64, 0, len(graph.Tray))
@@ -451,9 +804,70 @@ func syncLenovoHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		touchedDisk = append(touchedDisk, id)
 	}
 
+	touchedPool := make([]int64, 0)
+	pools, poolsErr := session.GetStoragePools()
+	if poolsErr != nil {
+		// session.GetStoragePools - не фатально для остального
+		// hardware-инвентаря (полки/диски уже собраны через GetGraph выше);
+		// при ошибке НЕ деактивируем существующие пулы, тот же приём, что у
+		// syncUnityHardware/syncVNXHardware (2026-09-16, "для VNX/Unity/Lenovo
+		// тоже нужно" - обработка пулов).
+		log.Printf("[HW-sync] Lenovo Id=%d: GetStoragePools вернул ошибку (не прерывает синхронизацию hardware): %v", shd.Id, poolsErr)
+	} else {
+		log.Printf("[HW-sync] Lenovo Id=%d: GetStoragePools вернул %d записей", shd.Id, len(pools))
+		for _, p := range pools {
+			usedGb, uErr := strconv.ParseFloat(strings.TrimSpace(p.UsedSpace), 64)
+			totalGb, tErr := strconv.ParseFloat(strings.TrimSpace(p.TotalRaidedSpace), 64)
+			freeGb, fErr := strconv.ParseFloat(strings.TrimSpace(p.FreeSpace), 64)
+			if uErr == nil {
+				usedGb = usedGb / (1024 * 1024 * 1024)
+			} else {
+				usedGb = 0
+			}
+			if tErr == nil {
+				totalGb = totalGb / (1024 * 1024 * 1024)
+			} else {
+				totalGb = 0
+			}
+			if fErr == nil {
+				freeGb = freeGb / (1024 * 1024 * 1024)
+			} else {
+				freeGb = 0
+			}
+			usedPercent := 0.0
+			if totalGb > 0 {
+				usedPercent = usedGb / totalGb * 100
+			}
+			id, err := upsertStoragePool(o, shd.Id, models.StoragePool{
+				ExternalKey: "lenovo:pool:" + p.ID,
+				Name:        firstNonEmptyStr(p.Label, "Pool "+p.ID),
+				// Description ОБЯЗАТЕЛЬНО заполняется полем модели
+				// StoragePool (по прямому запросу пользователя loadmon), но у
+				// Lenovo SANtricity API дисковые группы/пулы НЕ имеют
+				// отдельного поля description (есть только Label - имя, уже
+				// использовано выше как Name) - поэтому здесь Description
+				// остаётся пустой строкой, это ограничение API, а не ошибка.
+				Description:      "",
+				TotalCapacityGb:  totalGb,
+				FreeCapacityGb:   freeGb,
+				UsedCapacityGb:   usedGb,
+				UsedPercent:      usedPercent,
+				Status:           models.StorageHWStatusActive,
+				SourceUpdateType: models.StorageSourceUpdateStorageAPI,
+				Time_Mfy:         time.Now().Local(),
+			})
+			if err != nil {
+				return err
+			}
+			touchedPool = append(touchedPool, id)
+		}
+		deactivateAbsentStoragePools(o, shd.Id, touchedPool)
+	}
+
 	deactivateAbsentStorageEnclosures(o, shd.Id, touchedEnc)
 	deactivateAbsentStorageDisks(o, shd.Id, touchedDisk)
 	updateStorageSystemsDiskStats(o, shd, len(graph.Drive), inUse, totalCapacityGb)
+	log.Printf("[HW-sync] Lenovo Id=%d: сохранено полок=%d дисков=%d пулов=%d", shd.Id, len(touchedEnc), len(touchedDisk), len(touchedPool))
 	return nil
 }
 
