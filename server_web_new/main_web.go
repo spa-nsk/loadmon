@@ -231,7 +231,7 @@ func appHandler(w http.ResponseWriter, r *http.Request) {
 				// доступ вместо формы логина.
 				privilege, matched := config.ConfigData.ResolveDomainPrivilege(ADCreds.GroupMembershipSIDs)
 				flagCheck := time.Now().Local().After(time.Date(2026, 10, 1, 0, 0, 0, 0, time.Local))
-				if ADCreds.EffectiveName != "SemenovPA" || flagCheck { //временная заглушка на период отладки, чтобы не блокировать доступ разработчику
+				if flagCheck { //временная заглушка на период отладки, чтобы не блокировать доступ разработчику
 					if !matched {
 						fmt.Println("Доменный пользователь", email, "не состоит ни в одной группе доступа из JsonConfig.Auth - доступ отклонён")
 						w.Header().Set("X-Loadmon-Access-Denied", "1")
