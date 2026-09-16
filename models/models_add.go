@@ -2300,6 +2300,45 @@ func (u *SwitchNetworkLink) TableIndex() [][]string {
 	}
 }
 
+// IPAddressSprRecords - справочник IP-адресов серверов/ВМ (2026-09-16, по
+// запросу пользователя "на основе данных из справочника серверов по полю
+// Network построй справочник сетей и отдельно создай справочник IP адресов
+// и свяжи с сетями. В справочнике IP адресов помимо IP храни MAC адрес").
+// В ОТЛИЧИЕ от NetworkSprRecords (заводится/правится вручную через
+// /sprsrv/networklist, автосинхронизация только ДОБАВЛЯЕТ недостающие
+// записи по имени сети, не трогая уже заполненные вручную Vlan/Subnet/
+// Gateway/Annotation) - эта таблица ЦЕЛИКОМ производная: строится
+// автосинхронизацией (см. cmdb/syncnetworkip.go:SyncNetworkAndIPDirectories)
+// из текстовых полей ServerSprRecords.IPAddress/MacAddress/Network (списки
+// через ";", см. комментарии этих полей) и полностью пересобирается заново
+// при каждом запуске синхронизации - никакой формы редактирования для неё
+// нет и не планируется, только read-only список /sprsrv/ipaddresslist.
+type IPAddressSprRecords struct {
+	Id          int64  `form:"Id" orm:"auto" csv:"%"`
+	IPAddress   string `form:"IPAddress" csv:"IP-адрес"`
+	MacAddress  string `orm:"null" form:"MacAddress" csv:"MAC-адрес"` // пусто, если у записи-источника количество IP и MAC в списках не совпало - однозначно сопоставить нельзя (см. комментарий SyncNetworkAndIPDirectories)
+	NetworkId   int64  `orm:"null" form:"NetworkId" csv:"Сеть (ссылка)"` // FK на NetworkSprRecords.Id, 0 - если сеть не определена/не сопоставлена по позиции
+	ServerSprId int64  `form:"ServerSprId" csv:"Сервер (ссылка)"`        // FK на ServerSprRecords.Id - источник записи
+	ServerName  string `form:"ServerName" csv:"Имя сервера"`             // денормализовано для отображения списка без join
+	Time_Mfy    time.Time `orm:"null" form:"Time_Mfy" csv:"Дата обновления"` // время последней автосинхронизации, см. SyncNetworkAndIPDirectories
+}
+
+// TableName возвращает имя таблицы БД для модели IPAddressSprRecords (используется beego ORM).
+func (a *IPAddressSprRecords) TableName() string {
+	return "ip_address_spr_records"
+}
+
+// TableIndex возвращает список индексов для регистрации таблицы модели IPAddressSprRecords в beego ORM.
+func (u *IPAddressSprRecords) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Id"},
+		[]string{"IPAddress"},
+		[]string{"MacAddress"},
+		[]string{"NetworkId"},
+		[]string{"ServerSprId"},
+	}
+}
+
 // модель норматив для бюджетирования
 type ModelEquipment struct {
 	Id                   int64   `form:"Id" orm:"auto" csv:"%"`                          //
