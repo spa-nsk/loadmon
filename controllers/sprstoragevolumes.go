@@ -446,6 +446,18 @@ func (this *MainController) SprStorageVolumeView() {
 		if err := o.QueryTable("storage_systems").Filter("Id", rec.StorageSystemsId).One(&shd); err == nil {
 			this.Data["SHD"] = shd
 			this.Data["StorageSystemLabel"] = storageSystemLabel(&shd)
+			// ИСПРАВЛЕНО (2026-09-16, по замечанию пользователя): шаблон
+			// обращался к .SHD.DatacenterRoom/.SHD.RackNum - текстовым полям,
+			// удалённым из models.StorageSystems при переходе на справочник
+			// RackCabinet/DatacenterSite с моделью StorageSystemPlacement
+			// (одна СХД может занимать НЕСКОЛЬКО шкафов, см. CHANGELOG (147)-
+			// (154)) - поле осталось только в старом storagesystemslist.tpl-
+			// коде и его никто не обновил при добавлении этой карточки.
+			// Переиспользуем тот же построитель текста размещения, что и
+			// список СХД (storageSystemsPlacementByStorageId), с срезом из
+			// одной записи.
+			placementByStorageId := storageSystemsPlacementByStorageId(o, []models.StorageSystems{shd})
+			this.Data["SHDPlacementText"] = placementByStorageId[shd.Id]
 		}
 	}
 }

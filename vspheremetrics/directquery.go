@@ -98,6 +98,24 @@ func GetVMDirect(vcenterHost, datacenter, cluster, vmName string) (VMPoint, erro
 		point.UUID = mvm.Config.Uuid
 		point.GuestID = mvm.Config.GuestId
 	}
+
+	// ДОБАВЛЕНО (2026-09-15, по запросу пользователя "добавь в форму
+	// отображения и редактирования карточки ServerSprRecords отображение
+	// размещения для виртуальных машин, исходя из местоположения
+	// гипервизора, на котором она выполняется, В МОМЕНТ ЗАПРОСА"): узнаём
+	// имя РЕАЛЬНОГО хоста ESXi, на котором сейчас выполняется VM, отдельным
+	// запросом свойств по ссылке mvm.Runtime.Host - в отличие от
+	// EsxHost, заполняемого при фоновом опросе кластера (loadvmmetrics.go/
+	// addfunction.go, может быть устаревшим до следующего цикла опроса),
+	// здесь это самое текущее состояние vSphere прямо сейчас, как и
+	// остальные поля, возвращаемые GetVMDirect.
+	if mvm.Runtime.Host != nil {
+		var mhosts []mo.HostSystem
+		if err := pc.Retrieve(ctx, []types.ManagedObjectReference{*mvm.Runtime.Host}, []string{"name"}, &mhosts); err == nil && len(mhosts) > 0 {
+			point.EsxHost = mhosts[0].Name
+		}
+	}
+
 	return point, nil
 }
 

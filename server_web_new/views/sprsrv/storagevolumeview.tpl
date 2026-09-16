@@ -92,7 +92,7 @@
                 </div>
                 <div class="col-6">
                     <div class="form-label mb-0 text-muted small">Размещение</div>
-                    <div>{{.SHD.DatacenterRoom}} {{if ne .SHD.RackNum ""}}/ {{.SHD.RackNum}}{{end}}</div>
+                    <div>{{if .SHDPlacementText}}{{.SHDPlacementText}}{{else}}&mdash;{{end}}</div>
                 </div>
             </div>
             {{else}}

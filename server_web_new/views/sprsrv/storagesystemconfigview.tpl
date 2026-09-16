@@ -92,22 +92,23 @@
 
         <div class="hw-card mt-3">
             <h6>Размещение</h6>
+            <!-- ИСПРАВЛЕНО (2026-09-16, по замечанию пользователя): карточка
+                 обращалась к .SHD.City/.SHD.DatacenterRoom/.SHD.RackNum/
+                 .SHD.StartUnit/.SHD.SizeUnit - текстовым полям, удалённым из
+                 models.StorageSystems при переходе на справочник
+                 RackCabinet/DatacenterSite и модель StorageSystemPlacement
+                 (СХД может занимать НЕСКОЛЬКО шкафов, см. CHANGELOG (147)-
+                 (154)) - эта карточка осталась не обновлена при том переходе.
+                 Единое read-only поле ниже - тот же текст размещения, что и
+                 в списке /sprsrv/storagesystemslist (SHDPlacementText, см.
+                 controllers/sprstoragesystems.go:storageSystemsPlacementByStorageId). -->
             <div class="row g-3">
-                <div class="col-6">
-                    <div class="form-label mb-0 text-muted small">Город</div>
-                    <div>{{if .SHD.City}}{{.SHD.City}}{{else}}&mdash;{{end}}</div>
-                </div>
-                <div class="col-6">
-                    <div class="form-label mb-0 text-muted small">ЦОД / серверная</div>
-                    <div>{{if .SHD.DatacenterRoom}}{{.SHD.DatacenterRoom}}{{else}}&mdash;{{end}}</div>
-                </div>
-                <div class="col-6">
-                    <div class="form-label mb-0 text-muted small">Стойка / юнит</div>
-                    <div>{{if .SHD.RackNum}}{{.SHD.RackNum}}{{else}}&mdash;{{end}} {{if .SHD.StartUnit}}/ {{.SHD.StartUnit}}{{end}}</div>
-                </div>
-                <div class="col-6">
-                    <div class="form-label mb-0 text-muted small">Размер в юнитах</div>
-                    <div>{{if .SHD.SizeUnit}}{{.SHD.SizeUnit}}{{else}}&mdash;{{end}}</div>
+                <div class="col-12">
+                    <div class="form-label mb-0 text-muted small">ЦОД / Шкаф</div>
+                    <div>
+                        {{if .SHDPlacementText}}{{.SHDPlacementText}}{{else}}&mdash;{{end}}
+                        <a href="/sprsrv/storagesystemsedit/{{.SHD.Id}}" class="ms-2 small" title="Изменить размещение">изменить</a>
+                    </div>
                 </div>
             </div>
         </div>
