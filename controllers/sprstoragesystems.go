@@ -882,6 +882,14 @@ func (this *MainController) SprStorageSystemConfigView() {
 		return
 	}
 	this.Data["SHD"] = shd
+	// ИСПРАВЛЕНО (2026-09-16, по замечанию пользователя про такую же ошибку
+	// в storagevolumeview.tpl - здесь тот же баг): шаблон
+	// storagesystemconfigview.tpl обращался к .SHD.DatacenterRoom/.SHD.RackNum/
+	// .SHD.StartUnit - текстовым полям, удалённым из models.StorageSystems при
+	// переходе на справочник RackCabinet/DatacenterSite и модель
+	// StorageSystemPlacement (см. CHANGELOG (147)-(154)) - эта карточка
+	// осталась не обновлена при том переходе.
+	this.Data["SHDPlacementText"] = storageSystemsPlacementByStorageId(o, []models.StorageSystems{shd})[shd.Id]
 
 	var enclosures []models.StorageEnclosure
 	if _, err := o.QueryTable("storage_enclosure").Filter("StorageSystemsId", id).OrderBy("EnclosureType", "SlotNumber", "Name").All(&enclosures); err != nil {
