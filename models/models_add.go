@@ -1542,6 +1542,17 @@ type StorageVolumes struct {
 	// используется на практике, но зарезервировано на случай появления
 	// ручного ввода тома.
 	SourceUpdateType int `form:"SourceUpdateType"`
+	// PoolExternalKey - ДОБАВЛЕНО 2026-09-17 по прямому запросу пользователя
+	// "нужно показать LUN на этих пулах": ссылка на пул хранения, из
+	// которого выделен этот том, в виде того же ExternalKey, которым
+	// проиндексирован models.StoragePool (см. syncstoragehardware.go,
+	// upsertStoragePool) - "huawei:pool:<ID>", "unity:pool:<id>" и т.п.
+	// Пустая строка означает "пул не определён" - либо у СХД этого вендора
+	// пока нет привязки LUN к пулу в коде синхронизации (см. отдельный
+	// комментарий у каждого вендора в cmdb/volumestorage.go и
+	// cmdb/UpdateHuaweyVolume.go), либо запись тома ещё не обновлялась
+	// после добавления этого поля.
+	PoolExternalKey string `form:"PoolExternalKey"`
 }
 
 // TableName возвращает имя таблицы БД для модели StorageVolumes (используется beego ORM).

@@ -835,6 +835,16 @@ type StorageEnclosureWithDisks struct {
 	Disks     []models.StorageDisk
 }
 
+// PoolWithVolumes - один пул хранения (models.StoragePool) вместе со
+// списком LUN, выделенных из него (models.StorageVolumes,
+// PoolExternalKey == Pool.ExternalKey) - ДОБАВЛЕНО 2026-09-17 по запросу
+// пользователя "нужно показать LUN на этих пулах", для карточки просмотра
+// конфигурации СХД (/sprsrv/storagesystemconfigview).
+type PoolWithVolumes struct {
+	Pool    models.StoragePool
+	Volumes []models.StorageVolumes
+}
+
 // SprStorageSystemConfigView отображает read-only карточку конфигурации
 // ОДНОЙ СХД (models.StorageSystems) по Id: сама СХД, сторадж-процессоры
 // (models.StorageEnclosure с EnclosureType == StorageEnclosureTypeManagement -
@@ -946,6 +956,32 @@ func (this *MainController) SprStorageSystemConfigView() {
 		flash.Notice("Ошибка чтения списка пулов: %v", err)
 		flash.Store(&this.Controller)
 	}
-	this.Data["Pools"] = pools
+
+	// LUN по пулам - ДОБАВЛЕНО 2026-09-17 по запросу пользователя "нужно
+	// показать LUN на этих пулах": models.StorageVolumes.PoolExternalKey
+	// заполняется синхронизацией томов для Huawei/Unity (см. комментарии у
+	// этого поля и у мест его заполнения в cmdb/UpdateHuaweyVolume.go и
+	// cmdb/volumestorage.go) - для VNX/Lenovo пока не реализовано
+	// (ограничение текущего кода синхронизации томов этих вендоров, не
+	// СХД/API), там StorageVolumesByPool будет всегда пуст для каждого
+	// пула этих вендоров.
+	var volumes []models.StorageVolumes
+	if _, err := o.QueryTable("storage_volumes").Filter("StorageSystemsId", id).Filter("Status", 2).OrderBy("StorageName").All(&volumes); err != nil {
+		flash.Notice("Ошибка чтения списка томов: %v", err)
+		flash.Store(&this.Controller)
+	}
+	volumesByPool := make(map[string][]models.StorageVolumes, len(pools))
+	for _, v := range volumes {
+		if v.PoolExternalKey == "" {
+			continue
+		}
+		volumesByPool[v.PoolExternalKey] = append(volumesByPool[v.PoolExternalKey], v)
+	}
+	poolsWithVolumes := make([]PoolWithVolumes, 0, len(pools))
+	for _, p := range pools {
+		poolsWithVolumes = append(poolsWithVolumes, PoolWithVolumes{Pool: p, Volumes: volumesByPool[p.ExternalKey]})
+	}
+
+	this.Data["Pools"] = poolsWithVolumes
 	this.Data["PoolCount"] = len(pools)
 }

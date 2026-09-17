@@ -361,11 +361,20 @@ func UpdateVolumeStorage() {
 						voln.ShortName = shd.ShortName
 						voln.StorageName = strings.TrimSpace(lun.Name)
 						voln.Annotation = lun.Description
+						// PoolExternalKey - ДОБАВЛЕНО 2026-09-17 по запросу
+						// пользователя "нужно показать LUN на этих пулах" -
+						// lun.Pool.ID (emcstorage.PoolId) это id пула Unity,
+						// тем же форматом ключа, каким пул проиндексирован в
+						// syncUnityHardware/upsertStoragePool
+						// ("unity:pool:"+p.ID).
+						if lun.Pool.ID != "" {
+							voln.PoolExternalKey = "unity:pool:" + lun.Pool.ID
+						}
 						if foundHostNames {
 							voln.Server = listHostName
 						}
 						voln.Time_Mfy = time.Now().Local()
-						if _, updErr := o.Update(&voln, "StorageSystemsId", "ShortName", "StorageName", "Annotation", "Server", "Time_Mfy"); updErr != nil {
+						if _, updErr := o.Update(&voln, "StorageSystemsId", "ShortName", "StorageName", "Annotation", "PoolExternalKey", "Server", "Time_Mfy"); updErr != nil {
 							fmt.Println("Ошибка дополнения данных тома (приоритет vSphere):", lun.Name, updErr)
 						} else {
 							touchedIds = append(touchedIds, voln.Id)
@@ -380,6 +389,9 @@ func UpdateVolumeStorage() {
 					voln.StorageName = strings.TrimSpace(lun.Name)
 					voln.CapacityGb = float64(lun.SizeTotal >> 30)
 					voln.Annotation = lun.Description
+					if lun.Pool.ID != "" {
+						voln.PoolExternalKey = "unity:pool:" + lun.Pool.ID
+					}
 					if foundHostNames {
 						voln.Server = listHostName
 					}
