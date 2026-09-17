@@ -99,10 +99,6 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	log.Printf("[HW-sync] Unity Id=%d: GetUnityDPE вернул %d записей", shd.Id, len(dpeList))
 	for _, dpe := range dpeList {
 		key := "dpe:" + dpe.ID
-		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17, см. комментарий у диагностики
-		// в цикле дисков ниже - сравнить dpe.ID отсюда с disk.ID оттуда,
-		// чтобы понять реальный формат id. Удалить после диагностики.
-		log.Printf("[HW-sync] Unity Id=%d: диагностика - DPE.ID=%q (ключ encByKey=%q)", shd.Id, dpe.ID, key)
 		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
 			EnclosureType:    models.StorageEnclosureTypeManagement,
 			ExternalKey:      key,
@@ -128,8 +124,6 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	log.Printf("[HW-sync] Unity Id=%d: GetUnityDAE вернул %d записей", shd.Id, len(daeList))
 	for _, dae := range daeList {
 		key := "dae:" + dae.ID
-		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17) - см. комментарий у DPE выше.
-		log.Printf("[HW-sync] Unity Id=%d: диагностика - DAE.ID=%q (ключ encByKey=%q)", shd.Id, dae.ID, key)
 		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
 			EnclosureType:    models.StorageEnclosureTypeData,
 			ExternalKey:      key,
@@ -177,20 +171,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		// <slot>_disk_N" для дисков в DAE - unityDiskParentEnclosureKey
 		// отрезает суффикс "_disk_N" и добавляет тот же префикс "dpe:"/"dae:",
 		// которым проиндексирован encByKey чуть выше.
-		parentKey := unityDiskParentEnclosureKey(d.ID)
-		encId := encByKey[parentKey]
-		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17, по замечанию пользователя
-		// "привязка полок и дисков так и не появилась" - предыдущий фикс
-		// (unityDiskParentEnclosureKey) не сработал, значит предположение о
-		// формате id диска ("dpe_disk_N"/"dae_<bus>_<slot>_disk_N") неверно
-		// для реального оборудования пользователя. Лог первых нескольких
-		// дисков покажет фактический disk.ID и вычисленный из него ключ -
-		// сравнить с фактическими encByKey (dpe:.../dae:... чуть выше по
-		// логу того же запуска) и поправить unityDiskParentEnclosureKey по
-		// факту. Удалить после диагностики.
-		if len(touchedDisk) < 5 {
-			log.Printf("[HW-sync] Unity Id=%d: диагностика привязки диска - disk.ID=%q вычисленный ключ=%q найден в encByKey=%v", shd.Id, d.ID, parentKey, encId != 0)
-		}
+		encId := encByKey[unityDiskParentEnclosureKey(d.ID)]
 		id, err := upsertStorageDisk(o, shd.Id, models.StorageDisk{
 			StorageEnclosureId: encId,
 			ExternalKey:        key,
@@ -652,33 +633,76 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		touchedEnc = append(touchedEnc, id)
 	}
 
-	disks, err := client.LocalDevice.GetDisks(context.Background(), nil)
-	if err != nil && err != dorado.ErrDiskNotFound {
-		return err
+	// ИСПРАВЛЕНО 2026-09-17 по диагностике из (83): GetDisks(ctx, nil) БЕЗ
+	// фильтра на реальном оборудовании пользователя возвращал диски
+	// практически без атрибутов (DISKTYPE был ещё осмысленным кодом "14",
+	// но CAPACITY/SLOTNUM/ENCLOSUREID были пустыми строками, а PARENTID -
+	// "0" у ВСЕХ 36 дисков без исключения) - это известная особенность
+	// DeviceManager REST API Huawei: полные атрибуты диска отдаются только
+	// при запросе, ассоциированном с конкретной родительской полкой
+	// (ASSOCIATEOBJTYPE=21 - TypeEnclosure, ASSOCIATEOBJID=<Enclosure.ID>,
+	// см. go-dorado-sdk/dorado/query.go:SearchQuery.AssociateObjType/
+	// AssociateObjID и константу TypeEnclosure в constants.go) - без этой
+	// ассоциации API, судя по всему, отдаёт "облегчённый" список. Поэтому
+	// теперь диски запрашиваются ОТДЕЛЬНО по каждой полке, а не одним
+	// общим вызовом - как и GetHostAssociatedLUNs у томов (см.
+	// cmdb/UpdateHuaweyVolume.go), тот же принцип API Huawei "список
+	// association-объектов по родителю".
+	var disks []dorado.Disk
+	// diskParentEnc - соответствие Disk.ID -> Enclosure.ID полки, у которой
+	// этот диск запрошен - используется НИЖЕ как основной источник
+	// привязки к полке вместо d.ENCLOSUREID/d.PARENTID (которые по
+	// диагностике из (83) на этом оборудовании остаются пустыми даже при
+	// association-запросе - подстраховка, а не отмена самого фильтра выше:
+	// сам факт association-запроса всё равно нужен, чтобы получить остальные
+	// атрибуты диска - CAPACITY, DISKTYPE и т.п.).
+	diskParentEnc := map[string]string{}
+	for _, enc := range enclosures {
+		encDisks, dErr := client.LocalDevice.GetDisks(context.Background(), &dorado.SearchQuery{
+			AssociateObjType: strconv.Itoa(dorado.TypeEnclosure),
+			AssociateObjID:   enc.ID,
+		})
+		if dErr != nil {
+			if dErr != dorado.ErrDiskNotFound {
+				log.Printf("[HW-sync] Huawei Id=%d: GetDisks по полке ID=%s вернул ошибку (не прерывает синхронизацию остальных полок): %v", shd.Id, enc.ID, dErr)
+			}
+			continue
+		}
+		for _, d := range encDisks {
+			diskParentEnc[d.ID] = enc.ID
+		}
+		disks = append(disks, encDisks...)
 	}
-	log.Printf("[HW-sync] Huawei Id=%d: GetDisks вернул %d записей", shd.Id, len(disks))
+	if len(enclosures) == 0 {
+		// Нет ни одной полки (маловероятно, но не исключено на другой
+		// прошивке) - запасной вариант, старое поведение без фильтра, чтобы
+		// хотя бы попытаться получить список дисков без привязки к полке.
+		fallbackDisks, dErr := client.LocalDevice.GetDisks(context.Background(), nil)
+		if dErr != nil && dErr != dorado.ErrDiskNotFound {
+			return dErr
+		}
+		disks = fallbackDisks
+	}
+	log.Printf("[HW-sync] Huawei Id=%d: GetDisks (по полкам) вернул %d записей", shd.Id, len(disks))
 
 	touchedDisk := make([]int64, 0, len(disks))
 	inUse := 0
 	var totalCapacityGb float64
 	for _, d := range disks {
-		parentID := firstNonEmptyStr(d.ENCLOSUREID, d.PARENTID)
-		slot, _ := strconv.Atoi(strings.TrimSpace(d.SLOTNUM))
-		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17, по замечанию пользователя "тип
-		// указан числовой 21 и размер 0"): DISKTYPE документирован как
-		// строковая метка среды (SSD/SAS/NL_SAS), но, как и у Enclosure.TYPE
-		// в (77), реальная прошивка, похоже, отдаёт числовой код вместо
-		// метки - "21" не похоже на распознанный лейбл. CapacityGb=0
-		// означает, что Disk.CAPACITY либо пустой, либо не парсится
-		// parseHuaweiFloat (см. go-dorado-sdk/dorado/disk.go) - оба
-		// подозрения требуют сырых значений с реального устройства, чтобы
-		// не гадать с маппингом вслепую (см. историю (77)-(80) в этом же
-		// файле - каждый раз конкретное поле оказывалось не тем типом/
-		// значением, что в документации). Лог первых дисков покажет сырые
-		// DISKTYPE/CAPACITY/TYPE. Удалить после диагностики.
-		if len(touchedDisk) < 5 {
-			log.Printf("[HW-sync] Huawei Id=%d: диагностика диска - ID=%q DISKTYPE=%q CAPACITY=%q SLOTNUM=%q ENCLOSUREID=%q PARENTID=%q", shd.Id, d.ID, d.DISKTYPE, d.CAPACITY, d.SLOTNUM, d.ENCLOSUREID, d.PARENTID)
+		// parentID - ИСПРАВЛЕНО 2026-09-17: до перехода на association-запрос
+		// по полкам (см. комментарий выше у цикла formирования disks)
+		// d.ENCLOSUREID/d.PARENTID были пустыми у ВСЕХ дисков на реальном
+		// оборудовании (диагностика подтвердила: ENCLOSUREID="" PARENTID="0"
+		// у 36/36 дисков) - теперь основной источник привязки это
+		// diskParentEnc (Huawei Enclosure.ID полки, по которой диск был
+		// запрошен), d.ENCLOSUREID/d.PARENTID используются только как
+		// запасной вариант, если diskParentEnc почему-то не содержит этот
+		// диск (например, попал в fallback-ветку без полок).
+		parentID := diskParentEnc[d.ID]
+		if parentID == "" {
+			parentID = firstNonEmptyStr(d.ENCLOSUREID, d.PARENTID)
 		}
+		slot, _ := strconv.Atoi(strings.TrimSpace(d.SLOTNUM))
 		status := models.StorageHWStatusActive
 		if strings.TrimSpace(d.LOGICTYPE) == "1" {
 			// hot spare - считается "свободным", тот же код статуса, что и у
