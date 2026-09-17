@@ -11,10 +11,38 @@ import (
 )
 
 func decodeBody(resp *http.Response, out interface{}, logger *log.Logger) error {
+	return decodeBodyDump(resp, out, logger, "")
+}
+
+// decodeBodyDump - тот же decodeBody, но с опциональным сохранением СЫРОГО
+// (до разбора json.Unmarshal) тела ответа СХД в файл dumpPath - добавлено
+// 2026-09-17 по прямому запросу пользователя loadmon "добавь SDK Dorado
+// сохранение сырого ответа от СХД в файл для запросов /disk/{id} ... это
+// нужно для отладки". Используется точечно (сейчас - только
+// Device.GetDisk, см. disk.go) там, где нужно посмотреть ИМЕННО то, что
+// реально прислало устройство, без потерь на этапе json.Unmarshal - тот же
+// мотив, что уже привёл к находкам в CHANGELOG (77)/(84)/(86) (реальные
+// поля/типы расходились с документацией/предположениями). dumpPath=""
+// (по умолчанию, через decodeBody) - поведение не меняется, запись не
+// делается.
+//
+// Ошибка записи файла НЕ прерывает обработку ответа (тот же принцип, что и
+// у остальных diagnostics-моментов в проекте loadmon - диагностика не
+// должна ломать основную функциональность) - только логируется через
+// logger.
+func decodeBodyDump(resp *http.Response, out interface{}, logger *log.Logger, dumpPath string) error {
 	defer resp.Body.Close()
 	jb, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if dumpPath != "" {
+		if werr := ioutil.WriteFile(dumpPath, jb, 0o644); werr != nil {
+			logger.Printf("dorado: не удалось сохранить сырой ответ в %s (не прерывает обработку ответа): %v", dumpPath, werr)
+		} else {
+			logger.Printf("dorado: сырой ответ сохранён в %s", dumpPath)
+		}
 	}
 
 	r := &Result{
@@ -50,12 +78,20 @@ func (e ErrorResp) Error() error {
 // requestWithRetry do HTTP Request and retry if return UnAuthorized token.
 // set false in retried when call from outer.
 func (d *Device) requestWithRetry(req *http.Request, out interface{}, retryCount int) error {
+	return d.requestWithRetryDump(req, out, retryCount, "")
+}
+
+// requestWithRetryDump - тот же requestWithRetry, но прокидывает dumpPath в
+// decodeBodyDump (см. её комментарий) на каждую попытку, включая повтор
+// после обновления токена - чтобы сырой ответ сохранялся и в том случае,
+// если первая попытка упёрлась в истёкший iBaseToken и понадобился повтор.
+func (d *Device) requestWithRetryDump(req *http.Request, out interface{}, retryCount int, dumpPath string) error {
 	resp, err := d.request(req)
 	if err != nil {
 		return fmt.Errorf("failed to request: %w", err)
 	}
 
-	err = decodeBody(resp, out, d.Logger)
+	err = decodeBodyDump(resp, out, d.Logger, dumpPath)
 	if err == ErrUnAuthorized && retryCount > 0 {
 		// retry after refresh token
 		// need update iBaseToken and ismsession in Cookie
@@ -83,7 +119,7 @@ func (d *Device) requestWithRetry(req *http.Request, out interface{}, retryCount
 			return fmt.Errorf("failed to create new http request: %w", err)
 		}
 
-		return d.requestWithRetry(newReq, out, retryCount-1)
+		return d.requestWithRetryDump(newReq, out, retryCount-1, dumpPath)
 	}
 
 	if err != nil {

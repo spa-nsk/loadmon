@@ -101,7 +101,17 @@ func (d *Device) GetDisks(ctx context.Context, query *SearchQuery) ([]Disk, erro
 // текущего окружения - см. kontext/10-huawei-dorado-rest-api.md), решение -
 // не гадать код и вместо этого использовать более надёжный, задокументированный
 // как минимум по аналогии с /host/{id} приём: запрос диска по конкретному ID.
-func (d *Device) GetDisk(ctx context.Context, id string) (*Disk, error) {
+// dumpPath - опциональный путь к файлу, куда сохраняется СЫРОЙ (до
+// json.Unmarshal) ответ СХД на этот конкретный запрос - добавлено
+// 2026-09-17 по прямому запросу пользователя loadmon "добавь SDK Dorado
+// сохранение сырого ответа от СХД в файл для запросов /disk/{id} ... это
+// нужно для отладки" (продолжение диагностики CAPACITY=0/DISKTYPE=21, см.
+// CHANGELOG (86) - именно GetDisk сейчас главный подозреваемый в том,
+// решает ли запрос по ID проблему пустых атрибутов). dumpPath="" - дамп не
+// делается, поведение как раньше. Формирование конкретного имени файла
+// (СХД + Id диска) - на стороне вызывающего кода, см.
+// cmdb.syncHuaweiHardware.
+func (d *Device) GetDisk(ctx context.Context, id string, dumpPath string) (*Disk, error) {
 	spath := "/disk/" + id
 	req, err := d.newRequest(ctx, "GET", spath, nil)
 	if err != nil {
@@ -109,7 +119,7 @@ func (d *Device) GetDisk(ctx context.Context, id string) (*Disk, error) {
 	}
 
 	var disk Disk
-	if err = d.requestWithRetry(req, &disk, DefaultHTTPRetryCount); err != nil {
+	if err = d.requestWithRetryDump(req, &disk, DefaultHTTPRetryCount, dumpPath); err != nil {
 		return nil, fmt.Errorf(ErrRequestWithRetry+": %w", err)
 	}
 
