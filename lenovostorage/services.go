@@ -1988,7 +1988,13 @@ type Graph struct {
 		RepairedBlockCount                          int    `json:"repairedBlockCount"`
 		ExtendedUniqueIdentifier                    string `json:"extendedUniqueIdentifier"`
 		CacheMirroringValidateProtectionInformation bool   `json:"cacheMirroringValidateProtectionInformation"`
-		ExpectedProtectionInformationAppTag         string `json:"expectedProtectionInformationAppTag"`
+		// ExpectedProtectionInformationAppTag - ИСПРАВЛЕНО 2026-09-17 по
+		// реальной ошибке "cannot unmarshal number into Go struct field
+		// .volume.expectedProtectionInformationAppTag of type string":
+		// было заведено как string, реальное устройство отдаёт число -
+		// как и одноимённые поля в других структурах этого же файла
+		// (строки 77 и 2491), изначально типизированные верно.
+		ExpectedProtectionInformationAppTag         int    `json:"expectedProtectionInformationAppTag"`
 		HostUnmapEnabled                            bool   `json:"hostUnmapEnabled"`
 		CachePoolID                                 int    `json:"cachePoolID"`
 		BlkSizePhysical                             int    `json:"blkSizePhysical"`
