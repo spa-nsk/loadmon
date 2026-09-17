@@ -162,7 +162,22 @@ func (session *Session) Request(method string, URI string, fields string, filter
 		return nil
 
 	case httpResp.StatusCode == 422:
-		return fmt.Errorf("HTTP status codes: %d, detail: %v", httpResp.StatusCode, httpResp.Body)
+		// ИСПРАВЛЕНО (2026-09-17, по жалобе пользователя loadmon "журнал СХД
+		// пустой, диски/полки/пулы не появились" - при разборе присланного
+		// storage_update.log обнаружено, что реальный текст ошибки Unity был
+		// не виден): раньше здесь форматировался НЕПРОЧИТАННЫЙ
+		// httpResp.Body (io.ReadCloser) через %v - это печатает внутренние
+		// указатели структуры HTTP-тела ("&{0xc06b4d3000 {} {0 0}} false
+		// <nil> ..."), а не текст ошибки, который Unity реально вернула в
+		// теле ответа (обычно JSON вида {"error":{"messages":[...]}}).
+		// Теперь тело действительно читается - при ошибке чтения текст
+		// заменяется на короткую пометку, но сам HTTP-код всё равно
+		// возвращается вызывающему коду.
+		body, readErr := ioutil.ReadAll(httpResp.Body)
+		if readErr != nil {
+			return fmt.Errorf("HTTP status codes: %d, detail: не удалось прочитать тело ответа: %v", httpResp.StatusCode, readErr)
+		}
+		return fmt.Errorf("HTTP status codes: %d, detail: %s", httpResp.StatusCode, string(body))
 
 	default:
 		return fmt.Errorf("HTTP status codes: %d", httpResp.StatusCode)

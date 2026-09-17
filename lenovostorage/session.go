@@ -159,7 +159,15 @@ func (session *Session) Request(method string, URI string, fields string, filter
 		return nil
 
 	case httpResp.StatusCode == 422:
-		return fmt.Errorf("HTTP status codes: %d, detail: %v", httpResp.StatusCode, httpResp.Body)
+		// ИСПРАВЛЕНО (2026-09-17) - тот же баг, что и в emcstorage/unity.go
+		// (см. её комментарий): раньше печатался непрочитанный
+		// httpResp.Body через %v (бесполезные внутренние указатели), а не
+		// реальный текст ошибки.
+		body, readErr := ioutil.ReadAll(httpResp.Body)
+		if readErr != nil {
+			return fmt.Errorf("HTTP status codes: %d, detail: не удалось прочитать тело ответа: %v", httpResp.StatusCode, readErr)
+		}
+		return fmt.Errorf("HTTP status codes: %d, detail: %s", httpResp.StatusCode, string(body))
 
 	default:
 		return fmt.Errorf("HTTP status codes: %d", httpResp.StatusCode)
