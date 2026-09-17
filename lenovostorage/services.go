@@ -1852,7 +1852,14 @@ type Graph struct {
 		TrayLossProtection bool `json:"trayLossProtection"`
 		Label            string `json:"label"`
 		State            string `json:"state"`
-		SpindleSpeedMatch string `json:"spindleSpeedMatch"`
+		// SpindleSpeedMatch - ИСПРАВЛЕНО 2026-09-17 по реальной ошибке
+		// "cannot unmarshal bool into Go struct field .volumeGroup.
+		// spindleSpeedMatch of type string": было заведено как string,
+		// реальное устройство отдаёт bool - как и одноимённое поле в
+		// другой структуре этого же файла (см. строку выше по коду,
+		// SpindleSpeedMatch bool), которое изначально было типизировано
+		// верно.
+		SpindleSpeedMatch bool   `json:"spindleSpeedMatch"`
 		SpindleSpeed     int    `json:"spindleSpeed"`
 		IsInaccessible   bool   `json:"isInaccessible"`
 		SecurityType     string `json:"securityType"`
