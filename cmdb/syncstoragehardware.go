@@ -633,29 +633,41 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		touchedEnc = append(touchedEnc, id)
 	}
 
-	// ИСПРАВЛЕНО 2026-09-17 по диагностике из (83): GetDisks(ctx, nil) БЕЗ
-	// фильтра на реальном оборудовании пользователя возвращал диски
-	// практически без атрибутов (DISKTYPE был ещё осмысленным кодом "14",
-	// но CAPACITY/SLOTNUM/ENCLOSUREID были пустыми строками, а PARENTID -
-	// "0" у ВСЕХ 36 дисков без исключения) - это известная особенность
-	// DeviceManager REST API Huawei: полные атрибуты диска отдаются только
-	// при запросе, ассоциированном с конкретной родительской полкой
-	// (ASSOCIATEOBJTYPE=21 - TypeEnclosure, ASSOCIATEOBJID=<Enclosure.ID>,
-	// см. go-dorado-sdk/dorado/query.go:SearchQuery.AssociateObjType/
-	// AssociateObjID и константу TypeEnclosure в constants.go) - без этой
-	// ассоциации API, судя по всему, отдаёт "облегчённый" список. Поэтому
-	// теперь диски запрашиваются ОТДЕЛЬНО по каждой полке, а не одним
-	// общим вызовом - как и GetHostAssociatedLUNs у томов (см.
-	// cmdb/UpdateHuaweyVolume.go), тот же принцип API Huawei "список
-	// association-объектов по родителю".
+	// ИСПРАВЛЕНО 2026-09-17 (диагностика (83)+(84), затем повторная жалоба
+	// пользователя "ёмкость дисков по-прежнему 0 и тип числовой 21"):
+	// GetDisks(ctx, nil) БЕЗ фильтра на реальном оборудовании пользователя
+	// возвращал диски практически без атрибутов (CAPACITY/SLOTNUM/
+	// ENCLOSUREID пустые, PARENTID="0" у ВСЕХ дисков). Первая попытка
+	// исправления - запрос по association-фильтру ASSOCIATEOBJTYPE=21
+	// (TypeEnclosure)/ASSOCIATEOBJID=<Enclosure.ID> - НЕ решила проблему
+	// (пользователь подтвердил повторно). При повторном аудите SDK
+	// обнаружилось, что константа TypeEnclosure=21 в
+	// go-dorado-sdk/dorado/constants.go СОВПАДАЕТ с уже существовавшей там
+	// TypeHost=21 - то есть association-фильтр, скорее всего, запрашивал
+	// диски, ассоциированные с несуществующим Host с ID=<Enclosure.ID>,
+	// а не с полкой, и потому не отфильтровывал ничего осмысленного (список
+	// дисков совпадал по факту наличия записей, но не по атрибутам).
+	// Официальная документация Huawei (support.huawei.com) недоступна из
+	// этого окружения (см. kontext/10-huawei-dorado-rest-api.md), поэтому
+	// вместо того чтобы гадать правильный числовой код Enclosure,
+	// используется более надёжный приём того же REST API, подтверждённый по
+	// аналогии в стороннем клиенте этого же API (github.com/ventillo/huStore,
+	// который для получения ПОЛНЫХ атрибутов объекта host делает запрос к
+	// конкретному экземпляру "/host/{id}", а не к списку "/host"):
+	// список дисков по-прежнему получается по полкам (для группировки и
+	// привязки к Enclosure - список отдаёт хотя бы ID диска), но КАЖДЫЙ диск
+	// затем дополнительно запрашивается по отдельности через GetDisk(id)
+	// ("/disk/{id}") - именно этот детальный запрос, по конвенции REST
+	// "коллекция усечена / экземпляр полон", должен отдавать заполненные
+	// CAPACITY/DISKTYPE и т.п. Не отменяет предыдущий association-запрос по
+	// полке полностью - он всё ещё нужен для группировки дисков по полкам
+	// (см. diskParentEnc ниже), просто больше не считается источником
+	// детальных атрибутов диска.
 	var disks []dorado.Disk
 	// diskParentEnc - соответствие Disk.ID -> Enclosure.ID полки, у которой
-	// этот диск запрошен - используется НИЖЕ как основной источник
-	// привязки к полке вместо d.ENCLOSUREID/d.PARENTID (которые по
-	// диагностике из (83) на этом оборудовании остаются пустыми даже при
-	// association-запросе - подстраховка, а не отмена самого фильтра выше:
-	// сам факт association-запроса всё равно нужен, чтобы получить остальные
-	// атрибуты диска - CAPACITY, DISKTYPE и т.п.).
+	// этот диск был перечислен - см. комментарий выше, используется как
+	// основной источник привязки к полке вместо d.ENCLOSUREID/d.PARENTID
+	// (которые по диагностике на этом оборудовании остаются пустыми).
 	diskParentEnc := map[string]string{}
 	for _, enc := range enclosures {
 		encDisks, dErr := client.LocalDevice.GetDisks(context.Background(), &dorado.SearchQuery{
@@ -683,7 +695,24 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		}
 		disks = fallbackDisks
 	}
-	log.Printf("[HW-sync] Huawei Id=%d: GetDisks (по полкам) вернул %d записей", shd.Id, len(disks))
+	log.Printf("[HW-sync] Huawei Id=%d: GetDisks (по полкам) вернул %d записей (облегчённые записи, детали добираются по одному ниже)", shd.Id, len(disks))
+
+	// Добор полных атрибутов КАЖДОГО диска отдельным запросом GetDisk(id)
+	// ("/disk/{id}") - см. комментарий выше. Ошибка по одному диску не
+	// прерывает синхронизацию остальных - в этом случае используется
+	// облегчённая запись из списка (как и раньше, до этой правки), чтобы не
+	// потерять сам факт наличия диска.
+	for i := range disks {
+		full, dErr := client.LocalDevice.GetDisk(context.Background(), disks[i].ID)
+		if dErr != nil {
+			log.Printf("[HW-sync] Huawei Id=%d: GetDisk(ID=%s) вернул ошибку, используется облегчённая запись из списка (не прерывает синхронизацию остальных дисков): %v", shd.Id, disks[i].ID, dErr)
+			continue
+		}
+		if full != nil {
+			*full = withDiskID(*full, disks[i].ID) // на случай, если /disk/{id} не возвращает ID обратно
+			disks[i] = *full
+		}
+	}
 
 	touchedDisk := make([]int64, 0, len(disks))
 	inUse := 0
@@ -1012,6 +1041,21 @@ func unityDiskParentEnclosureKey(diskID string) string {
 		return "dae:" + parent
 	}
 	return ""
+}
+
+// withDiskID подставляет ID диска обратно в структуру, полученную от
+// GetDisk("/disk/{id}") - на случай, если детальный ответ Huawei REST API по
+// этому конкретному объекту не дублирует поле ID (такое поведение
+// встречается у некоторых REST API, где ID уже "во внешнем ключе" пути
+// запроса и не всегда дублируется в теле ответа) - без этого withDiskID
+// downstream-код (ExternalKey, diskParentEnc[d.ID]) остался бы без надёжной
+// связи с исходным диском из списка. Добавлено 2026-09-17 вместе с GetDisk,
+// см. её комментарий в go-dorado-sdk/dorado/disk.go.
+func withDiskID(d dorado.Disk, id string) dorado.Disk {
+	if d.ID == "" {
+		d.ID = id
+	}
+	return d
 }
 
 func firstNonEmptyStr(values ...string) string {

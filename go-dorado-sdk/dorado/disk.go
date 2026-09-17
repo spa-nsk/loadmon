@@ -75,6 +75,47 @@ func (d *Device) GetDisks(ctx context.Context, query *SearchQuery) ([]Disk, erro
 	return disks, nil
 }
 
+// GetDisk возвращает ОДИН физический диск по его ID через запрос конкретного
+// экземпляра объекта - "/disk/{id}" вместо списочного "/disk". Добавлено
+// 2026-09-17 по запросу пользователя "для huawei ёмкость дисков по-прежнему
+// отображается как 0 и тип числовой 21, на основе документации по REST API
+// сделай корректировки".
+//
+// Обоснование (реальное наблюдение на этом REST API, а не догадка): списочный
+// GET /disk (и, как оказалось, GET /disk?ASSOCIATEOBJTYPE=.../ASSOCIATEOBJID=...
+// тоже) отдаёт диски в "облегчённом" виде - CAPACITY/SLOTNUM/ENCLOSUREID
+// пустые, PARENTID="0". Аналогичный публично доступный Python-клиент этого же
+// API (github.com/ventillo/huStore, huawei_rest.py, класс huaweiOceanstor)
+// для получения полного набора атрибутов ОБЪЕКТА (там - host) делает запрос
+// именно к конкретному экземпляру `/host/{id}`, а не к списку `/host` -
+// стандартная конвенция REST ("детальный" ресурс возвращает больше полей,
+// чем "коллекция"). Ранее (2026-09-17, см. CHANGELOG) была предпринята
+// попытка получить полные атрибуты через ASSOCIATEOBJTYPE=21/ASSOCIATEOBJID=
+// <Enclosure.ID> - она НЕ решила проблему (пользователь подтвердил: "ёмкость
+// по-прежнему 0"), и при аудите обнаружилось, что константа TypeEnclosure=21
+// в этом SDK совпадает с TypeHost=21 (см. constants.go) - то есть указанный
+// в запросе объектный тип association-фильтра почти наверняка был неверным
+// (Host, а не Enclosure), что объясняет, почему фильтрация не сработала как
+// ожидалось. Не имея возможности подтвердить правильный числовой код
+// Enclosure по официальной документации (support.huawei.com недоступен из
+// текущего окружения - см. kontext/10-huawei-dorado-rest-api.md), решение -
+// не гадать код и вместо этого использовать более надёжный, задокументированный
+// как минимум по аналогии с /host/{id} приём: запрос диска по конкретному ID.
+func (d *Device) GetDisk(ctx context.Context, id string) (*Disk, error) {
+	spath := "/disk/" + id
+	req, err := d.newRequest(ctx, "GET", spath, nil)
+	if err != nil {
+		return nil, fmt.Errorf(ErrCreateRequest+": %w", err)
+	}
+
+	var disk Disk
+	if err = d.requestWithRetry(req, &disk, DefaultHTTPRetryCount); err != nil {
+		return nil, fmt.Errorf(ErrRequestWithRetry+": %w", err)
+	}
+
+	return &disk, nil
+}
+
 // parseHuaweiFloat разбирает строковое числовое поле, как их присылает
 // Huawei DeviceManager REST API (почти все объёмные/числовые величины
 // приходят строками) - общий небольшой helper для Disk.DiskCapacityGb.
