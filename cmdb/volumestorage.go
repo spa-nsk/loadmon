@@ -111,6 +111,18 @@ func recordStorageSystemScanResult(o orm.Ormer, shd *models.StorageSystems, poll
 	}
 }
 
+// UpdateVolumeStorageOnly - если задано (не пустая строка), ограничивает
+// цикл UpdateVolumeStorage ОДНОЙ СХД по ShortName (сравнение без учёта
+// регистра, точное совпадение). Добавлено 2026-09-17 по запросу пользователя
+// loadmon "сделай отдельное приложение ... которое будет делать
+// синхронизацию данных СХД и больше ничего, на нём и отладим код" -
+// используется ТОЛЬКО отдельной отладочной утилитой tools/storagesync (см.
+// её main.go), чтобы гонять полный цикл синхронизации для одной проблемной
+// СХД без ожидания опроса остальных. Пустая строка (значение по умолчанию,
+// не меняется) - без фильтра, обычное поведение всех СХД, ничего не меняет
+// в production-поведении metrics_grpc.
+var UpdateVolumeStorageOnly string
+
 // UpdateVolumeStorage() функция обновления информации о томах СХД
 func UpdateVolumeStorage() {
 	file, ferr := os.Create("storage_update.log")
@@ -136,6 +148,9 @@ func UpdateVolumeStorage() {
 				continue
 			}
 			//пропускаем выключенные СХД
+			if UpdateVolumeStorageOnly != "" && !strings.EqualFold(shd.ShortName, UpdateVolumeStorageOnly) {
+				continue // отладочный фильтр tools/storagesync - см. комментарий у переменной
+			}
 			keyStor := strings.ToUpper(shd.ShortName)
 			mapStorSys[keyStor] = storSys[i] //запоминаем в карте по краткому имени СХД
 			if shd.TagName != "" {

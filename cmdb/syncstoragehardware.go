@@ -83,10 +83,18 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	touchedEnc := make([]int64, 0)
 	touchedDisk := make([]int64, 0)
 
-	dpeList, err := storages.GetUnityDPE(shd.IpAddress)
+	// GetUnityHardwareBundle - ОДНА REST-сессия на полки+диски+пулы (2026-09-17,
+	// см. её комментарий в storages/unity_hardware.go) - до этой правки здесь
+	// было четыре отдельных login/logout-цикла подряд (GetUnityDPE/DAE/Disks/
+	// Pools по отдельности), что при и без того нестабильном REST-интерфейсе
+	// конкретных Unity-массивов (см. CHANGELOG, жалоба "диски/полки/пулы не
+	// появились" - широкие HTTP 422 на СОВЕРШЕННО другие запросы того же
+	// массива) увеличивало нагрузку без необходимости.
+	bundle, err := storages.GetUnityHardwareBundle(shd.IpAddress)
 	if err != nil {
 		return err
 	}
+	dpeList := bundle.DPE
 	log.Printf("[HW-sync] Unity Id=%d: GetUnityDPE вернул %d записей", shd.Id, len(dpeList))
 	for _, dpe := range dpeList {
 		key := "dpe:" + dpe.ID
@@ -111,10 +119,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		touchedEnc = append(touchedEnc, id)
 	}
 
-	daeList, err := storages.GetUnityDAE(shd.IpAddress)
-	if err != nil {
-		return err
-	}
+	daeList := bundle.DAE
 	log.Printf("[HW-sync] Unity Id=%d: GetUnityDAE вернул %d записей", shd.Id, len(daeList))
 	for _, dae := range daeList {
 		key := "dae:" + dae.ID
@@ -139,10 +144,7 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		touchedEnc = append(touchedEnc, id)
 	}
 
-	disks, err := storages.GetUnityDisks(shd.IpAddress)
-	if err != nil {
-		return err
-	}
+	disks := bundle.Disks
 	log.Printf("[HW-sync] Unity Id=%d: GetUnityDisks вернул %d записей", shd.Id, len(disks))
 	inUse := 0
 	var totalCapacityGb float64
@@ -176,13 +178,13 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	}
 
 	touchedPool := make([]int64, 0)
-	pools, poolsErr := storages.GetUnityPools(shd.IpAddress)
+	pools, poolsErr := bundle.Pools, bundle.PoolsErr
 	if poolsErr != nil {
-		// GetUnityPools - не фатально для остального hardware-инвентаря (полки
-		// и диски уже собраны выше); при ошибке НЕ вызываем
-		// deactivateAbsentStoragePools ниже, чтобы транзитная ошибка запроса
-		// не деактивировала все реально существующие пулы (2026-09-16, "для
-		// VNX/Unity/Lenovo тоже нужно" - обработка пулов).
+		// GetPool (внутри общей сессии bundle) - не фатально для остального
+		// hardware-инвентаря (полки и диски уже собраны выше); при ошибке НЕ
+		// вызываем deactivateAbsentStoragePools ниже, чтобы транзитная ошибка
+		// запроса не деактивировала все реально существующие пулы
+		// (2026-09-16, "для VNX/Unity/Lenovo тоже нужно" - обработка пулов).
 		log.Printf("[HW-sync] Unity Id=%d: GetUnityPools вернул ошибку (не прерывает синхронизацию hardware): %v", shd.Id, poolsErr)
 	} else {
 		log.Printf("[HW-sync] Unity Id=%d: GetUnityPools вернул %d записей", shd.Id, len(pools))
