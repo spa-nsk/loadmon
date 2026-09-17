@@ -311,6 +311,16 @@
          поле) - у Lenovo SANtricity API пулов вообще не отдаёт description
          (см. syncLenovoHardware), там будет прочерк - это ограничение API
          вендора, не ошибка синхронизации. -->
+    <!-- ДОБАВЛЕНО 2026-09-17 по запросу пользователя "нужно показать LUN на
+         этих пулах": .Pools теперь []PoolWithVolumes (Pool+Volumes) вместо
+         []models.StoragePool - под сводной строкой пула, если у него есть
+         связанные тома, разворачивается таблица LUN. Связь тома с пулом
+         (models.StorageVolumes.PoolExternalKey) заполняется пока только для
+         Huawei и Unity (см. cmdb/UpdateHuaweyVolume.go, cmdb/volumestorage.go) -
+         у VNX/Lenovo это поле не заполняется (ограничение текущего кода
+         синхронизации томов этих вендоров), поэтому для них таблица LUN
+         под пулом будет пустой даже при наличии реальных LUN в пуле - это
+         известное ограничение, не ошибка синхронизации. -->
     {{if .Pools}}
     <table class="table table-sm table-bordered table-striped table-hover align-middle spr-classic-table mb-0">
         <thead>
@@ -322,23 +332,53 @@
                 <th class="text-end">Занято, Gb</th>
                 <th class="text-end">Занято, %</th>
                 <th>Статус</th>
+                <th class="text-end">LUN</th>
             </tr>
         </thead>
         <tbody>
-            {{range $p := .Pools}}
+            {{range $pv := .Pools}}
             <tr>
-                <td>{{$p.Name}}</td>
-                <td style="word-break:break-word;">{{if $p.Description}}{{$p.Description}}{{else}}&mdash;{{end}}</td>
-                <td class="text-end">{{printf "%.1f" $p.TotalCapacityGb}}</td>
-                <td class="text-end">{{printf "%.1f" $p.FreeCapacityGb}}</td>
-                <td class="text-end">{{printf "%.1f" $p.UsedCapacityGb}}</td>
-                <td class="text-end">{{printf "%.1f" $p.UsedPercent}}</td>
+                <td>{{$pv.Pool.Name}}</td>
+                <td style="word-break:break-word;">{{if $pv.Pool.Description}}{{$pv.Pool.Description}}{{else}}&mdash;{{end}}</td>
+                <td class="text-end">{{printf "%.1f" $pv.Pool.TotalCapacityGb}}</td>
+                <td class="text-end">{{printf "%.1f" $pv.Pool.FreeCapacityGb}}</td>
+                <td class="text-end">{{printf "%.1f" $pv.Pool.UsedCapacityGb}}</td>
+                <td class="text-end">{{printf "%.1f" $pv.Pool.UsedPercent}}</td>
                 <td>
-                    <span class="badge {{if eq $p.Status 1}}text-bg-success{{else}}text-bg-secondary{{end}}">
-                        {{if eq $p.Status 1}}Активен{{else}}Выведен{{end}}
+                    <span class="badge {{if eq $pv.Pool.Status 1}}text-bg-success{{else}}text-bg-secondary{{end}}">
+                        {{if eq $pv.Pool.Status 1}}Активен{{else}}Выведен{{end}}
                     </span>
                 </td>
+                <td class="text-end">{{len $pv.Volumes}}</td>
             </tr>
+            {{if $pv.Volumes}}
+            <tr>
+                <td colspan="8" class="p-0 border-0">
+                    <table class="table table-sm table-bordered table-striped align-middle spr-classic-table mb-2 mt-1">
+                        <thead>
+                            <tr>
+                                <th>Имя LUN</th>
+                                <th>UID</th>
+                                <th class="text-end">Ёмкость, Gb</th>
+                                <th>Сервер(ы)</th>
+                                <th>Описание</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range $v := $pv.Volumes}}
+                            <tr>
+                                <td>{{$v.StorageName}}</td>
+                                <td>{{if $v.UID}}{{$v.UID}}{{else}}&mdash;{{end}}</td>
+                                <td class="text-end">{{printf "%.1f" $v.CapacityGb}}</td>
+                                <td>{{if $v.Server}}{{$v.Server}}{{else}}&mdash;{{end}}</td>
+                                <td style="word-break:break-word;">{{if $v.Annotation}}{{$v.Annotation}}{{else}}&mdash;{{end}}</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            {{end}}
             {{end}}
         </tbody>
     </table>

@@ -24,6 +24,13 @@ type DoradoLunInfo struct {
 	CapacityGb        float64 //
 	AllocCapacityGb   float64 //
 	Servers           string  //
+	// PoolExternalKey - ДОБАВЛЕНО 2026-09-17 по запросу пользователя "нужно
+	// показать LUN на этих пулах" - ExternalKey родительского пула
+	// (models.StoragePool, "huawei:pool:<ID>"), вычисляется из l.PARENTID
+	// (см. go-dorado-sdk/dorado/lun.go - PARENTID у LUN это Id пула,
+	// PARENTNAME - его имя) тем же форматом ключа, каким пул проиндексирован
+	// в syncHuaweiHardware/upsertStoragePool ("huawei:pool:%d", p.ID).
+	PoolExternalKey string //
 }
 
 // UpdateHuaweyVolume подключается к СХД Huawei Dorado, получает список томов и обновляет
@@ -92,8 +99,9 @@ func UpdateHuaweyVolume(shd *models.StorageSystems) ([]int64, error) {
 			voln.StorageSystemsId = shd.Id
 			voln.ShortName = shd.ShortName
 			voln.StorageName = strings.TrimSpace(volume.Name)
+			voln.PoolExternalKey = volume.PoolExternalKey
 			voln.Time_Mfy = time.Now().Local()
-			if _, updErr := o.Update(&voln, "StorageSystemsId", "ShortName", "StorageName", "Time_Mfy"); updErr != nil {
+			if _, updErr := o.Update(&voln, "StorageSystemsId", "ShortName", "StorageName", "PoolExternalKey", "Time_Mfy"); updErr != nil {
 				fmt.Println("Ошибка дополнения данных тома (приоритет vSphere):", volume.Name, updErr)
 			} else {
 				touchedIds = append(touchedIds, voln.Id)
@@ -107,6 +115,7 @@ func UpdateHuaweyVolume(shd *models.StorageSystems) ([]int64, error) {
 		voln.ShortName = shd.ShortName //запоминаем краткое наименование СХД
 		voln.StorageName = strings.TrimSpace(volume.Name)
 		voln.CapacityGb = float64(volume.CapacityGb)
+		voln.PoolExternalKey = volume.PoolExternalKey
 		voln.Time_Mfy = time.Now().Local()
 		voln.SourceUpdateType = models.StorageSourceUpdateStorageAPI
 
@@ -173,7 +182,9 @@ func GetDoradoLun(client *dorado.Client, shd *models.StorageSystems) (map[string
 			UID:             strings.ToUpper(l.WWN), //заглавными
 			Name:            l.NAME,
 			CapacityGb:      float64(capacity),
-			AllocCapacityGb: float64(alloccapacity)}
+			AllocCapacityGb: float64(alloccapacity),
+			// PoolExternalKey - см. комментарий у поля DoradoLunInfo.PoolExternalKey.
+			PoolExternalKey: fmt.Sprintf("huawei:pool:%d", l.PARENTID)}
 		if l.ENABLECOMPRESSION == "true" {
 			dLun.EnableCompression = true
 		}

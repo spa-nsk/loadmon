@@ -3,6 +3,7 @@ package cmdb
 import (
 	"context"
 	"fmt"
+	"loadmon/emcstorage"
 	"loadmon/lenovostorage"
 	"log"
 	models "loadmon/models"
@@ -98,6 +99,10 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	log.Printf("[HW-sync] Unity Id=%d: GetUnityDPE вернул %d записей", shd.Id, len(dpeList))
 	for _, dpe := range dpeList {
 		key := "dpe:" + dpe.ID
+		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17, см. комментарий у диагностики
+		// в цикле дисков ниже - сравнить dpe.ID отсюда с disk.ID оттуда,
+		// чтобы понять реальный формат id. Удалить после диагностики.
+		log.Printf("[HW-sync] Unity Id=%d: диагностика - DPE.ID=%q (ключ encByKey=%q)", shd.Id, dpe.ID, key)
 		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
 			EnclosureType:    models.StorageEnclosureTypeManagement,
 			ExternalKey:      key,
@@ -123,6 +128,8 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	log.Printf("[HW-sync] Unity Id=%d: GetUnityDAE вернул %d записей", shd.Id, len(daeList))
 	for _, dae := range daeList {
 		key := "dae:" + dae.ID
+		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17) - см. комментарий у DPE выше.
+		log.Printf("[HW-sync] Unity Id=%d: диагностика - DAE.ID=%q (ключ encByKey=%q)", shd.Id, dae.ID, key)
 		id, err := upsertStorageEnclosure(o, shd.Id, models.StorageEnclosure{
 			EnclosureType:    models.StorageEnclosureTypeData,
 			ExternalKey:      key,
@@ -170,7 +177,20 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		// <slot>_disk_N" для дисков в DAE - unityDiskParentEnclosureKey
 		// отрезает суффикс "_disk_N" и добавляет тот же префикс "dpe:"/"dae:",
 		// которым проиндексирован encByKey чуть выше.
-		encId := encByKey[unityDiskParentEnclosureKey(d.ID)]
+		parentKey := unityDiskParentEnclosureKey(d.ID)
+		encId := encByKey[parentKey]
+		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17, по замечанию пользователя
+		// "привязка полок и дисков так и не появилась" - предыдущий фикс
+		// (unityDiskParentEnclosureKey) не сработал, значит предположение о
+		// формате id диска ("dpe_disk_N"/"dae_<bus>_<slot>_disk_N") неверно
+		// для реального оборудования пользователя. Лог первых нескольких
+		// дисков покажет фактический disk.ID и вычисленный из него ключ -
+		// сравнить с фактическими encByKey (dpe:.../dae:... чуть выше по
+		// логу того же запуска) и поправить unityDiskParentEnclosureKey по
+		// факту. Удалить после диагностики.
+		if len(touchedDisk) < 5 {
+			log.Printf("[HW-sync] Unity Id=%d: диагностика привязки диска - disk.ID=%q вычисленный ключ=%q найден в encByKey=%v", shd.Id, d.ID, parentKey, encId != 0)
+		}
 		id, err := upsertStorageDisk(o, shd.Id, models.StorageDisk{
 			StorageEnclosureId: encId,
 			ExternalKey:        key,
@@ -644,6 +664,21 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	for _, d := range disks {
 		parentID := firstNonEmptyStr(d.ENCLOSUREID, d.PARENTID)
 		slot, _ := strconv.Atoi(strings.TrimSpace(d.SLOTNUM))
+		// ВРЕМЕННАЯ ДИАГНОСТИКА (2026-09-17, по замечанию пользователя "тип
+		// указан числовой 21 и размер 0"): DISKTYPE документирован как
+		// строковая метка среды (SSD/SAS/NL_SAS), но, как и у Enclosure.TYPE
+		// в (77), реальная прошивка, похоже, отдаёт числовой код вместо
+		// метки - "21" не похоже на распознанный лейбл. CapacityGb=0
+		// означает, что Disk.CAPACITY либо пустой, либо не парсится
+		// parseHuaweiFloat (см. go-dorado-sdk/dorado/disk.go) - оба
+		// подозрения требуют сырых значений с реального устройства, чтобы
+		// не гадать с маппингом вслепую (см. историю (77)-(80) в этом же
+		// файле - каждый раз конкретное поле оказывалось не тем типом/
+		// значением, что в документации). Лог первых дисков покажет сырые
+		// DISKTYPE/CAPACITY/TYPE. Удалить после диагностики.
+		if len(touchedDisk) < 5 {
+			log.Printf("[HW-sync] Huawei Id=%d: диагностика диска - ID=%q DISKTYPE=%q CAPACITY=%q SLOTNUM=%q ENCLOSUREID=%q PARENTID=%q", shd.Id, d.ID, d.DISKTYPE, d.CAPACITY, d.SLOTNUM, d.ENCLOSUREID, d.PARENTID)
+		}
 		status := models.StorageHWStatusActive
 		if strings.TrimSpace(d.LOGICTYPE) == "1" {
 			// hot spare - считается "свободным", тот же код статуса, что и у
@@ -894,18 +929,37 @@ func syncLenovoHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	return nil
 }
 
+// unityDiskTechnologyLabel переводит код diskTechnology Unity REST API
+// (объект disk, см. emcstorage.DiskContent.DiskTechnology) в читаемую
+// метку. ИСПРАВЛЕНО 2026-09-17 по замечанию пользователя "есть неопознанный
+// тип диска с кодом 7" - прежняя версия этой функции использовала
+// самодельный маппинг 1-4 (SAS/NL-SAS/SSD/Flash), НЕ совпадающий с
+// реальными числовыми кодами Unity DiskTechnologyEnum, которые уже были
+// заведены именованными константами в emcstorage/types_add.go (TechSAS=1,
+// TechNL_SAS=2, TechSAS_FLASH_2=6, TechSAS_FLASH_3=7, TechSAS_FLASH_4=8,
+// TechSAS_FLASH_5=9, TechMixed=50, TechVrtual=99) ещё раньше, но эта функция
+// их не использовала. Код 7 из жалобы пользователя - это
+// emcstorage.TechSAS_FLASH_3.
 func unityDiskTechnologyLabel(code int) string {
 	switch code {
-	case 1:
+	case emcstorage.TechSAS:
 		return "SAS"
-	case 2:
+	case emcstorage.TechNL_SAS:
 		return "NL-SAS"
-	case 3:
-		return "SSD"
-	case 4:
-		return "Flash"
+	case emcstorage.TechSAS_FLASH_2:
+		return "SAS Flash 2 (SSD)"
+	case emcstorage.TechSAS_FLASH_3:
+		return "SAS Flash 3 (SSD)"
+	case emcstorage.TechSAS_FLASH_4:
+		return "SAS Flash 4 (SSD)"
+	case emcstorage.TechSAS_FLASH_5:
+		return "SAS Flash 5 (SSD)"
+	case emcstorage.TechMixed:
+		return "Смешанный"
+	case emcstorage.TechVrtual:
+		return "Виртуальный"
 	default:
-		return strconv.Itoa(code)
+		return fmt.Sprintf("Код %d", code)
 	}
 }
 
