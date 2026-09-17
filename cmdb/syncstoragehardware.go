@@ -158,18 +158,32 @@ func syncUnityHardware(o orm.Ormer, shd *models.StorageSystems) error {
 		}
 		capGb := float64(d.Size) / (1024 * 1024 * 1024)
 		totalCapacityGb += capGb
+		// StorageEnclosureId - ИСПРАВЛЕНО 2026-09-17 по замечанию пользователя
+		// "по Unity полки с данными не связаны с дисками, диски без привязки к
+		// полке" - раньше это поле здесь вообще не заполнялось (не ошибка
+		// значения, а полностью пропущенное присваивание), поэтому ВСЕ диски
+		// Unity попадали в StorageEnclosureId=0 независимо от реальной полки.
+		// В REST API Unity нет отдельного поля-ссылки "какой DAE/DPE" у
+		// объекта disk - принадлежность кодируется в самом id диска по тому
+		// же соглашению именования, что и у DPE/DAE (см. dpeList/daeList
+		// выше в этой функции): "dpe_disk_N" для дисков в DPE, "dae_<bus>_
+		// <slot>_disk_N" для дисков в DAE - unityDiskParentEnclosureKey
+		// отрезает суффикс "_disk_N" и добавляет тот же префикс "dpe:"/"dae:",
+		// которым проиндексирован encByKey чуть выше.
+		encId := encByKey[unityDiskParentEnclosureKey(d.ID)]
 		id, err := upsertStorageDisk(o, shd.Id, models.StorageDisk{
-			ExternalKey:      key,
-			SlotNumber:       int(d.SlotNumber),
-			BusId:            int(d.BusId),
-			Vendor:           d.Manufacturer,
-			Model:            d.Model,
-			DiskType:         unityDiskTechnologyLabel(d.DiskTechnology),
-			SerialNum:        d.EmcSerialNumber,
-			CapacityGb:       capGb,
-			Status:           status,
-			SourceUpdateType: models.StorageSourceUpdateStorageAPI,
-			Time_Mfy:         time.Now().Local(),
+			StorageEnclosureId: encId,
+			ExternalKey:        key,
+			SlotNumber:         int(d.SlotNumber),
+			BusId:              int(d.BusId),
+			Vendor:             d.Manufacturer,
+			Model:              d.Model,
+			DiskType:           unityDiskTechnologyLabel(d.DiskTechnology),
+			SerialNum:          d.EmcSerialNumber,
+			CapacityGb:         capGb,
+			Status:             status,
+			SourceUpdateType:   models.StorageSourceUpdateStorageAPI,
+			Time_Mfy:           time.Now().Local(),
 		})
 		if err != nil {
 			return err
@@ -893,6 +907,33 @@ func unityDiskTechnologyLabel(code int) string {
 	default:
 		return strconv.Itoa(code)
 	}
+}
+
+// unityDiskParentEnclosureKey вычисляет ключ родительской полки диска Unity
+// (для поиска в encByKey, куда сложены DPE/DAE, см. syncUnityHardware) по
+// соглашению именования id диска в REST API Unity: id диска в DPE выглядит
+// как "dpe_disk_N", id диска в DAE - как "dae_<bus>_<slot>_disk_N", то есть
+// id родительской полки - это id диска с отрезанным суффиксом "_disk_N".
+// Добавлено 2026-09-17 - раньше принадлежность диска полке для Unity не
+// вычислялась вовсе (см. комментарий у вызова в syncUnityHardware).
+//
+// Возвращает пустую строку, если id диска не соответствует ожидаемому
+// формату ("_disk_" не найден) - в этом случае вызывающий код получит "" в
+// качестве ключа encByKey, что равносильно ненайденной полке (диск попадёт
+// в "без привязки"), то есть не хуже прежнего поведения.
+func unityDiskParentEnclosureKey(diskID string) string {
+	idx := strings.LastIndex(diskID, "_disk_")
+	if idx <= 0 {
+		return ""
+	}
+	parent := diskID[:idx]
+	if strings.HasPrefix(parent, "dpe") {
+		return "dpe:" + parent
+	}
+	if strings.HasPrefix(parent, "dae") {
+		return "dae:" + parent
+	}
+	return ""
 }
 
 func firstNonEmptyStr(values ...string) string {
