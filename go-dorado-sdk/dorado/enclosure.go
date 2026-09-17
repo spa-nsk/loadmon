@@ -25,13 +25,18 @@ type Enclosure struct {
 	MODEL         string `json:"MODEL"`
 	HEALTHSTATUS  string `json:"HEALTHSTATUS"`
 	RUNNINGSTATUS string `json:"RUNNINGSTATUS"`
-	// TYPE - подтип полки: различает управляющую полку с контроллерами
-	// (DPE-подобная, содержит CTRL) от чисто дисковой полки расширения
-	// (DAE-подобная) - конкретные числовые коды зависят от прошивки,
-	// поэтому здесь не заводится отдельная константа-классификатор, текст
-	// сохраняется в models.StorageEnclosure.Model/EnclosureType по факту
-	// значения LOCATION/NAME (см. cmdb.syncHuaweiHardware).
-	TYPE       string `json:"TYPE"`
+	// TYPE - подтип полки, числовой код (ИСПРАВЛЕНО 2026-09-17 по реальной
+	// ошибке при первом запуске на реальном оборудовании - "cannot unmarshal
+	// number into Go struct field Enclosure.data.TYPE of type string": в
+	// первой версии этого поля (2026-09-16) TYPE был по ошибке заведён как
+	// string по аналогии с большинством других полей Huawei API - реальная
+	// прошивка возвращает его ЧИСЛОМ). Конкретные числовые коды (у Huawei
+	// документированы примерно как 1-полка контроллеров, 2-полка BBU,
+	// 3-полка интерфейсных модулей, 4-дисковая полка - могут отличаться по
+	// прошивке) здесь отдельной константой не заводятся - классификация
+	// "управления/данных" в models.StorageEnclosure.EnclosureType делается
+	// по факту NAME (см. cmdb.syncHuaweiHardware), а не по этому коду.
+	TYPE       int    `json:"TYPE"`
 	LOCATION   string `json:"LOCATION"`
 	PARENTID   string `json:"PARENTID"` // Id родительской системы (StorageSystems по SerialNum, не по этому Id)
 	SLOTNUM    string `json:"SLOTNUM"`

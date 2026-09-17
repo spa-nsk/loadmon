@@ -584,8 +584,15 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	encByID := map[string]int64{}
 	touchedEnc := make([]int64, 0, len(enclosures))
 	for _, enc := range enclosures {
+		// ИСПРАВЛЕНО 2026-09-17: enc.TYPE у реального оборудования оказался
+		// числовым кодом (см. комментарий у Enclosure.TYPE в
+		// go-dorado-sdk/dorado/enclosure.go), а не строкой "CTRL"/… как
+		// предполагалось изначально - классификация управления/данных
+		// делается по факту NAME/LOCATION (единственный текстовый признак,
+		// доступный без знания конкретных числовых кодов TYPE на этой
+		// прошивке).
 		encType := models.StorageEnclosureTypeData
-		if strings.Contains(strings.ToUpper(enc.TYPE), "CTRL") || strings.Contains(strings.ToUpper(enc.NAME), "CTE") {
+		if strings.Contains(strings.ToUpper(enc.NAME), "CTE") || strings.Contains(strings.ToUpper(enc.LOCATION), "CTE") {
 			encType = models.StorageEnclosureTypeManagement
 		}
 		slot, _ := strconv.Atoi(strings.TrimSpace(enc.SLOTNUM))
