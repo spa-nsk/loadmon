@@ -1554,7 +1554,16 @@ type Graph struct {
 				IP                       int    `json:"ip"`
 				Alias                    string `json:"alias"`
 				MacAddr                  string `json:"macAddr"`
-				GatewayIP                string `json:"gatewayIp"`
+				// GatewayIP - ИСПРАВЛЕНО 2026-09-17 по реальной ошибке при
+				// синхронизации hardware Lenovo/SANtricity через
+				// tools/storagesync - "cannot unmarshal number into Go
+				// struct field .controller.netInterfaces.ethernet.gatewayIp
+				// of type string": реальное устройство отдаёт gatewayIp
+				// числом (как и соседнее поле IP чуть выше), а не строкой -
+				// изначально было заведено как string по аналогии с
+				// остальными адресными полями (Ipv4Address и т.п.), которые
+				// у этого же устройства оказались строками корректно.
+				GatewayIP                int    `json:"gatewayIp"`
 				SubnetMask               int    `json:"subnetMask"`
 				BootUsed                 bool   `json:"bootUsed"`
 				RloginEnabled            bool   `json:"rloginEnabled"`
