@@ -49,7 +49,7 @@ func UpdateHuaweyVolume(shd *models.StorageSystems) ([]int64, error) {
 		return nil, err
 	}
 
-	volumes, err := GetDoradoLun(client)
+	volumes, err := GetDoradoLun(client, shd)
 
 	if err != nil {
 		fmt.Println("Ошибка получения списка томов СХД", shd.ShortName, shd.IpAddress, err)
@@ -133,7 +133,15 @@ func UpdateHuaweyVolume(shd *models.StorageSystems) ([]int64, error) {
 
 // GetDoradoLun запрашивает у СХД Huawei Dorado список LUN-ов и связанных с ними хостов
 // и возвращает карту DoradoLunInfo по имени тома.
-func GetDoradoLun(client *dorado.Client) (map[string]*DoradoLunInfo, error) {
+//
+// shd передаётся ТОЛЬКО ради диагностических сообщений (ShortName/IpAddress
+// конкретной СХД) - ИЗМЕНЕНО 2026-09-17 по замечанию пользователя, что в
+// логе строки "Ошибка получения привязки томов и хостов LUN is not found
+// <id> <hostname>" не позволяли понять, к какой именно из нескольких
+// одновременно опрашиваемых Huawei СХД относится ошибка и что вообще с чем
+// пытались связать (сообщение раньше не называло ни СХД, ни саму операцию
+// человеческим языком). Сам объект shd в логике функции не используется.
+func GetDoradoLun(client *dorado.Client, shd *models.StorageSystems) (map[string]*DoradoLunInfo, error) {
 
 	ctx := context.Background()
 
@@ -183,7 +191,23 @@ func GetDoradoLun(client *dorado.Client) (map[string]*DoradoLunInfo, error) {
 	for _, h := range hosts {
 		lunsa, err := client.LocalDevice.GetHostAssociatedLUNs(ctx, h.ID)
 		if err != nil {
-			fmt.Println("Ошибка получения привязки томов и хостов", err, h.ID, h.NAME)
+			// Расширенное сообщение (2026-09-17, по замечанию пользователя
+			// "непонятно кто и с кем связывается"): раньше строка не
+			// называла ни СХД, ни саму операцию словами - теперь явно:
+			// какая СХД (ShortName+IP), какой хост Huawei (Id+Name) и что
+			// именно запрашивалось - список LUN, замапленных на этот хост
+			// (dorado.LocalDevice.GetHostAssociatedLUNs). err == dorado.
+			// ErrLunNotFound - ОЖИДАЕМЫЙ, не ошибочный случай: у хоста
+			// просто нет ни одного назначенного тома на момент опроса
+			// (например, ESXi-хост ещё не подключен к датастору) - не
+			// признак сбоя СХД или кода.
+			if err == dorado.ErrLunNotFound {
+				fmt.Printf("СХД Huawei %s (%s): у хоста Id=%s Name=%s нет ни одного привязанного LUN (это нормально, если хосту ещё не назначены тома)\n",
+					shd.ShortName, shd.IpAddress, h.ID, h.NAME)
+			} else {
+				fmt.Printf("СХД Huawei %s (%s): ошибка запроса списка LUN, привязанных к хосту Id=%s Name=%s: %v\n",
+					shd.ShortName, shd.IpAddress, h.ID, h.NAME, err)
+			}
 			continue
 		}
 		for _, l := range lunsa {
