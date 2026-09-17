@@ -160,6 +160,19 @@
 <div class="hw-card mt-3">
     <h6>Сторадж-процессоры / полки управления ({{len .Processors}})</h6>
     {{if .Processors}}
+    <!-- ИЗМЕНЕНО 2026-09-17 (по замечанию пользователя - "показывает
+         количество дисков на сторадж процессоре но диски не показывает"):
+         раньше здесь была только сводная таблица со счётчиком "Дисков", а
+         сам список дисков выводился ТОЛЬКО в блоке "Полки с данными" ниже -
+         для СХД, у которых единственная полка классифицирована как
+         сторадж-процессор/управляющая (например, Huawei без отдельных
+         дисковых полок расширения - весь диск-инвентарь физически внутри
+         CTE0), диски были вообще не видны на странице. Теперь под сводной
+         строкой для каждого процессора разворачивается та же таблица
+         дисков, что и у полок с данными (тот же частичный шаблон -
+         см. одноимённый блок ниже, продублирован явно, т.к. Go-шаблоны
+         .tpl этого проекта не подключают {{template}}/{{block}} между
+         файлами в текущей сборке). -->
     <table class="table table-bordered table-striped table-hover align-middle spr-classic-table mb-0">
         <thead>
             <tr>
@@ -187,6 +200,42 @@
                 </td>
                 <td class="text-end">{{len $p.Disks}}</td>
             </tr>
+            {{if $p.Disks}}
+            <tr>
+                <td colspan="7" class="p-0 border-0">
+                    <table class="table table-sm table-bordered table-striped align-middle spr-classic-table mb-2 mt-1">
+                        <thead>
+                            <tr>
+                                <th class="text-end">Слот</th>
+                                <th>Производитель / модель</th>
+                                <th>Тип</th>
+                                <th>Серийный №</th>
+                                <th class="text-end">Ёмкость, Gb</th>
+                                <th>RAID-группа</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range $d := $p.Disks}}
+                            <tr>
+                                <td class="text-end">{{$d.SlotNumber}}</td>
+                                <td>{{$d.Vendor}} {{$d.Model}}</td>
+                                <td>{{if $d.DiskType}}{{$d.DiskType}}{{else}}&mdash;{{end}}</td>
+                                <td>{{if $d.SerialNum}}{{$d.SerialNum}}{{else}}&mdash;{{end}}</td>
+                                <td class="text-end">{{printf "%.1f" $d.CapacityGb}}</td>
+                                <td>{{if $d.RaidGroupId}}{{$d.RaidGroupId}}{{else}}&mdash;{{end}}</td>
+                                <td>
+                                    {{if eq $d.Status 1}}<span class="badge text-bg-success">В использовании</span>
+                                    {{else if eq $d.Status 2}}<span class="badge text-bg-info">Резерв (spare)</span>
+                                    {{else}}<span class="badge text-bg-secondary">Выведен</span>{{end}}
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            {{end}}
             {{end}}
         </tbody>
     </table>
@@ -247,6 +296,54 @@
     {{end}}
     {{else}}
     <div class="text-muted">Полки с данными не найдены (не синхронизированы для этого вендора либо СХД не опрашивалась).</div>
+    {{end}}
+</div>
+
+<div class="hw-card mt-3">
+    <h6>Пулы хранения ({{.PoolCount}})</h6>
+    <!-- ДОБАВЛЕНО 2026-09-17 по прямому замечанию пользователя "нигде не
+         вижу отображения пулов, надо добавить в карточку конфигурации СХД
+         с указанием поля Description" - models.StoragePool синхронизируется
+         для всех вендоров (см. cmdb/syncstoragehardware.go, upsertStoragePool),
+         но до этой правки карточка их не читала и не выводила. Description
+         показывается явно и обязательно колонкой (по тому же прямому
+         требованию пользователя, под которое в (73)-(74) заводилось само
+         поле) - у Lenovo SANtricity API пулов вообще не отдаёт description
+         (см. syncLenovoHardware), там будет прочерк - это ограничение API
+         вендора, не ошибка синхронизации. -->
+    {{if .Pools}}
+    <table class="table table-sm table-bordered table-striped table-hover align-middle spr-classic-table mb-0">
+        <thead>
+            <tr>
+                <th>Имя</th>
+                <th>Description</th>
+                <th class="text-end">Всего, Gb</th>
+                <th class="text-end">Свободно, Gb</th>
+                <th class="text-end">Занято, Gb</th>
+                <th class="text-end">Занято, %</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $p := .Pools}}
+            <tr>
+                <td>{{$p.Name}}</td>
+                <td style="word-break:break-word;">{{if $p.Description}}{{$p.Description}}{{else}}&mdash;{{end}}</td>
+                <td class="text-end">{{printf "%.1f" $p.TotalCapacityGb}}</td>
+                <td class="text-end">{{printf "%.1f" $p.FreeCapacityGb}}</td>
+                <td class="text-end">{{printf "%.1f" $p.UsedCapacityGb}}</td>
+                <td class="text-end">{{printf "%.1f" $p.UsedPercent}}</td>
+                <td>
+                    <span class="badge {{if eq $p.Status 1}}text-bg-success{{else}}text-bg-secondary{{end}}">
+                        {{if eq $p.Status 1}}Активен{{else}}Выведен{{end}}
+                    </span>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <div class="text-muted">Пулы не найдены (не синхронизированы для этого вендора либо СХД не опрашивалась).</div>
     {{end}}
 </div>
 

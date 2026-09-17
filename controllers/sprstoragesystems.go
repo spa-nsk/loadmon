@@ -933,4 +933,19 @@ func (this *MainController) SprStorageSystemConfigView() {
 	this.Data["UnassignedDisks"] = unassignedDisks
 	this.Data["EnclosureCount"] = len(enclosures)
 	this.Data["DiskCount"] = len(disks)
+
+	// Пулы (models.StoragePool) - ДОБАВЛЕНО 2026-09-17 по прямому замечанию
+	// пользователя "нигде не вижу отображения пулов, надо добавить в
+	// карточку конфигурации СХД с указанием поля Description": пулы
+	// синхронизируются для всех 4 вендоров (см. upsertStoragePool в
+	// cmdb/syncstoragehardware.go, задача (164)-(165)) и уже хранятся в БД,
+	// но эта карточка их не читала и не выводила вовсе - единственное
+	// место, где Description пула вообще был виден, отсутствовало.
+	var pools []models.StoragePool
+	if _, err := o.QueryTable("storage_pool").Filter("StorageSystemsId", id).OrderBy("Name").All(&pools); err != nil {
+		flash.Notice("Ошибка чтения списка пулов: %v", err)
+		flash.Store(&this.Controller)
+	}
+	this.Data["Pools"] = pools
+	this.Data["PoolCount"] = len(pools)
 }
