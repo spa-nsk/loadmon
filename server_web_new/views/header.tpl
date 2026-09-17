@@ -416,6 +416,11 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Утилизация виртуальной
                 инфраструктуры</a>
             </li>
+            <li>
+              <a href="/sprsrv/utildatacenter"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Утилизация виртуальной
+                инфраструктуры по ЦОД</a>
+            </li>
           </ul>
         </div>
       </li>
