@@ -704,8 +704,17 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	// прерывает синхронизацию остальных - в этом случае используется
 	// облегчённая запись из списка (как и раньше, до этой правки), чтобы не
 	// потерять сам факт наличия диска.
+	//
+	// Дамп сырых ответов (huaweiDiskDumpPath, CHANGELOG (88)) ОТКЛЮЧЁН
+	// 2026-09-17 по прямому запросу пользователя loadmon "отключи дамп
+	// запроса по диску" - дамп своё дело сделал (по нему подтверждены и
+	// закрыты находки (89): DISKTYPE=14/SECTORS+SECTORSIZE), дальше
+	// держать его включённым не нужно. Сам механизм (dorado.GetDisk с
+	// параметром dumpPath, huaweiDiskDumpPath/LOADMON_HUAWEI_DISK_DUMP_DIR)
+	// НЕ удалён - если понадобится для следующей находки, достаточно снова
+	// передать huaweiDiskDumpPath(shd, disks[i].ID) вместо "" ниже.
 	for i := range disks {
-		full, dErr := client.LocalDevice.GetDisk(context.Background(), disks[i].ID, huaweiDiskDumpPath(shd, disks[i].ID))
+		full, dErr := client.LocalDevice.GetDisk(context.Background(), disks[i].ID, "")
 		if dErr != nil {
 			log.Printf("[HW-sync] Huawei Id=%d: GetDisk(ID=%s) вернул ошибку, используется облегчённая запись из списка (не прерывает синхронизацию остальных дисков): %v", shd.Id, disks[i].ID, dErr)
 			continue

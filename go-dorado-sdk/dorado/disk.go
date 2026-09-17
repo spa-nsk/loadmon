@@ -22,29 +22,54 @@ import (
 // после первого реального запроса к устройству (см. комментарий
 // cmdb.syncHuaweiHardware).
 type Disk struct {
-	ID               string `json:"ID"`
-	NAME             string `json:"NAME"`
-	SERIALNUMBER     string `json:"SERIALNUMBER"`
-	MANUFACTURER     string `json:"MANUFACTURER"`
-	MODEL            string `json:"MODEL"`
-	HEALTHSTATUS     string `json:"HEALTHSTATUS"`
-	RUNNINGSTATUS    string `json:"RUNNINGSTATUS"`
-	DISKTYPE         string `json:"DISKTYPE"` // тип носителя (SSD/SAS/NL_SAS и т.п.)
-	CAPACITY         string `json:"CAPACITY"` // в секторах по 512 байт, см. DiskCapacityGb ниже
-	PARENTID         string `json:"PARENTID"` // Id родительской полки (Enclosure.ID) - для увязки диска с полкой
-	PARENTTYPE       int    `json:"PARENTTYPE"`
-	ENCLOSUREID      string `json:"ENCLOSUREID"` // на некоторых прошивках дублирует PARENTID отдельным полем
-	SLOTNUM          string `json:"SLOTNUM"`     // номер слота в полке
-	POSITION         string `json:"POSITION"`
-	SPEED            string `json:"SPEED"`
-	LOGICTYPE        string `json:"LOGICTYPE"` // 0-обычный, 1-hot spare и т.п.
-	FIRMWAREVERSION  string `json:"FIRMWAREVERSION"`
+	ID              string `json:"ID"`
+	NAME            string `json:"NAME"`
+	SERIALNUMBER    string `json:"SERIALNUMBER"`
+	MANUFACTURER    string `json:"MANUFACTURER"`
+	MODEL           string `json:"MODEL"`
+	HEALTHSTATUS    string `json:"HEALTHSTATUS"`
+	RUNNINGSTATUS   string `json:"RUNNINGSTATUS"`
+	DISKTYPE        string `json:"DISKTYPE"` // тип носителя (SSD/SAS/NL_SAS и т.п.)
+	CAPACITY        string `json:"CAPACITY"` // ⚠️ на реальном оборудовании этого проекта (Dorado V6, GET /disk/{id}) поля вообще НЕТ в ответе - оставлено только как запасной вариант для других прошивок, см. DiskCapacityGb ниже
+	// SECTORS/SECTORSIZE - ИСПРАВЛЕНО 2026-09-17 по прямому наблюдению
+	// пользователя loadmon ("размер диска вычисляется через количество
+	// секторов и размер сектора") на сыром ответе GET /disk/{id} с реального
+	// оборудования (см. CHANGELOG (88)/(89)): фактическая ёмкость диска
+	// кодируется ЭТОЙ парой полей, а не CAPACITY (которого в ответе нет
+	// вовсе на этой прошивке) - SECTORS - количество секторов, SECTORSIZE -
+	// размер сектора в байтах (НЕ всегда 512 - на диагностированном
+	// оборудовании было 520). SECTORS*SECTORSIZE для NVMe-диска 7.68ТБ дало
+	// ~7 680 000 000 000 байт, что совпало с полем manuCapacity (заявленная
+	// производителем ёмкость) - подтверждает формулу.
+	SECTORS         string `json:"SECTORS"`
+	SECTORSIZE      string `json:"SECTORSIZE"`
+	PARENTID        string `json:"PARENTID"` // Id родительской полки (Enclosure.ID) - для увязки диска с полкой
+	PARENTTYPE      int    `json:"PARENTTYPE"`
+	ENCLOSUREID     string `json:"ENCLOSUREID"` // на некоторых прошивках дублирует PARENTID отдельным полем
+	SLOTNUM         string `json:"SLOTNUM"`     // номер слота в полке
+	POSITION        string `json:"POSITION"`
+	SPEED           string `json:"SPEED"`
+	LOGICTYPE       string `json:"LOGICTYPE"` // 0-обычный, 1-hot spare и т.п.
+	FIRMWAREVERSION string `json:"FIRMWAREVERSION"`
 }
 
-// DiskCapacityGb переводит Disk.CAPACITY (сектора по 512 байт - тот же
-// формат, что и у остальных объёмных полей Huawei REST API, см.
-// GetHuaweyVolume/GetDoradoLun в cmdb) в гигабайты.
+// DiskCapacityGb переводит объём диска в гигабайты. ИСПРАВЛЕНО 2026-09-17
+// (CHANGELOG (89)) - по прямому наблюдению пользователя на сыром ответе
+// GET /disk/{id} (см. комментарий у Disk.SECTORS/SECTORSIZE выше): основной
+// путь теперь SECTORS*SECTORSIZE (реальные поля этой прошивки), а не
+// CAPACITY (которого на этом оборудовании в ответе нет вовсе - раньше
+// формула на него полагалась, что и было одной из причин CapacityGb=0).
+// Старый расчёт через CAPACITY (с фиксированным размером сектора 512 байт)
+// оставлен ВТОРЫМ вариантом - на случай прошивки, где Huawei всё-таки
+// отдаёт CAPACITY, а не SECTORS/SECTORSIZE.
 func (d Disk) DiskCapacityGb() float64 {
+	if sectors, serr := parseHuaweiFloat(d.SECTORS); serr == nil {
+		if sectorSize, szErr := parseHuaweiFloat(d.SECTORSIZE); szErr == nil && sectorSize > 0 {
+			return sectors * sectorSize / (1024 * 1024 * 1024)
+		}
+	}
+	// Запасной вариант - CAPACITY (сектора по 512 байт), см. предупреждение
+	// у поля выше.
 	sectors, err := parseHuaweiFloat(d.CAPACITY)
 	if err != nil {
 		return 0
