@@ -9,6 +9,8 @@ import (
 	models "loadmon/models"
 	"loadmon/storages"
 	datamap "loadmon/utilities"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -703,7 +705,7 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 	// облегчённая запись из списка (как и раньше, до этой правки), чтобы не
 	// потерять сам факт наличия диска.
 	for i := range disks {
-		full, dErr := client.LocalDevice.GetDisk(context.Background(), disks[i].ID)
+		full, dErr := client.LocalDevice.GetDisk(context.Background(), disks[i].ID, huaweiDiskDumpPath(shd, disks[i].ID))
 		if dErr != nil {
 			log.Printf("[HW-sync] Huawei Id=%d: GetDisk(ID=%s) вернул ошибку, используется облегчённая запись из списка (не прерывает синхронизацию остальных дисков): %v", shd.Id, disks[i].ID, dErr)
 			continue
@@ -1041,6 +1043,66 @@ func unityDiskParentEnclosureKey(diskID string) string {
 		return "dae:" + parent
 	}
 	return ""
+}
+
+// huaweiDiskDumpDirEnv - имя переменной окружения, которой включается
+// сохранение сырых ответов Huawei GET /disk/{id} в файлы (см.
+// huaweiDiskDumpPath) - опция отладочная и НЕ включена по умолчанию, чтобы
+// обычная эксплуатация (metrics_grpc, постоянный опрос по расписанию) не
+// плодила файлы на диске незаметно для администратора; включается явно
+// точечно на время диагностики, например:
+//
+//	LOADMON_HUAWEI_DISK_DUMP_DIR=/tmp/dorado-dumps go run ./tools/storagesync -only <ShortName>
+const huaweiDiskDumpDirEnv = "LOADMON_HUAWEI_DISK_DUMP_DIR"
+
+// huaweiDiskDumpPath строит путь к файлу для сохранения сырого ответа
+// GET /disk/{id} (см. dorado.Device.GetDisk и её комментарий) - добавлено
+// 2026-09-17 по прямому запросу пользователя loadmon "добавь SDK Dorado
+// сохранение сырого ответа от СХД в файл для запросов /disk/{id} ... имя
+// файла из имени СХД + id через символ - ... это нужно для отладки"
+// (продолжение диагностики CAPACITY=0/DISKTYPE=21 из CHANGELOG (86)).
+//
+// Имя файла - "<ShortName>-<Disk.ID>.json" (по прямому указанию
+// пользователя - "имя файла из имени СХД + id через символ -"), каталог -
+// из переменной окружения huaweiDiskDumpDirEnv; если переменная не задана,
+// возвращает "" (дамп не делается - см. dorado.GetDisk: dumpPath="" =
+// поведение как раньше). ShortName очищается от символов, недопустимых в
+// имени файла (path-separator и т.п.), на случай нестандартных значений в
+// справочнике СХД - без этого попытка записи могла бы упасть с ошибкой ОС
+// (не критично - GetDisk просто логирует ошибку записи и продолжает без
+// дампа, но лучше не полагаться на это как на основной путь).
+func huaweiDiskDumpPath(shd *models.StorageSystems, diskID string) string {
+	dir := strings.TrimSpace(os.Getenv(huaweiDiskDumpDirEnv))
+	if dir == "" {
+		return ""
+	}
+	// Каталог создаётся при необходимости - без этого первая же попытка
+	// dorado.GetDisk сохранить файл в несуществующий каталог просто
+	// залогировала бы ошибку записи и ничего не сохранила (см. её
+	// комментарий - ошибка записи не прерывает обработку ответа, но и не
+	// создаёт каталог сама, это не её ответственность).
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		log.Printf("[HW-sync] Huawei: не удалось создать каталог для дампов %s=%q: %v (дамп для этого запуска отключён)", huaweiDiskDumpDirEnv, dir, err)
+		return ""
+	}
+	safeName := sanitizeDumpFileNamePart(shd.ShortName)
+	safeID := sanitizeDumpFileNamePart(diskID)
+	return filepath.Join(dir, fmt.Sprintf("%s-%s.json", safeName, safeID))
+}
+
+// sanitizeDumpFileNamePart заменяет символы, недопустимые/проблемные в
+// имени файла на Windows и Linux (path-separator, двоеточие и т.п.), на
+// "_" - см. huaweiDiskDumpPath.
+func sanitizeDumpFileNamePart(s string) string {
+	replacer := strings.NewReplacer(
+		"/", "_", "\\", "_", ":", "_", "*", "_", "?", "_",
+		"\"", "_", "<", "_", ">", "_", "|", "_", " ", "_",
+	)
+	s = replacer.Replace(strings.TrimSpace(s))
+	if s == "" {
+		s = "unknown"
+	}
+	return s
 }
 
 // withDiskID подставляет ID диска обратно в структуру, полученную от

@@ -41,7 +41,15 @@ type StorageSystemsFilter struct {
 }
 
 func defaultStorageSystemsFilter() *StorageSystemsFilter {
-	return &StorageSystemsFilter{TypeWork: "all", Status: "all", RackCabinetId: "0"}
+	// Status по умолчанию - "1" (Используется), а не "all" - по прямому
+	// запросу пользователя ("в списке для справочника СХД по умолчанию в
+	// фильтре проставь статус Используется", 2026-09-17): при первом
+	// открытии /sprsrv/storagesystemslist (и после сброса фильтра) в списке
+	// сразу показываются только реально эксплуатируемые СХД, а не весь
+	// справочник вперемешку с демонтированными/тестовыми записями - тот же
+	// принцип, что уже применён к умолчаниям TypeWork/RackCabinetId в этой
+	// же структуре.
+	return &StorageSystemsFilter{TypeWork: "all", Status: "1", RackCabinetId: "0"}
 }
 
 // SprStorageSystems отображает список записей справочника СХД
