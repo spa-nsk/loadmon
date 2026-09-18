@@ -172,11 +172,20 @@
         padding: 0.9rem 1rem;
     }
 
+    /* --- ИСПРАВЛЕНО 2026-09-18 (2-й раз, по скриншоту): "не вмещаются
+       названия кластеров и vcenter" - раньше имя кластера и vcenter
+       пытались уместиться в ОДНУ строку через justify-content:space-between,
+       из-за чего длинные имена (например "CL-MSKM1-MS-PROD-01") и длинные
+       FQDN vcenter обрезались/налезали друг на друга. Теперь - две
+       отдельные строки: имя кластера сверху (может переноситься на
+       несколько строк при необходимости, overflow-wrap:anywhere ломает и
+       длинные "слова"-токены без пробелов), vcenter снизу отдельной
+       строкой, тоже с переносом. --- */
     .udc-cluster-head {
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 0.5rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.15rem;
         margin-bottom: 0.6rem;
     }
 
@@ -184,11 +193,15 @@
         font-weight: 700;
         color: var(--bs-emphasis-color);
         font-size: 0.92rem;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .udc-cluster-sub {
         font-size: 0.72rem;
         color: var(--bs-secondary-color);
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     /* --- Счётчики хостов/VM по кластеру - ИСПРАВЛЕНО 2026-09-18 по
@@ -315,6 +328,70 @@
     }
 
     .udc-bar-chart-box canvas { width: 100%; }
+
+    /* --- ИСПРАВЛЕНО 2026-09-18 (2-й раз, по скриншоту): "на сравнении
+       площадок не поместился текст вначале и конце диаграмм" - раньше имя
+       площадки и подписи CPU/RAM/СХД с процентами рисовались ПРЯМО НА
+       CANVAS фиксированными отступами (leftPad=90 / rightPad=20), из-за
+       чего длинные названия площадок (например "Без определённой
+       площадки" или "Москва, (ЦОД М1) Варшавское шоссе, 125") обрезались
+       слева, а подписи метрик справа вылезали за границу canvas и тоже
+       обрезались. Радикальное решение: убрали текст с canvas полностью -
+       он остаётся ТОЛЬКО для самой цветной полосы прогресса (что и
+       требовал пользователь - "с canvas"), а все подписи (имя площадки,
+       имя метрики, процент) вынесены в обычный HTML/CSS, который
+       переносится и подстраивается по ширине сам, без ручного расчёта
+       отступов в пикселях. --- */
+    .udc-cmp-row {
+        display: grid;
+        grid-template-columns: minmax(160px, 260px) 1fr;
+        gap: 1rem;
+        align-items: center;
+        padding: 0.7rem 0;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .udc-cmp-row:last-child { border-bottom: none; }
+
+    .udc-cmp-row-name {
+        font-weight: 700;
+        font-size: 0.85rem;
+        color: var(--bs-emphasis-color);
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .udc-cmp-row-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        min-width: 0;
+    }
+
+    .udc-cmp-bar-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        font-size: 0.7rem;
+        color: var(--bs-secondary-color);
+        margin-bottom: 0.15rem;
+    }
+
+    .udc-cmp-bar-label b {
+        color: var(--bs-emphasis-color);
+        font-weight: 700;
+    }
+
+    .udc-cmp-bar-canvas-wrap {
+        width: 100%;
+        height: 14px;
+    }
+
+    .udc-cmp-bar-canvas-wrap canvas {
+        width: 100%;
+        height: 14px;
+        display: block;
+    }
 </style>
 
 <script>
@@ -552,54 +629,101 @@
     // canvas (CPU/RAM/СХД по каждому ЦОД) + таблица с разницей по
     // отношению к минимальному значению среди ЦОД (наглядно показывает,
     // насколько неравномерно распределена нагрузка между площадками). ---
-    function drawCompareChart(canvas, dcs) {
+    // Рисует ТОЛЬКО цветную полосу прогресса (трек + заливка по порогу) -
+    // без какого-либо текста на canvas, см. комментарий у .udc-cmp-row
+    // выше про причину переработки.
+    function drawCompareBar(canvas, pct) {
         var dpr = window.devicePixelRatio || 1;
-        var cssW = canvas.parentElement.clientWidth || 600;
-        var cssH = Math.max(260, dcs.length * 70 + 60);
+        var cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 200;
+        var cssH = 14;
         canvas.width = cssW * dpr;
         canvas.height = cssH * dpr;
-        canvas.style.width = cssW + 'px';
-        canvas.style.height = cssH + 'px';
         var ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, cssW, cssH);
 
-        var metrics = [
-            { key: 'cpuPct', name: 'CPU' },
-            { key: 'ramPct', name: 'RAM' },
-            { key: 'storagePct', name: 'СХД' }
-        ];
-        var leftPad = 90, rightPad = 20, topPad = 10;
-        var rowH = (cssH - topPad) / dcs.length;
-        var barH = Math.min(16, rowH / (metrics.length + 1.4));
-        var maxW = cssW - leftPad - rightPad;
+        var clamped = Math.max(0, Math.min(100, pct || 0));
+        var w = (clamped / 100) * cssW;
+        var r = 4;
 
-        ctx.font = '12px sans-serif';
-        ctx.textBaseline = 'middle';
+        function roundRect(x, y, ww, hh, rad) {
+            rad = Math.min(rad, ww / 2, hh / 2);
+            if (rad < 0) rad = 0;
+            ctx.beginPath();
+            ctx.moveTo(x + rad, y);
+            ctx.arcTo(x + ww, y, x + ww, y + hh, rad);
+            ctx.arcTo(x + ww, y + hh, x, y + hh, rad);
+            ctx.arcTo(x, y + hh, x, y, rad);
+            ctx.arcTo(x, y, x + ww, y, rad);
+            ctx.closePath();
+        }
 
-        dcs.forEach(function (dc, i) {
-            var rowTop = topPad + i * rowH;
-            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bs-emphasis-color').trim() || '#ccc';
-            ctx.textAlign = 'right';
-            ctx.fillText(dc.name, leftPad - 10, rowTop + rowH / 2);
+        // трек
+        ctx.fillStyle = 'rgba(128,128,128,0.18)';
+        roundRect(0, 0, cssW, cssH, r);
+        ctx.fill();
 
-            metrics.forEach(function (m, mi) {
-                var y = rowTop + 8 + mi * (barH + 4);
-                var pct = Math.max(0, Math.min(100, dc[m.key] || 0));
-                var w = (pct / 100) * maxW;
-                // трек
-                ctx.fillStyle = 'rgba(128,128,128,0.18)';
-                ctx.fillRect(leftPad, y, maxW, barH);
-                // значение
-                ctx.fillStyle = COLOR[tier(pct)];
-                ctx.fillRect(leftPad, y, w, barH);
-                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bs-secondary-color').trim() || '#999';
-                ctx.textAlign = 'left';
-                ctx.font = '10px sans-serif';
-                ctx.fillText(m.name + ' ' + pct.toFixed(1) + '%', leftPad + maxW + 6, y + barH / 2);
-                ctx.font = '12px sans-serif';
-            });
+        // заливка по порогу
+        if (w > 0) {
+            ctx.fillStyle = COLOR[tier(clamped)];
+            roundRect(0, 0, Math.max(w, r * 2), cssH, r);
+            ctx.fill();
+        }
+    }
+
+    // Строка сравнения одной площадки: имя (HTML, переносится) + три
+    // подписанных полосы CPU/RAM/СХД (подпись и % - HTML, сама полоса -
+    // canvas). Заменяет прежнюю единую canvas-диаграмму со всем текстом.
+    function compareBarRow(name, pct, redrawList) {
+        var row = document.createElement('div');
+        row.className = 'udc-cmp-bar-label';
+        var nameSpan = document.createElement('span');
+        nameSpan.textContent = name;
+        var valSpan = document.createElement('b');
+        valSpan.textContent = fmtPct(pct);
+        row.appendChild(nameSpan);
+        row.appendChild(valSpan);
+
+        var wrap = document.createElement('div');
+        wrap.className = 'udc-cmp-bar-canvas-wrap';
+        var canvas = document.createElement('canvas');
+        wrap.appendChild(canvas);
+
+        var group = document.createElement('div');
+        group.appendChild(row);
+        group.appendChild(wrap);
+
+        canvas._redraw = function () { drawCompareBar(canvas, pct); };
+        redrawList.push(canvas);
+        return group;
+    }
+
+    function buildCompareChartCard(dcs) {
+        var chartCard = document.createElement('div');
+        chartCard.className = 'udc-card mb-3';
+        chartCard.innerHTML = '<h6>Сравнение загрузки площадок по CPU / RAM / СХД, %</h6>';
+        var redrawList = [];
+        dcs.forEach(function (dc) {
+            var row = document.createElement('div');
+            row.className = 'udc-cmp-row';
+            var nameEl = document.createElement('div');
+            nameEl.className = 'udc-cmp-row-name';
+            nameEl.textContent = dc.name;
+            var bars = document.createElement('div');
+            bars.className = 'udc-cmp-row-bars';
+            bars.appendChild(compareBarRow('CPU', dc.cpuPct, redrawList));
+            bars.appendChild(compareBarRow('RAM', dc.ramPct, redrawList));
+            bars.appendChild(compareBarRow('СХД', dc.storagePct, redrawList));
+            row.appendChild(nameEl);
+            row.appendChild(bars);
+            chartCard.appendChild(row);
         });
+        var redrawAll = function () { redrawList.forEach(function (cv) { cv._redraw(); }); };
+        setTimeout(redrawAll, 0);
+        window.addEventListener('resize', redrawAll);
+        chartCard._redrawAll = redrawAll;
+        return chartCard;
     }
 
     function compareCellClass(pct) {
@@ -622,16 +746,8 @@
             return pane;
         }
 
-        var chartCard = document.createElement('div');
-        chartCard.className = 'udc-card mb-3';
-        chartCard.innerHTML = '<h6>Сравнение загрузки площадок по CPU / RAM / СХД, %</h6><div class="udc-bar-chart-box"></div>';
-        var box = chartCard.querySelector('.udc-bar-chart-box');
-        var canvas = document.createElement('canvas');
-        box.appendChild(canvas);
+        var chartCard = buildCompareChartCard(dcs);
         pane.appendChild(chartCard);
-        canvas._redraw = function () { drawCompareChart(canvas, dcs); };
-        setTimeout(canvas._redraw, 0);
-        window.addEventListener('resize', function () { canvas._redraw(); });
 
         var tableCard = document.createElement('div');
         tableCard.className = 'udc-card';
