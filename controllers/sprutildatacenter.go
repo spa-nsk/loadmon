@@ -135,25 +135,101 @@ func (this *MainController) SprUtilizationDatacenter() {
 
 	o := orm.NewOrm()
 
-	since := time.Now().AddDate(0, 0, -utilLookbackDays)
+	// --- Диапазон дат отчёта - по умолчанию последние utilLookbackDays
+	// суток, выбирается пользователем через GET ?from=&to=
+	// (controllers/utildaterange.go). Метрики CPU/RAM УСРЕДНЯЮТСЯ по всем
+	// записям каждого хоста в пределах этого диапазона (см. hostAvg ниже) -
+	// ИЗМЕНЕНО 2026-09-18 по прямому запросу пользователя "нужно усреднение
+	// за период" (первая версия с диапазоном дат ещё брала только
+	// последнюю запись в диапазоне - пользователь уточнил, что нужно именно
+	// усреднение). ---
+	from, _, toExclusive := utilDateRangeFilter(this)
 
-	// --- Хосты: последняя суточная запись HostRecord за окно - источник
-	// метрик CPU/RAM И основа для определения площадки (через ServerId). ---
+	// --- Хосты: ВСЕ суточные записи HostRecord за выбранный диапазон дат -
+	// источник метрик CPU/RAM (УСРЕДНЯЕМЫХ по хосту за период, см. hostAvg
+	// ниже - ИЗМЕНЕНО 2026-09-18 по прямому запросу пользователя "нужно
+	// усреднение за период", раньше бралась только последняя запись) И
+	// основа для определения площадки (через ServerId). ---
 	var hostRecs []models.HostRecord
-	o.QueryTable(new(models.HostRecord)).Filter("Date__gte", since).OrderBy("ServerId", "-Date").All(&hostRecs)
-	latestHostByServer := latestByGroup(hostRecs, func(r models.HostRecord) int64 { return r.ServerId }, func(r models.HostRecord) time.Time { return r.Date })
+	o.QueryTable(new(models.HostRecord)).Filter("Date__gte", from).Filter("Date__lt", toExclusive).OrderBy("ServerId", "-Date").All(&hostRecs)
+
+	// hostAvg - усреднённые за период метрики ОДНОГО хоста + "статичный"
+	// контекст (кластер/vcenter - в норме не меняется день ото дня, поэтому
+	// берётся из самой свежей записи периода, а не усредняется, усреднять
+	// строковые/ID поля бессмысленно). CpuTotalMhz/RamTotalGb - тоже
+	// усреднённая (а не однократно взятая) ёмкость хоста - на случай если
+	// конфигурация хоста менялась внутри периода (добавили/убрали ядра или
+	// память), а не просто чтобы "было симметрично" - используется для
+	// расчёта итогового CpuPct/RamPct площадки/кластера как
+	// avgUsed/avgTotal, что эквивалентно взвешенному по дням среднему.
+	type hostAvg struct {
+		ClusterId int64
+		Cluster   string
+		Vcenter   string
+
+		CpuTotalMhz float64
+		CpuUsedMhz  float64
+		RamTotalGb  float64
+		RamUsedGb   float64
+	}
+	type hostAccum struct {
+		n                                                 int
+		cpuTotalSum, cpuUsedSum, ramTotalSum, ramUsedSum float64
+		capSet                                            bool
+		clusterId                                         int64
+		cluster, vcenter                                  string
+	}
+	hostAccumByServer := map[int64]*hostAccum{}
+	for _, r := range hostRecs {
+		a, ok := hostAccumByServer[r.ServerId]
+		if !ok {
+			a = &hostAccum{}
+			hostAccumByServer[r.ServerId] = a
+		}
+		cpuTotal := float64(r.CpuMhz) * float64(r.NumCpuCores)
+		cpuUsed := cpuTotal * r.Cpu_usage_average / 100
+		ramTotal := r.MemorySizeGB
+		ramUsed := ramTotal * r.Mem_usage_average / 100
+		a.n++
+		a.cpuTotalSum += cpuTotal
+		a.cpuUsedSum += cpuUsed
+		a.ramTotalSum += ramTotal
+		a.ramUsedSum += ramUsed
+		if !a.capSet { // первая запись группы - самая свежая (сортировка -Date), берём кластер/vcenter отсюда
+			a.clusterId = r.ClusterId
+			a.cluster = r.Cluster
+			a.vcenter = r.Vcenter
+			a.capSet = true
+		}
+	}
+	avgHostByServer := map[int64]hostAvg{}
+	for serverId, a := range hostAccumByServer {
+		if a.n == 0 {
+			continue
+		}
+		n := float64(a.n)
+		avgHostByServer[serverId] = hostAvg{
+			ClusterId:   a.clusterId,
+			Cluster:     a.cluster,
+			Vcenter:     a.vcenter,
+			CpuTotalMhz: a.cpuTotalSum / n,
+			CpuUsedMhz:  a.cpuUsedSum / n,
+			RamTotalGb:  a.ramTotalSum / n,
+			RamUsedGb:   a.ramUsedSum / n,
+		}
+	}
 
 	// --- Кластеры: только для имени/vCenter в разбивке по кластерам внутри
 	// площадки (сами метрики CPU/RAM кластера здесь НЕ используются - берутся
 	// напрямую из хостов, см. комментарий у SprUtilizationDatacenter). ---
 	var clusterRecs []models.ClusterRecord
-	o.QueryTable(new(models.ClusterRecord)).Filter("Date__gte", since).OrderBy("ClusterId", "-Date").All(&clusterRecs)
+	o.QueryTable(new(models.ClusterRecord)).Filter("Date__gte", from).Filter("Date__lt", toExclusive).OrderBy("ClusterId", "-Date").All(&clusterRecs)
 	latestClusterByKey := latestByGroup(clusterRecs, func(r models.ClusterRecord) int64 { return r.ClusterId }, func(r models.ClusterRecord) time.Time { return r.Date })
 
 	// --- ВМ: последняя суточная запись VMRecord - для подсчёта VMCount по
 	// кластеру/площадке (см. vmCountByCluster ниже). ---
 	var vmRecs []models.VMRecord
-	o.QueryTable(new(models.VMRecord)).Filter("Date__gte", since).OrderBy("VMSprId", "-Date").All(&vmRecs)
+	o.QueryTable(new(models.VMRecord)).Filter("Date__gte", from).Filter("Date__lt", toExclusive).OrderBy("VMSprId", "-Date").All(&vmRecs)
 	latestVMBySpr := latestByGroup(vmRecs, func(r models.VMRecord) int64 { return r.VMSprId }, func(r models.VMRecord) time.Time { return r.Date })
 	vmCountByCluster := map[int64]int{}
 	for _, v := range latestVMBySpr {
@@ -164,8 +240,8 @@ func (this *MainController) SprUtilizationDatacenter() {
 	// у функции выше). Строится тремя короткими join-выборками по
 	// собранным на предыдущем шаге Id, а не по одной хосту за раз - иначе
 	// на инфраструктуре с сотнями хостов это было бы N+3 запроса вместо 4. ---
-	serverIds := make([]int64, 0, len(latestHostByServer))
-	for id := range latestHostByServer {
+	serverIds := make([]int64, 0, len(avgHostByServer))
+	for id := range avgHostByServer {
 		serverIds = append(serverIds, id)
 	}
 	hwSprIdByServerId := map[int64]int64{}
@@ -231,7 +307,7 @@ func (this *MainController) SprUtilizationDatacenter() {
 	// siteNameByServerId - итог всей цепочки: имя площадки (или noSiteLabel,
 	// если цепочка не резолвится целиком) по ServerId хоста.
 	siteNameByServerId := map[int64]string{}
-	for serverId := range latestHostByServer {
+	for serverId := range avgHostByServer {
 		name := noSiteLabel
 		if hwId, ok := hwSprIdByServerId[serverId]; ok {
 			if cabId, ok := cabinetIdByHWId[hwId]; ok {
@@ -260,7 +336,7 @@ func (this *MainController) SprUtilizationDatacenter() {
 	}
 	clusterAgg := map[clusterAggKey]*utilDcCluster{}
 
-	for serverId, h := range latestHostByServer {
+	for serverId, h := range avgHostByServer {
 		site := siteNameByServerId[serverId]
 
 		sum, ok := dcByName[site]
@@ -270,10 +346,10 @@ func (this *MainController) SprUtilizationDatacenter() {
 			dcNames = append(dcNames, site)
 		}
 
-		cpuTotal := float64(h.CpuMhz) * float64(h.NumCpuCores)
-		cpuUsed := cpuTotal * h.Cpu_usage_average / 100
-		ramTotal := h.MemorySizeGB
-		ramUsed := ramTotal * h.Mem_usage_average / 100
+		cpuTotal := h.CpuTotalMhz
+		cpuUsed := h.CpuUsedMhz
+		ramTotal := h.RamTotalGb
+		ramUsed := h.RamUsedGb
 
 		sum.HostCount++
 		sum.CpuTotalMhz += cpuTotal

@@ -26,11 +26,38 @@
 
 <div class="hero-text mb-3">
     <h2>Утилизация виртуальной инфраструктуры по Площадкам ЦОД</h2>
-    <div class="text-muted">Ресурсы и их фактическая утилизация (CPU, RAM, СХД) в разрезе физической площадки размещения оборудования (Справочник Площадок/ЦОД), где есть хосты-гипервизоры - по последним суточным данным. Определено площадок: <b>{{.DcCount}}</b>.</div>
+    <div class="text-muted">Ресурсы и их фактическая утилизация (CPU, RAM, СХД) в разрезе физической площадки размещения оборудования (Справочник Площадок/ЦОД), где есть хосты-гипервизоры - усреднено за выбранный диапазон дат (см. фильтр ниже). Определено площадок: <b>{{.DcCount}}</b>.</div>
 </div>
 
+<!-- Диапазон дат отчёта - ДОБАВЛЕНО 2026-09-18 по прямому запросу
+     пользователя ("за какой период формируются оба отчета? Добавь диапазон
+     дат для формирования за период в оба отчета", затем уточнение "нужно
+     усреднение за период"). Тот же паттерн формы, что на
+     clusterperfperiod.tpl/zabbixperfperiod.tpl (GET, HTML5 input[type=date],
+     полная перезагрузка страницы) - см. controllers/utildaterange.go.
+     Метрики CPU/RAM каждого хоста УСРЕДНЯЮТСЯ по всем его записям в
+     выбранном диапазоне дат (см. hostAvg в controllers/sprutildatacenter.go). -->
+<form id="udcPeriodFilterForm" class="mb-3 p-3 rounded border" method="get">
+    <div class="row g-3 align-items-end">
+        <div class="col-6 col-md-3">
+            <label for="udcFilterFrom" class="form-label">Дата начала</label>
+            <input type="date" id="udcFilterFrom" name="from" class="form-control" value="{{.UtilFromDate}}">
+        </div>
+        <div class="col-6 col-md-3">
+            <label for="udcFilterTo" class="form-label">Дата окончания</label>
+            <input type="date" id="udcFilterTo" name="to" class="form-control" value="{{.UtilToDate}}">
+        </div>
+        <div class="col-6 col-md-3">
+            <button type="submit" class="btn btn-primary rounded-pill px-3">Показать</button>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-12 text-muted small">Показатели CPU/RAM по каждому хосту усредняются по всем записям в выбранном диапазоне дат (среднее за период).</div>
+    </div>
+</form>
+
 <div id="udcEmpty" class="udc-empty-state d-none">
-    <div>Не найдено ни одной площадки с гипервизорами (нет свежих суточных записей HostRecord за последние 7 дней, либо ни один хост не привязан к шкафу/площадке в справочнике оборудования).</div>
+    <div>Не найдено ни одной площадки с гипервизорами (нет записей HostRecord в выбранном диапазоне дат, либо ни один хост не привязан к шкафу/площадке в справочнике оборудования).</div>
 </div>
 
 <ul class="nav nav-pills udc-tabs mb-3" id="udcTabNav" role="tablist"></ul>
@@ -184,7 +211,8 @@
     .udc-cluster-head {
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
+        text-align: center;
         gap: 0.15rem;
         margin-bottom: 0.6rem;
     }
