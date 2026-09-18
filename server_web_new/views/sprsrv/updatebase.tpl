@@ -60,7 +60,48 @@
             typeSelect.addEventListener('change', applyServerTypeFieldRules);
         }
         initITSystemPicker();
+        loadVMPlacementAsync();
     });
+
+    // Асинхронная подгрузка размещения VM - ДОБАВЛЕНО 2026-09-18 (см.
+    // комментарий у #vmPlacementText в updatebase.tpl): вызывается один раз
+    // после отрисовки страницы, если сервер пометил размещение как требующее
+    // асинхронной догрузки (плейсхолдер #vmPlacementText присутствует в DOM
+    // только когда контроллер выставил PlacementAsync=true - для физических
+    // серверов/гипервизоров и для новых записей этого блока в разметке нет
+    // вовсе, поэтому простая проверка на существование элемента достаточна).
+    function loadVMPlacementAsync() {
+        var el = document.getElementById('vmPlacementText');
+        if (!el) return;
+
+        var recordId = {{.record.Id}};
+        fetch('/sprsrv/vmplacementtext/' + recordId)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.placementText) {
+                    el.innerHTML = '<span class="text-muted">не удалось определить размещение (гипервизор не найден, VM выключена, либо недоступен vCenter)</span>';
+                    return;
+                }
+                var html = escapeHtmlPlacement(data.placementText);
+                if (data.placementHWSprId) {
+                    html += ' <a href="/sprsrv/hwconfedit/' + data.placementHWSprId + '" class="ms-2 small" title="Изменить размещение в карточке оборудования">изменить в карточке оборудования</a>';
+                }
+                el.innerHTML = html;
+            })
+            .catch(function () {
+                // сеть/сервер недоступны - страница уже полностью
+                // работоспособна без этого поля (по прямому требованию
+                // пользователя данные необязательны и могут быть утрачены),
+                // просто сообщаем об этом вместо бесконечного спиннера
+                el.innerHTML = '<span class="text-muted">не удалось загрузить (ошибка сети)</span>';
+            });
+    }
+
+    function escapeHtmlPlacement(s) {
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
 
     // Поле "ИТ система" - два синхронизированных способа ввода:
     // 1) прямой ввод кода в ITSystemKey (значение поля отправляется формой как есть);
@@ -547,7 +588,30 @@
         <div class="card-header fw-semibold">Расположение и обслуживание</div>
         <div class="card-body">
             <div class="row g-3">
-                {{if .PlacementText}}
+                {{if .PlacementAsync}}
+                <!-- Размещение VM определяется АСИНХРОННО - живой gRPC-запрос к
+                     vCenter (controllers/sprsrvupdatebase.go:resolveVMPlacementText)
+                     заметно медленнее обычного чтения из БД и раньше блокировал
+                     открытие страницы; по прямому запросу пользователя
+                     (2026-09-18, "делается grpc запрос. Это замедляет открытие
+                     страницы, сделай запрос асинхронным... Пока запрос
+                     выполняется в поле можно отображать что идет загрузка
+                     данных") страница теперь рендерится сразу с плейсхолдером
+                     "загрузка...", а сам результат подтягивается JS-запросом
+                     к /sprsrv/vmplacementtext/:id (см. loadVMPlacementAsync
+                     ниже) уже ПОСЛЕ показа страницы. Если пользователь закроет
+                     вкладку раньше, чем придёт ответ - запрос просто
+                     прерывается браузером, специальной обработки/сохранения
+                     частичного результата не требуется (прямо оговорено
+                     пользователем: "данные будут утрачены и это нормально"). -->
+                <div class="col-12">
+                    <label class="form-label">Физическое размещение (ЦОД / Шкаф)</label>
+                    <div class="form-control-plaintext" id="vmPlacementText">
+                        <span class="spinner-border spinner-border-sm text-secondary me-1" role="status" aria-hidden="true"></span>
+                        <span class="text-muted">определяется (запрос к vCenter)…</span>
+                    </div>
+                </div>
+                {{else if .PlacementText}}
                 <div class="col-12">
                     <label class="form-label">Физическое размещение (ЦОД / Шкаф)</label>
                     <div class="form-control-plaintext">

@@ -25,8 +25,8 @@ var publicExactPaths = map[string]bool{
 }
 
 // publicPrefixPaths — маршруты с динамическими параметрами в пути (:back,
-// :uuid и т.п.), которые нельзя перечислить точными строками, плюс два
-// осознанных исключения:
+// :uuid и т.п.), которые нельзя перечислить точными строками, плюс
+// осознанные исключения:
 //   - "/api/" — этот маршрут и сегодня не защищён сессией (проверка в
 //     controllers/api.go закомментирована) - сохраняем как есть, включение
 //     авторизации для внешнего API - отдельное решение, не часть этой правки.
@@ -35,6 +35,12 @@ var publicExactPaths = map[string]bool{
 //     сессии), а не HTTP-редиректом - общий фильтр с редиректом сломал бы
 //     клиентский JS, ожидающий JSON; проверка сессии остаётся внутри
 //     controllers/sprsrvupdatebase.go:SprITSystemCorrectPreview.
+//   - "/sprsrv/vmplacementtext/" — ТОТ ЖЕ случай (AJAX-эндпоинт, отвечает
+//     JSON), добавлен 2026-09-18 вместе с выносом "живого" gRPC-запроса
+//     определения размещения VM из синхронного рендера /sprsrv/updatebase
+//     в отдельный асинхронный вызов (см. controllers/sprsrvupdatebase.go:
+//     SprSrvVMPlacementTextAsync) - проверка сессии аналогично осталась
+//     внутри самого хендлера.
 var publicPrefixPaths = []string{
 	"/user/login/",
 	"/user/verify/",
@@ -42,6 +48,7 @@ var publicPrefixPaths = []string{
 	"/debug/pprof",
 	"/api/",
 	"/sprsrv/itsystemcorrectpreview/",
+	"/sprsrv/vmplacementtext/",
 }
 
 func isPublicPath(path string) bool {
