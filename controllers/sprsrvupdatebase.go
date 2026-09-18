@@ -117,8 +117,25 @@ func (this *MainController) SprSrvUpdateBase() {
 	// остаётся на /sprsrv/hwconfedit/:HWSprId, чтобы не дублировать
 	// источник истины) - здесь только отображение со ссылкой на карточку
 	// оборудования.
+	// Для VM (Type=1) размещение раньше резолвилось ЗДЕСЬ ЖЕ, синхронно -
+	// resolveVMPlacementText делает "живой" gRPC-запрос к vCenter
+	// (grpcclient.GetVMByKeyDirect, см. её комментарий), который заметно
+	// медленнее локального чтения и ощутимо тормозил открытие страницы -
+	// по прямому запросу пользователя (2026-09-18, "это замедляет открытие
+	// страницы, сделай запрос асинхронным... Пока запрос выполняется в поле
+	// можно отображать что идет загрузка данных. Если страницу закроют до
+	// получения ответа, то данные будут утрачены и это нормально") эта
+	// ветка вынесена в отдельный AJAX-эндпоинт SprSrvVMPlacementTextAsync
+	// (маршрут /sprsrv/vmplacementtext/:id, вызывается из JS в
+	// updatebase.tpl ПОСЛЕ отрисовки страницы) - здесь для VM только
+	// проставляется признак PlacementAsync, по которому шаблон рисует
+	// плейсхолдер "загрузка..." вместо блокирующего ожидания результата.
+	// Для физического сервера/гипервизора (Type 0/2) размещение
+	// резолвится из уже загрученных в БД данных (без похода в сеть) -
+	// там синхронный путь остаётся как был, тормозить нечему.
 	this.Data["PlacementText"] = ""
 	this.Data["PlacementHWSprId"] = int64(0)
+	this.Data["PlacementAsync"] = false
 	switch record.Type {
 	case 0, 2:
 		if record.HWSprId > 0 {
@@ -126,7 +143,9 @@ func (this *MainController) SprSrvUpdateBase() {
 			this.Data["PlacementText"] = resolveServerPlacementText(o, record.HWSprId)
 		}
 	case 1:
-		this.Data["PlacementText"] = resolveVMPlacementText(o, record.VMSprId)
+		if record.VMSprId > 0 {
+			this.Data["PlacementAsync"] = true
+		}
 	}
 
 	if this.Ctx.Input.Method() == "POST" {
@@ -335,26 +354,37 @@ func resolveServerPlacementText(o orm.Ormer, hwSprId int64) string {
 // медленнее кэшированного чтения, но карточка сервера открывается по одной
 // записи за раз, а не массово - см. предупреждение в комментарии
 // GetVMByKeyDirect о недопустимости массовых вызовов.
-func resolveVMPlacementText(o orm.Ormer, vmSprId int64) string {
+//
+// ИЗМЕНЕНО 2026-09-18: этот "живой" запрос замедлял открытие страницы
+// /sprsrv/updatebase, поэтому вызов вынесен из основного рендера страницы в
+// отдельный AJAX-эндпоинт SprSrvVMPlacementTextAsync (см. её комментарий) -
+// сама функция при этом не изменилась по сути, кроме возврата ВТОРЫМ
+// значением placementHWSprId (Id ServerHardware хоста, нужен вызывающему
+// коду для ссылки "изменить в карточке оборудования") - раньше это
+// значение нигде не требовалось отдельно от текста, теперь требуется в
+// JSON-ответе эндпоинта, и доставать его вторым отдельным вызовом означало
+// бы задваивать самый медленный шаг (сам gRPC-запрос к vCenter), поэтому
+// функция просто возвращает оба значения из одного прохода.
+func resolveVMPlacementText(o orm.Ormer, vmSprId int64) (text string, placementHWSprId int64) {
 	if vmSprId <= 0 {
-		return ""
+		return "", 0
 	}
 	var vm models.VMSprRecord
 	if err := o.QueryTable(new(models.VMSprRecord)).Filter("Id", vmSprId).
 		One(&vm, "Vcenter", "Datacenter", "Cluster", "Vm_Name"); err != nil {
-		return ""
+		return "", 0
 	}
 	if strings.TrimSpace(vm.Vcenter) == "" || strings.TrimSpace(vm.Vm_Name) == "" {
-		return ""
+		return "", 0
 	}
 
 	live, err := grpcclient.GetVMByKeyDirect(vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name)
 	if err != nil {
-		return "не удалось определить (ошибка обращения к vCenter: " + err.Error() + ")"
+		return "не удалось определить (ошибка обращения к vCenter: " + err.Error() + ")", 0
 	}
 	hostName := strings.TrimSpace(live.EsxHost)
 	if hostName == "" {
-		return ""
+		return "", 0
 	}
 
 	var host models.ServerSprRecords
@@ -362,16 +392,16 @@ func resolveVMPlacementText(o orm.Ormer, vmSprId int64) string {
 		And("Type", 2).
 		AndCond(orm.NewCondition().Or("Name__iexact", hostName).Or("NameFQDN__iexact", hostName))
 	if err := o.QueryTable(new(models.ServerSprRecords)).SetCond(cond).One(&host, "Id", "Name", "HWSprId"); err != nil {
-		return "хост \"" + hostName + "\" (не найден в справочнике серверов)"
+		return "хост \"" + hostName + "\" (не найден в справочнике серверов)", 0
 	}
 	if host.HWSprId <= 0 {
-		return "хост \"" + host.Name + "\" (размещение хоста не указано)"
+		return "хост \"" + host.Name + "\" (размещение хоста не указано)", 0
 	}
-	text := resolveServerPlacementText(o, host.HWSprId)
-	if text == "" {
-		return "хост \"" + host.Name + "\" (размещение хоста не указано)"
+	placeText := resolveServerPlacementText(o, host.HWSprId)
+	if placeText == "" {
+		return "хост \"" + host.Name + "\" (размещение хоста не указано)", host.HWSprId
 	}
-	return text + " (унаследовано от хоста \"" + host.Name + "\")"
+	return placeText + " (унаследовано от хоста \"" + host.Name + "\")", host.HWSprId
 }
 
 // placementTextByCabinetId форматирует "ЦОД / Шкаф" по Id шкафа
@@ -435,6 +465,67 @@ func correctServerSprRecord(record *models.ServerSprRecords, itsysRec *models.It
 		record.Users = itsystem.GetAttributes(objAttr, "IT-System users")
 		record.Allocation = itsystem.GetAttributes(objAttr, "Business column")
 	}
+}
+
+// SprSrvVMPlacementTextAsync отдаёт JSON с текстом физического размещения
+// виртуальной машины (унаследованного от хоста, на котором она выполняется
+// В МОМЕНТ ЗАПРОСА - см. resolveVMPlacementText) - вынесено из
+// SprSrvUpdateBase в отдельный AJAX-эндпоинт по прямому запросу
+// пользователя (2026-09-18, "делается grpc запрос. Это замедляет открытие
+// страницы, сделай запрос асинхронным и он может выполняться после
+// открытия страницы и обновлять отображение по факту загрузки данных...
+// Если страницу закроют до получения ответа, то данные будут утрачены и
+// это нормально") - resolveVMPlacementText делает "живой" gRPC-запрос к
+// vCenter (заметно медленнее локального чтения), поэтому страница
+// /sprsrv/updatebase больше не ждёт его результата перед отдачей HTML:
+// JS в updatebase.tpl вызывает этот маршрут ПОСЛЕ того, как страница уже
+// отрисована и показана пользователю, и подставляет результат в поле
+// "Физическое размещение" по готовности; специального сохранения/повтора
+// на случай закрытия вкладки до ответа НЕ предусмотрено - результат
+// используется только для отображения "на лету" и никуда не персистится,
+// поэтому его потеря при закрытии страницы безвредна.
+//
+// Ответ: {"placementText":"...", "placementHWSprId":N} - placementText
+// пустой, если размещение определить не удалось (та же логика, что была
+// раньше синхронно в SprSrvUpdateBase).
+//
+// Маршрут: /sprsrv/vmplacementtext/:id (GET), :id - models.ServerSprRecords.Id
+func (this *MainController) SprSrvVMPlacementTextAsync() {
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Data["json"] = map[string]interface{}{"placementText": ""}
+		this.ServeJSON()
+		return
+	}
+
+	idStr := this.Ctx.Input.Param(":id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		this.Data["json"] = map[string]interface{}{"placementText": ""}
+		this.ServeJSON()
+		return
+	}
+
+	o := orm.NewOrm()
+	var record models.ServerSprRecords
+	if err := o.QueryTable(new(models.ServerSprRecords)).Filter("Id", id).One(&record, "Id", "Type", "VMSprId"); err != nil {
+		this.Data["json"] = map[string]interface{}{"placementText": ""}
+		this.ServeJSON()
+		return
+	}
+	if record.Type != 1 || record.VMSprId <= 0 {
+		this.Data["json"] = map[string]interface{}{"placementText": ""}
+		this.ServeJSON()
+		return
+	}
+
+	placementText, placementHWSprId := resolveVMPlacementText(o, record.VMSprId)
+
+	this.Data["json"] = map[string]interface{}{
+		"placementText":    placementText,
+		"placementHWSprId": placementHWSprId,
+	}
+	this.ServeJSON()
 }
 
 // SprITSystemCorrectPreview отдаёт JSON с результатом correctServerSprRecord
