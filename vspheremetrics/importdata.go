@@ -117,6 +117,7 @@ func (vmp *VMPoint) ImportData(vm mo.VirtualMachine, infra *VMInfrastructure, vc
 		vmp.MacAddress = ""
 		vmp.DomainName = ""
 		vmp.Network = ""
+		vmp.Interfaces = nil // Stage 1 хранения сетевых интерфейсов, см. CHANGELOG.md - строится аддитивно, ниже, не заменяя цикл, собирающий ";"-строки выше
 		for _, net := range vm.Guest.Net {
 			if net.MacAddress != "" {
 				vmp.MacAddress = vmp.MacAddress + net.MacAddress + "; "
@@ -129,6 +130,19 @@ func (vmp *VMPoint) ImportData(vm mo.VirtualMachine, infra *VMInfrastructure, vc
 			}
 			if net.Network != "" {
 				vmp.Network = vmp.Network + net.Network + "; "
+			}
+
+			// Структурированные пары (MAC, IP) того же NIC - одна на каждый
+			// IP-адрес интерфейса (интерфейс может иметь и v4, и v6 одновременно).
+			for _, ip := range net.IpAddress {
+				if ip == "" {
+					continue
+				}
+				vmp.Interfaces = append(vmp.Interfaces, NetInterfacePoint{
+					MacAddress:  net.MacAddress,
+					IPAddress:   ip,
+					NetworkName: net.Network,
+				})
 			}
 
 		}
@@ -298,10 +312,16 @@ func (hs *HostInfo) ImportData(hi mo.HostSystem) {
 		if hi.Config.Network != nil {
 			hs.IPAddress = ""
 			hs.MacAddress = ""
+			hs.Interfaces = nil // Stage 1 хранения сетевых интерфейсов, см. CHANGELOG.md - строится аддитивно, ниже, не заменяя ";"-строки выше
 			for _, vnic := range hi.Config.Network.Vnic {
 				if vnic.Spec.Ip.IpAddress != "" {
 					hs.IPAddress = hs.IPAddress + vnic.Spec.Ip.IpAddress + "; "
 					hs.MacAddress = hs.MacAddress + vnic.Spec.Mac + ";"
+					hs.Interfaces = append(hs.Interfaces, NetInterfacePoint{
+						MacAddress: vnic.Spec.Mac,
+						IPAddress:  vnic.Spec.Ip.IpAddress,
+						SubnetMask: vnic.Spec.Ip.SubnetMask,
+					})
 				}
 			}
 		}

@@ -373,6 +373,13 @@ type VMPoint struct {
 	Network                          string               `form:"Network"`
 	IPAddress                        string               `form:"IPAddress"`
 	MacAddress                       string               `form:"MacAddress"`
+	// Interfaces — структурированное (не ";"-склеенное) представление того
+	// же самого перебора vm.Guest.Net, из которого выше строятся
+	// IPAddress/MacAddress/Network. Добавлено аддитивно (Stage 1 доработки
+	// хранения сетевых интерфейсов, см. CHANGELOG.md) - существующие поля
+	// выше и код, их заполняющий, не менялись. Одна запись здесь = одна
+	// пара (MAC, IP) одного NIC гостевой ОС.
+	Interfaces                       []NetInterfacePoint `form:"Interfaces"`
 	NumEthernetCards                 int32                `form:"NumEthernetCards"`
 	NumVirtualDisks                  int32                `form:"NumVirtualDisks"`
 	DiskCommittedGB                  float64              `form:"DiskCommittedGB"`
@@ -537,6 +544,25 @@ type ClusterListRecord struct {
 	Name       string `form:"Name"`
 }
 
+// NetInterfacePoint — один сетевой интерфейс (одна пара MAC+IP) хоста ESXi
+// или гостевой ОС виртуальной машины, в структурированном виде. Добавлено
+// аддитивно (Stage 1 доработки хранения сетевых интерфейсов серверов, см.
+// CHANGELOG.md, запись про ServerNetworkInterface) как замена на будущее
+// (Stage 2) текущему способу хранения IP/MAC как ";"-разделённых строк в
+// VMPoint.IPAddress/MacAddress/Network и HostInfo.IPAddress/MacAddress —
+// пока используется ТОЛЬКО для параллельного накопления данных в новую
+// таблицу models.ServerNetworkInterface, никак не заменяя старые поля.
+//
+// NetworkName заполняется только для источника VM guest net (vm.Guest.Net,
+// портгруппа), SubnetMask - только для источника ESXi host vnic
+// (hi.Config.Network.Vnic) - оба поля пустые для другого источника.
+type NetInterfacePoint struct {
+	MacAddress  string `form:"MacAddress"`
+	IPAddress   string `form:"IPAddress"`
+	NetworkName string `form:"NetworkName"` // имя портгруппы (только VM guest net)
+	SubnetMask  string `form:"SubnetMask"`  // маска подсети (только ESXi host vnic)
+}
+
 // HostInfo описывает хост ESXi: аппаратные характеристики (вендор, модель,
 // серийный номер, CPU/память), состояние (питание, режим обслуживания) и
 // агрегированные метрики производительности (min/max/avg).
@@ -567,6 +593,14 @@ type HostInfo struct {
 	NumNics                          int32           `form:"NumNics"`
 	IPAddress                        string          `form:"IPAddress"`  //IP v4 адреса через разделитель ;
 	MacAddress                       string          `form:"MacAddress"` //Mac адреса через разделитель ;
+	// Interfaces — структурированное (не ";"-склеенное) представление
+	// перебора hi.Config.Network.Vnic, из которого выше строятся
+	// IPAddress/MacAddress. Добавлено аддитивно (Stage 1 доработки
+	// хранения сетевых интерфейсов, см. CHANGELOG.md) - существующие поля
+	// выше и код, их заполняющий, не менялись. SubnetMask заполняется из
+	// vnic.Spec.Ip.SubnetMask (то же поле HostIpConfig, что и уже
+	// используемый в проекте vnic.Spec.Ip.IpAddress).
+	Interfaces                       []NetInterfacePoint `form:"Interfaces"`
 	NumHBAs                          int32           `form:"NumHBAs"`
 	MemorySizeGB                     float64         `form:"MemorySizeGB"`
 	HostMaxVirtualDiskCapacity       float64         `form:"HostMaxVirtualDiskCapacity"`

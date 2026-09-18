@@ -242,6 +242,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.StoragePool))
 	orm.RegisterModel(new(models.StorageMetric))
 	orm.RegisterModel(new(models.StorageMetricRecord))
+	orm.RegisterModel(new(models.ServerNetworkInterface)) // Stage 1 хранения "распределённых" сетевых интерфейсов серверов, см. CHANGELOG.md
 
 	// Одноразовая дедупликация RackCabinet ДО создания композитного
 	// уникального индекса (Name, DatacenterSiteId) - см. комментарий у

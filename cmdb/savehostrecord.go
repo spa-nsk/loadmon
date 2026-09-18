@@ -1,12 +1,14 @@
 package cmdb
 
 import (
+	"context"
 	"fmt"
 	"loadmon/grpcclient"
 	vsphere "loadmon/vspheremetrics"
 
 	//"loadmon/itsystem"
 	models "loadmon/models"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
@@ -70,6 +72,37 @@ func SaveHostRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time)
 		}
 
 		serverSprRecord := models.ServerSprRecords{Id: serverId}
+
+		// Stage 1 доработки хранения сетевых интерфейсов (см. CHANGELOG.md,
+		// запись про ServerNetworkInterface): дополнительно, не заменяя
+		// существующую сборку ";"-строк host.IPAddress/host.MacAddress
+		// (заполняется в vspheremetrics/importdata.go как и раньше),
+		// сохраняем структурированные данные из host.Interfaces
+		// (hi.Config.Network.Vnic) в новую таблицу. MacAddress здесь есть
+		// (в отличие от Zabbix), SubnetMask - тоже (источник "vmware_host_vnic").
+		if serverId > 0 && len(host.Interfaces) > 0 {
+			var ifaceRows []*models.ServerNetworkInterface
+			for _, iface := range host.Interfaces {
+				if iface.IPAddress == "" {
+					continue
+				}
+				ver := int8(4)
+				if strings.Contains(iface.IPAddress, ":") {
+					ver = 6
+				}
+				ifaceRows = append(ifaceRows, &models.ServerNetworkInterface{
+					ServerSprId: serverId,
+					Source:      "vmware_host_vnic",
+					MacAddress:  iface.MacAddress,
+					IPAddress:   iface.IPAddress,
+					IPVersion:   ver,
+					SubnetMask:  iface.SubnetMask,
+				})
+			}
+			if err := models.ReplaceServerNetworkInterfaces(context.Background(), o, serverId, "vmware_host_vnic", ifaceRows); err != nil {
+				fmt.Println("Ошибка записи models.ServerNetworkInterface (vmware_host_vnic)", host.Name, err)
+			}
+		}
 
 		//формируем запись для метрик хоста
 		//hostRecord := models.HostRecord{ClusterId: clusterId, Date: time.Now().Local()} // запоминаем связку с кластером и текущее время записи

@@ -40,6 +40,17 @@ func MessageToHostInfoFull(in *pb.HostFull, hs *vsphere.HostInfo) {
 	hs.NumNics = in.NumNics
 	hs.IPAddress = in.IpAddress
 	hs.MacAddress = in.MacAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IPAddress/MacAddress выше.
+	for _, iface := range in.Interfaces {
+		hs.Interfaces = append(hs.Interfaces, vsphere.NetInterfacePoint{
+			MacAddress:  iface.MacAddress,
+			IPAddress:   iface.IPAddress,
+			NetworkName: iface.NetworkName,
+			SubnetMask:  iface.SubnetMask,
+		})
+	}
 	hs.MemorySizeGB = in.MemorySizeGB
 	hs.HostMaxVirtualDiskCapacity = in.HostMaxVirtualDiskCapacity
 
@@ -131,6 +142,17 @@ func MessageToHostInfo(in *pb.Host, hs *vsphere.HostInfo) {
 	hs.NumNics = in.NumNics
 	hs.IPAddress = in.IpAddress
 	hs.MacAddress = in.MacAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IPAddress/MacAddress выше.
+	for _, iface := range in.Interfaces {
+		hs.Interfaces = append(hs.Interfaces, vsphere.NetInterfacePoint{
+			MacAddress:  iface.MacAddress,
+			IPAddress:   iface.IPAddress,
+			NetworkName: iface.NetworkName,
+			SubnetMask:  iface.SubnetMask,
+		})
+	}
 	hs.MemorySizeGB = in.MemorySizeGB
 	hs.HostMaxVirtualDiskCapacity = in.HostMaxVirtualDiskCapacity
 

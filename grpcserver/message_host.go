@@ -10,6 +10,26 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// hostInterfacesToMessage конвертирует срез vsphere.NetInterfacePoint (Stage 1
+// доработки хранения сетевых интерфейсов серверов, см. CHANGELOG.md) в срез
+// pb.NetInterface. Общий хелпер для HostToMessageShort/HostToMessageFull/
+// RecalcHostToMessageFull, чтобы не дублировать один и тот же цикл трижды.
+func hostInterfacesToMessage(in []vsphere.NetInterfacePoint) []*pb.NetInterface {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]*pb.NetInterface, 0, len(in))
+	for _, iface := range in {
+		out = append(out, &pb.NetInterface{
+			MacAddress:  iface.MacAddress,
+			IPAddress:   iface.IPAddress,
+			NetworkName: iface.NetworkName,
+			SubnetMask:  iface.SubnetMask,
+		})
+	}
+	return out
+}
+
 func HostToMessageShort(hs *vsphere.HostInfo, out *pb.Host) {
 	if out == nil || hs == nil {
 		return
@@ -45,6 +65,10 @@ func HostToMessageShort(hs *vsphere.HostInfo, out *pb.Host) {
 	out.NumNics = hs.NumNics
 	out.IpAddress = hs.IPAddress
 	out.MacAddress = hs.MacAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IpAddress/MacAddress выше.
+	out.Interfaces = hostInterfacesToMessage(hs.Interfaces)
 	out.MemorySizeGB = hs.MemorySizeGB
 	out.HostMaxVirtualDiskCapacity = hs.HostMaxVirtualDiskCapacity
 
@@ -121,6 +145,10 @@ func HostToMessageFull(hs *vsphere.HostInfo, out *pb.HostFull) {
 	out.NumNics = hs.NumNics
 	out.IpAddress = hs.IPAddress
 	out.MacAddress = hs.MacAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IpAddress/MacAddress выше.
+	out.Interfaces = hostInterfacesToMessage(hs.Interfaces)
 	out.MemorySizeGB = hs.MemorySizeGB
 	out.HostMaxVirtualDiskCapacity = hs.HostMaxVirtualDiskCapacity
 
@@ -213,6 +241,10 @@ func RecalcHostToMessageFull(hs *vsphere.HostInfo, out *pb.HostFull) {
 	out.NumNics = hs.NumNics
 	out.IpAddress = hs.IPAddress
 	out.MacAddress = hs.MacAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IpAddress/MacAddress выше.
+	out.Interfaces = hostInterfacesToMessage(hs.Interfaces)
 	out.MemorySizeGB = hs.MemorySizeGB
 	out.HostMaxVirtualDiskCapacity = hs.HostMaxVirtualDiskCapacity
 
@@ -363,6 +395,10 @@ func RecalcHostToMessageShort(hs *vsphere.HostInfo, out *pb.Host) {
 	out.NumNics = hs.NumNics
 	out.IpAddress = hs.IPAddress
 	out.MacAddress = hs.MacAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IpAddress/MacAddress выше.
+	out.Interfaces = hostInterfacesToMessage(hs.Interfaces)
 	out.MemorySizeGB = hs.MemorySizeGB
 	out.HostMaxVirtualDiskCapacity = hs.HostMaxVirtualDiskCapacity
 

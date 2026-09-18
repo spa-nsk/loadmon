@@ -13,6 +13,7 @@ import (
 	"loadmon/models"
 	"loadmon/utilities"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1114,6 +1115,39 @@ func Get10MinutesHistory() {
 			commit = false
 		}
 		*/
+
+		// Stage 1 доработки хранения сетевых интерфейсов (см. CHANGELOG.md,
+		// запись про ServerNetworkInterface): дополнительно, НЕ заменяя
+		// существующую сборку ";"-строки ipAddress выше (используется для
+		// hostdb.IpAddress как и раньше), сохраняем те же данные из
+		// h.Interfaces в структурированном виде — по одной строке на IP.
+		// MAC-адрес Zabbix host.get/selectInterfaces не отдаёт, поэтому
+		// MacAddress здесь всегда пустой. Пишем только если сервер найден
+		// в ServerSprRecords (srv.Id > 0) - для несвязанных хостов Zabbix
+		// строки-сироты не создаём (см. models.ReplaceServerNetworkInterfaces).
+		if srv.Id > 0 {
+			var ifaceRows []*models.ServerNetworkInterface
+			for _, rec := range h.Interfaces {
+				if rec.Ip == "" {
+					continue
+				}
+				ver := int8(4)
+				if ip := net.ParseIP(rec.Ip); ip != nil && ip.To4() == nil {
+					ver = 6
+				}
+				ifaceRows = append(ifaceRows, &models.ServerNetworkInterface{
+					ServerSprId: srv.Id,
+					Source:      "zabbix",
+					IPAddress:   rec.Ip,
+					IPVersion:   ver,
+				})
+			}
+			if err := models.ReplaceServerNetworkInterfaces(ctx, trn, srv.Id, "zabbix", ifaceRows); err != nil {
+				fmt.Println("Ошибка записи models.ServerNetworkInterface (zabbix)", h.Host, err)
+				// не критично для основной синхронизации - commit не блокируем
+			}
+		}
+
 		if commit {
 			trn.Commit()
 		}
