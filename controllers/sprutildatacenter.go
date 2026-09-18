@@ -10,7 +10,7 @@ import (
 	"github.com/beego/beego/v2/client/orm"
 )
 
-// Пороговые значения индикаторов утилизации по ЦОД - ОТДЕЛЬНЫЕ от
+// Пороговые значения индикаторов утилизации по Площадкам ЦОД - ОТДЕЛЬНЫЕ от
 // utilOverloadCpu/utilUnderloadCpu и т.п. в controllers/sprutilization.go
 // (та страница про риски "перегруз/недоиспользование/норма" - три состояния
 // с другими границами), заданы дословно по прямому запросу пользователя
@@ -38,10 +38,15 @@ func utilDcTier(pct float64) string {
 	}
 }
 
-// utilDcCluster - утилизация одного кластера (строка внутри вкладки ЦОД).
-// Объём/использование CPU - в МГц (произведение среднего МГц на ядро на
-// число ядер кластера, см. models.ClusterRecord.CpuMhzAvg/AllNumCpuCores -
-// тот же источник данных, что и на /sprsrv/utilization), RAM/СХД - в Гб.
+// utilDcCluster - утилизация одного кластера ВНУТРИ конкретной Площадки ЦОД
+// (кластер целиком относится к той площадке, где физически размещено
+// большинство/все его хосты за этот период - см. комментарий у
+// SprUtilizationDatacenter про то, как определяется площадка хоста).
+// HostCount/VMCount - ИСПРАВЛЕНО 2026-09-18 по замечанию пользователя "в
+// кластерах не указано количество хостов и виртуальных машин по кластеру":
+// считаются НЕПОСРЕДСТВЕННО из тех же хостов, что вошли в агрегаты этого
+// кластера на этой странице (не через отдельный, потенциально
+// рассинхронизированный подсчёт) - см. цикл ниже.
 type utilDcCluster struct {
 	Name      string `json:"name"`
 	Vcenter   string `json:"vcenter"`
@@ -55,15 +60,16 @@ type utilDcCluster struct {
 	RamTotalGb float64 `json:"ramTotalGb"`
 	RamUsedGb  float64 `json:"ramUsedGb"`
 	RamPct     float64 `json:"ramPct"`
-
-	StorageTotalGb float64 `json:"storageTotalGb"`
-	StorageUsedGb  float64 `json:"storageUsedGb"`
-	StoragePct     float64 `json:"storagePct"`
 }
 
-// utilDcSummary - агрегат по одному ЦОД (сумма по всем его кластерам, %
-// пересчитан от суммарных total/used, а не как среднее процентов - иначе
-// маленький кластер исказил бы общий показатель ЦОД наравне с большим).
+// utilDcSummary - агрегат по одной Площадке ЦОД (models.DatacenterSite):
+// сумма CPU/RAM по всем её хостам-гипервизорам (сгруппированным ниже по
+// кластерам ТОЛЬКО для показа разбивки - сама площадка НЕ равна кластеру и
+// НЕ равна логическому vCenter Datacenter, см. комментарий у
+// SprUtilizationDatacenter) + сумма СХД, физически размещённых на этой же
+// площадке (models.StorageSystemPlacement), независимо от того, каким
+// именно кластерам/VM они отдают LUN - "утилизация Площадки ЦОД" в целом, а
+// не только той её части, что видна конкретному кластеру.
 type utilDcSummary struct {
 	Name         string `json:"name"`
 	ClusterCount int    `json:"clusterCount"`
@@ -78,48 +84,48 @@ type utilDcSummary struct {
 	RamUsedGb  float64 `json:"ramUsedGb"`
 	RamPct     float64 `json:"ramPct"`
 
-	StorageTotalGb float64 `json:"storageTotalGb"`
-	StorageUsedGb  float64 `json:"storageUsedGb"`
-	StoragePct     float64 `json:"storagePct"`
+	StorageSystemCount int     `json:"storageSystemCount"`
+	StorageTotalGb     float64 `json:"storageTotalGb"`
+	StorageUsedGb      float64 `json:"storageUsedGb"`
+	StoragePct         float64 `json:"storagePct"`
 
 	Clusters []utilDcCluster `json:"clusters"`
 }
 
 // SprUtilizationDatacenter строит отчёт по утилизации виртуальной
-// инфраструктуры В РАЗРЕЗЕ ЦОД (физически/логически разделённых площадок
-// vCenter Datacenter) - по прямому запросу пользователя (2026-09-17):
-// отдельная вкладка на каждый ЦОД, где есть гипервизоры, с canvas-
-// индикаторами загрузки CPU/RAM/СХД по каждому кластеру этого ЦОД
-// (с указанием общего объёма ресурса и фактической утилизации), плюс
-// сводная вкладка сравнения ЦОД между собой.
+// инфраструктуры В РАЗРЕЗЕ ФИЗИЧЕСКИХ ПЛОЩАДОК ЦОД - по прямому запросу
+// пользователя (2026-09-17, "Нужно было делать по Площадкам ЦОД и уже на
+// каждой странице указывать количество ресурсов и утилизацию ресурсов на
+// Площадке ЦОД" - первая версия этой страницы ошибочно группировала по
+// ЛОГИЧЕСКОМУ объекту vCenter "Datacenter", что пользователь явно отверг).
 //
-// "ЦОД" здесь - НЕ физическая площадка/стойка (models.DatacenterSite,
-// справочник шкафов/размещения оборудования), а логический объект
-// "Datacenter" из инвентаря vCenter (vCenter → Datacenter → Cluster → Host),
-// который уже собирается и хранится в models.ClusterRecord.Datacenter/
-// models.HostRecord.Datacenter (см. cmdb/savedata.go,
-// cmdb/savemetric_orchestration.go - запись ClusterRecord вообще не
-// создаётся, если Datacenter не определён, значение "нет данных" туда не
-// попадает). Этот выбор объекта группировки - осознанный: "ЦОД, где есть
-// гипервизоры" однозначно указывает на логическую группировку хостов
-// ESXi/гипервизоров в инвентаре vCenter, а не на физическое размещение в
-// стойках (которое к тому же не для всех хостов заполнено и относится к
-// другому смыслу "ЦОД" в этом проекте, см. models.DatacenterSite).
+// "Площадка ЦОД" здесь - models.DatacenterSite (тот же справочник, что
+// показывается на /sprsrv/datacentersitelist, с признаком IsDatacenter) -
+// физическое место установки оборудования, а НЕ логический контейнер
+// vCenter. Определение площадки ХОСТА-гипервизора - по цепочке физического
+// размещения, ТОЙ ЖЕ, что использует остальной проект (см.
+// controllers/adminhwinfra.go, controllers/sprstoragesystems.go):
 //
-// СХД (StorageSystems/StorageVolumes) не привязана к этому логическому ЦОД
-// напрямую пофизически - вместо отдельного join сюда идут уже готовые
-// агрегаты "объём датастора, видимого кластеру" из ClusterRecord.
-// AllCapacityGb/AllFreeSpaceGb/AllPercentUsed (тот же источник, что даёт
-// "Cluster DISK (Gb)" на /sprsrv/utilization) - это ёмкость СХД, реально
-// потребляемая ВИРТУАЛЬНОЙ инфраструктурой этого кластера, что точнее
-// отвечает формулировке запроса "утилизация ВИРТУАЛЬНОЙ инфраструктуры",
-// чем сумма по всем LUN конкретной физической СХД (которая может отдавать
-// LUN сразу в несколько ЦОД/кластеров).
+//	HostRecord.ServerId -> ServerSprRecords.HWSprId -> ServerHardware.Id
+//	  -> ServerHardware.RackCabinetId -> RackCabinet.DatacenterSiteId
+//	  -> DatacenterSite.Name
+//
+// Хост, для которого эта цепочка не резолвится целиком (нет связанной
+// ServerHardware, шкаф не указан и т.п.) - НЕ отбрасывается молча, а
+// попадает в отдельный псевдо-ЦОД "Без определённой площадки" (см. ниже) -
+// тот же принцип прозрачности пробелов данных, что и на /sprsrv/utilization
+// (раздел "Данных недостаточно?").
+//
+// СХД (StorageSystems) физически привязана к площадке через
+// StorageSystemPlacement (RackCabinetId ИЛИ DatacenterSiteId напрямую, см.
+// комментарий у этой модели) - суммируется по каждой площадке НЕЗАВИСИМО от
+// того, каким кластерам/VM она фактически отдаёт LUN (СХД физически стоит в
+// одном месте и потребляет место в стойках/электричество именно там).
 //
 // Маршрут: /sprsrv/utildatacenter.
 func (this *MainController) SprUtilizationDatacenter() {
 
-	RegisterRequest(this, LogTypeViewLoadTable) // просмотр отчёта утилизации виртуальной инфраструктуры по ЦОД
+	RegisterRequest(this, LogTypeViewLoadTable) // просмотр отчёта утилизации виртуальной инфраструктуры по Площадкам ЦОД
 
 	this.activeContent("sprsrv/utildatacenter")
 
@@ -131,86 +137,271 @@ func (this *MainController) SprUtilizationDatacenter() {
 
 	since := time.Now().AddDate(0, 0, -utilLookbackDays)
 
-	// --- Кластеры: последняя суточная запись ClusterRecord за окно (тот же
-	// приём, что в SprUtilization) ---
-	var clusterRecs []models.ClusterRecord
-	o.QueryTable(new(models.ClusterRecord)).Filter("Date__gte", since).OrderBy("ClusterId", "-Date").All(&clusterRecs)
-	latestClusterByKey := latestByGroup(clusterRecs, func(r models.ClusterRecord) int64 { return r.ClusterId }, func(r models.ClusterRecord) time.Time { return r.Date })
-
-	// --- Хосты/ВМ - нужны только для счётчиков "хостов"/"VM" по кластеру,
-	// сами метрики загрузки берутся из ClusterRecord (уже агрегированы) ---
+	// --- Хосты: последняя суточная запись HostRecord за окно - источник
+	// метрик CPU/RAM И основа для определения площадки (через ServerId). ---
 	var hostRecs []models.HostRecord
 	o.QueryTable(new(models.HostRecord)).Filter("Date__gte", since).OrderBy("ServerId", "-Date").All(&hostRecs)
 	latestHostByServer := latestByGroup(hostRecs, func(r models.HostRecord) int64 { return r.ServerId }, func(r models.HostRecord) time.Time { return r.Date })
 
+	// --- Кластеры: только для имени/vCenter в разбивке по кластерам внутри
+	// площадки (сами метрики CPU/RAM кластера здесь НЕ используются - берутся
+	// напрямую из хостов, см. комментарий у SprUtilizationDatacenter). ---
+	var clusterRecs []models.ClusterRecord
+	o.QueryTable(new(models.ClusterRecord)).Filter("Date__gte", since).OrderBy("ClusterId", "-Date").All(&clusterRecs)
+	latestClusterByKey := latestByGroup(clusterRecs, func(r models.ClusterRecord) int64 { return r.ClusterId }, func(r models.ClusterRecord) time.Time { return r.Date })
+
+	// --- ВМ: последняя суточная запись VMRecord - для подсчёта VMCount по
+	// кластеру/площадке (см. vmCountByCluster ниже). ---
 	var vmRecs []models.VMRecord
 	o.QueryTable(new(models.VMRecord)).Filter("Date__gte", since).OrderBy("VMSprId", "-Date").All(&vmRecs)
 	latestVMBySpr := latestByGroup(vmRecs, func(r models.VMRecord) int64 { return r.VMSprId }, func(r models.VMRecord) time.Time { return r.Date })
-
-	hostCountByCluster := map[int64]int{}
-	for _, h := range latestHostByServer {
-		hostCountByCluster[h.ClusterId]++
-	}
 	vmCountByCluster := map[int64]int{}
 	for _, v := range latestVMBySpr {
 		vmCountByCluster[v.ClusterId]++
 	}
 
+	// --- Цепочка физического размещения хоста -> площадка (см. комментарий
+	// у функции выше). Строится тремя короткими join-выборками по
+	// собранным на предыдущем шаге Id, а не по одной хосту за раз - иначе
+	// на инфраструктуре с сотнями хостов это было бы N+3 запроса вместо 4. ---
+	serverIds := make([]int64, 0, len(latestHostByServer))
+	for id := range latestHostByServer {
+		serverIds = append(serverIds, id)
+	}
+	hwSprIdByServerId := map[int64]int64{}
+	if len(serverIds) > 0 {
+		var sprs []models.ServerSprRecords
+		o.QueryTable(new(models.ServerSprRecords)).Filter("Id__in", serverIds).All(&sprs, "Id", "HWSprId")
+		for _, s := range sprs {
+			if s.HWSprId > 0 {
+				hwSprIdByServerId[s.Id] = s.HWSprId
+			}
+		}
+	}
+
+	hwIds := make([]int64, 0, len(hwSprIdByServerId))
+	for _, hwId := range hwSprIdByServerId {
+		hwIds = append(hwIds, hwId)
+	}
+	cabinetIdByHWId := map[int64]int64{}
+	if len(hwIds) > 0 {
+		var hws []models.ServerHardware
+		o.QueryTable(new(models.ServerHardware)).Filter("Id__in", hwIds).All(&hws, "Id", "RackCabinetId")
+		for _, h := range hws {
+			if h.RackCabinetId > 0 {
+				cabinetIdByHWId[h.Id] = h.RackCabinetId
+			}
+		}
+	}
+
+	cabIds := make([]int64, 0, len(cabinetIdByHWId))
+	for _, cabId := range cabinetIdByHWId {
+		cabIds = append(cabIds, cabId)
+	}
+	siteIdByCabinetId := map[int64]int64{}
+	if len(cabIds) > 0 {
+		var cabs []models.RackCabinet
+		o.QueryTable(new(models.RackCabinet)).Filter("Id__in", cabIds).All(&cabs, "Id", "DatacenterSiteId")
+		for _, c := range cabs {
+			if c.DatacenterSiteId > 0 {
+				siteIdByCabinetId[c.Id] = c.DatacenterSiteId
+			}
+		}
+	}
+
+	siteIdSet := map[int64]bool{}
+	for _, siteId := range siteIdByCabinetId {
+		siteIdSet[siteId] = true
+	}
+	siteIds := make([]int64, 0, len(siteIdSet))
+	for id := range siteIdSet {
+		siteIds = append(siteIds, id)
+	}
+	siteNameById := map[int64]string{}
+	if len(siteIds) > 0 {
+		var sites []models.DatacenterSite
+		o.QueryTable(new(models.DatacenterSite)).Filter("Id__in", siteIds).All(&sites, "Id", "Name")
+		for _, s := range sites {
+			siteNameById[s.Id] = s.Name
+		}
+	}
+
+	const noSiteLabel = "Без определённой площадки"
+
+	// siteNameByServerId - итог всей цепочки: имя площадки (или noSiteLabel,
+	// если цепочка не резолвится целиком) по ServerId хоста.
+	siteNameByServerId := map[int64]string{}
+	for serverId := range latestHostByServer {
+		name := noSiteLabel
+		if hwId, ok := hwSprIdByServerId[serverId]; ok {
+			if cabId, ok := cabinetIdByHWId[hwId]; ok {
+				if siteId, ok := siteIdByCabinetId[cabId]; ok {
+					if n, ok := siteNameById[siteId]; ok && n != "" {
+						name = n
+					}
+				}
+			}
+		}
+		siteNameByServerId[serverId] = name
+	}
+
 	// --- ЭТАП 1 (по прямому требованию пользователя - "первым этапом
-	// определи список таких ЦОД"): список ЦОД, где есть хотя бы один
-	// кластер/гипервизор с данными за период, отсортирован по имени. ---
+	// определи список таких ЦОД"): список Площадок ЦОД, где есть хотя бы
+	// один хост-гипервизор с данными за период. ---
 	dcByName := map[string]*utilDcSummary{}
 	var dcNames []string
-	for _, r := range latestClusterByKey {
-		dc := r.Datacenter
-		if dc == "" {
-			continue
-		}
-		sum, ok := dcByName[dc]
+	// clusterAgg - промежуточная агрегация "площадка -> ClusterId -> сумма
+	// по хостам этого кластера на этой площадке" - кластер попадает в
+	// разбивку ОТДЕЛЬНО на каждой площадке, где реально стоят его хосты
+	// (в норме - одна площадка, но код не предполагает этого жёстко).
+	type clusterAggKey struct {
+		site      string
+		clusterId int64
+	}
+	clusterAgg := map[clusterAggKey]*utilDcCluster{}
+
+	for serverId, h := range latestHostByServer {
+		site := siteNameByServerId[serverId]
+
+		sum, ok := dcByName[site]
 		if !ok {
-			sum = &utilDcSummary{Name: dc}
-			dcByName[dc] = sum
-			dcNames = append(dcNames, dc)
+			sum = &utilDcSummary{Name: site}
+			dcByName[site] = sum
+			dcNames = append(dcNames, site)
 		}
 
-		cpuTotal := float64(r.CpuMhzAvg) * float64(r.AllNumCpuCores)
-		cpuUsed := cpuTotal * r.Cpu_usage_average / 100
-		ramTotal := r.AllMemorySizeGB
-		ramUsed := ramTotal * r.Mem_usage_average / 100
-		storageTotal := r.AllCapacityGb
-		storageUsed := storageTotal - r.AllFreeSpaceGb
-		if storageUsed < 0 {
-			storageUsed = 0
-		}
+		cpuTotal := float64(h.CpuMhz) * float64(h.NumCpuCores)
+		cpuUsed := cpuTotal * h.Cpu_usage_average / 100
+		ramTotal := h.MemorySizeGB
+		ramUsed := ramTotal * h.Mem_usage_average / 100
 
-		cl := utilDcCluster{
-			Name:      r.Name,
-			Vcenter:   r.Vcenter,
-			HostCount: hostCountByCluster[r.ClusterId],
-			VMCount:   vmCountByCluster[r.ClusterId],
-
-			CpuTotalMhz: cpuTotal,
-			CpuUsedMhz:  cpuUsed,
-			CpuPct:      r.Cpu_usage_average,
-
-			RamTotalGb: ramTotal,
-			RamUsedGb:  ramUsed,
-			RamPct:     r.Mem_usage_average,
-
-			StorageTotalGb: storageTotal,
-			StorageUsedGb:  storageUsed,
-			StoragePct:     r.AllPercentUsed,
-		}
-		sum.Clusters = append(sum.Clusters, cl)
-		sum.ClusterCount++
-		sum.HostCount += cl.HostCount
-		sum.VMCount += cl.VMCount
+		sum.HostCount++
 		sum.CpuTotalMhz += cpuTotal
 		sum.CpuUsedMhz += cpuUsed
 		sum.RamTotalGb += ramTotal
 		sum.RamUsedGb += ramUsed
-		sum.StorageTotalGb += storageTotal
-		sum.StorageUsedGb += storageUsed
+
+		key := clusterAggKey{site: site, clusterId: h.ClusterId}
+		cl, ok := clusterAgg[key]
+		if !ok {
+			name := h.Cluster
+			vcenter := h.Vcenter
+			if cr, ok := latestClusterByKey[h.ClusterId]; ok {
+				if cr.Name != "" {
+					name = cr.Name
+				}
+				if cr.Vcenter != "" {
+					vcenter = cr.Vcenter
+				}
+			}
+			if name == "" {
+				name = "(без кластера)"
+			}
+			cl = &utilDcCluster{Name: name, Vcenter: vcenter, VMCount: vmCountByCluster[h.ClusterId]}
+			clusterAgg[key] = cl
+		}
+		cl.HostCount++
+		cl.CpuTotalMhz += cpuTotal
+		cl.CpuUsedMhz += cpuUsed
+		cl.RamTotalGb += ramTotal
+		cl.RamUsedGb += ramUsed
+	}
+
+	for key, cl := range clusterAgg {
+		cl.CpuPct = pctOf(cl.CpuUsedMhz, cl.CpuTotalMhz)
+		cl.RamPct = pctOf(cl.RamUsedGb, cl.RamTotalGb)
+		sum := dcByName[key.site]
+		sum.Clusters = append(sum.Clusters, *cl)
+		sum.ClusterCount++
+		sum.VMCount += cl.VMCount
+	}
+
+	// --- СХД по площадке (StorageSystemPlacement -> площадка, см.
+	// комментарий у SprUtilizationDatacenter) - считается для ВСЕХ площадок,
+	// у которых уже есть запись в dcByName (то есть где есть гипервизоры) -
+	// СХД на площадках без гипервизоров сюда сознательно не попадает, этот
+	// отчёт именно про "утилизацию ВИРТУАЛЬНОЙ инфраструктуры". ---
+	if len(dcByName) > 0 {
+		var placements []models.StorageSystemPlacement
+		o.QueryTable(new(models.StorageSystemPlacement)).All(&placements)
+
+		// storageIdsBySite - дедупликация: одна СХД может иметь несколько
+		// записей размещения (несколько шкафов) на одной площадке - считать
+		// её ёмкость нужно ровно один раз.
+		storageIdsBySite := map[string]map[int64]bool{}
+		for _, p := range placements {
+			siteId := p.DatacenterSiteId
+			if p.RackCabinetId > 0 {
+				if resolved, ok := siteIdByCabinetId[p.RackCabinetId]; ok {
+					siteId = resolved
+				} else {
+					// Шкаф указан, но сам не привязан к площадке (или не
+					// попал в siteIdByCabinetId, т.к. на нём не оказалось ни
+					// одного хоста-гипервизора из выборки выше) - подгружаем
+					// точечно, это не частый случай.
+					var cab models.RackCabinet
+					if err := o.QueryTable(new(models.RackCabinet)).Filter("Id", p.RackCabinetId).One(&cab, "DatacenterSiteId"); err == nil {
+						siteId = cab.DatacenterSiteId
+					}
+				}
+			}
+			if siteId <= 0 {
+				continue
+			}
+			name, ok := siteNameById[siteId]
+			if !ok || name == "" {
+				var site models.DatacenterSite
+				if err := o.QueryTable(new(models.DatacenterSite)).Filter("Id", siteId).One(&site, "Name"); err == nil {
+					name = site.Name
+					siteNameById[siteId] = name
+				}
+			}
+			if name == "" {
+				continue
+			}
+			if _, ok := dcByName[name]; !ok {
+				continue // площадка без гипервизоров - СХД сюда не включаем, см. комментарий выше
+			}
+			set, ok := storageIdsBySite[name]
+			if !ok {
+				set = map[int64]bool{}
+				storageIdsBySite[name] = set
+			}
+			set[p.StorageSystemsId] = true
+		}
+
+		// Собираем все затронутые StorageSystemsId одним запросом.
+		allStorageIds := map[int64]bool{}
+		for _, set := range storageIdsBySite {
+			for id := range set {
+				allStorageIds[id] = true
+			}
+		}
+		if len(allStorageIds) > 0 {
+			ids := make([]int64, 0, len(allStorageIds))
+			for id := range allStorageIds {
+				ids = append(ids, id)
+			}
+			var storages []models.StorageSystems
+			o.QueryTable(new(models.StorageSystems)).Filter("Id__in", ids).All(&storages, "Id", "TotalSizeRAW", "UsedPercent", "Status")
+			storageById := map[int64]models.StorageSystems{}
+			for _, s := range storages {
+				storageById[s.Id] = s
+			}
+			for name, set := range storageIdsBySite {
+				sum := dcByName[name]
+				for id := range set {
+					s, ok := storageById[id]
+					if !ok || s.Status == 6 { // демонтированное оборудование - не учитываем, тот же фильтр, что на /sprsrv/utilization
+						continue
+					}
+					used := s.TotalSizeRAW * s.UsedPercent / 100
+					sum.StorageSystemCount++
+					sum.StorageTotalGb += s.TotalSizeRAW
+					sum.StorageUsedGb += used
+				}
+			}
+		}
 	}
 
 	sort.Strings(dcNames)
@@ -229,9 +420,9 @@ func (this *MainController) SprUtilizationDatacenter() {
 		this.Data["DcNamesJSON"] = template.JS(b)
 	}
 
-	// --- Сводная вкладка сравнения: те же итоги по ЦОД одним плоским
+	// --- Сводная вкладка сравнения: те же итоги по площадкам одним плоским
 	// списком в порядке dcNames - шаблон строит сравнительные диаграммы и
-	// таблицу разниц (максимум-минимум по каждому ресурсу) на клиенте. ---
+	// таблицу разниц на клиенте. ---
 	compare := make([]*utilDcSummary, 0, len(dcNames))
 	for _, name := range dcNames {
 		compare = append(compare, dcByName[name])
@@ -243,9 +434,8 @@ func (this *MainController) SprUtilizationDatacenter() {
 	this.Data["DcCount"] = len(dcNames)
 }
 
-// pctOf - used/total*100 с защитой от деления на 0 (когда у ЦОД/кластера
-// почему-то нулевая суммарная ёмкость ресурса - например, СХД не отдала
-// AllCapacityGb).
+// pctOf - used/total*100 с защитой от деления на 0 (когда у площадки/
+// кластера почему-то нулевая суммарная ёмкость ресурса).
 func pctOf(used, total float64) float64 {
 	if total <= 0 {
 		return 0
