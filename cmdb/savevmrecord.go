@@ -1,6 +1,7 @@
 package cmdb
 
 import (
+	"context"
 	"fmt"
 	"loadmon/grpcclient"
 	vsphere "loadmon/vspheremetrics"
@@ -325,6 +326,36 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 		if err != nil {
 			fmt.Println("Ошибка записи данных по виртуальной машине: ", err)
 			continue
+		}
+
+		// Stage 1 доработки хранения сетевых интерфейсов (см. CHANGELOG.md,
+		// запись про ServerNetworkInterface): дополнительно, не заменяя
+		// существующую сборку ";"-строк vm.IPAddress/vm.MacAddress/vm.Network
+		// (заполняется в vspheremetrics/importdata.go как и раньше), сохраняем
+		// структурированные данные из vm.Interfaces (vm.Guest.Net) в новую
+		// таблицу. NetworkName здесь есть (в отличие от Zabbix/host vnic).
+		if serverId > 0 && len(vm.Interfaces) > 0 {
+			var ifaceRows []*models.ServerNetworkInterface
+			for _, iface := range vm.Interfaces {
+				if iface.IPAddress == "" {
+					continue
+				}
+				ver := int8(4)
+				if strings.Contains(iface.IPAddress, ":") {
+					ver = 6
+				}
+				ifaceRows = append(ifaceRows, &models.ServerNetworkInterface{
+					ServerSprId: serverId,
+					Source:      "vmware_vm_guest",
+					MacAddress:  iface.MacAddress,
+					IPAddress:   iface.IPAddress,
+					IPVersion:   ver,
+					NetworkName: iface.NetworkName,
+				})
+			}
+			if err := models.ReplaceServerNetworkInterfaces(context.Background(), o, serverId, "vmware_vm_guest", ifaceRows); err != nil {
+				fmt.Println("Ошибка записи models.ServerNetworkInterface (vmware_vm_guest)", vm.Name, err)
+			}
 		}
 
 		// Детальные ("сырые", по каждому замеру vSphere) метрики загрузки ВМ -

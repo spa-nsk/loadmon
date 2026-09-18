@@ -566,6 +566,23 @@ message VMPoint {
   // нужен для корректного определения "на каком хосте физически размещена
   // VM" (см. controllers/sprsrvview2.go: placementServerSprIdsByRacks).
   string EsxHost = 76;
+  // Interfaces — структурированные (не ";"-склеенные) сетевые интерфейсы
+  // VM (Stage 1 доработки хранения сетевых интерфейсов серверов, см.
+  // CHANGELOG.md, запись про ServerNetworkInterface). Добавлено
+  // аддитивно: поля IPAddress/MacAddress/Network (57? см. номера выше)
+  // не изменены и продолжают заполняться как раньше, это ДОПОЛНИТЕЛЬНОЕ
+  // представление тех же данных из vm.Guest.Net.
+  repeated NetInterface Interfaces = 77;
+}
+
+// NetInterface — один сетевой интерфейс (пара MAC+IP) сервера в
+// структурированном виде, соответствует vspheremetrics.NetInterfacePoint.
+// Общее сообщение для VMPoint.Interfaces и Host/HostFull.Interfaces.
+message NetInterface {
+  string MacAddress = 1;
+  string IPAddress = 2;
+  string NetworkName = 3; // имя портгруппы - только для VM guest net
+  string SubnetMask = 4;  // маска подсети - только для ESXi host vnic
 }
 
 //
@@ -702,6 +719,10 @@ message Host {
   string ProductFullName = 58;
   string ClusterId = 59;
   string MacAddress = 60;
+  // Interfaces — структурированные сетевые интерфейсы хоста ESXi (Stage 1
+  // доработки хранения сетевых интерфейсов серверов, см. CHANGELOG.md).
+  // Добавлено аддитивно, IpAddress/MacAddress выше не изменены.
+  repeated NetInterface Interfaces = 61;
 }
 
 //
@@ -767,6 +788,10 @@ message HostFull {
   string ProductFullName = 59;
   string ClusterId = 60;
   string MacAddress = 61;
+  // Interfaces — то же самое, что Host.Interfaces (поле 61) выше, для
+  // "полного" хостового сообщения. Stage 1 доработки хранения сетевых
+  // интерфейсов серверов, см. CHANGELOG.md.
+  repeated NetInterface Interfaces = 62;
 }
 
 //

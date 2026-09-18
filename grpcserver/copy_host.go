@@ -48,6 +48,10 @@ func CopyHost(hs *pb.Host) *pb.Host {
 	out.NumHBAs = hs.NumHBAs
 	out.NumNics = hs.NumNics
 	out.IpAddress = hs.IpAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IpAddress/MacAddress выше.
+	out.Interfaces = hs.Interfaces
 	out.MemorySizeGB = hs.MemorySizeGB
 	out.HostMaxVirtualDiskCapacity = hs.HostMaxVirtualDiskCapacity
 	out.PerfCount = hs.PerfCount
@@ -143,6 +147,12 @@ func CopyPbHostFull(in *pb.HostFull) *pb.HostFull {
 		PerfCount:                  in.PerfCount,
 		TagName:                    in.TagName,
 		TagDescription:             in.TagDescription,
+		// Interfaces - структурированные сетевые интерфейсы (Stage 1
+		// доработки хранения сетевых интерфейсов серверов, см. CHANGELOG.md).
+		// IpAddress/MacAddress сознательно не добавлены сюда же - их не было
+		// в исходном списке полей этой функции (не наша задача это чинить
+		// в рамках аддитивной доработки).
+		Interfaces: in.Interfaces,
 	}
 	for _, perf := range in.Perf {
 		hsperf := pb.HSPerf{

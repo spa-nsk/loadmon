@@ -148,6 +148,17 @@ func GetVMPointRPC(in *pb.VMPoint) vsphere.VMPoint {
 	vm.Network = in.Network
 	vm.IPAddress = in.IpAddress
 	vm.MacAddress = in.MacAddress
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IPAddress/MacAddress/Network выше.
+	for _, iface := range in.Interfaces {
+		vm.Interfaces = append(vm.Interfaces, vsphere.NetInterfacePoint{
+			MacAddress:  iface.MacAddress,
+			IPAddress:   iface.IPAddress,
+			NetworkName: iface.NetworkName,
+			SubnetMask:  iface.SubnetMask,
+		})
+	}
 	vm.CapacityGb = in.CapacityGb
 	vm.FreeSpaceGb = in.FreeSpaceGb
 	vm.PercentUsed = in.PercentUsed

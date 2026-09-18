@@ -118,6 +118,17 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 	// которое остаётся гостевым именем VM) - см. комментарий у поля EsxHost
 	// в protocol/vm.proto (2026-09-15).
 	out.EsxHost = vm.EsxHost
+	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
+	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
+	// к IPAddress/MacAddress/Network выше.
+	for _, iface := range vm.Interfaces {
+		out.Interfaces = append(out.Interfaces, &pb.NetInterface{
+			MacAddress:  iface.MacAddress,
+			IPAddress:   iface.IPAddress,
+			NetworkName: iface.NetworkName,
+			SubnetMask:  iface.SubnetMask,
+		})
+	}
 	out.PathName = vm.PathName
 	out.PowerState = vm.PowerState
 	out.CpuMhz = vm.CPUMhz
