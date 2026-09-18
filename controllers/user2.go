@@ -292,7 +292,7 @@ func (this *MainController) Register() {
 		user.Reg_key = key.String()
 		_, err := o.Insert(&user)
 		if err != nil {
-			flash.Error(u.Email + " уже зарегистрирован")
+			flash.Error("%s уже зарегистрирован", u.Email)
 			flash.Store(&this.Controller)
 			return
 		}
@@ -360,7 +360,7 @@ func sendVerification(email, u string, domainname string) error {
 		">\r\nSubject: " + subject + "\r\n" + contentType + "\r\n\r\n" +
 		"Для активации учетной записи перейдите по ссылке : " + link
 
-	_, err = fmt.Fprintf(wc, mailmsg)
+	_, err = fmt.Fprint(wc, mailmsg)
 	if err != nil {
 		return err
 	}
@@ -689,7 +689,7 @@ func sendRequestReset(email, u string, domainname string) error {
 	mailmsg := "To: " + email + "\r\nFrom: " + "noreply" + "<" + sender + ">\r\nSubject: " + subject + "\r\n" + contentType + "\r\n\r\n" +
 		"Для сброса пароля учетной записи перейдите по ссылке : " + link
 
-	_, err = fmt.Fprintf(wc, mailmsg)
+	_, err = fmt.Fprint(wc, mailmsg)
 	if err != nil {
 		return err
 	}

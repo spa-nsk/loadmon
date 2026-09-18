@@ -169,7 +169,7 @@ func SyncServerHardwareComponents(o orm.QueryExecutor, hw *models.ServerHardware
 			Vendor:    port.DeviceName,
 			Model:     fmt.Sprintf("%s порт %d, тип %s, MAC=%s WWN=%s", port.DeviceName, port.PortNumber, port.Type, port.MAC, port.WWN),
 			SerialNum: firstNonEmpty(ident, hw.SerialNum+"-net-"+strconv.Itoa(idx)),
-			Slot:      fmt.Sprintf("Слот %d, порт %d", port.DeviceSlot, port.PortNumber),
+			Slot:      fmt.Sprintf("Слот %s, порт %d", port.DeviceSlot, port.PortNumber),
 		}
 		if t == ServerHWComponentFC {
 			fcPorts = append(fcPorts, row)

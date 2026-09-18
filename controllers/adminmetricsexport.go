@@ -370,7 +370,7 @@ func (this *MainController) AdminMetricsUnifiedExport() {
 		_, err := qs.All(&candidates)
 		if err != nil {
 			flash := beego.NewFlash()
-			flash.Error("Ошибка чтения справочника серверов: " + err.Error())
+			flash.Error("Ошибка чтения справочника серверов: %v", err)
 			flash.Store(&this.Controller)
 			this.Redirect("/admin/metricsexport", 302)
 			return
@@ -650,7 +650,7 @@ func exportUnifiedMetricsXLSX(this *MainController, flash *beego.FlashData, rows
 
 	file := excelize.NewFile()
 	if file == nil {
-		flash.Error("Ошибка создания XLSX файла: " + destination)
+		flash.Error("Ошибка создания XLSX файла: %s", destination)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/metricsexport", 302)
 		return
@@ -659,7 +659,7 @@ func exportUnifiedMetricsXLSX(this *MainController, flash *beego.FlashData, rows
 	sheet := "Метрики"
 	index, err := file.NewSheet(sheet)
 	if err != nil {
-		flash.Error("Ошибка создания листа XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка создания листа XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		this.Redirect("/admin/metricsexport", 302)
@@ -669,7 +669,7 @@ func exportUnifiedMetricsXLSX(this *MainController, flash *beego.FlashData, rows
 
 	cell, _ := excelize.CoordinatesToCellName(1, 1)
 	if err := file.SetSheetRow(sheet, cell, &unifiedMetricsXLSXHeader); err != nil {
-		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		this.Redirect("/admin/metricsexport", 302)
@@ -690,7 +690,7 @@ func exportUnifiedMetricsXLSX(this *MainController, flash *beego.FlashData, rows
 		}
 		cell, _ := excelize.CoordinatesToCellName(1, j+2)
 		if err := file.SetSheetRow(sheet, cell, &row); err != nil {
-			flash.Error("Ошибка записи строки XLSX файла: "+destination+" ", err)
+			flash.Error("Ошибка записи строки XLSX файла: "+destination+" %v", err)
 			flash.Store(&this.Controller)
 			file.Close()
 			this.Redirect("/admin/metricsexport", 302)
@@ -699,14 +699,14 @@ func exportUnifiedMetricsXLSX(this *MainController, flash *beego.FlashData, rows
 	}
 
 	if err := file.SaveAs(destination); err != nil {
-		flash.Error("Ошибка сохранения XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка сохранения XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		this.Redirect("/admin/metricsexport", 302)
 		return
 	}
 	if err := file.Close(); err != nil {
-		flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка закрытия XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/metricsexport", 302)
 		return
@@ -714,7 +714,7 @@ func exportUnifiedMetricsXLSX(this *MainController, flash *beego.FlashData, rows
 
 	fileInfo, err := os.Stat(destination)
 	if err != nil {
-		flash.Error("Ошибка получения данных XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка получения данных XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/metricsexport", 302)
 		return
