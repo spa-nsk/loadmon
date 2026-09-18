@@ -1,24 +1,36 @@
 <!-- Контроллер: controllers/sprutildatacenter.go (SprUtilizationDatacenter).
      По прямому запросу пользователя (2026-09-17, "сделай отчет по утилизации
      виртуальной инфраструктуры по ЦОД... с canvas и стильными индикаторами...
-     предварительно просмотри в интернете аналогичные представления"):
-     круговые индикаторы загрузки нарисованы на <canvas> (не SVG/ApexCharts -
+     предварительно просмотри в интернете аналогичные представления", затем
+     2026-09-18 УТОЧНЕНИЕ - "получилось не то что просил. Нужно было делать по
+     Площадкам ЦОД и уже на каждой странице указывать количество ресурсов и
+     утилизацию ресурсов на Площадке ЦОД. И на странице ошибка... не указано
+     количество хостов и виртуальных машин по кластеру"): первая версия
+     ошибочно группировала по ЛОГИЧЕСКОМУ объекту vCenter "Datacenter" -
+     переделано на ФИЗИЧЕСКУЮ площадку (models.DatacenterSite, тот же
+     справочник, что на /sprsrv/datacentersitelist), определяемую по цепочке
+     размещения хоста в стойке (см. комментарий в контроллере). Счётчики
+     хостов/VM по кластеру теперь показаны крупными заметными бейджами (не
+     мелкой подписью, как раньше), а не только рассчитываются - см. блок
+     .udc-cluster-counts ниже.
+
+     Круговые индикаторы загрузки нарисованы на <canvas> (не SVG/ApexCharts -
      явное требование пользователя), по образцу современных capacity-
      дашбордов (Grafana/ManageEngine style: сплошная цветная заливка по
      порогу вместо тонкой линии прогресса, см. поиск "datacenter capacity
      utilization dashboard design" - источники в CHANGELOG). Отдельная
-     вкладка на каждый ЦОД (где есть гипервизоры) + сводная вкладка
-     сравнения ЦОД между собой - "листы" реализованы как Bootstrap
+     вкладка на каждую Площадку ЦОД (где есть гипервизоры) + сводная вкладка
+     сравнения площадок между собой - "листы" реализованы как Bootstrap
      nav-tabs (полноценные отдельные HTML-страницы/листы Excel здесь не при
-     чём, это веб-отчёт, но принцип "один раздел на один ЦОД" соблюдён). -->
+     чём, это веб-отчёт, но принцип "один раздел на одну площадку" соблюдён). -->
 
 <div class="hero-text mb-3">
-    <h2>Утилизация виртуальной инфраструктуры по ЦОД</h2>
-    <div class="text-muted">Загрузка CPU, RAM и СХД по кластерам в разрезе ЦОД (логический объект vCenter Datacenter, где есть гипервизоры) - по последним суточным данным. Определено ЦОД: <b>{{.DcCount}}</b>.</div>
+    <h2>Утилизация виртуальной инфраструктуры по Площадкам ЦОД</h2>
+    <div class="text-muted">Ресурсы и их фактическая утилизация (CPU, RAM, СХД) в разрезе физической площадки размещения оборудования (Справочник Площадок/ЦОД), где есть хосты-гипервизоры - по последним суточным данным. Определено площадок: <b>{{.DcCount}}</b>.</div>
 </div>
 
 <div id="udcEmpty" class="udc-empty-state d-none">
-    <div>Не найдено ни одного ЦОД с гипервизорами (нет свежих суточных записей ClusterRecord с заполненным Datacenter за последние 7 дней).</div>
+    <div>Не найдено ни одной площадки с гипервизорами (нет свежих суточных записей HostRecord за последние 7 дней, либо ни один хост не привязан к шкафу/площадке в справочнике оборудования).</div>
 </div>
 
 <ul class="nav nav-pills udc-tabs mb-3" id="udcTabNav" role="tablist"></ul>
@@ -178,6 +190,62 @@
         font-size: 0.72rem;
         color: var(--bs-secondary-color);
     }
+
+    /* --- Счётчики хостов/VM по кластеру - ИСПРАВЛЕНО 2026-09-18 по
+       замечанию пользователя "в кластерах не указано количество хостов и
+       виртуальных машин": раньше это была мелкая подпись рядом с именем
+       кластера (легко было не заметить), теперь - крупные контрастные
+       "пилюли"-бейджи в отдельной строке карточки. --- */
+    .udc-cluster-counts {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .udc-count-pill {
+        flex: 1 1 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--bs-secondary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.45rem;
+        padding: 0.35rem 0.4rem;
+    }
+
+    .udc-count-pill-value {
+        font-size: 1.15rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: var(--bs-emphasis-color);
+    }
+
+    .udc-count-pill-label {
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        margin-top: 0.1rem;
+    }
+
+    .udc-dc-counts-row {
+        display: flex;
+        gap: 0.6rem;
+        margin-bottom: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .udc-dc-count-pill {
+        background: var(--bs-secondary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.9rem;
+        text-align: center;
+        min-width: 100px;
+    }
+
+    .udc-dc-count-pill .udc-count-pill-value { font-size: 1.4rem; }
 
     .udc-mini-gauges {
         display: flex;
@@ -393,6 +461,10 @@
         return div;
     }
 
+    function countPill(value, label) {
+        return '<div class="udc-dc-count-pill"><div class="udc-count-pill-value">' + value + '</div><div class="udc-count-pill-label">' + label + '</div></div>';
+    }
+
     function buildDcPane(name, dc, isFirst) {
         var pane = document.createElement('div');
         pane.className = 'tab-pane fade' + (isFirst ? ' show active' : '');
@@ -401,17 +473,33 @@
 
         pane.appendChild(legend());
 
+        // Заметная строка счётчиков площадки - сколько на ней вообще
+        // ресурсов "поштучно" (кластеров/хостов/VM/записей СХД), ДО того,
+        // как смотреть на проценты загрузки ниже.
+        var countsRow = document.createElement('div');
+        countsRow.className = 'udc-dc-counts-row';
+        countsRow.innerHTML =
+            countPill(dc.clusterCount, 'Кластеров') +
+            countPill(dc.hostCount, 'Хостов-гипервизоров') +
+            countPill(dc.vmCount, 'Виртуальных машин') +
+            countPill(dc.storageSystemCount, 'СХД на площадке');
+        pane.appendChild(countsRow);
+
+        // Три больших круговых индикатора - ОБЩАЯ утилизация РЕСУРСОВ
+        // ПЛОЩАДКИ (не отдельного кластера) - именно это прямо просил
+        // пользователь ("указывать количество ресурсов и утилизацию
+        // ресурсов на Площадке ЦОД").
         var summaryRow = document.createElement('div');
         summaryRow.className = 'udc-dc-summary-row';
         var cpuCard = document.createElement('div');
         cpuCard.className = 'udc-card';
-        cpuCard.appendChild(gaugeBlock(dc.cpuPct, 'CPU по ЦОД', fmtMhz(dc.cpuTotalMhz), fmtMhz(dc.cpuUsedMhz), 108));
+        cpuCard.appendChild(gaugeBlock(dc.cpuPct, 'CPU площадки', fmtMhz(dc.cpuTotalMhz), fmtMhz(dc.cpuUsedMhz), 108));
         var ramCard = document.createElement('div');
         ramCard.className = 'udc-card';
-        ramCard.appendChild(gaugeBlock(dc.ramPct, 'RAM по ЦОД', fmtGb(dc.ramTotalGb), fmtGb(dc.ramUsedGb), 108));
+        ramCard.appendChild(gaugeBlock(dc.ramPct, 'RAM площадки', fmtGb(dc.ramTotalGb), fmtGb(dc.ramUsedGb), 108));
         var stCard = document.createElement('div');
         stCard.className = 'udc-card';
-        stCard.appendChild(gaugeBlock(dc.storagePct, 'СХД по ЦОД', fmtGb(dc.storageTotalGb), fmtGb(dc.storageUsedGb), 108));
+        stCard.appendChild(gaugeBlock(dc.storagePct, 'СХД площадки', fmtGb(dc.storageTotalGb), fmtGb(dc.storageUsedGb), 108));
         summaryRow.appendChild(cpuCard);
         summaryRow.appendChild(ramCard);
         summaryRow.appendChild(stCard);
@@ -419,22 +507,38 @@
 
         var clustersCard = document.createElement('div');
         clustersCard.className = 'udc-card';
-        clustersCard.innerHTML = '<h6>Кластеры ЦОД «' + name + '» (' + dc.clusterCount + '), хостов ' + dc.hostCount + ', VM ' + dc.vmCount + '</h6>';
+        clustersCard.innerHTML = '<h6>Кластеры на площадке «' + name + '»</h6>';
         var grid = document.createElement('div');
         grid.className = 'udc-cluster-grid';
+        if (!(dc.clusters || []).length) {
+            var emptyClusters = document.createElement('div');
+            emptyClusters.className = 'udc-empty-state';
+            emptyClusters.innerHTML = '<div>На этой площадке есть хосты-гипервизоры, но ни один из них не отнесён к кластеру за последние 7 суток.</div>';
+            grid.appendChild(emptyClusters);
+        }
         (dc.clusters || []).forEach(function (c) {
             var card = document.createElement('div');
             card.className = 'udc-cluster-card';
             var head = document.createElement('div');
             head.className = 'udc-cluster-head';
             head.innerHTML = '<span class="udc-cluster-name">' + c.name + '</span>' +
-                '<span class="udc-cluster-sub">' + (c.vcenter || '') + ' · хостов ' + c.hostCount + ' · VM ' + c.vmCount + '</span>';
+                '<span class="udc-cluster-sub">' + (c.vcenter || '') + '</span>';
             card.appendChild(head);
+
+            // Хостов/VM по кластеру - ИСПРАВЛЕНО 2026-09-18 (см. комментарий
+            // у .udc-cluster-counts выше): крупные заметные "пилюли" вместо
+            // мелкой подписи рядом с именем кластера.
+            var counts = document.createElement('div');
+            counts.className = 'udc-cluster-counts';
+            counts.innerHTML =
+                '<div class="udc-count-pill"><div class="udc-count-pill-value">' + c.hostCount + '</div><div class="udc-count-pill-label">Хостов</div></div>' +
+                '<div class="udc-count-pill"><div class="udc-count-pill-value">' + c.vmCount + '</div><div class="udc-count-pill-label">Виртуальных машин</div></div>';
+            card.appendChild(counts);
+
             var mini = document.createElement('div');
             mini.className = 'udc-mini-gauges';
             mini.appendChild(miniGauge(c.cpuPct, 'CPU', fmtMhz(c.cpuUsedMhz) + ' / ' + fmtMhz(c.cpuTotalMhz)));
             mini.appendChild(miniGauge(c.ramPct, 'RAM', fmtGb(c.ramUsedGb) + ' / ' + fmtGb(c.ramTotalGb)));
-            mini.appendChild(miniGauge(c.storagePct, 'СХД', fmtGb(c.storageUsedGb) + ' / ' + fmtGb(c.storageTotalGb)));
             card.appendChild(mini);
             grid.appendChild(card);
         });
@@ -513,14 +617,14 @@
         if (!dcs.length) {
             var empty = document.createElement('div');
             empty.className = 'udc-empty-state';
-            empty.innerHTML = '<div>Недостаточно данных для сравнения ЦОД.</div>';
+            empty.innerHTML = '<div>Недостаточно данных для сравнения площадок.</div>';
             pane.appendChild(empty);
             return pane;
         }
 
         var chartCard = document.createElement('div');
         chartCard.className = 'udc-card mb-3';
-        chartCard.innerHTML = '<h6>Сравнение загрузки ЦОД по CPU / RAM / СХД, %</h6><div class="udc-bar-chart-box"></div>';
+        chartCard.innerHTML = '<h6>Сравнение загрузки площадок по CPU / RAM / СХД, %</h6><div class="udc-bar-chart-box"></div>';
         var box = chartCard.querySelector('.udc-bar-chart-box');
         var canvas = document.createElement('canvas');
         box.appendChild(canvas);
@@ -531,8 +635,8 @@
 
         var tableCard = document.createElement('div');
         tableCard.className = 'udc-card';
-        tableCard.innerHTML = '<h6>Разница утилизации между ЦОД</h6>' +
-            '<div class="text-muted small mb-2">Ячейка окрашена по собственному порогу значения (как индикаторы выше). Колонки "Разница с мин." показывают, насколько сильнее загружен этот ЦОД по сравнению с наименее загруженным - помогает быстро увидеть перекос нагрузки между площадками.</div>';
+        tableCard.innerHTML = '<h6>Разница утилизации между площадками</h6>' +
+            '<div class="text-muted small mb-2">Ячейка окрашена по собственному порогу значения (как индикаторы выше). Колонки "Разница с мин." показывают, насколько сильнее загружена эта площадка по сравнению с наименее загруженной - помогает быстро увидеть перекос нагрузки между площадками.</div>';
         var wrap = document.createElement('div');
         wrap.className = 'table-responsive';
         var table = document.createElement('table');
@@ -541,7 +645,7 @@
         var minRam = Math.min.apply(null, dcs.map(function (d) { return d.ramPct || 0; }));
         var minSt = Math.min.apply(null, dcs.map(function (d) { return d.storagePct || 0; }));
         var thead = '<thead><tr>' +
-            '<th>ЦОД</th><th>Кластеров</th><th>Хостов</th><th>VM</th>' +
+            '<th>Площадка ЦОД</th><th>Кластеров</th><th>Хостов</th><th>VM</th>' +
             '<th>CPU %</th><th>Разница с мин.</th>' +
             '<th>RAM %</th><th>Разница с мин.</th>' +
             '<th>СХД %</th><th>Разница с мин.</th>' +
@@ -592,7 +696,7 @@
 
     var compareLi = document.createElement('li');
     compareLi.className = 'nav-item';
-    compareLi.innerHTML = '<button class="nav-link udc-tab-compare" data-bs-toggle="tab" data-bs-target="#udcPane_compare" type="button" role="tab">📊 Сравнение ЦОД</button>';
+    compareLi.innerHTML = '<button class="nav-link udc-tab-compare" data-bs-toggle="tab" data-bs-target="#udcPane_compare" type="button" role="tab">📊 Сравнение площадок</button>';
     tabNav.appendChild(compareLi);
     tabContent.appendChild(buildComparePane(dcCompare));
 
