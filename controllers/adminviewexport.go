@@ -326,7 +326,7 @@ func exportViewCSV(this *MainController, flash *beego.FlashData, name string, re
 
 	f, err := os.Create(destination)
 	if err != nil {
-		flash.Error("Ошибка создания CSV файла: "+destination+" ", err)
+		flash.Error("Ошибка создания CSV файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return
@@ -339,7 +339,7 @@ func exportViewCSV(this *MainController, flash *beego.FlashData, name string, re
 	w := csv.NewWriter(f)
 	w.Comma = ';'
 	if err := w.Write(result.Columns); err != nil {
-		flash.Error("Ошибка записи заголовка CSV файла: "+destination+" ", err)
+		flash.Error("Ошибка записи заголовка CSV файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		f.Close()
 		this.Redirect("/admin/viewexport/"+name, 302)
@@ -347,7 +347,7 @@ func exportViewCSV(this *MainController, flash *beego.FlashData, name string, re
 	}
 	for _, row := range result.Rows {
 		if err := w.Write(row); err != nil {
-			flash.Error("Ошибка записи строки CSV файла: "+destination+" ", err)
+			flash.Error("Ошибка записи строки CSV файла: "+destination+" %v", err)
 			flash.Store(&this.Controller)
 			f.Close()
 			this.Redirect("/admin/viewexport/"+name, 302)
@@ -356,14 +356,14 @@ func exportViewCSV(this *MainController, flash *beego.FlashData, name string, re
 	}
 	w.Flush()
 	if err := w.Error(); err != nil {
-		flash.Error("Ошибка формирования CSV файла: "+destination+" ", err)
+		flash.Error("Ошибка формирования CSV файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		f.Close()
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return
 	}
 	if err := f.Close(); err != nil {
-		flash.Error("Ошибка закрытия CSV файла: "+destination+" ", err)
+		flash.Error("Ошибка закрытия CSV файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return
@@ -371,7 +371,7 @@ func exportViewCSV(this *MainController, flash *beego.FlashData, name string, re
 
 	fileInfo, err := os.Stat(destination)
 	if err != nil {
-		flash.Error("Ошибка получения данных CSV файла: "+destination+" ", err)
+		flash.Error("Ошибка получения данных CSV файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return
@@ -411,7 +411,7 @@ func exportViewXLSX(this *MainController, flash *beego.FlashData, name string, r
 
 	file := excelize.NewFile()
 	if file == nil {
-		flash.Error("Ошибка создания XLSX файла: " + destination)
+		flash.Error("Ошибка создания XLSX файла: %s", destination)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return
@@ -420,7 +420,7 @@ func exportViewXLSX(this *MainController, flash *beego.FlashData, name string, r
 	sheet := "Выгрузка"
 	index, err := file.NewSheet(sheet)
 	if err != nil {
-		flash.Error("Ошибка создания листа XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка создания листа XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		this.Redirect("/admin/viewexport/"+name, 302)
@@ -430,7 +430,7 @@ func exportViewXLSX(this *MainController, flash *beego.FlashData, name string, r
 
 	cell, _ := excelize.CoordinatesToCellName(1, 1)
 	if err := file.SetSheetRow(sheet, cell, &result.Columns); err != nil {
-		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		this.Redirect("/admin/viewexport/"+name, 302)
@@ -441,7 +441,7 @@ func exportViewXLSX(this *MainController, flash *beego.FlashData, name string, r
 		cell, _ := excelize.CoordinatesToCellName(1, j+2)
 		rowCopy := row
 		if err := file.SetSheetRow(sheet, cell, &rowCopy); err != nil {
-			flash.Error("Ошибка записи строки XLSX файла: "+destination+" ", err)
+			flash.Error("Ошибка записи строки XLSX файла: "+destination+" %v", err)
 			flash.Store(&this.Controller)
 			file.Close()
 			this.Redirect("/admin/viewexport/"+name, 302)
@@ -450,14 +450,14 @@ func exportViewXLSX(this *MainController, flash *beego.FlashData, name string, r
 	}
 
 	if err := file.SaveAs(destination); err != nil {
-		flash.Error("Ошибка сохранения XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка сохранения XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return
 	}
 	if err := file.Close(); err != nil {
-		flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка закрытия XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return
@@ -465,7 +465,7 @@ func exportViewXLSX(this *MainController, flash *beego.FlashData, name string, r
 
 	fileInfo, err := os.Stat(destination)
 	if err != nil {
-		flash.Error("Ошибка получения данных XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка получения данных XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		this.Redirect("/admin/viewexport/"+name, 302)
 		return

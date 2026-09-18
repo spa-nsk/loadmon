@@ -375,7 +375,7 @@ func (this *MainController) exportStorageSystemsXLSX(rows []models.StorageSystem
 
 	file := excelize.NewFile()
 	if file == nil {
-		flash.Error("Ошибка создания XLSX файла: " + destination)
+		flash.Error("Ошибка создания XLSX файла: %s", destination)
 		flash.Store(&this.Controller)
 		return
 	}
@@ -384,7 +384,7 @@ func (this *MainController) exportStorageSystemsXLSX(rows []models.StorageSystem
 	sheet := "Справочник СХД"
 	index, err := file.NewSheet(sheet)
 	if err != nil {
-		flash.Error("Ошибка создания листа XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка создания листа XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		return
@@ -393,7 +393,7 @@ func (this *MainController) exportStorageSystemsXLSX(rows []models.StorageSystem
 
 	cell, _ := excelize.CoordinatesToCellName(1, 1)
 	if err := file.SetSheetRow(sheet, cell, &header); err != nil {
-		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		return
@@ -403,7 +403,7 @@ func (this *MainController) exportStorageSystemsXLSX(rows []models.StorageSystem
 		row, _ := csvtools.GetCSVData(&rows[j])
 		cell, _ := excelize.CoordinatesToCellName(1, j+2)
 		if err := file.SetSheetRow(sheet, cell, &row); err != nil {
-			flash.Error("Ошибка записи строки XLSX файла: "+destination+" ", err)
+			flash.Error("Ошибка записи строки XLSX файла: "+destination+" %v", err)
 			flash.Store(&this.Controller)
 			file.Close()
 			return
@@ -411,20 +411,20 @@ func (this *MainController) exportStorageSystemsXLSX(rows []models.StorageSystem
 	}
 
 	if err := file.SaveAs(destination); err != nil {
-		flash.Error("Ошибка сохранения XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка сохранения XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		file.Close()
 		return
 	}
 	if err := file.Close(); err != nil {
-		flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка закрытия XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		return
 	}
 
 	fileInfo, err := os.Stat(destination)
 	if err != nil {
-		flash.Error("Ошибка получения данных XLSX файла: "+destination+" ", err)
+		flash.Error("Ошибка получения данных XLSX файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		return
 	}
@@ -456,7 +456,7 @@ func (this *MainController) exportStorageSystemsCSV(rows []models.StorageSystems
 
 	csvFile, err := os.Create(destination)
 	if err != nil {
-		flash.Error("Ошибка создания CSV файла: "+destination+" ", err)
+		flash.Error("Ошибка создания CSV файла: "+destination+" %v", err)
 		flash.Store(&this.Controller)
 		return
 	}

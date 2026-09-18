@@ -43,7 +43,7 @@ func (this *MainController) AdminInfrastructure() {
 	data, err := buildInfrastructureCanvasData()
 	if err != nil {
 		log.Printf("AdminInfrastructure: build data: %v", err)
-		flash.Error("Не удалось загрузить данные инфраструктуры: " + err.Error())
+		flash.Error("Не удалось загрузить данные инфраструктуры: %v", err)
 		this.Data["InfraJSON"] = base64.StdEncoding.EncodeToString([]byte("{}"))
 	} else {
 		raw, err := json.Marshal(data)

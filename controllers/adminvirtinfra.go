@@ -198,7 +198,7 @@ func (this *MainController) AdminVirtInfra() {
 	data, err := buildVirtInfraData()
 	if err != nil {
 		log.Printf("AdminVirtInfra: build data: %v", err)
-		flash.Error("Не удалось загрузить данные виртуальной инфраструктуры: " + err.Error())
+		flash.Error("Не удалось загрузить данные виртуальной инфраструктуры: %v", err)
 		this.Data["VirtInfraJSON"] = base64.StdEncoding.EncodeToString([]byte("{}"))
 	} else {
 		raw, err := json.Marshal(data)

@@ -213,10 +213,10 @@ func GetDoradoLun(client *dorado.Client, shd *models.StorageSystems) (map[string
 			// (например, ESXi-хост ещё не подключен к датастору) - не
 			// признак сбоя СХД или кода.
 			if err == dorado.ErrLunNotFound {
-				fmt.Printf("СХД Huawei %s (%s): у хоста Id=%s Name=%s нет ни одного привязанного LUN (это нормально, если хосту ещё не назначены тома)\n",
+				fmt.Printf("СХД Huawei %s (%s): у хоста Id=%d Name=%s нет ни одного привязанного LUN (это нормально, если хосту ещё не назначены тома)\n",
 					shd.ShortName, shd.IpAddress, h.ID, h.NAME)
 			} else {
-				fmt.Printf("СХД Huawei %s (%s): ошибка запроса списка LUN, привязанных к хосту Id=%s Name=%s: %v\n",
+				fmt.Printf("СХД Huawei %s (%s): ошибка запроса списка LUN, привязанных к хосту Id=%d Name=%s: %v\n",
 					shd.ShortName, shd.IpAddress, h.ID, h.NAME, err)
 			}
 			continue

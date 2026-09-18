@@ -423,7 +423,7 @@ func (this *MainController) AdminHwInfra() {
 	data, err := buildHWInfraData()
 	if err != nil {
 		log.Printf("AdminHwInfra: build data: %v", err)
-		flash.Error("Не удалось загрузить данные инфраструктуры: " + err.Error())
+		flash.Error("Не удалось загрузить данные инфраструктуры: %v", err)
 		this.Data["HWInfraJSON"] = base64.StdEncoding.EncodeToString([]byte("{}"))
 	} else {
 		raw, err := json.Marshal(data)

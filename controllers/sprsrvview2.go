@@ -322,7 +322,7 @@ func (this *MainController) SprSrvViewV2() {
 	id, err := strconv.Atoi(Id)
 	if err != nil {
 		//beego.Error("Недопустимый аргумент Id", err)
-		flash.Error("Недопустимый аргумент Id", err)
+		flash.Error("Недопустимый аргумент Id: %v", err)
 		flash.Store(&this.Controller)
 		return
 	}
@@ -752,7 +752,7 @@ func (this *MainController) SprSrvViewV2() {
 
 			file := excelize.NewFile()
 			if file == nil {
-				flash.Error("Ошибка создания XLSX файла: " + destination)
+				flash.Error("Ошибка создания XLSX файла: %s", destination)
 				flash.Store(&this.Controller)
 				return
 			}
@@ -761,7 +761,7 @@ func (this *MainController) SprSrvViewV2() {
 			sheet := "Список серверов"
 			index, err := file.NewSheet(sheet)
 			if err != nil {
-				flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+				flash.Error("Ошибка закрытия XLSX файла: "+destination+" %v", err)
 				flash.Store(&this.Controller)
 				file.Close()
 				return
@@ -771,14 +771,14 @@ func (this *MainController) SprSrvViewV2() {
 			//формируем заголовок
 			cell, err := excelize.CoordinatesToCellName(1, 1)
 			if err != nil {
-				flash.Error("Ошибка преобразования координат XLSX файла: "+destination+" ", err)
+				flash.Error("Ошибка преобразования координат XLSX файла: "+destination+" %v", err)
 				flash.Store(&this.Controller)
 				file.Close()
 				return
 			}
 			err = file.SetSheetRow(sheet, cell, &header)
 			if err != nil {
-				flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" ", err)
+				flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" %v", err)
 				flash.Store(&this.Controller)
 				file.Close()
 				return
@@ -792,14 +792,14 @@ func (this *MainController) SprSrvViewV2() {
 				//формируем строку j+1
 				cell, err := excelize.CoordinatesToCellName(1, j+2)
 				if err != nil {
-					flash.Error("Ошибка преобразования координат XLSX файла: "+destination+" ", err)
+					flash.Error("Ошибка преобразования координат XLSX файла: "+destination+" %v", err)
 					flash.Store(&this.Controller)
 					file.Close()
 					return
 				}
 				err = file.SetSheetRow(sheet, cell, &row)
 				if err != nil {
-					flash.Error("Ошибка записи строки XLSX файла: "+destination+" ", err)
+					flash.Error("Ошибка записи строки XLSX файла: "+destination+" %v", err)
 					flash.Store(&this.Controller)
 					file.Close()
 					return
@@ -807,14 +807,14 @@ func (this *MainController) SprSrvViewV2() {
 			}
 
 			if err := file.SaveAs(destination); err != nil {
-				flash.Error("Ошибка сохранения XLSX файла: "+destination+" ", err)
+				flash.Error("Ошибка сохранения XLSX файла: "+destination+" %v", err)
 				flash.Store(&this.Controller)
 				file.Close()
 				return
 			}
 
 			if err := file.Close(); err != nil {
-				flash.Error("Ошибка закрытия XLSX файла: "+destination+" ", err)
+				flash.Error("Ошибка закрытия XLSX файла: "+destination+" %v", err)
 				flash.Store(&this.Controller)
 				return
 			}
@@ -822,7 +822,7 @@ func (this *MainController) SprSrvViewV2() {
 			fileInfo, err := os.Stat(destination)
 
 			if err != nil {
-				flash.Error("Ошибка получения данных XLSX файла: "+destination+" ", err)
+				flash.Error("Ошибка получения данных XLSX файла: "+destination+" %v", err)
 				flash.Store(&this.Controller)
 				return
 			}
@@ -847,8 +847,8 @@ func (this *MainController) SprSrvViewV2() {
 
 			csvFile, err := os.Create(destination)
 			if err != nil {
-				//beego.Error("Ошибка создания CSV файла: "+destination+" ", err)
-				flash.Error("Ошибка создания CSV файла: "+destination+" ", err)
+				//beego.Error("Ошибка создания CSV файла: "+destination+" %v", err)
+				flash.Error("Ошибка создания CSV файла: "+destination+" %v", err)
 				flash.Store(&this.Controller)
 				return
 			}
