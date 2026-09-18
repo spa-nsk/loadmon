@@ -421,6 +421,11 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Утилизация виртуальной
                 инфраструктуры по ЦОД</a>
             </li>
+            <li>
+              <a href="/sprsrv/utilitsystem"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Утилизация
+                инфраструктуры по ИТ системам</a>
+            </li>
           </ul>
         </div>
       </li>
