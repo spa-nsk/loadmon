@@ -1,18 +1,25 @@
 package controllers
 
 import (
+	"encoding/csv"
 	"fmt"
+	"loadmon/csvtools"
 	"loadmon/models"
+	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
 	beego "github.com/beego/beego/v2/server/web"
+	"github.com/xuri/excelize/v2"
 )
 
 // RackCabinetFilter - фильтр списка /sprsrv/rackcabinetlist. Простой
 // текстовый фильтр, приём идентичен DatacenterSiteFilter
-// (controllers/sprdatacenter.go).
+// (controllers/sprdatacenter.go). Экспорт в CSV/XLSX добавлен 2026-09-21 по
+// запросу пользователя ("добавь выгрузку как во всех справочниках"), по
+// образцу controllers/sprbladesystems.go.
 type RackCabinetFilter struct {
 	Name             string `form:"Name"`
 	AltName          string `form:"AltName"`
@@ -57,6 +64,8 @@ func (this *MainController) SprRackCabinet() {
 
 	page := 1
 	pageSize := 50
+	exportCSV := false
+	exportXLSX := false
 
 	if this.Ctx.Input.Method() == "POST" {
 		if err := this.ParseForm(filter); err != nil {
@@ -77,6 +86,8 @@ func (this *MainController) SprRackCabinet() {
 				pageSize = s
 			}
 		}
+		exportCSV = this.GetString("ExportBTN") == "Экспорт в CSV"
+		exportXLSX = this.GetString("ExportBTN2") == "Экспорт в XLSX"
 	}
 
 	this.Data[keyFilter] = filter
@@ -111,10 +122,33 @@ func (this *MainController) SprRackCabinet() {
 	}
 	offset := (page - 1) * pageSize
 
+	// Для экспорта выгружается ВЕСЬ набор, отобранный фильтром (без
+	// постраничного Limit/Offset) - тот же приём, что в
+	// controllers/sprbladesystems.go:SprBladeSystems. Экспортируются
+	// "плоские" models.RackCabinet (с csv-тегами), а не обёрнутые
+	// RackCabinetRow ниже - DatacenterSiteName в CSV/XLSX не нужен, т.к.
+	// там уже есть RackCabinet.DatacenterSiteId.
 	records := make([]models.RackCabinet, 0, pageSize)
-	if _, err := qs.OrderBy("Name").Limit(pageSize, offset).All(&records); err != nil {
-		flash.Error("Ошибка выборки данных: %v", err)
-		flash.Store(&this.Controller)
+	if exportCSV || exportXLSX {
+		if _, err := qs.OrderBy("Name").All(&records); err != nil {
+			flash.Error("Ошибка выборки данных: %v", err)
+			flash.Store(&this.Controller)
+			return
+		}
+	} else {
+		if _, err := qs.OrderBy("Name").Limit(pageSize, offset).All(&records); err != nil {
+			flash.Error("Ошибка выборки данных: %v", err)
+			flash.Store(&this.Controller)
+			return
+		}
+	}
+
+	if exportXLSX {
+		this.exportRackCabinetXLSX(records, flash)
+		return
+	}
+	if exportCSV {
+		this.exportRackCabinetCSV(records, flash)
 		return
 	}
 
@@ -242,4 +276,128 @@ func (this *MainController) SprRackCabinetEdit() {
 	this.Data["DatacenterSites"] = sites
 
 	this.Data["RC"] = rec
+}
+
+// exportRackCabinetXLSX формирует и отдаёт клиенту XLSX-файл с записями
+// справочника шкафов, отобранными текущим фильтром - по образцу
+// controllers/sprbladesystems.go:exportBladeSystemsXLSX.
+func (this *MainController) exportRackCabinetXLSX(rows []models.RackCabinet, flash *beego.FlashData) {
+	if len(rows) == 0 {
+		flash.Notice("Нет записей для экспорта.")
+		flash.Store(&this.Controller)
+		return
+	}
+
+	crt := time.Now().Local()
+	shortName := fmt.Sprintf("rackcabinet_%02d_%02d_%04d_%02d_%02d_%02d_%d.xlsx", crt.Day(), crt.Month(), crt.Year(), crt.Hour(), crt.Minute(), crt.Second(), crt.UnixNano())
+	destination := "./reports/" + shortName
+
+	file := excelize.NewFile()
+	if file == nil {
+		flash.Error("Ошибка создания XLSX файла: %s", destination)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	header, _ := csvtools.GetCSVHeader(&rows[0])
+	sheet := "Шкафы"
+	index, err := file.NewSheet(sheet)
+	if err != nil {
+		flash.Error("Ошибка создания листа XLSX файла: "+destination+" %v", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	file.SetActiveSheet(index)
+
+	cell, _ := excelize.CoordinatesToCellName(1, 1)
+	if err := file.SetSheetRow(sheet, cell, &header); err != nil {
+		flash.Error("Ошибка записи заголовка XLSX файла: "+destination+" %v", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+
+	for j := range rows {
+		row, _ := csvtools.GetCSVData(&rows[j])
+		cell, _ := excelize.CoordinatesToCellName(1, j+2)
+		if err := file.SetSheetRow(sheet, cell, &row); err != nil {
+			flash.Error("Ошибка записи строки XLSX файла: "+destination+" %v", err)
+			flash.Store(&this.Controller)
+			file.Close()
+			return
+		}
+	}
+
+	if err := file.SaveAs(destination); err != nil {
+		flash.Error("Ошибка сохранения XLSX файла: "+destination+" %v", err)
+		flash.Store(&this.Controller)
+		file.Close()
+		return
+	}
+	if err := file.Close(); err != nil {
+		flash.Error("Ошибка закрытия XLSX файла: "+destination+" %v", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	fileInfo, err := os.Stat(destination)
+	if err != nil {
+		flash.Error("Ошибка чтения файла для отдачи: "+destination+" %v", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	this.Ctx.Output.Header("Content-Description", "File Transfer")
+	this.Ctx.Output.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	this.Ctx.Output.Header("Content-Disposition", "attachment; filename=\""+shortName+"\"")
+	this.Ctx.Output.Header("Expires", "0")
+	this.Ctx.Output.Header("Cache-Control", "must-revalidate")
+	this.Ctx.Output.Header("Pragma", "public")
+	this.Ctx.Output.Header("Content-Length", fmt.Sprint(fileInfo.Size()))
+
+	http.ServeFile(this.Ctx.Output.Context.ResponseWriter, this.Ctx.Output.Context.Request, destination)
+}
+
+// exportRackCabinetCSV формирует и отдаёт клиенту CSV-файл (разделитель "|")
+// с записями справочника шкафов, отобранными текущим фильтром - по образцу
+// controllers/sprbladesystems.go:exportBladeSystemsCSV.
+func (this *MainController) exportRackCabinetCSV(rows []models.RackCabinet, flash *beego.FlashData) {
+	if len(rows) == 0 {
+		flash.Notice("Нет записей для экспорта.")
+		flash.Store(&this.Controller)
+		return
+	}
+
+	crt := time.Now().Local()
+	shortName := fmt.Sprintf("rackcabinet_%02d_%02d_%04d_%02d_%02d_%02d_%d.csv", crt.Day(), crt.Month(), crt.Year(), crt.Hour(), crt.Minute(), crt.Second(), crt.UnixNano())
+	destination := "./reports/" + shortName
+
+	csvFile, err := os.Create(destination)
+	if err != nil {
+		flash.Error("Ошибка создания CSV файла: "+destination+" %v", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	csvwriter := csv.NewWriter(csvFile)
+	csvwriter.Comma = '|'
+	header, _ := csvtools.GetCSVHeader(&rows[0])
+	_ = csvwriter.Write(header)
+	for j := range rows {
+		data, _ := csvtools.GetCSVData(&rows[j])
+		_ = csvwriter.Write(data)
+	}
+	csvwriter.Flush()
+	csvFile.Close()
+
+	this.Ctx.Output.Header("Content-Disposition", "attachment; filename="+shortName)
+	this.Ctx.Output.Header("Content-Description", "File Transfer")
+	this.Ctx.Output.Header("Content-Type", "application/csv")
+	this.Ctx.Output.Header("Content-Transfer-Encoding", "text")
+	this.Ctx.Output.Header("Expires", "0")
+	this.Ctx.Output.Header("Cache-Control", "must-revalidate")
+	this.Ctx.Output.Header("Pragma", "public")
+
+	http.ServeFile(this.Ctx.Output.Context.ResponseWriter, this.Ctx.Output.Context.Request, destination)
 }

@@ -15,6 +15,11 @@
         <div class="col-auto">
             <a href="/sprsrv/hwviewlist" class="btn btn-outline-secondary rounded-pill px-3">К списку серверов</a>
         </div>
+        {{if .HW}}
+        <div class="col-auto">
+            <a href="/sprsrv/hwconfeditbysn/{{.HW.Identity.SerialNumber}}" target="_blank" title="Открыть конфигурацию этого сервера из справочника в базе данных loadmon" class="btn btn-outline-secondary rounded-pill px-3">Конфигурация сервера (БД)</a>
+        </div>
+        {{end}}
     </div>
 </form>
 

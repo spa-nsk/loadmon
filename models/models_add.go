@@ -2195,7 +2195,7 @@ func (u *DatacenterSite) TableIndex() [][]string {
 // Связывается с BladeSystems (BladeSystems.RackCabinetId) и ServerHardware
 // (ServerHardware.RackCabinetId).
 type RackCabinet struct {
-	Id               int64     `form:"Id" orm:"auto" csv:"%"`                                               //
+	Id               int64     `form:"Id" orm:"auto" csv:"id"`                                              // 2026-09-21: было csv:"%" (опечатка/недоделка) - исправлено при добавлении экспорта в CSV/XLSX для этого справочника, см. CHANGELOG.md
 	DatacenterSiteId int64     `orm:"null;unique(cabinet_site)" form:"DatacenterSiteId" csv:"ЦОД (ссылка)"` //FK на DatacenterSite.Id. Уникальность шкафа определяется ПАРОЙ (Name, DatacenterSiteId) — одинаковое имя шкафа допустимо на разных площадках, см. resolveRackCabinet в itilliumimport
 	Name             string    `form:"Name" orm:"unique(cabinet_site)" csv:"Наименование"`                  //основное наименование шкафа
 	AltName          string    `form:"AltName" csv:"Альтернативное наименование"`                           //альтернативное наименование/старый номер шкафа
