@@ -26,6 +26,8 @@
         <div class="row mt-3">
             <div class="col-12 d-flex flex-wrap align-items-center gap-2">
                 <button type="submit" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Просмотр</button>
+                <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель |)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
+                <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
                 <a href="/sprsrv/rackcabinetedit/0" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
