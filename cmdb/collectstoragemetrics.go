@@ -20,16 +20,40 @@ import (
 // storageMetricRetention — срок хранения поминутных метрик СХД (storage_metric).
 const storageMetricRetention = time.Hour * 24 * 3
 
+// CollectStorageMetricsOnly — если не пусто, CollectStorageMetrics опрашивает
+// ТОЛЬКО одну СХД с этим ShortName (без учёта регистра, точное совпадение) -
+// используется отдельной отладочной утилитой tools/storagemetrics (по
+// аналогии с cmdb.UpdateVolumeStorageOnly у tools/storagesync), чтобы можно
+// было итеративно отлаживать опрос конкретной СХД без полного цикла
+// metrics_grpc. Пустая строка (по умолчанию, обычный режим metrics_grpc) -
+// опрашиваются все СХД с Power=1, как раньше.
+var CollectStorageMetricsOnly string
+
 // CollectStorageMetrics собирает поминутные метрики всех активных СХД -
 // обязательно по КАЖДОЙ записи справочника storage_systems (Power==1),
 // вне зависимости от вендора/ApiType (см. collectStorageMetricForSystem -
-// явная ветка на каждый ApiType 1-5, без "default: ничего не делаем").
+// явная ветка на каждый ApiType 1-5, без "default: ничего не делаем"). Если
+// задан CollectStorageMetricsOnly - опрашивается только одна СХД с этим
+// ShortName.
 func CollectStorageMetrics() {
 	o := orm.NewOrm()
 	var systems []*models.StorageSystems
 	if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Power", 1).All(&systems); err != nil {
 		log.Println("cmdb.CollectStorageMetrics: ошибка чтения storage_systems:", err)
 		return
+	}
+	if CollectStorageMetricsOnly != "" {
+		filtered := systems[:0]
+		for _, shd := range systems {
+			if shd != nil && strings.EqualFold(shd.ShortName, CollectStorageMetricsOnly) {
+				filtered = append(filtered, shd)
+			}
+		}
+		systems = filtered
+		if len(systems) == 0 {
+			log.Printf("cmdb.CollectStorageMetrics: СХД с ShortName=%q (Power=1) не найдена - опрос пропущен", CollectStorageMetricsOnly)
+			return
+		}
 	}
 	if len(systems) == 0 {
 		// (2026-09-04) Раньше здесь был молчаливый return - если ни у одной
