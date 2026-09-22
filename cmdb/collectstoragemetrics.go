@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	models "loadmon/models"
 	"loadmon/lenovostorage"
+	models "loadmon/models"
 	"loadmon/storages"
 	datamap "loadmon/utilities"
 
@@ -134,6 +134,7 @@ func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.
 
 	case 2: // Unity REST - живые KPI, см. storages/unity_hardware.go.
 		var failed []string
+		log.Println("cmdb.collectStorageMetricForSystem: опрос KPI Unity", shd.ShortName, shd.IpAddress)
 		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.sp.*.utilization"); ok {
 			row.CPUUtilPercent = v
 		} else {
@@ -182,6 +183,7 @@ func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.
 		}
 
 	case 3, 4: // Huawei Dorado / OceanStor REST.
+		log.Println("cmdb.collectStorageMetricForSystem: опрос KPI Huawei", shd.ShortName, shd.IpAddress)
 		if v, err := collectHuaweiUsedPercent(shd); err == nil {
 			row.UsedPercent = v
 		} else {
