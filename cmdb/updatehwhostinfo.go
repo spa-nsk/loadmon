@@ -346,8 +346,14 @@ func UpdateHWHostInfo() {
 		// недопустимая комбинация Stat=1/PowerState=1/Active=2. По правилу
 		// "найден и включён" -> Active=1 обязательно; при выключенном хосте
 		// Active намеренно не трогаем (допустимы 0/1/2).
+		// 2026-09-22: используем общий audit-helper (models.SetActiveWithAudit)
+		// вместо прямого присвоения - он же проставляет
+		// TimeActiveState/ActivatorUser и НЕ трогает их, если Active уже
+		// был 1 (повторная активация не должна затирать дату/автора). Код
+		// пользователя - models.UserSourceVMware, т.к. это путь
+		// синхронизации хостов из vSphere.
 		if srvspr.PowerState == 1 {
-			srvspr.Active = 1
+			models.SetActiveWithAudit(&srvspr.Active, &srvspr.TimeActiveState, &srvspr.ActivatorUser, &srvspr.TimeDeActiveState, &srvspr.DeActivatorUser, 1, models.UserSourceVMware)
 		}
 		srvspr.CPUCount = float64(hs.NumCPUPkgs)
 		srvspr.CPULogical = float64(hs.NumCPUCores)
@@ -374,6 +380,19 @@ func UpdateHWHostInfo() {
 				srvHW.PowerState = 1
 			} else {
 				srvHW.PowerState = 2
+			}
+			// (2026-09-22, по факту найденной пользователем недопустимой
+			// комбинации "PowerState=включен + Active=выведен из
+			// эксплуатации" у гипервизора): в отличие от srvspr.Active выше
+			// (ServerSprRecords, защита от 2026-09-04) для ServerHardware
+			// такой авто-коррекции не было вовсе - Active тут проставляется
+			// только вручную (/sprsrv/hwconfedit, /sprsrv/hwconfbulkedit) и
+			// потом никогда не откатывался обратно, если сервер снова
+			// находился включённым. По тому же правилу "найден и включён" ->
+			// Active обязательно 1; при выключенном хосте Active намеренно
+			// не трогаем (допустимы 0/1/2, включая ручную деактивацию).
+			if srvHW.PowerState == 1 {
+				models.SetActiveWithAudit(&srvHW.Active, &srvHW.TimeActiveState, &srvHW.ActivatorUser, &srvHW.TimeDeActiveState, &srvHW.DeActivatorUser, 1, models.UserSourceVMware)
 			}
 
 			if srvHW.Vendor == "" {
@@ -558,8 +577,14 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 		// (2026-09-04) См. аналогичный комментарий выше по файлу - Active
 		// раньше не проставлялся здесь вовсе; форсируем Active=1 при
 		// найденном и включённом хосте (иначе Active не трогаем).
+		// 2026-09-22: используем общий audit-helper (models.SetActiveWithAudit)
+		// вместо прямого присвоения - он же проставляет
+		// TimeActiveState/ActivatorUser и НЕ трогает их, если Active уже
+		// был 1 (повторная активация не должна затирать дату/автора). Код
+		// пользователя - models.UserSourceVMware, т.к. это путь
+		// синхронизации хостов из vSphere.
 		if srvspr.PowerState == 1 {
-			srvspr.Active = 1
+			models.SetActiveWithAudit(&srvspr.Active, &srvspr.TimeActiveState, &srvspr.ActivatorUser, &srvspr.TimeDeActiveState, &srvspr.DeActivatorUser, 1, models.UserSourceVMware)
 		}
 		srvspr.CPUCount = float64(hs.NumCPUPkgs)
 		srvspr.CPULogical = float64(hs.NumCPUCores)
@@ -586,6 +611,19 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 				srvHW.PowerState = 1
 			} else {
 				srvHW.PowerState = 2
+			}
+			// (2026-09-22, по факту найденной пользователем недопустимой
+			// комбинации "PowerState=включен + Active=выведен из
+			// эксплуатации" у гипервизора): в отличие от srvspr.Active выше
+			// (ServerSprRecords, защита от 2026-09-04) для ServerHardware
+			// такой авто-коррекции не было вовсе - Active тут проставляется
+			// только вручную (/sprsrv/hwconfedit, /sprsrv/hwconfbulkedit) и
+			// потом никогда не откатывался обратно, если сервер снова
+			// находился включённым. По тому же правилу "найден и включён" ->
+			// Active обязательно 1; при выключенном хосте Active намеренно
+			// не трогаем (допустимы 0/1/2, включая ручную деактивацию).
+			if srvHW.PowerState == 1 {
+				models.SetActiveWithAudit(&srvHW.Active, &srvHW.TimeActiveState, &srvHW.ActivatorUser, &srvHW.TimeDeActiveState, &srvHW.DeActivatorUser, 1, models.UserSourceVMware)
 			}
 
 			if srvHW.Vendor == "" {

@@ -73,7 +73,8 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 					nameFQDN = oneview.GetHWserverNameFQDN(hwAlter)
 					if hwAlter.Identity.PowerState == "On" { //проверяем включен ли сервер
 						s.PowerState = 1
-						s.Active = 1
+						// 2026-09-22: audit-helper, источник - models.UserSourceOneView.
+						models.SetActiveWithAudit(&s.Active, &s.TimeActiveState, &s.ActivatorUser, &s.TimeDeActiveState, &s.DeActivatorUser, 1, models.UserSourceOneView)
 						s.Stat = 1
 
 					} else {
@@ -93,7 +94,8 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 					s.SerialNumber = hwAlter.Identity.SerialNumber
 				} else { //не найдет сервер в HP One View по серийному номеру
 					s.Stat = 0
-					s.Active = 2
+					// 2026-09-22: audit-helper, источник - models.UserSourceOneView.
+					models.SetActiveWithAudit(&s.Active, &s.TimeActiveState, &s.ActivatorUser, &s.TimeDeActiveState, &s.DeActivatorUser, 2, models.UserSourceOneView)
 					s.PowerState = 2
 				}
 			}
@@ -109,7 +111,8 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 
 				if hw.Identity.PowerState == "On" { //проверяем включен ли сервер
 					s.PowerState = 1
-					s.Active = 1
+					// 2026-09-22: audit-helper, источник - models.UserSourceOneView.
+					models.SetActiveWithAudit(&s.Active, &s.TimeActiveState, &s.ActivatorUser, &s.TimeDeActiveState, &s.DeActivatorUser, 1, models.UserSourceOneView)
 					s.Stat = 1
 				} else {
 					// (2026-09-04) См. аналогичный комментарий выше в ветке
@@ -124,7 +127,8 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 				s.SerialNumber = hw.Identity.SerialNumber
 			} else { //не найдет сервер в HP One View по серийному номеру
 				s.Stat = 0
-				s.Active = 2
+				// 2026-09-22: audit-helper, источник - models.UserSourceOneView.
+				models.SetActiveWithAudit(&s.Active, &s.TimeActiveState, &s.ActivatorUser, &s.TimeDeActiveState, &s.DeActivatorUser, 2, models.UserSourceOneView)
 				s.PowerState = 2
 			}
 		}
@@ -174,7 +178,12 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 			s.HWSprId = h.Id
 			h.ServerId = srv.Id
 			s.SerialNumber = h.SerialNum
-			h.Active = s.Active
+			// 2026-09-22: раньше h.Active копировался напрямую из s.Active
+			// без переноса даты/автора смены статуса - теперь переносим
+			// через audit-helper, чтобы если статус ServerHardware
+			// действительно меняется, у него тоже появлялась своя
+			// дата/автор перехода (а не только у ServerSprRecords).
+			models.SetActiveWithAudit(&h.Active, &h.TimeActiveState, &h.ActivatorUser, &h.TimeDeActiveState, &h.DeActivatorUser, s.Active, models.UserSourceOneView)
 			num, err = o.Update(&h)
 			if err != nil || num < 1 {
 				fmt.Println("Ошибка обновления записи по конфигурации сервера:", srv.Name, srv.NameFQDN, "HWSprId=", srv.HWSprId)
@@ -198,7 +207,9 @@ func checkHwServerLink(rec models.ServerSprRecords) {
 				s.Cluster = host.Cluster
 				s.Type = 2
 				s.Stat = 1
-				s.Active = 1
+				// 2026-09-22: audit-helper, источник - models.UserSourceVMware
+				// (проверка через grpcclient.GetHostBySN/vSphere).
+				models.SetActiveWithAudit(&s.Active, &s.TimeActiveState, &s.ActivatorUser, &s.TimeDeActiveState, &s.DeActivatorUser, 1, models.UserSourceVMware)
 				s.NameFQDN = host.Name
 				if host.PowerState {
 					s.PowerState = 1

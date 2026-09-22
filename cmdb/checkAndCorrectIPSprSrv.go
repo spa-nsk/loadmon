@@ -37,7 +37,10 @@ func CheckAndCorrectIPSprSrv() {
 			err := o.Read(&srv, "Id")
 			if err == nil {
 				srv.Stat = 0
-				srv.Active = 2
+				// 2026-09-22: audit-helper вместо прямого присвоения -
+				// источник models.UserSourceManual, т.к. это внутренняя
+				// проверка наличия записи в DNS.
+				models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, 2, models.UserSourceManual)
 				srv.PowerState = 2
 				o.Update(&srv)
 			}

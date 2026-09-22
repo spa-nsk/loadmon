@@ -90,18 +90,31 @@
         <div class="hw-card">
             <h6>Размещение</h6>
             <table class="table table-sm table-borderless hw-kv">
-                <tr><td>Датацентр</td><td>{{if ne .HW.Datacenter.Name ""}}{{.HW.Datacenter.Name}}{{else}}&mdash;{{end}}</td></tr>
-                <tr><td>Шкаф</td><td>{{if ne .HW.Rack.Name ""}}{{.HW.Rack.Name}}{{else}}&mdash;{{end}}</td></tr>
+                <!--
+                    2026-09-22, по запросу пользователя ("блок размещение
+                    заполняй на основе данных из таблицы ServerHardware
+                    связав по серийному номеру"): основной источник для этого
+                    блока - справочник конфигураций серверов БД
+                    (models.ServerHardware, найден по .SN в контроллере,
+                    Data["DB..."]), а НЕ "живые" данные HP OneView (.HW.*)
+                    как раньше. Поля .HW.* оставлены как fallback - только
+                    если в ServerHardware соответствующее значение не
+                    заполнено (сервер ещё не привязан к справочнику шкафов
+                    RackCabinetId, или StartUnitPos/BladeSystemId пусты).
+                -->
+                <tr><td>Датацентр</td><td>{{if ne .DBDatacenterName ""}}{{.DBDatacenterName}}{{else if ne .HW.Datacenter.Name ""}}{{.HW.Datacenter.Name}}{{else}}&mdash;{{end}}</td></tr>
+                <tr><td>Шкаф</td><td>{{if ne .DBRackName ""}}{{.DBRackName}}{{else if ne .HW.Rack.Name ""}}{{.HW.Rack.Name}}{{else}}&mdash;{{end}}</td></tr>
                 <tr>
                     <td>Размещение в шкафу</td>
                     <td>
-                        {{if ne .HW.Rack.MountLocation ""}}{{.HW.Rack.MountLocation}}
+                        {{if ne .DBRackSlotRange ""}}{{.DBRackSlotRange}}
+                        {{else if ne .HW.Rack.MountLocation ""}}{{.HW.Rack.MountLocation}}
                         {{else if ne .RackSlotRange ""}}{{.RackSlotRange}}
                         {{else}}&mdash;{{end}}
                     </td>
                 </tr>
-                <tr><td>Корзина (enclosure)</td><td>{{if ne .HW.EnclosureInfo.Name ""}}{{.HW.EnclosureInfo.Name}}{{else}}&mdash;{{end}}</td></tr>
-                <tr><td>Отсек в корзине (bay)</td><td>{{if gt .HW.BayInfo.BayNumber 0}}{{.HW.BayInfo.BayNumber}}{{else}}&mdash;{{end}}</td></tr>
+                <tr><td>Корзина (enclosure)</td><td>{{if ne .DBEnclosureName ""}}{{.DBEnclosureName}}{{else if ne .HW.EnclosureInfo.Name ""}}{{.HW.EnclosureInfo.Name}}{{else}}&mdash;{{end}}</td></tr>
+                <tr><td>Отсек в корзине (bay)</td><td>{{if gt .DBBayNumber 0}}{{.DBBayNumber}}{{else if gt .HW.BayInfo.BayNumber 0}}{{.HW.BayInfo.BayNumber}}{{else}}&mdash;{{end}}</td></tr>
             </table>
         </div>
     </div>

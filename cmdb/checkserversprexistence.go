@@ -98,7 +98,6 @@ func checkVMExistence(o orm.Ormer, srv *models.ServerSprRecords) {
 
 	srv.Stat = 0
 	srv.PowerState = 2
-	srv.Active = 2
 	// (2026-09-04) Явно проставляем источник обновления - запись меняется
 	// по факту проверки в VMware (grpcclient.GetVMByKeyDirect), это
 	// авторитетное vSphere-обновление наравне с остальными записями от
@@ -106,7 +105,10 @@ func checkVMExistence(o orm.Ormer, srv *models.ServerSprRecords) {
 	// kontext/05-conventions-and-gotchas.md) - раньше поле здесь не
 	// трогалось вовсе, оставляя прежнее (возможно устаревшее) значение.
 	srv.SourceUpdateType = models.SourceUpdateVMware
-	if _, err := o.Update(srv, "Stat", "PowerState", "Active", "SourceUpdateType"); err != nil {
+	// 2026-09-22: audit-helper вместо прямого присвоения Active, источник -
+	// models.UserSourceVMware (та же проверка через vSphere).
+	models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, 2, models.UserSourceVMware)
+	if _, err := o.Update(srv, "Stat", "PowerState", "Active", "SourceUpdateType", "TimeDeActiveState", "DeActivatorUser"); err != nil {
 		log.Println("CheckServerSprRecordsExistence: ошибка обновления записи ВМ", srv.Name, err)
 	}
 
@@ -135,12 +137,14 @@ func checkHypervisorExistence(o orm.Ormer, srv *models.ServerSprRecords) {
 
 	srv.Stat = 0
 	srv.PowerState = 2
-	srv.Active = 2
 	// (2026-09-04) См. аналогичный комментарий в checkVMExistence выше -
 	// явно фиксируем источник обновления (VMware) при выводе гипервизора
 	// из эксплуатации по факту проверки в vSphere.
 	srv.SourceUpdateType = models.SourceUpdateVMware
-	if _, err := o.Update(srv, "Stat", "PowerState", "Active", "SourceUpdateType"); err != nil {
+	// 2026-09-22: audit-helper вместо прямого присвоения Active, источник -
+	// models.UserSourceVMware.
+	models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, 2, models.UserSourceVMware)
+	if _, err := o.Update(srv, "Stat", "PowerState", "Active", "SourceUpdateType", "TimeDeActiveState", "DeActivatorUser"); err != nil {
 		log.Println("CheckServerSprRecordsExistence: ошибка обновления записи гипервизора", srv.Name, err)
 	}
 }

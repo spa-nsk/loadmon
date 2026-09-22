@@ -57,6 +57,10 @@
                             <option value="3" {{if eq .HW.Active 3}}selected{{end}}>Списан</option>
                         </select>
                     </div>
+                    <div class="col-12">
+                        <label for="DeActivateInfo" class="form-label">Причина деактивации/списания</label>
+                        <input type="text" id="DeActivateInfo" name="DeActivateInfo" class="form-control" value="{{.HW.DeActivateInfo}}" placeholder="Например: списан по акту №..., заменён на ...">
+                    </div>
                     <div class="col-6">
                         <label for="SerialNum" class="form-label">Серийный номер</label>
                         <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.HW.SerialNum}}">

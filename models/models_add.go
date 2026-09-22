@@ -1884,6 +1884,29 @@ const (
 	SourceUpdateZabbix  = 4 // Zabbix
 )
 
+// Псевдо-ID "пользователей" для полей вида Id_User/CreatorUser/ActivatorUser/
+// DeActivatorUser, когда запись создаётся или меняется АВТОМАТИЧЕСКИ (не
+// человеком через форму) - чтобы в истории было видно, какая внешняя
+// система внесла изменение. Значения (9999/10002/10003) уже были в ходу по
+// проекту как "магические числа" с комментариями в разных местах
+// (controllers/sprhwconfig.go, cmdb/updatehwhostinfo.go,
+// cmdb/savevmrecord.go, cmdb/savehostrecord.go, cmdb/updatehwsprhp.go,
+// itilliumimport/*.go и др.) - здесь они впервые оформлены именованными
+// константами (2026-09-22, по запросу пользователя про аудит
+// активации/деактивации). Существующие magic-number вызовы НЕ были
+// автоматически заменены везде разом - только в местах, тронутых этой
+// задачей; остальные так и остаются голыми числами до отдельной уборки.
+const (
+	UserSourceManual  = 9999  // ручной ввод/импорт без привязки к конкретному пользователю (в т.ч. импорт из Итиллиум)
+	UserSourceVMware  = 10002 // VMware/vSphere
+	UserSourceOneView = 10003 // HPE OneView
+	// UserSourceZabbix зарезервирован под запись изменений из Zabbix -
+	// заведён про запас (2026-09-22), реальный путь автодеактивации через
+	// Zabbix сейчас закомментирован (zabbix/zabbixupdate.go, //srv.Active=1)
+	// и не используется.
+	UserSourceZabbix = 10004
+)
+
 // Блок описания для cmdb
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2171,6 +2194,7 @@ type DatacenterSite struct {
 	Width        int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Datacenter.Width
 	Height       int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Datacenter.Height
 	Annotation   string    `orm:"null" form:"Annotation" csv:"Описание"`               //
+	CodeJira     string    `orm:"null" form:"CodeJira" csv:"Код Jira"`                 //ключ в Jira для ЦОД
 	Id_User      int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
 	Time_Mfy     time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
 }

@@ -689,8 +689,20 @@ func (this *MainController) SprHwConfigEdit() {
 			this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
 			return
 		}
+		var currentUserId int64
+		if uid, ok := this.Data["UserId"].(int64); ok {
+			currentUserId = uid
+		}
+
 		rec.PowerState, _ = strconv.Atoi(this.GetString("PowerState"))
-		rec.Active, _ = strconv.Atoi(this.GetString("Active"))
+		// 2026-09-22: audit-helper (models.SetActiveWithAudit) вместо
+		// прямого присвоения rec.Active - проставляет TimeActiveState/
+		// ActivatorUser или TimeDeActiveState/DeActivatorUser только при
+		// фактической смене статуса, currentUserId - реальный Id
+		// залогиненного пользователя, редактирующего карточку вручную.
+		formActive, _ := strconv.Atoi(this.GetString("Active"))
+		models.SetActiveWithAudit(&rec.Active, &rec.TimeActiveState, &rec.ActivatorUser, &rec.TimeDeActiveState, &rec.DeActivatorUser, formActive, currentUserId)
+		rec.DeActivateInfo = this.GetString("DeActivateInfo")
 		rec.Vendor = this.GetString("Vendor")
 		rec.Model = this.GetString("Model")
 		rec.PartNum = this.GetString("PartNum")
@@ -742,7 +754,7 @@ func (this *MainController) SprHwConfigEdit() {
 			// 2026-09-14, по запросу пользователя - фиксируем время создания и источник
 			// (9999 - ручное создание карточки через форму /sprsrv/hwconfedit) для новой записи ServerHardware.
 			rec.TimeCreate = time.Now().Local()
-			rec.CreatorUser = 9999
+			rec.CreatorUser = models.UserSourceManual
 			if _, err := o.Insert(&rec); err != nil {
 				flash.Error("Ошибка создания записи: %v", err)
 				flash.Store(&this.Controller)
@@ -853,10 +865,19 @@ func (this *MainController) SprHwConfigBulkEdit() {
 	} else if this.GetString("ApplyBulk") == "1" {
 		values := orm.Params{}
 
-		if this.GetString("apply_Active") == "on" {
-			if v, err := strconv.Atoi(this.GetString("Active")); err == nil {
-				values["Active"] = v
-			}
+		// 2026-09-22: Active изменяется НЕ через общий map-based Update
+		// (values), а отдельным циклом по каждой записи через audit-helper
+		// (models.SetActiveWithAudit) ниже - иначе (при массовом
+		// orm.Params-обновлении) невозможно проставить TimeActiveState/
+		// ActivatorUser или TimeDeActiveState/DeActivatorUser корректно у
+		// каждой записи по отдельности (helper пишет в поля через указатели
+		// на конкретную структуру и сверяет ПРЕДЫДУЩЕЕ значение Active
+		// именно этой записи, а не общее для всех выделенных).
+		applyActive := this.GetString("apply_Active") == "on"
+		var bulkActiveValue int
+		var bulkActiveErr error
+		if applyActive {
+			bulkActiveValue, bulkActiveErr = strconv.Atoi(this.GetString("Active"))
 		}
 		if this.GetString("apply_DatacenterRoom") == "on" {
 			values["DatacenterRoom"] = this.GetString("DatacenterRoom")
@@ -881,26 +902,63 @@ func (this *MainController) SprHwConfigBulkEdit() {
 			}
 		}
 
-		if len(values) == 0 {
+		if len(values) == 0 && !applyActive {
 			flash.Error("Не отмечено ни одно поле для изменения - отметьте чекбокс рядом с полем, значение которого нужно применить.")
 			flash.Store(&this.Controller)
 		} else {
-			values["Time_Mfy"] = time.Now().Local()
-			// SourceUpdateType намеренно НЕ трогаем здесь - см.
-			// kontext/05-conventions-and-gotchas.md (раздел SourceUpdateType,
-			// уточнение "массовые формы не проставляют"). Поле помечает
-			// записи, внесённые вручную и отсутствующие в
-			// VMware/OneView/Zabbix, чтобы код автообновления из этих систем
-			// их игнорировал и не портил (например, не проставлял Stat=0/
-			// PowerState=2/Active=2 записи, которой в источнике нет).
-			// Массовое редактирование через эту форму задевает лишь узкий
-			// набор полей у произвольного набора записей - простановка
-			// Manual здесь могла бы ошибочно "рассекретить" от
-			// автообновления запись, которая на самом деле числится в одной
-			// из автоматических систем.
-			affected, err := o.QueryTable("server_hardware").Filter("Id__in", ids).Update(values)
-			if err != nil {
-				flash.Error("Ошибка группового сохранения: %v", err)
+			var currentUserId int64
+			if uid, ok := this.Data["UserId"].(int64); ok {
+				currentUserId = uid
+			}
+
+			var affected int64
+			var lastErr error
+
+			if len(values) > 0 {
+				values["Time_Mfy"] = time.Now().Local()
+				// SourceUpdateType намеренно НЕ трогаем здесь - см.
+				// kontext/05-conventions-and-gotchas.md (раздел SourceUpdateType,
+				// уточнение "массовые формы не проставляют"). Поле помечает
+				// записи, внесённые вручную и отсутствующие в
+				// VMware/OneView/Zabbix, чтобы код автообновления из этих систем
+				// их игнорировал и не портил (например, не проставлял Stat=0/
+				// PowerState=2/Active=2 записи, которой в источнике нет).
+				// Массовое редактирование через эту форму задевает лишь узкий
+				// набор полей у произвольного набора записей - простановка
+				// Manual здесь могла бы ошибочно "рассекретить" от
+				// автообновления запись, которая на самом деле числится в одной
+				// из автоматических систем.
+				n, err := o.QueryTable("server_hardware").Filter("Id__in", ids).Update(values)
+				affected = n
+				lastErr = err
+			}
+
+			if applyActive && bulkActiveErr != nil {
+				lastErr = bulkActiveErr
+			}
+
+			if lastErr == nil && applyActive {
+				// 2026-09-22: применяем Active к каждой выделенной записи по
+				// отдельности через audit-helper, а не общим map-based
+				// Update, - см. комментарий выше про причину.
+				var hwRecs []*models.ServerHardware
+				if _, err := o.QueryTable("server_hardware").Filter("Id__in", ids).All(&hwRecs); err != nil {
+					lastErr = err
+				} else {
+					for _, hwRec := range hwRecs {
+						models.SetActiveWithAudit(&hwRec.Active, &hwRec.TimeActiveState, &hwRec.ActivatorUser, &hwRec.TimeDeActiveState, &hwRec.DeActivatorUser, bulkActiveValue, currentUserId)
+						hwRec.Time_Mfy = time.Now().Local()
+						if _, err := o.Update(hwRec, "Active", "TimeActiveState", "ActivatorUser", "TimeDeActiveState", "DeActivatorUser", "Time_Mfy"); err != nil {
+							lastErr = err
+							continue
+						}
+						affected++
+					}
+				}
+			}
+
+			if lastErr != nil {
+				flash.Error("Ошибка группового сохранения: %v", lastErr)
 				flash.Store(&this.Controller)
 			} else {
 				flash.Notice("Изменено записей: %d.", affected)

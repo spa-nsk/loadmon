@@ -73,7 +73,9 @@ func CopyVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 		// возврата из "выведена из эксплуатации" (Active=2) могла остаться
 		// недопустимая комбинация Stat=1/PowerState=1/Active=2. Для
 		// выключенной ВМ Active намеренно не трогаем (допустимы 0/1/2).
-		to.Active = 1
+		// 2026-09-22: audit-helper вместо прямого присвоения, источник -
+		// models.UserSourceVMware (данные из vSphere).
+		models.SetActiveWithAudit(&to.Active, &to.TimeActiveState, &to.ActivatorUser, &to.TimeDeActiveState, &to.DeActivatorUser, 1, models.UserSourceVMware)
 	} else {
 		to.PowerState = 2
 	}
@@ -173,7 +175,8 @@ func UpdateVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 		to.PowerState = 1
 		// См. аналогичный комментарий в CopyVmToSprSrv - форсируем Active=1
 		// при найденной и включённой ВМ, иначе Active не трогаем.
-		to.Active = 1
+		// 2026-09-22: audit-helper, источник - models.UserSourceVMware.
+		models.SetActiveWithAudit(&to.Active, &to.TimeActiveState, &to.ActivatorUser, &to.TimeDeActiveState, &to.DeActivatorUser, 1, models.UserSourceVMware)
 	} else {
 		to.PowerState = 2
 	}
@@ -256,7 +259,8 @@ func CopyHostToSprSrv(from vsphere.HostInfo, to *models.ServerSprRecords) {
 		// PowerState=1/Active=2. По правилу "найден и включён" -> Active=1
 		// обязательно; для выключенного хоста Active намеренно не
 		// трогаем (допустимы 0/1/2).
-		to.Active = 1
+		// 2026-09-22: audit-helper, источник - models.UserSourceVMware.
+		models.SetActiveWithAudit(&to.Active, &to.TimeActiveState, &to.ActivatorUser, &to.TimeDeActiveState, &to.DeActivatorUser, 1, models.UserSourceVMware)
 	} else {
 		to.PowerState = 2
 	}
@@ -861,9 +865,13 @@ func RestoreSprData(to *models.ServerSprRecords, from models.ServerSprRecords) {
 	//Stat
 	//PowerState
 	//to.Active
+	// 2026-09-22: исправлена опечатка - TimeDeActiveState копировался из
+	// from.TimeActiveState (даты активации) вместо from.TimeDeActiveState
+	// (дата деактивации), из-за чего RestoreSprData затирала дату
+	// деактивации датой последней активации.
 	to.TimeActiveState = from.TimeActiveState
 	to.ActivatorUser = from.ActivatorUser
-	to.TimeDeActiveState = from.TimeActiveState
+	to.TimeDeActiveState = from.TimeDeActiveState
 	to.DeActivatorUser = from.DeActivatorUser
 	//TimeCreate
 	//CreatorUser
@@ -1012,6 +1020,19 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 		h.PowerState = 1
 	} else {
 		h.PowerState = 2
+	}
+	// (2026-09-22, по факту найденной пользователем недопустимой комбинации
+	// "PowerState=включен + Active=выведен из эксплуатации" у гипервизора,
+	// видимого и в VMware, и в HP OneView) - та же авто-коррекция, что
+	// добавлена в cmdb/updatehwhostinfo.go и cmdb/updatepower.go: если
+	// OneView сейчас видит сервер включённым, Active принудительно
+	// возвращается в 1, даже если ранее был выставлен вручную в 2
+	// (/sprsrv/hwconfedit, /sprsrv/hwconfbulkedit) и с тех пор не
+	// откатывался. При выключенном сервере Active намеренно не трогаем.
+	// 2026-09-22: audit-helper, источник - models.UserSourceOneView (эта
+	// функция ImportHWSprRecord импортирует данные из HP OneView).
+	if h.PowerState == 1 {
+		models.SetActiveWithAudit(&h.Active, &h.TimeActiveState, &h.ActivatorUser, &h.TimeDeActiveState, &h.DeActivatorUser, 1, models.UserSourceOneView)
 	}
 
 	h.DatacenterName = srv.Datacenter.Name

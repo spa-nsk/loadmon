@@ -109,7 +109,11 @@
                     <td>
                         <div style="max-width:340px; word-wrap:break-word;">{{$hw.Identity.Model}} {{if ne $hw.Identity.PartNumber ""}}({{$hw.Identity.PartNumber}}){{end}}</div>
                     </td>
-                    <td>{{if ne $hw.Datacenter.Name ""}}{{$hw.Datacenter.Name}}{{end}}{{if ne $hw.Rack.Name ""}} ({{$hw.Rack.Name}}){{end}}</td>
+                    <td>
+                        {{if ne $hw.Datacenter.Name ""}}{{$hw.Datacenter.Name}}{{end}}{{if ne $hw.Rack.Name ""}} ({{$hw.Rack.Name}}){{end}}
+                        {{$dbPlacement := index $.DBPlacement $hw.Identity.SerialNumber}}
+                        {{if ne $dbPlacement ""}}<div class="text-muted small" title="Размещение по справочнику конфигураций серверов (ServerHardware -&gt; Шкаф -&gt; ЦОД)">БД: {{$dbPlacement}}</div>{{end}}
+                    </td>
                     <td id="hwvRowMenu{{$ind}}" class="d-none">
                         <div class="ctx-menu-heading">Подробнее</div>
                         <a class="ctx-menu-item" href="/sprsrv/srvhwviewbysn/{{$hw.Identity.SerialNumber}}" target="_blank">Данные OneView</a>

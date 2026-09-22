@@ -759,7 +759,11 @@ func syncHuaweiHardware(o orm.Ormer, shd *models.StorageSystems) error {
 			SlotNumber:         slot,
 			Vendor:             firstNonEmptyStr(d.MANUFACTURER, "Huawei"),
 			Model:              d.MODEL,
-			DiskType:           d.DISKTYPE,
+			// 2026-09-22: DISKTYPE у Huawei приходит числовым кодом строкой
+			// ("14" и т.п.) - раньше сохранялся как есть (см. комментарий у
+			// huaweiDiskTypeLabel про причину), теперь расшифровывается в
+			// читаемую метку по официальной таблице кодов MIB.
+			DiskType:           huaweiDiskTypeLabel(d.DISKTYPE),
 			SerialNum:          d.SERIALNUMBER,
 			CapacityGb:         capGb,
 			Status:             status,
@@ -1024,6 +1028,76 @@ func unityDiskTechnologyLabel(code int) string {
 		return "Виртуальный"
 	default:
 		return fmt.Sprintf("Код %d", code)
+	}
+}
+
+// huaweiDiskTypeLabel переводит числовой код DISKTYPE Huawei DeviceManager
+// REST API (Dorado/OceanStor, поле disk.DISKTYPE, приходит строкой) в
+// читаемую метку. Добавлено 2026-09-22 по запросу пользователя - раньше
+// (CHANGELOG (86)/(88)) расшифровка кодов сознательно НЕ делалась ("таблицы
+// соответствия не нашли, не домысливать"), пользователь предоставил
+// официальную таблицу кодов (MIB HUAWEI-STORAGE-HARDWARE-MIB
+// hwInfoDiskType, коды 0-18, + код 21, добавленный позже в V700R001C01 для
+// Capacity-Optimized/QLC SSD - см. kontext/10-huawei-dorado-rest-api.md).
+// Таблица общая для Dorado и OceanStor (REST/SNMP используют одни и те же
+// числовые коды, CLI показывает человекочитаемую строку). Коды 19/20/22 в
+// открытом MIB не задокументированы - для них, как и для любого другого
+// нераспознанного кода, возвращается "Код N" (тот же принцип "не
+// домысливать", что и у unityDiskTechnologyLabel).
+func huaweiDiskTypeLabel(code string) string {
+	code = strings.TrimSpace(code)
+	n, err := strconv.Atoi(code)
+	if err != nil {
+		// на случай прошивки, которая всё же прислала не число, а готовую
+		// строку (как в CLI) - возвращаем как есть, ничего не портим
+		if code == "" {
+			return ""
+		}
+		return code
+	}
+	switch n {
+	case 0:
+		return "FC (HDD Fibre Channel)"
+	case 1:
+		return "SAS (HDD)"
+	case 2:
+		return "SATA (HDD)"
+	case 3:
+		return "SAS SSD"
+	case 4:
+		return "NL-SAS (HDD)"
+	case 5:
+		return "SLC SSD"
+	case 6:
+		return "MLC SSD"
+	case 7:
+		return "FC SED"
+	case 8:
+		return "SAS SED (HDD)"
+	case 9:
+		return "SATA SED (HDD)"
+	case 10:
+		return "SAS SSD SED"
+	case 11:
+		return "NL-SAS SED (HDD)"
+	case 12:
+		return "SLC SSD SED"
+	case 13:
+		return "MLC SSD SED"
+	case 14:
+		return "NVMe SSD"
+	case 15:
+		return "SMR SATA (HDD)"
+	case 16:
+		return "NVMe SSD SED"
+	case 17:
+		return "SCM SSD (Storage Class Memory)"
+	case 18:
+		return "SCM SED"
+	case 21:
+		return "Capacity-Optimized NVMe SSD (QLC)"
+	default:
+		return fmt.Sprintf("Код %d", n)
 	}
 }
 
