@@ -156,54 +156,49 @@ func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.
 		// остаётся статическим значением из справочника СХД (row.UsedPercent
 		// выше) - это не сбой опроса, поэтому PollOK=true, PollError пуст.
 
-	case 2: // Unity REST - живые KPI, см. storages/unity_hardware.go.
-		var failed []string
-		log.Println("cmdb.collectStorageMetricForSystem: опрос KPI Unity", shd.ShortName, shd.IpAddress)
-		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.sp.*.utilization"); ok {
-			row.CPUUtilPercent = v
-		} else {
-			failed = append(failed, "CPUUtilPercent")
-		}
-		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.pool.*.percentUsed"); ok {
+	case 2: // Unity REST.
+		// (2026-09-22) Раньше здесь опрашивались 8 метрик через
+		// storages.GetUnityKpiAverage/GetUnityKpiSum по путям вида
+		// "kpi.sp.*.utilization"/"kpi.pool.*.percentUsed"/"kpi.sp.*.ioRate.*"/
+		// "kpi.sp.*.throughput.*"/"kpi.sp.*.responseTime.*" - на реальном
+		// оборудовании это давало 100% "частичный сбой" по ВСЕМ 8 метрикам на
+		// КАЖДОЙ Unity СХД без единого раза успеха (жалоба пользователя "по
+		// Unity везде частичная ошибка, на всех СХД"). Разбор показал два
+		// независимых бага:
+		//   1) сама ошибка глушилась молча (unityKpiLatestPerEntry отбрасывал
+		//      err, наружу уходило только ok=false) - поэтому не было видно,
+		//      что реально не так;
+		//   2) REST-эндпоинт /api/types/kpiValue/instances, который
+		//      использовался под капотом (emcstorage.GetkpiValue), не
+		//      существует в Unity/Unisphere REST API вовсе - подтверждённые
+		//      документацией Dell типы для метрик - metricValue (история) и
+		//      metricRealTimeQuery/metricQueryResult (реальное время), а не
+		//      kpiValue. Поэтому опрос 100% падал на каждой СХД, вне
+		//      зависимости от прошивки/модели/сети.
+		// UsedPercent теперь считается тем же проверенным способом, что и у
+		// Huawei/Lenovo (collectHuaweiUsedPercent/collectLenovoUsedPercent) -
+		// через уже рабочий (используется в syncstoragehardware.go)
+		// storages.GetUnityPools -> SizeUsed/SizeTotal, а не через
+		// несуществующий kpi-путь.
+		//
+		// IOPS/throughput/latency/CPUUtilPercent намеренно НЕ реализованы
+		// этим исправлением - см. подробности и план в
+		// kontext/11-storage-metrics.md ("не гадать": даже подтверждённый
+		// путь kpi.sp.*.utilization оказался доступен только через
+		// real-time-запрос (POST metricRealTimeQuery + опрос
+		// metricQueryResult), а не через простой GET; для остальных путей
+		// (IOPS/throughput/responseTime на уровне SP, без привязки к
+		// протоколу NAS) не нашлось подтверждённых документацией Dell
+		// путей - использовать их вслепую означало бы повторить ту же
+		// ошибку. Перед реализацией нужно снять реальный каталог метрик
+		// конкретного массива (см. tools/storagemetrics -dumpmetricsonly).
+		log.Println("cmdb.collectStorageMetricForSystem: опрос пулов Unity", shd.ShortName, shd.IpAddress)
+		if v, err := collectUnityUsedPercent(shd); err == nil {
 			row.UsedPercent = v
 		} else {
-			failed = append(failed, "UsedPercent")
-		}
-		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.ioRate.read"); ok {
-			row.ReadIOPS = v
-		} else {
-			failed = append(failed, "ReadIOPS")
-		}
-		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.ioRate.write"); ok {
-			row.WriteIOPS = v
-		} else {
-			failed = append(failed, "WriteIOPS")
-		}
-		row.TotalIOPS = row.ReadIOPS + row.WriteIOPS
-		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.throughput.read"); ok {
-			row.ReadMBps = v / (1024 * 1024)
-		} else {
-			failed = append(failed, "ReadMBps")
-		}
-		if v, ok := storages.GetUnityKpiSum(shd.IpAddress, "kpi.sp.*.throughput.write"); ok {
-			row.WriteMBps = v / (1024 * 1024)
-		} else {
-			failed = append(failed, "WriteMBps")
-		}
-		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.sp.*.responseTime.read"); ok {
-			row.ReadLatencyMs = v
-		} else {
-			failed = append(failed, "ReadLatencyMs")
-		}
-		if v, ok := storages.GetUnityKpiAverage(shd.IpAddress, "kpi.sp.*.responseTime.write"); ok {
-			row.WriteLatencyMs = v
-		} else {
-			failed = append(failed, "WriteLatencyMs")
-		}
-		if len(failed) > 0 {
 			row.PollOK = false
-			row.PollError = "не удалось получить: " + strings.Join(failed, ", ")
-			log.Println("cmdb.collectStorageMetricForSystem: частичный сбой опроса KPI Unity", shd.ShortName, shd.IpAddress, "-", row.PollError)
+			row.PollError = "UsedPercent (пулы): " + err.Error()
+			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса пулов Unity", shd.ShortName, shd.IpAddress, "-", err)
 		}
 
 	case 3, 4: // Huawei Dorado / OceanStor REST.
@@ -303,6 +298,38 @@ func collectHuaweiUsedPercent(shd *models.StorageSystems) (float64, error) {
 		return simpleSum / float64(simpleCount), nil
 	}
 	return 0, fmt.Errorf("не удалось разобрать процент использования ни одного пула")
+}
+
+// collectUnityUsedPercent возвращает % использования СХД Unity как
+// SizeUsed/SizeTotal, просуммированные по всем storage-pools
+// (storages.GetUnityPools -> emcstorage.PoolContent, уже используется и
+// проверен в syncstoragehardware.go при синхронизации конфигурации СХД -
+// тот же принцип, что и collectHuaweiUsedPercent/collectLenovoUsedPercent
+// ниже). Добавлено 2026-09-22 взамен опроса через несуществующий Unity
+// REST-эндпоинт /api/types/kpiValue/instances (path "kpi.pool.*.percentUsed")
+// - см. комментарий у case 2 в collectStorageMetricForSystem.
+func collectUnityUsedPercent(shd *models.StorageSystems) (float64, error) {
+	pools, err := storages.GetUnityPools(shd.IpAddress)
+	if err != nil {
+		return 0, fmt.Errorf("список пулов: %w", err)
+	}
+	if len(pools) == 0 {
+		return 0, fmt.Errorf("СХД не вернула ни одного пула")
+	}
+	var usedSum, totalSum float64
+	for _, p := range pools {
+		total := float64(p.SizeTotal)
+		used := float64(p.SizeUsed)
+		if total <= 0 {
+			continue
+		}
+		usedSum += used
+		totalSum += total
+	}
+	if totalSum <= 0 {
+		return 0, fmt.Errorf("не удалось разобрать ёмкость ни одного пула")
+	}
+	return usedSum / totalSum * 100, nil
 }
 
 // collectLenovoUsedPercent возвращает % использования СХД Lenovo как

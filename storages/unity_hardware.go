@@ -1,6 +1,8 @@
 package storages
 
 import (
+	"encoding/json"
+	"log"
 	"time"
 
 	"loadmon/emcstorage"
@@ -97,6 +99,33 @@ func GetUnityPools(address string) ([]emcstorage.PoolContent, error) {
 	return out, nil
 }
 
+// DumpUnityMetricCatalog возвращает "сырой" (как есть) JSON-ответ Unity на
+// запрос каталога доступных метрик (тип metric, GET
+// /api/types/metric/instances) - по аналогии с тем, как для Huawei Dorado
+// ранее снимался сырой дамп GET /disk/{id} (см. kontext/10-huawei-dorado-rest-api.md,
+// CHANGELOG (174)) для проверки реальной схемы ответа перед реализацией
+// разбора. Добавлено 2026-09-22 в рамках починки Unity KPI (см.
+// cmdb/collectstoragemetrics.go, комментарий у case 2 в
+// collectStorageMetricForSystem) - чтобы для конкретного массива (модель/
+// версия Unity OE) можно было получить ДОСТОВЕРНЫЙ список путей метрик
+// (path/isHistoricalAvailable/isRealtimeAvailable) вместо предположений по
+// сторонним источникам, прежде чем реализовывать сбор IOPS/throughput/
+// latency/CPU. Поля fields/filter отдаются пустыми - получаем весь каталог
+// целиком, как он есть на этой конкретной СХД.
+func DumpUnityMetricCatalog(address string) (json.RawMessage, error) {
+	session, err := openUnitySession(address)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseSession()
+
+	var raw json.RawMessage
+	if err := session.Request("GET", "/api/types/metric/instances", "", "", true, nil, &raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
 // UnityHardwareBundle - результат GetUnityHardwareBundle: полки/диски/пулы
 // одной СХД Unity, полученные в рамках ОДНОЙ REST-сессии.
 type UnityHardwareBundle struct {
@@ -177,14 +206,31 @@ func GetUnityHardwareBundle(address string) (*UnityHardwareBundle, error) {
 
 // unityKpiLatestPerEntry возвращает последнее по времени значение KPI для каждого
 // экземпляра path (например, отдельный SP в kpi.sp.*.utilization).
+//
+// ⚠️ НЕ ИСПОЛЬЗУЕТСЯ в cmdb с 2026-09-22 (см. cmdb/collectstoragemetrics.go,
+// комментарий у case 2) - опрос через emcstorage.Session.GetkpiValue бьёт в
+// REST-эндпоинт /api/types/kpiValue/instances, которого в Unity/Unisphere
+// REST API не существует (подтверждённые Dell типы - metricValue для
+// истории, metricRealTimeQuery/metricQueryResult для реального времени) -
+// поэтому эта функция ВСЕГДА возвращала ok=false на реальном оборудовании
+// (100% отказ по всем метрикам на всех Unity СХД). Раньше настоящая
+// причина (err от openUnitySession/GetkpiValue) нигде не логировалась -
+// теперь хотя бы логируется, чтобы при повторном включении сразу было
+// видно точный HTTP-код/тело ответа. Прежде чем снова звать эту функцию из
+// cmdb - нужно либо переписать её на настоящий metricValue/
+// metricRealTimeQuery, либо снять реальный каталог метрик массива
+// (/api/types/metric/instances, см. tools/storagemetrics -dumpmetricsonly)
+// и свериться с ним - см. kontext/11-storage-metrics.md.
 func unityKpiLatestPerEntry(address, path string) ([]float64, bool) {
 	session, err := openUnitySession(address)
 	if err != nil {
+		log.Printf("storages.unityKpiLatestPerEntry(%s, %s): не удалось открыть сессию: %v", address, path, err)
 		return nil, false
 	}
 	defer session.CloseSession()
 	resp, err := session.GetkpiValue(path)
 	if err != nil || resp == nil {
+		log.Printf("storages.unityKpiLatestPerEntry(%s, %s): GetkpiValue: %v", address, path, err)
 		return nil, false
 	}
 	out := make([]float64, 0, len(resp.Entries))
