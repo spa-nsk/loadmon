@@ -40,20 +40,30 @@
 //
 //	# явно указать конфиг, если бинарник запускается не рядом с conf/app2.json:
 //	LOADMON_CONFIG=/path/to/app2.json go run ./tools/storagemetrics
+//
+//	# снять сырой каталог доступных метрик Unity (для сверки реальных путей
+//	# метрик перед реализацией живых IOPS/throughput/latency/CPU - см.
+//	# kontext/11-storage-metrics.md) и выйти, ничего не опрашивая и никуда не записывая:
+//	go run ./tools/storagemetrics -dumpmetricsonly U450-MF-01 -dumpmetricsfile u450-mf-01-metrics.json
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"loadmon/cmdb"
 	"loadmon/config"
+	"loadmon/models"
+	"loadmon/storages"
 
+	"github.com/beego/beego/v2/client/orm"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -62,6 +72,8 @@ func main() {
 	only := flag.String("only", "", "ограничить опрос одной СХД по ShortName (без учёта регистра, точное совпадение) - см. cmdb.CollectStorageMetricsOnly")
 	interval := flag.Duration("interval", 0, "повторять опрос с этим периодом (например 1m, 6h); 0 (по умолчанию) - один проход и выход")
 	logfile := flag.String("logfile", "storagemetrics.log", "путь к файлу лога (создаётся/дополняется); пусто (-logfile=\"\") - лог в stdout, как у storagesync")
+	dumpMetricsOnly := flag.String("dumpmetricsonly", "", "не опрашивать метрики - вместо этого снять СЫРОЙ каталог доступных метрик СХД Unity (ShortName) через GET /api/types/metric/instances и сохранить в -dumpmetricsfile, затем выйти (см. kontext/11-storage-metrics.md)")
+	dumpMetricsFile := flag.String("dumpmetricsfile", "unity-metric-catalog.json", "путь к файлу для -dumpmetricsonly")
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -106,6 +118,11 @@ func main() {
 
 	config.DBInit()
 
+	if *dumpMetricsOnly != "" {
+		dumpUnityMetricCatalog(*dumpMetricsOnly, *dumpMetricsFile)
+		return
+	}
+
 	if *only != "" {
 		cmdb.CollectStorageMetricsOnly = *only
 		log.Printf("storagemetrics: фильтр по СХД включён, ShortName=%q", *only)
@@ -141,4 +158,53 @@ func main() {
 			return
 		}
 	}
+}
+
+// dumpUnityMetricCatalog ищет СХД по ShortName (без учёта регистра, как
+// -only) в справочнике storage_systems, снимает через
+// storages.DumpUnityMetricCatalog сырой каталог доступных Unity-метрик (GET
+// /api/types/metric/instances) и сохраняет его (с отступами, для удобства
+// чтения) в файл path. Ничего не опрашивает и не пишет в storage_metric -
+// только диагностика. См. комментарий у case 2 в
+// cmdb/collectstoragemetrics.go: цель - получить ДОСТОВЕРНЫЙ список путей
+// метрик конкретного массива перед тем, как реализовывать живые IOPS/
+// throughput/latency/CPU для Unity (взамен убранного опроса через
+// несуществующий /api/types/kpiValue/instances).
+func dumpUnityMetricCatalog(shortName, path string) {
+	o := orm.NewOrm()
+	var systems []*models.StorageSystems
+	if _, err := o.QueryTable(new(models.StorageSystems)).All(&systems); err != nil {
+		log.Fatalf("storagemetrics: -dumpmetricsonly: ошибка чтения storage_systems: %v", err)
+	}
+	var shd *models.StorageSystems
+	for _, s := range systems {
+		if s != nil && strings.EqualFold(s.ShortName, shortName) {
+			shd = s
+			break
+		}
+	}
+	if shd == nil {
+		log.Fatalf("storagemetrics: -dumpmetricsonly: СХД с ShortName=%q не найдена в storage_systems", shortName)
+	}
+	if shd.ApiType != 2 {
+		log.Fatalf("storagemetrics: -dumpmetricsonly: СХД %q имеет ApiType=%d, а не 2 (Unity) - каталог метрик /api/types/metric/instances специфичен для Unity REST API", shortName, shd.ApiType)
+	}
+
+	log.Printf("storagemetrics: -dumpmetricsonly: запрашиваю каталог метрик у %s (%s)...", shd.ShortName, shd.IpAddress)
+	raw, err := storages.DumpUnityMetricCatalog(shd.IpAddress)
+	if err != nil {
+		log.Fatalf("storagemetrics: -dumpmetricsonly: ошибка запроса каталога метрик у %s (%s): %v", shd.ShortName, shd.IpAddress, err)
+	}
+
+	var pretty []byte
+	if pretty, err = json.MarshalIndent(json.RawMessage(raw), "", "  "); err != nil {
+		// На случай, если пришедший ответ не удалось переформатировать -
+		// сохраняем как есть (сырьём), чтобы данные не потерялись.
+		pretty = raw
+	}
+	if err := os.WriteFile(path, pretty, 0644); err != nil {
+		log.Fatalf("storagemetrics: -dumpmetricsonly: не удалось записать файл %q: %v", path, err)
+	}
+	fmt.Printf("storagemetrics: каталог метрик %s (%s) сохранён в %s (%d байт)\n", shd.ShortName, shd.IpAddress, path, len(pretty))
+	log.Printf("storagemetrics: -dumpmetricsonly: каталог метрик %s (%s) сохранён в %s (%d байт)", shd.ShortName, shd.IpAddress, path, len(pretty))
 }
