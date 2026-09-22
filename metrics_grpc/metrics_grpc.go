@@ -202,18 +202,22 @@ func main() {
 
 	tickerStorageMetrics := time.NewTicker(time.Minute)
 	defer tickerStorageMetrics.Stop()
-	// (2026-09-04) Сбор поминутных метрик производительности СХД
-	// (cmdb.CollectStorageMetrics - KPI/IOPS/латентность/UsedPercent в
-	// storage_metric) отключён по запросу - оставлен только сбор
-	// конфигурации СХД (справочник storage_systems/storage_volumes,
-	// инвентарь storage_enclosure/storage_disk через
-	// cmdb.UpdateVolumeStorage/cmdb.SyncStorageHardwareForSystem, тикер
-	// ticker8 выше по коду - не трогается этой правкой). Тикер немедленно
-	// останавливается сразу после создания, поэтому case ниже
-	// (<-tickerStorageMetrics.C) больше никогда не сработает - код опроса
-	// метрик намеренно оставлен нетронутым, чтобы включить обратно
-	// сбор было можно одной строкой (удалить Stop() ниже).
-	tickerStorageMetrics.Stop()
+	// (2026-09-04) Сбор поминутных метрик производительности СХД был
+	// отключён здесь (tickerStorageMetrics.Stop() сразу после создания) -
+	// оставался только сбор конфигурации СХД (ticker8, не трогается этой
+	// правкой). 2026-09-22, по запросу пользователя "вернёмся к обработке
+	// метрик из СХД" - сбор включён обратно (Stop() ниже убран). К этому
+	// моменту в cmdb/collectstoragemetrics.go добавлены живые KPI и для
+	// Lenovo (через новые методы SDK lenovostorage.GetAnalysedVolumeStatistics/
+	// GetAnalysedControllerStatistics - см. их комментарии), не только для
+	// Unity, как раньше. Для Huawei Dorado/OceanStor живых KPI (IOPS/
+	// throughput/latency) по-прежнему НЕТ - используемый SDK
+	// (github.com/lovi-cloud/go-dorado-sdk) не содержит performance-
+	// эндпоинтов, а официальную схему REST performance_statistic
+	// (двухшаговый subscribe/query, зависящий от версии прошивки) не
+	// удалось достоверно подтвердить из документации Huawei, доступной в
+	// этой среде - см. kontext/11-storage-metrics.md. Для Huawei
+	// собирается только % использования пулов (как и раньше).
 
 	cmdb.ClearOldMetric()
 	cmdb.ClearOldStorageMetric()
