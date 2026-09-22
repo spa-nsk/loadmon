@@ -211,6 +211,7 @@ func (this *MainController) SprDatacenterSiteEdit() {
 		rec.Width, _ = strconv.ParseInt(this.GetString("Width"), 10, 64)
 		rec.Height, _ = strconv.ParseInt(this.GetString("Height"), 10, 64)
 		rec.Annotation = this.GetString("Annotation")
+		rec.CodeJira = this.GetString("CodeJira")
 		var currentUserId int64
 		if uid, ok := this.Data["UserId"].(int64); ok {
 			currentUserId = uid

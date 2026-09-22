@@ -141,7 +141,10 @@ func CheckAndCorrectSrv(records []*models.ServerSprRecords, serverName string, c
 		if err := o.Read(&srvspr, "Id"); err == nil {
 			srvspr.Stat = 0 //архивная запись
 			srvspr.PowerState = 2
-			srvspr.Active = 2
+			// 2026-09-22: audit-helper вместо прямого присвоения - источник
+			// models.UserSourceManual, т.к. это внутренняя дедупликация
+			// записей по имени, не привязанная к конкретной внешней системе.
+			models.SetActiveWithAudit(&srvspr.Active, &srvspr.TimeActiveState, &srvspr.ActivatorUser, &srvspr.TimeDeActiveState, &srvspr.DeActivatorUser, 2, models.UserSourceManual)
 			num, err := o.Update(&srvspr)
 			_ = num
 			_ = err

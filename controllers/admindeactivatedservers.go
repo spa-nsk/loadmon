@@ -279,18 +279,11 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 			rec.PowerState = powerState
 		}
 		if active != 0 {
-			prevActive := rec.Active
-			rec.Active = active
-			if prevActive != rec.Active {
-				switch rec.Active {
-				case 1:
-					rec.TimeActiveState = now
-					rec.ActivatorUser = currentUserId
-				case 2:
-					rec.TimeDeActiveState = now
-					rec.DeActivatorUser = currentUserId
-				}
-			}
+			// 2026-09-22: audit-helper вместо ручного sравнения
+			// prevActive/switch - currentUserId это реальный Id
+			// залогиненного пользователя (массовая ручная операция
+			// восстановления/деактивации).
+			models.SetActiveWithAudit(&rec.Active, &rec.TimeActiveState, &rec.ActivatorUser, &rec.TimeDeActiveState, &rec.DeActivatorUser, active, currentUserId)
 		}
 
 		wasDeactivated := rec.Stat == 0
@@ -325,22 +318,15 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 			if rec.HWSprId > 0 {
 				hw := models.ServerHardware{Id: rec.HWSprId}
 				if err := o.Read(&hw); err == nil {
-					prevHwActive := hw.Active
 					hw.PowerState = rec.PowerState
-					hw.Active = rec.Active
 					hw.SourceUpdateType = rec.SourceUpdateType // синхронизируется с итоговым (после формы) значением ServerSprRecords, см. комментарий к функции выше
 					hw.Id_User = currentUserId
 					hw.Time_Mfy = now
-					if prevHwActive != hw.Active {
-						switch hw.Active {
-						case 1:
-							hw.TimeActiveState = now
-							hw.ActivatorUser = currentUserId
-						case 2:
-							hw.TimeDeActiveState = now
-							hw.DeActivatorUser = currentUserId
-						}
-					}
+					// 2026-09-22: audit-helper вместо ручного sравнения
+					// prevHwActive/switch - синхронизация статуса
+					// ServerHardware со статусом связанной ServerSprRecords,
+					// поэтому пользователь тот же (currentUserId).
+					models.SetActiveWithAudit(&hw.Active, &hw.TimeActiveState, &hw.ActivatorUser, &hw.TimeDeActiveState, &hw.DeActivatorUser, rec.Active, currentUserId)
 					o.Update(&hw)
 				}
 			}

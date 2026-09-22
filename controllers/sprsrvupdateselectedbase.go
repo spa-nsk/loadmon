@@ -153,18 +153,10 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 				rec.CriticalLevel = criticalLevel
 			}
 			if active != 0 {
-				prevActive := rec.Active
-				rec.Active = active
-				if prevActive != rec.Active {
-					switch rec.Active {
-					case 1:
-						rec.TimeActiveState = now
-						rec.ActivatorUser = currentUserId
-					case 2:
-						rec.TimeDeActiveState = now
-						rec.DeActivatorUser = currentUserId
-					}
-				}
+				// 2026-09-22: audit-helper вместо ручного sравнения
+				// prevActive/switch - currentUserId это реальный Id
+				// залогиненного пользователя (массовое ручное изменение).
+				models.SetActiveWithAudit(&rec.Active, &rec.TimeActiveState, &rec.ActivatorUser, &rec.TimeDeActiveState, &rec.DeActivatorUser, active, currentUserId)
 			}
 			if itSystemKey != "" {
 				rec.ITSystemKey = itSystemKey

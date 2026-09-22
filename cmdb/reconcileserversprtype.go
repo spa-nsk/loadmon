@@ -194,9 +194,16 @@ func markServerSprAbsent(o orm.Ormer, srv *models.ServerSprRecords) {
 	changed := srv.Stat != 0 || srv.PowerState != 2 || srv.Active != 2
 	srv.Stat = 0
 	srv.PowerState = 2
-	srv.Active = 2
+	// 2026-09-22: audit-helper (models.SetActiveWithAudit) вместо прямого
+	// присвоения - источник выбирается по srv.Type (см. activeAuditSource
+	// в cmdb/updatepower.go), т.к. проверка отсутствия ведётся по данным
+	// того же внешнего источника (HP OneView/vSphere), что и обнаружение.
+	models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, 2, activeAuditSource(srv.Type))
 	if changed {
-		if _, err := o.Update(srv, "Stat", "PowerState", "Active"); err != nil {
+		// TimeDeActiveState/DeActivatorUser добавлены в список полей
+		// обновления, т.к. теперь проставляются вместе с Active через
+		// audit-helper выше (2026-09-22).
+		if _, err := o.Update(srv, "Stat", "PowerState", "Active", "TimeDeActiveState", "DeActivatorUser"); err != nil {
 			log.Printf("ReconcileServerSprRecordsTypeAndState: ошибка пометки отсутствующего %q: %v", srv.Name, err)
 		}
 	}
@@ -271,8 +278,11 @@ func applyExpectedServerSprState(
 		fields = append(fields, "Stat")
 	}
 	if srv.PowerState == 1 && srv.Active != 1 {
-		srv.Active = 1
-		fields = append(fields, "Active")
+		// 2026-09-22: audit-helper вместо прямого присвоения, источник по
+		// expectedType (та же классификация, что и activeAuditSource по
+		// srv.Type в cmdb/updatepower.go: 0 - OneView, 1/2 - vSphere).
+		models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, 1, activeAuditSource(expectedType))
+		fields = append(fields, "Active", "TimeActiveState", "ActivatorUser")
 	}
 
 	return uniqueFields(fields)

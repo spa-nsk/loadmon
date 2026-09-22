@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/beego/beego/v2/client/orm"
 	beego "github.com/beego/beego/v2/server/web"
 	oneview "github.com/spa-nsk/oneview2"
 	"github.com/xuri/excelize/v2"
@@ -148,6 +149,35 @@ func (this *MainController) SprHwViewList() {
 		end = totalRecords
 	}
 	pageRecords := records[offset:end]
+
+	// DBPlacement - размещение "ЦОД / Шкаф", резолвленное по серийному
+	// номеру ЧЕРЕЗ справочник конфигураций серверов БД (models.ServerHardware
+	// -> RackCabinetId -> models.RackCabinet -> models.DatacenterSite), в
+	// ДОПОЛНЕНИЕ к уже выводимому в hwviewlist.tpl тексту из "живых" данных
+	// OneView ($hw.Datacenter.Name/$hw.Rack.Name) - по запросу пользователя
+	// "добавь размещение через поиск сервера в справочнике конфигураций
+	// серверов ServerHardware и отобрази размещение... по справочнику
+	// шкафов". Резолвер placementTextByCabinetId переиспользован как есть из
+	// controllers/sprsrvupdatebase.go (тот же пакет controllers, уже
+	// применяется на /sprsrv/updatebase) - только для страницы, а не для
+	// всего списка, чтобы не плодить лишние запросы к БД при большом
+	// инвентаре HP OneView.
+	o := orm.NewOrm()
+	dbPlacement := make(map[string]string, len(pageRecords))
+	for _, rec := range pageRecords {
+		sn := rec.Identity.SerialNumber
+		if sn == "" {
+			continue
+		}
+		var hw models.ServerHardware
+		if err := o.QueryTable(new(models.ServerHardware)).Filter("SerialNum", sn).One(&hw, "Id", "RackCabinetId"); err != nil {
+			continue // сервера нет в справочнике конфигураций БД - просто не показываем эту часть размещения
+		}
+		if text := placementTextByCabinetId(o, hw.RackCabinetId); text != "" {
+			dbPlacement[sn] = text
+		}
+	}
+	this.Data["DBPlacement"] = dbPlacement
 
 	this.Data["HWList"] = pageRecords
 	this.Data["HWListCount"] = totalRecords

@@ -41,6 +41,11 @@
                 <label for="Height" class="form-label">Высота</label>
                 <input type="number" id="Height" name="Height" class="form-control" value="{{.DC.Height}}">
             </div>
+            <div class="col-6">
+                <label for="CodeJira" class="form-label">Код Jira</label>
+                <input type="text" id="CodeJira" name="CodeJira" class="form-control" value="{{.DC.CodeJira}}">
+                <div class="form-text">Ключ проекта/записи в Jira для этого ЦОД.</div>
+            </div>
             <div class="col-12">
                 <label for="Annotation" class="form-label">Описание</label>
                 <textarea id="Annotation" name="Annotation" class="form-control" rows="3">{{.DC.Annotation}}</textarea>

@@ -83,7 +83,8 @@ func (this *MainController) SprAddServer() {
 		record.RoleType = form.RoleType
 		record.TypeWork = form.TypeWork
 		record.CriticalLevel = form.CriticalLevel
-		record.Active = form.Active
+		// Active проставляется ниже через audit-helper (models.SetActiveWithAudit),
+		// вместе с TimeActiveState/ActivatorUser или TimeDeActiveState/DeActivatorUser.
 
 		record.Name = strings.TrimSpace(form.Name)
 		record.NameFQDN = strings.TrimSpace(form.NameFQDN)
@@ -135,14 +136,9 @@ func (this *MainController) SprAddServer() {
 		record.Time_Mfy = now
 		record.SourceUpdateType = models.SourceUpdateManual
 
-		switch record.Active {
-		case 1:
-			record.TimeActiveState = now
-			record.ActivatorUser = currentUserId
-		case 2:
-			record.TimeDeActiveState = now
-			record.DeActivatorUser = currentUserId
-		}
+		// 2026-09-22: audit-helper вместо ручного switch - currentUserId это
+		// реальный Id залогиненного пользователя, создающего запись вручную.
+		models.SetActiveWithAudit(&record.Active, &record.TimeActiveState, &record.ActivatorUser, &record.TimeDeActiveState, &record.DeActivatorUser, form.Active, currentUserId)
 
 		if record.Monitoring == 1 {
 			record.TimeActiveMonitoring = now

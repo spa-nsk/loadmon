@@ -261,22 +261,13 @@ func (this *MainController) SprSrvUpdateBase() {
 			currentUserId = uid
 		}
 
-		// record.Active на этот момент ещё хранит значение из БД (form.Active
-		// в него не копировался) - используем это, чтобы понять, изменился ли
-		// статус активности, и только тогда проставить служебные поля
-		prevActive := record.Active
-		record.Active = form.Active
-
-		if prevActive != record.Active {
-			switch record.Active {
-			case 1:
-				record.TimeActiveState = now
-				record.ActivatorUser = currentUserId
-			case 2:
-				record.TimeDeActiveState = now
-				record.DeActivatorUser = currentUserId
-			}
-		}
+		// 2026-09-22: используем общий audit-helper (models.SetActiveWithAudit)
+		// вместо ручного sравнения prevActive/switch - логика та же (менять
+		// TimeActiveState/ActivatorUser или TimeDeActiveState/DeActivatorUser
+		// только при фактической смене статуса), но теперь общая для всех
+		// мест простановки Active по проекту. currentUserId - реальный Id
+		// залогиненного пользователя, вносящего изменение вручную через форму.
+		models.SetActiveWithAudit(&record.Active, &record.TimeActiveState, &record.ActivatorUser, &record.TimeDeActiveState, &record.DeActivatorUser, form.Active, currentUserId)
 
 		if record.Monitoring == 1 && record.TimeActiveMonitoring.IsZero() {
 			record.TimeActiveMonitoring = now

@@ -425,8 +425,12 @@ func UpdateVMMove() {
 				o.Read(&srv2, "Id")         //
 				srv2.Stat = 3               //архивная запись
 				srv2.PowerState = 2         //
-				srv2.Active = 2             //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper (models.SetActiveWithAudit) вместо
+				// прямых присвоений Active/TimeDeActiveState - также
+				// проставляет DeActivatorUser (models.UserSourceVMware, т.к.
+				// это дедупликация архивных дублей VM/vSphere-записей) и не
+				// перезаписывает дату/автора при повторной деактивации.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 			} else if s.PowerState == 2 && okvm { //считаем сервер srv.Id активным, а s.Id архивным
@@ -441,8 +445,9 @@ func UpdateVMMove() {
 				o.Read(&srv2, "Id")       //
 				srv2.Stat = 3             //архивная запись
 				srv2.PowerState = 2       //
-				srv2.Active = 2           //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
+				// models.UserSourceVMware.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 			} else { //оба сервера считаем архивными
@@ -452,16 +457,18 @@ func UpdateVMMove() {
 				o.Read(&srv2, "Id") //
 				srv2.Stat = 3       //архивная запись
 				srv2.PowerState = 2 //
-				srv2.Active = 2     //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
+				// models.UserSourceVMware.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 				srv2.Id = s.Id
 				o.Read(&srv2, "Id") //
 				srv2.Stat = 3       //архивная запись
 				srv2.PowerState = 2 //
-				srv2.Active = 2     //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
+				// models.UserSourceVMware.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 			}
@@ -572,8 +579,12 @@ func UpdateVMMoveRename() {
 				o.Read(&srv2, "Id")         //
 				srv2.Stat = 3               //архивная запись
 				srv2.PowerState = 2         //
-				srv2.Active = 2             //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper (models.SetActiveWithAudit) вместо
+				// прямых присвоений Active/TimeDeActiveState - также
+				// проставляет DeActivatorUser (models.UserSourceVMware, т.к.
+				// это дедупликация архивных дублей VM/vSphere-записей) и не
+				// перезаписывает дату/автора при повторной деактивации.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 			} else if s.PowerState == 2 && okvm { //считаем сервер srv.Id активным, а s.Id архивным
@@ -588,8 +599,9 @@ func UpdateVMMoveRename() {
 				o.Read(&srv2, "Id")       //
 				srv2.Stat = 3             //архивная запись
 				srv2.PowerState = 2       //
-				srv2.Active = 2           //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
+				// models.UserSourceVMware.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 			} else { //оба сервера считаем архивными
@@ -599,16 +611,18 @@ func UpdateVMMoveRename() {
 				o.Read(&srv2, "Id") //
 				srv2.Stat = 3       //архивная запись
 				srv2.PowerState = 2 //
-				srv2.Active = 2     //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
+				// models.UserSourceVMware.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 				srv2.Id = s.Id
 				o.Read(&srv2, "Id") //
 				srv2.Stat = 3       //архивная запись
 				srv2.PowerState = 2 //
-				srv2.Active = 2     //выведен из эксплуатации
-				srv2.TimeDeActiveState = time.Now().Local()
+				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
+				// models.UserSourceVMware.
+				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
 				o.Update(&srv2) //
 
 			}

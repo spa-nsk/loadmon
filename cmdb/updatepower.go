@@ -99,6 +99,23 @@ func UpdateClusterSprRecords() {
 // серверов из server_spr_records в зависимости от их типа: физический сервер и его
 // конфигурация опрашиваются через HP OneView, виртуальные машины сверяются с данными
 // vSphere, гипервизоры проверяются через grpcclient и HP OneView.
+
+// activeAuditSource возвращает псевдо-ID системы-источника (см.
+// models.UserSource*) для audit-полей Active, проставляемых в общем
+// хвостовом участке UpdatePowerStateForServers - выбор зависит от типа
+// записи ServerSprRecords.Type, обработанного в switch выше по тексту
+// функции: 0 - аппаратный сервер (опрашивается через HP OneView), 1 -
+// виртуальная машина (сверяется с vSphere), 2 - гипервизор (проверяется
+// прежде всего через vSphere, HP OneView - запасной вариант).
+func activeAuditSource(srvType int) int64 {
+	switch srvType {
+	case 0:
+		return models.UserSourceOneView
+	default: // 1 (VM), 2 (гипервизор) и прочие - vSphere/VMware
+		return models.UserSourceVMware
+	}
+}
+
 func UpdatePowerStateForServers() {
 
 	var records []*models.ServerSprRecords
@@ -151,8 +168,26 @@ func UpdatePowerStateForServers() {
 					serverSpr.PowerState = 2
 					hw.PowerState = 2
 				}
+				// 2026-09-22: используем общий audit-helper
+				// (models.SetActiveWithAudit) вместо прямого присвоения -
+				// он же проставляет TimeActiveState/ActivatorUser или
+				// TimeDeActiveState/DeActivatorUser и НЕ трогает их, если
+				// Active фактически не меняется. Источник -
+				// models.UserSourceOneView, т.к. это путь опроса
+				// аппаратного сервера через HP OneView.
 				if serverSpr.Stat == 0 {
-					hw.Active = 2
+					models.SetActiveWithAudit(&hw.Active, &hw.TimeActiveState, &hw.ActivatorUser, &hw.TimeDeActiveState, &hw.DeActivatorUser, 2, models.UserSourceOneView)
+				} else if hw.PowerState == 1 {
+					// (2026-09-22, по факту найденной пользователем
+					// недопустимой комбинации "PowerState=включен +
+					// Active=выведен из эксплуатации" у гипервизора, тот же
+					// класс бага применим и к аппаратным серверам здесь) -
+					// раньше при найденном и включённом сервере hw.Active
+					// мог остаться в 2 (выведен из эксплуатации), если его
+					// туда поставили вручную ранее (/sprsrv/hwconfedit,
+					// /sprsrv/hwconfbulkedit) - симметрично защите выше для
+					// hw.Active=2.
+					models.SetActiveWithAudit(&hw.Active, &hw.TimeActiveState, &hw.ActivatorUser, &hw.TimeDeActiveState, &hw.DeActivatorUser, 1, models.UserSourceOneView)
 				}
 				_, err = trn.Update(&hw)
 				if err != nil {
@@ -200,7 +235,10 @@ func UpdatePowerStateForServers() {
 			up := strings.ToUpper(serverSpr.Name)
 			if strings.Contains(up, "_OFF") || strings.Contains(up, "_DEL") { //такие имена делают перед удалением
 				serverSpr.PowerState = 2 //выключен
-				serverSpr.Active = 2     //выведен из эксплуатации
+				// 2026-09-22: audit-helper вместо прямого присвоения,
+				// источник - models.UserSourceVMware (синхронизация
+				// виртуальных машин).
+				models.SetActiveWithAudit(&serverSpr.Active, &serverSpr.TimeActiveState, &serverSpr.ActivatorUser, &serverSpr.TimeDeActiveState, &serverSpr.DeActivatorUser, 2, models.UserSourceVMware)
 			}
 		case 2: //если это гипервизор vmware
 			if srv.HWSprId == 0 {
@@ -242,6 +280,20 @@ func UpdatePowerStateForServers() {
 				} else {
 					hw.PowerState = 2
 				}
+				// (2026-09-22, по факту найденной пользователем недопустимой
+				// комбинации "PowerState=включен + Active=выведен из
+				// эксплуатации" у гипервизора) - та же авто-коррекция, что
+				// добавлена в cmdb/updatehwhostinfo.go: Active тут раньше
+				// вообще не трогался для гипервизоров, поэтому ручная
+				// деактивация (/sprsrv/hwconfedit, /sprsrv/hwconfbulkedit)
+				// никогда не откатывалась обратно при повторном обнаружении
+				// включённого гипервизора. Используем audit-helper вместо
+				// прямого присвоения; источник - models.UserSourceVMware,
+				// т.к. это код гипервизоров vmware (case 2), статус
+				// которых проверяется прежде всего через vSphere.
+				if hw.PowerState == 1 {
+					models.SetActiveWithAudit(&hw.Active, &hw.TimeActiveState, &hw.ActivatorUser, &hw.TimeDeActiveState, &hw.DeActivatorUser, 1, models.UserSourceVMware)
+				}
 				_, err = trn.Update(&hw)
 				if err != nil {
 					fmt.Println("Ошибка обновления записи справочника конфигураций серверов о статусе включения", err)
@@ -254,7 +306,12 @@ func UpdatePowerStateForServers() {
 		}
 
 		if serverSpr.Stat == 0 || serverSpr.Stat == 666 {
-			serverSpr.Active = 2
+			// 2026-09-22: audit-helper вместо прямого присвоения. Источник
+			// на этом общем хвостовом участке зависит от srv.Type (0 -
+			// физический сервер/OneView, 1 - VM/VMware, 2 - гипервизор/
+			// VMware) - выбираем код по тому же принципу, что и в switch
+			// выше по типу записи.
+			models.SetActiveWithAudit(&serverSpr.Active, &serverSpr.TimeActiveState, &serverSpr.ActivatorUser, &serverSpr.TimeDeActiveState, &serverSpr.DeActivatorUser, 2, activeAuditSource(srv.Type))
 		} else if serverSpr.PowerState == 1 {
 			// (2026-09-04) Раньше при найденном и включённом сервере Active
 			// не форсировался - если запись ранее была выведена из
@@ -265,7 +322,8 @@ func UpdatePowerStateForServers() {
 			// Active=2. По правилу "найден и включён" -> Active=1
 			// обязательно. Для найденного, но выключенного (Stat=1/
 			// PowerState=2) Active намеренно не трогаем - допустимы 0/1/2.
-			serverSpr.Active = 1
+			// 2026-09-22: используем audit-helper (см. комментарий выше).
+			models.SetActiveWithAudit(&serverSpr.Active, &serverSpr.TimeActiveState, &serverSpr.ActivatorUser, &serverSpr.TimeDeActiveState, &serverSpr.DeActivatorUser, 1, activeAuditSource(srv.Type))
 		}
 		_, err = trn.Update(&serverSpr)
 		if err != nil {
