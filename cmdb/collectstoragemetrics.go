@@ -56,11 +56,22 @@ func CollectStorageMetrics() {
 		}
 	}
 	if len(rows) == 0 {
+		// (2026-09-22) Аналогично случаю "нет СХД с Power=1" выше - раньше
+		// здесь тоже был молчаливый return. По жалобе пользователя
+		// "метрики не собираются, storage_metric пустая", при этом ни
+		// строка "ошибка записи storage_metric", ни эта не находились в
+		// логе - т.е. неясно было, на каком именно шаге теряются данные
+		// (пустой rows, ошибка записи, или сбор вовсе не запускается).
+		// Теперь оба исхода явно логируются, чтобы при следующем
+		// воспроизведении сразу было видно, где именно рвётся цепочка.
+		log.Printf("cmdb.CollectStorageMetrics: из %d СХД (Power=1) не собрано ни одной строки метрик - storage_metric не пополнится в этом цикле", len(systems))
 		return
 	}
 	if err := models.ReplaceStorageMetrics(context.Background(), rows); err != nil {
 		log.Println("cmdb.CollectStorageMetrics: ошибка записи storage_metric:", err)
+		return
 	}
+	log.Printf("cmdb.CollectStorageMetrics: записано %d строк в storage_metric за %s (СХД с Power=1: %d)", len(rows), collectedAt.Format("2006-01-02 15:04:05"), len(systems))
 }
 
 // safeCollectStorageMetricForSystem оборачивает collectStorageMetricForSystem
