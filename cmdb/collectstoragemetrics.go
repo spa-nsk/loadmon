@@ -300,6 +300,31 @@ func collectHuaweiUsedPercent(shd *models.StorageSystems) (float64, error) {
 	return 0, fmt.Errorf("не удалось разобрать процент использования ни одного пула")
 }
 
+// DumpHuaweiRawRequest выполняет произвольный GET/POST-запрос к REST API
+// Huawei Dorado/OceanStor (та же авторизация/порт/схема, что и у
+// collectHuaweiUsedPercent выше - ключ "spaview", https://<ip>:8088) и
+// сохраняет СЫРОЙ ответ устройства в файл dumpPath через
+// dorado.Device.RawRequestDump (go-dorado-sdk/dorado/rawrequest.go).
+// Экспортирована (в отличие от остальных функций этого файла) для
+// использования из tools/storagemetrics (-huaweidumpraw), см. комментарий
+// там же. Добавлено 2026-09-22 по запросу пользователя loadmon "сделай
+// сохранение сырых запросов по huawei" - для проверки реального формата
+// /performance_statistic/... (или любого другого не реализованного пока в
+// SDK эндпоинта) перед тем, как писать код разбора ответа - "не гадать", тот
+// же принцип, что и у Unity (kontext/11-storage-metrics.md).
+func DumpHuaweiRawRequest(shd *models.StorageSystems, method, path string, body []byte, dumpPath string) error {
+	key := "spaview"
+	keypass := datamap.GetKeyData(key)
+	remoteIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+	localIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+
+	client, err := dorado.NewClient(localIps, remoteIps, key, keypass, "", nil)
+	if err != nil {
+		return fmt.Errorf("подключение: %w", err)
+	}
+	return client.LocalDevice.RawRequestDump(context.Background(), method, path, body, dumpPath)
+}
+
 // collectUnityUsedPercent возвращает % использования СХД Unity как
 // SizeUsed/SizeTotal, просуммированные по всем storage-pools
 // (storages.GetUnityPools -> emcstorage.PoolContent, уже используется и
