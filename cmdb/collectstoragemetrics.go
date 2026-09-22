@@ -190,8 +190,20 @@ func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.
 			row.PollError = "UsedPercent (пулы): " + err.Error()
 			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса пулов Lenovo", shd.ShortName, shd.IpAddress, "-", err)
 		}
-		// IOPS/throughput/latency/CPU - недоступны: пакет loadmon/lenovostorage
-		// не реализует statistics/analysed-performance эндпоинты SANtricity API.
+		// 2026-09-22: живые KPI/IOPS/throughput/latency через
+		// lenovostorage.GetAnalysedVolumeStatistics/GetAnalysedControllerStatistics
+		// (добавлены в SDK этим же запросом - "вернёмся к обработке метрик
+		// из СХД... добавь функции в SDK для СХД, при потребности"). Раньше
+		// этих методов не было вовсе - см. комментарий выше у case 5 в
+		// прежней редакции.
+		if err := collectLenovoKpi(shd, row); err != nil {
+			row.PollOK = false
+			if row.PollError != "" {
+				row.PollError += "; "
+			}
+			row.PollError += "KPI: " + err.Error()
+			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса KPI Lenovo", shd.ShortName, shd.IpAddress, "-", err)
+		}
 
 	default:
 		row.PollOK = false
@@ -289,6 +301,77 @@ func collectLenovoUsedPercent(shd *models.StorageSystems) (float64, error) {
 		return 0, fmt.Errorf("не удалось разобрать ёмкость ни одного пула")
 	}
 	return usedSum / totalSum * 100, nil
+}
+
+// collectLenovoKpi заполняет row живыми KPI Lenovo (IOPS/throughput/
+// latency/CPU) через новые методы SDK lenovostorage.GetAnalysedVolumeStatistics
+// (суммируется по всем томам - общая картина нагрузки СХД, тот же принцип,
+// что и у Unity KPI выше по функции - kpi.sp.*) и
+// GetAnalysedControllerStatistics (усредняется по контроллерам - CPU и
+// задержка отклика). Добавлено 2026-09-22 по запросу пользователя "вернёмся
+// к обработке метрик из СХД... добавь функции в SDK для СХД, при
+// потребности" - раньше в пакете loadmon/lenovostorage не было ни одного
+// метода, дающего живые KPI, только статический % использования пулов
+// (collectLenovoUsedPercent).
+func collectLenovoKpi(shd *models.StorageSystems, row *models.StorageMetric) error {
+	key := "monitor"
+	session, err := lenovostorage.NewSession(shd.IpAddress, true, key, datamap.GetKeyData(key))
+	if err != nil {
+		return fmt.Errorf("авторизация: %w", err)
+	}
+
+	var errs []string
+
+	if vols, verr := session.GetAnalysedVolumeStatistics(); verr == nil {
+		var readIOPS, writeIOPS, readBps, writeBps, readLatSum, writeLatSum float64
+		var readLatN, writeLatN int
+		for _, v := range vols {
+			readIOPS += v.ReadIOps
+			writeIOPS += v.WriteIOps
+			readBps += v.ReadThroughput
+			writeBps += v.WriteThroughput
+			if v.ReadIOps > 0 { // средняя задержка взвешивается только по томам с реальной нагрузкой - том без чтений/записей не характеризует латентность СХД
+				readLatSum += v.ReadResponseTime
+				readLatN++
+			}
+			if v.WriteIOps > 0 {
+				writeLatSum += v.WriteResponseTime
+				writeLatN++
+			}
+		}
+		row.ReadIOPS = readIOPS
+		row.WriteIOPS = writeIOPS
+		row.TotalIOPS = readIOPS + writeIOPS
+		row.ReadMBps = readBps / (1024 * 1024)
+		row.WriteMBps = writeBps / (1024 * 1024)
+		if readLatN > 0 {
+			row.ReadLatencyMs = readLatSum / float64(readLatN)
+		}
+		if writeLatN > 0 {
+			row.WriteLatencyMs = writeLatSum / float64(writeLatN)
+		}
+	} else {
+		errs = append(errs, "AnalysedVolumeStatistics: "+verr.Error())
+	}
+
+	if ctrls, cerr := session.GetAnalysedControllerStatistics(); cerr == nil {
+		var cpuSum float64
+		var cpuN int
+		for _, c := range ctrls {
+			cpuSum += c.CpuAvgUtilization
+			cpuN++
+		}
+		if cpuN > 0 {
+			row.CPUUtilPercent = cpuSum / float64(cpuN)
+		}
+	} else {
+		errs = append(errs, "AnalysedControllerStatistics: "+cerr.Error())
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // ClearOldStorageMetric удаляет поминутные метрики СХД старше storageMetricRetention.

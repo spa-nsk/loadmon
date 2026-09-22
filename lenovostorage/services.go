@@ -2614,3 +2614,81 @@ func (session *Session) GetMappableObject() ([]MappableObject, error) {
 	err := session.Request("GET", "/devmgr/v2/storage-systems/1/mappable-objects", "", "", false, nil, &resp)
 	return resp, err
 }
+
+// AnalysedControllerStatistics - "посчитанная" (analysed, а не raw) статистика
+// производительности ОДНОГО контроллера СХД Lenovo (SANtricity REST API,
+// embedded on-controller, не Web Services Proxy - тот же базовый URL
+// /devmgr/v2/storage-systems/1/..., что и у остальных методов этого файла).
+// Добавлено 2026-09-22 по запросу пользователя "вернёмся к обработке метрик
+// из СХД... добавь функции в SDK для СХД, при потребности" - раньше (см.
+// CHANGELOG (33)) для Lenovo собирался только статический % использования
+// пулов (GetStoragePools), т.к. в пакете не было ни одного метода для
+// живых KPI/IOPS/латентности.
+//
+// Названия полей и путь эндпоинта - из официальной документации NetApp
+// SANtricity Web Services API (analysed statistics, доступны и на embedded
+// REST API контроллера по тому же пути, без отдельного Web Services Proxy -
+// см. kontext/11-storage-metrics.md): throughput в байтах/сек, latency в
+// миллисекундах. ⚠️ Как и у остальных типов этого пакета - НЕ проверено
+// напрямую против реального оборудования этого проекта, только по
+// документации API; при ошибке json-парсинга на реальной СХД сверить с
+// фактическим ответом устройства.
+type AnalysedControllerStatistics struct {
+	ControllerId          string  `json:"controllerId"`
+	ObservedTime          string  `json:"observedTime"`
+	ObservedTimeInMS      string  `json:"observedTimeInMS"`
+	ReadIOps              float64 `json:"readIOps"`
+	WriteIOps             float64 `json:"writeIOps"`
+	OtherIOps             float64 `json:"otherIOps"`
+	CombinedIOps          float64 `json:"combinedIOps"`
+	ReadThroughput        float64 `json:"readThroughput"` // байт/сек
+	WriteThroughput       float64 `json:"writeThroughput"`
+	CombinedThroughput    float64 `json:"combinedThroughput"`
+	ReadResponseTime      float64 `json:"readResponseTime"` // мс
+	WriteResponseTime     float64 `json:"writeResponseTime"`
+	CombinedResponseTime  float64 `json:"combinedResponseTime"`
+	AverageReadOpSize     float64 `json:"averageReadOpSize"`
+	AverageWriteOpSize    float64 `json:"averageWriteOpSize"`
+	CpuAvgUtilization     float64 `json:"cpuAvgUtilization"` // % загрузки CPU контроллера
+	MaxCpuUtilization     float64 `json:"maxCpuUtilization"`
+}
+
+// AnalysedVolumeStatistics - "посчитанная" статистика производительности
+// ОДНОГО тома (volume) СХД Lenovo. См. комментарий у AnalysedControllerStatistics.
+type AnalysedVolumeStatistics struct {
+	VolumeId             string  `json:"volumeId"`
+	ObservedTime         string  `json:"observedTime"`
+	ObservedTimeInMS     string  `json:"observedTimeInMS"`
+	ReadIOps             float64 `json:"readIOps"`
+	WriteIOps            float64 `json:"writeIOps"`
+	OtherIOps            float64 `json:"otherIOps"`
+	CombinedIOps         float64 `json:"combinedIOps"`
+	ReadThroughput       float64 `json:"readThroughput"`
+	WriteThroughput      float64 `json:"writeThroughput"`
+	CombinedThroughput   float64 `json:"combinedThroughput"`
+	ReadResponseTime     float64 `json:"readResponseTime"`
+	WriteResponseTime    float64 `json:"writeResponseTime"`
+	CombinedResponseTime float64 `json:"combinedResponseTime"`
+	AverageReadOpSize    float64 `json:"averageReadOpSize"`
+	AverageWriteOpSize   float64 `json:"averageWriteOpSize"`
+}
+
+// GetAnalysedControllerStatistics возвращает посчитанную статистику
+// производительности по каждому контроллеру СХД
+// (/devmgr/v2/storage-systems/1/analysed-controller-statistics). Требует,
+// чтобы на СХД был включён опрос статистики (обычно включён по умолчанию
+// на embedded REST API) - иначе может вернуться пустой список (не ошибка).
+func (session *Session) GetAnalysedControllerStatistics() ([]AnalysedControllerStatistics, error) {
+	resp := make([]AnalysedControllerStatistics, 0)
+	err := session.Request("GET", "/devmgr/v2/storage-systems/1/analysed-controller-statistics", "", "", false, nil, &resp)
+	return resp, err
+}
+
+// GetAnalysedVolumeStatistics возвращает посчитанную статистику
+// производительности по каждому тому СХД
+// (/devmgr/v2/storage-systems/1/analysed-volume-statistics).
+func (session *Session) GetAnalysedVolumeStatistics() ([]AnalysedVolumeStatistics, error) {
+	resp := make([]AnalysedVolumeStatistics, 0)
+	err := session.Request("GET", "/devmgr/v2/storage-systems/1/analysed-volume-statistics", "", "", false, nil, &resp)
+	return resp, err
+}
