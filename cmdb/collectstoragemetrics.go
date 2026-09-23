@@ -316,16 +316,27 @@ func collectHuaweiUsedPercent(shd *models.StorageSystems) (float64, error) {
 
 // huaweiPerfIndicatorReadMBps/... - коды индикаторов производительности
 // Huawei DeviceManager REST API (`CMO_STATISTIC_DATA_ID_LIST`), подтверждённые
-// официальным REST Interface Reference (`huawei-api.md`, приложение "C.1
-// Block Storage Performance Indicators") - см. таблицу и цитаты в
-// kontext/10-huawei-dorado-rest-api.md. НЕ угаданы - взяты дословно из
-// документа, предоставленного пользователем 2026-09-23.
+// официальным REST Interface Reference. IOPS/throughput (23/25/26/28) -
+// изначально из `huawei-api.md`, см. kontext/10-huawei-dorado-rest-api.md.
+// Раздельные read/write индикаторы задержки (384/385) - НАЙДЕНЫ 2026-09-23 в
+// официальных документах, добавленных пользователем loadmon в этот же день
+// ("добавил свежие описания по работе с СХД Huawei и Dell EMC"):
+// doc-API-hardware/OceanStor Dorado 6.1.6 REST Interface Reference-ru.md и
+// .../OceanStor Dorado V700R001C10 REST Interface Reference-ru.md, раздел
+// "4.3.1 Block Storage Performance Indicators" (приложение) - в ОБЕИХ версиях
+// документа коды идентичны: 384 = "Avg. Read I/O Response Time (us)", 385 =
+// "Avg. Write I/O Response Time (us)", оба подтверждены для объекта
+// Controller (TYPE=207, тот же, что используется в collectHuaweiKpi). НЕ
+// угаданы - взяты дословно из таблицы индикаторов. Заменяют ранее
+// использовавшийся общий индикатор 370 (Avg. I/O Response Time) - см. историю
+// ниже у collectHuaweiKpi.
 const (
-	huaweiPerfIndicatorReadMBps  = "23" // Read Bandwidth (MB/s)
-	huaweiPerfIndicatorReadIOPS  = "25" // Read IOPS
-	huaweiPerfIndicatorWriteMBps = "26" // Write Bandwidth (MB/s)
-	huaweiPerfIndicatorWriteIOPS = "28" // Write IOPS
-	huaweiPerfIndicatorLatencyUs = "370" // Avg. I/O Response Time - ⚠️ МИКРОсекунды (us), не миллисекунды; общий (не раздельно read/write) показатель - см. комментарий ниже
+	huaweiPerfIndicatorReadMBps      = "23"  // Read Bandwidth (MB/s)
+	huaweiPerfIndicatorReadIOPS      = "25"  // Read IOPS
+	huaweiPerfIndicatorWriteMBps     = "26"  // Write Bandwidth (MB/s)
+	huaweiPerfIndicatorWriteIOPS     = "28"  // Write IOPS
+	huaweiPerfIndicatorReadLatencyUs  = "384" // Avg. Read I/O Response Time (us)
+	huaweiPerfIndicatorWriteLatencyUs = "385" // Avg. Write I/O Response Time (us)
 )
 
 // collectHuaweiKpi заполняет row живыми KPI Huawei (IOPS/throughput/
@@ -347,12 +358,14 @@ const (
 // tools/storagemetrics -huaweidumpraw для такой проверки). При первом
 // реальном сбое стоит свериться именно так, а не гадать дальше.
 //
-// ⚠️ Индикатор 370 (Avg. I/O Response Time) - ОДИН общий показатель
-// задержки, документация не даёт отдельных read/write кодов на уровне
-// контроллера (см. kontext/10-huawei-dorado-rest-api.md, раздел "Что ещё НЕ
-// подтверждено") - поэтому ReadLatencyMs и WriteLatencyMs заполняются ОДНИМ
-// и тем же значением (переведённым из микросекунд в миллисекунды), а не
-// раздельно измеренными величинами, как у Unity/Lenovo.
+// 2026-09-23: раньше ReadLatencyMs/WriteLatencyMs заполнялись ОДНИМ общим
+// значением индикатора 370 (Avg. I/O Response Time, без разделения на
+// read/write) - других кодов на тот момент в доступной документации не
+// нашлось. После того как пользователь добавил официальные REST Interface
+// Reference (Dorado 6.1.6 и V700R001C10, см. doc-API-hardware/), нашлись
+// подтверждённые раздельные индикаторы 384 (Avg. Read I/O Response Time) и
+// 385 (Avg. Write I/O Response Time) - см. комментарий у констант выше.
+// Теперь ReadLatencyMs/WriteLatencyMs считаются раздельно, как у Unity/Lenovo.
 func collectHuaweiKpi(shd *models.StorageSystems, row *models.StorageMetric) error {
 	key := "spaview"
 	keypass := datamap.GetKeyData(key)
@@ -389,15 +402,16 @@ func collectHuaweiKpi(shd *models.StorageSystems, row *models.StorageMetric) err
 		errs = append(errs, "CPUUSAGE: не удалось разобрать ни у одного контроллера")
 	}
 
-	var readIOPS, writeIOPS, readMBps, writeMBps, latencyUsSum float64
-	var latencyN int
+	var readIOPS, writeIOPS, readMBps, writeMBps, readLatencyUsSum, writeLatencyUsSum float64
+	var readLatencyN, writeLatencyN int
 	var statErrs int
 	dataIDList := strings.Join([]string{
 		huaweiPerfIndicatorReadMBps,
 		huaweiPerfIndicatorReadIOPS,
 		huaweiPerfIndicatorWriteMBps,
 		huaweiPerfIndicatorWriteIOPS,
-		huaweiPerfIndicatorLatencyUs,
+		huaweiPerfIndicatorReadLatencyUs,
+		huaweiPerfIndicatorWriteLatencyUs,
 	}, ",")
 	for _, c := range controllers {
 		if c.ID == "" {
@@ -423,9 +437,13 @@ func collectHuaweiKpi(shd *models.StorageSystems, row *models.StorageMetric) err
 			if v, ok := vals[huaweiPerfIndicatorWriteIOPS]; ok {
 				writeIOPS += v
 			}
-			if v, ok := vals[huaweiPerfIndicatorLatencyUs]; ok {
-				latencyUsSum += v
-				latencyN++
+			if v, ok := vals[huaweiPerfIndicatorReadLatencyUs]; ok {
+				readLatencyUsSum += v
+				readLatencyN++
+			}
+			if v, ok := vals[huaweiPerfIndicatorWriteLatencyUs]; ok {
+				writeLatencyUsSum += v
+				writeLatencyN++
 			}
 		}
 	}
@@ -437,10 +455,11 @@ func collectHuaweiKpi(shd *models.StorageSystems, row *models.StorageMetric) err
 		row.TotalIOPS = readIOPS + writeIOPS
 		row.ReadMBps = readMBps
 		row.WriteMBps = writeMBps
-		if latencyN > 0 {
-			latencyMs := (latencyUsSum / float64(latencyN)) / 1000 // us -> ms, см. предупреждение в комментарии функции
-			row.ReadLatencyMs = latencyMs
-			row.WriteLatencyMs = latencyMs
+		if readLatencyN > 0 {
+			row.ReadLatencyMs = (readLatencyUsSum / float64(readLatencyN)) / 1000 // us -> ms
+		}
+		if writeLatencyN > 0 {
+			row.WriteLatencyMs = (writeLatencyUsSum / float64(writeLatencyN)) / 1000 // us -> ms
 		}
 		if statErrs > 0 {
 			errs = append(errs, fmt.Sprintf("performace_statistic: не удалось получить данные у %d из %d контроллеров (учтены только успешные)", statErrs, len(controllers)))
