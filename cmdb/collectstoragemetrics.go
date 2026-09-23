@@ -181,17 +181,17 @@ func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.
 		// storages.GetUnityPools -> SizeUsed/SizeTotal, а не через
 		// несуществующий kpi-путь.
 		//
-		// IOPS/throughput/latency/CPUUtilPercent намеренно НЕ реализованы
-		// этим исправлением - см. подробности и план в
-		// kontext/11-storage-metrics.md ("не гадать": даже подтверждённый
-		// путь kpi.sp.*.utilization оказался доступен только через
-		// real-time-запрос (POST metricRealTimeQuery + опрос
-		// metricQueryResult), а не через простой GET; для остальных путей
-		// (IOPS/throughput/responseTime на уровне SP, без привязки к
-		// протоколу NAS) не нашлось подтверждённых документацией Dell
-		// путей - использовать их вслепую означало бы повторить ту же
-		// ошибку. Перед реализацией нужно снять реальный каталог метрик
-		// конкретного массива (см. tools/storagemetrics -dumpmetricsonly).
+		// 2026-09-23: IOPS/throughput/latency/CPUUtilPercent РЕАЛИЗОВАНЫ -
+		// пользователь снял реальный каталог метрик массива
+		// (`-dumpmetricsonly`, после починки бага с `fields`/пагинацией,
+		// см. CHANGELOG) - 2862 подтверждённых путей, включая нужные
+		// `kpi.lun.+.sp.+.*IOPS`/`*Bandwidth`/`responseTime` (real-time,
+		// суммируются по всем LUN) и `sp.*.cpu.summary.busyTicks`/
+		// `idleTicks` (для CPU% через дельту). См.
+		// storages.GetUnityLiveKpi/collectUnityKpi ниже и
+		// kontext/12-unity-rest-api.md - подробности схемы, единиц
+		// измерения и оставшихся неподтверждённых нюансов (единица
+		// responseTime в real-time-варианте пути).
 		log.Println("cmdb.collectStorageMetricForSystem: опрос пулов Unity", shd.ShortName, shd.IpAddress)
 		if v, err := collectUnityUsedPercent(shd); err == nil {
 			row.UsedPercent = v
@@ -199,6 +199,15 @@ func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.
 			row.PollOK = false
 			row.PollError = "UsedPercent (пулы): " + err.Error()
 			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса пулов Unity", shd.ShortName, shd.IpAddress, "-", err)
+		}
+		log.Println("cmdb.collectStorageMetricForSystem: опрос живых KPI Unity", shd.ShortName, shd.IpAddress)
+		if err := collectUnityKpi(shd, row); err != nil {
+			row.PollOK = false
+			if row.PollError != "" {
+				row.PollError += "; "
+			}
+			row.PollError += "KPI: " + err.Error()
+			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса KPI Unity", shd.ShortName, shd.IpAddress, "-", err)
 		}
 
 	case 3, 4: // Huawei Dorado / OceanStor REST.
@@ -530,6 +539,72 @@ func collectUnityUsedPercent(shd *models.StorageSystems) (float64, error) {
 		return 0, fmt.Errorf("не удалось разобрать ёмкость ни одного пула")
 	}
 	return usedSum / totalSum * 100, nil
+}
+
+// collectUnityKpi заполняет row живыми KPI Unity (IOPS/throughput/latency/
+// CPU) через storages.GetUnityLiveKpi - один real-time REST-запрос
+// (metricRealTimeQuery/metricQueryResult), агрегирующий значения по ВСЕМ
+// LUN и SP массива. Добавлено 2026-09-23 на основе РЕАЛЬНОГО каталога
+// метрик, снятого пользователем (`-dumpmetricsonly` после починки бага с
+// `fields`/пагинацией - см. CHANGELOG) на массиве 10.2.19.106 - 2862
+// подтверждённых путей, включая нужные (см. таблицу и подробности в
+// kontext/12-unity-rest-api.md):
+//   - `kpi.lun.+.sp.+.readIOPS`/`writeIOPS`/`totalIOPS`
+//   - `kpi.lun.+.sp.+.readBandwidth`/`writeBandwidth`/`totalBandwidth` (KB/s)
+//   - `kpi.lun.+.sp.+.responseTime` (единый показатель, не раздельно read/write)
+//   - `sp.*.cpu.summary.busyTicks`/`idleTicks` (счётчики тиков - CPU% через
+//     дельту первого и последнего отсчёта, а не одно значение)
+//
+// Взамен прежнего "не реализовано, не гадать" (см. историю у case 2 в
+// collectStorageMetricForSystem) - раньше не было подтверждённого
+// документацией списка путей, теперь есть.
+//
+// ⚠️ Не полностью подтверждено на реальном оборудовании - пути метрик
+// подтверждены каталогом устройства, но сама АГРЕГАЦИЯ (сумма по всем LUN,
+// дельта тиков CPU) на момент реализации не сверена с независимым
+// источником (например, Unisphere UI). Единица `responseTime` в
+// real-time-варианте пути в каталоге не указана (`unitDisplayString`
+// пусто) - использовано предположение "микросекунды" по аналогии с
+// историческим вариантом ТОГО ЖЕ пути/ID, который документирован как
+// микросекунды (см. storages.GetUnityLiveKpi) - если после первого
+// реального цикла сбора значения задержки будут выглядеть неправдоподобно
+// (на 3 порядка больше/меньше остальных вендоров) - стоит свериться с
+// Unisphere UI, а не подстраивать код вслепую дальше.
+//
+// ⚠️ Добавляет ~11 секунд (unityLiveKpiWait) к опросу КАЖДОЙ Unity СХД в
+// цикле - нужно минимум 2 отсчёта тиков CPU для дельты. При большом числе
+// Unity-массивов это стоит учитывать (общее время цикла
+// cmdb.CollectStorageMetrics растёт линейно с числом Unity СХД).
+func collectUnityKpi(shd *models.StorageSystems, row *models.StorageMetric) error {
+	kpi, err := storages.GetUnityLiveKpi(shd.IpAddress)
+	if err != nil {
+		return fmt.Errorf("real-time KPI: %w", err)
+	}
+
+	row.ReadIOPS = kpi.ReadIOPS
+	row.WriteIOPS = kpi.WriteIOPS
+	row.TotalIOPS = kpi.TotalIOPS
+	row.ReadMBps = kpi.ReadMBps
+	row.WriteMBps = kpi.WriteMBps
+
+	var errs []string
+	if kpi.ResponseTimeOK {
+		latencyMs := kpi.ResponseTimeUs / 1000 // предположение "микросекунды", см. комментарий выше
+		row.ReadLatencyMs = latencyMs
+		row.WriteLatencyMs = latencyMs
+	} else {
+		errs = append(errs, "responseTime: не получено ни одного отсчёта")
+	}
+	if kpi.CPUUtilOK {
+		row.CPUUtilPercent = kpi.CPUUtilPercent
+	} else {
+		errs = append(errs, "CPU: недостаточно отсчётов busyTicks/idleTicks для дельты")
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // collectLenovoUsedPercent возвращает % использования СХД Lenovo как

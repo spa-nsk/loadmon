@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"loadmon/emcstorage"
@@ -414,4 +417,214 @@ func DumpUnityRealTimeMetrics(address string, paths []string, interval uint32, w
 		return nil, fmt.Errorf("получение результата real-time запроса (queryId=%d): %w", queryID, err)
 	}
 	return result, nil
+}
+
+// Пути живых KPI Unity (пространство "kpi." с wildcard "+", в отличие от
+// низкоуровневого "sp."/"lun." и т.п. с wildcard "*" - это ДВА разных
+// пространства путей одного REST API, оба встречаются в одном каталоге
+// метрик) - ПОДТВЕРЖДЕНЫ реальным каталогом метрик пользователя
+// (`unity-metric-catalog.json`, 2862 записи, снято 2026-09-23 с массива
+// 10.2.19.106 после починки `-dumpmetricsonly`, см.
+// kontext/12-unity-rest-api.md):
+//
+//	id 1022-1028: kpi.lun.+.sp.+.responseTime/readBandwidth/writeBandwidth/
+//	              totalBandwidth/readIOPS/writeIOPS/totalIOPS (isRealtimeAvailable=true)
+//	id 10693/10695: sp.*.cpu.summary.busyTicks/idleTicks (isRealtimeAvailable=true)
+//
+// "+" в kpi.lun.+.sp.+.* означает "по всем LUN, по всем SP" - в ответе
+// приходит одна запись на path с агрегированной (по всем экземплярам)
+// картой значений (см. sumFloatOrValueMap).
+const (
+	unityKpiLunReadIOPS      = "kpi.lun.+.sp.+.readIOPS"
+	unityKpiLunWriteIOPS     = "kpi.lun.+.sp.+.writeIOPS"
+	unityKpiLunTotalIOPS     = "kpi.lun.+.sp.+.totalIOPS"
+	unityKpiLunReadBandwidth  = "kpi.lun.+.sp.+.readBandwidth"  // KB/s, подтверждено каталогом
+	unityKpiLunWriteBandwidth = "kpi.lun.+.sp.+.writeBandwidth" // KB/s
+	unityKpiLunTotalBandwidth = "kpi.lun.+.sp.+.totalBandwidth" // KB/s
+	// unityKpiLunResponseTime - единый показатель задержки (не раздельно
+	// read/write, в отличие от Huawei 384/385 - см.
+	// kontext/10-huawei-dorado-rest-api.md). Единица измерения в
+	// real-time-варианте пути каталогом НЕ указана (unitDisplayString
+	// пусто) - у исторического варианта ТОГО ЖЕ пути/ID (isHistoricalAvailable
+	// вариант, id 10) документирована как "microseconds" - GetUnityLiveKpi
+	// использует то же предположение по аналогии, честно помечая это в
+	// комментарии, не как подтверждённый факт.
+	unityKpiLunResponseTime = "kpi.lun.+.sp.+.responseTime"
+
+	unityRawCPUBusyTicks = "sp.*.cpu.summary.busyTicks"
+	unityRawCPUIdleTicks = "sp.*.cpu.summary.idleTicks"
+)
+
+// unityLiveKpiInterval/unityLiveKpiWait - период сэмплирования (секунды
+// metricRealTimeQuery) и время ожидания перед опросом результата для
+// GetUnityLiveKpi. CPU% считается по ДЕЛЬТЕ между первым и последним
+// отсчётом busyTicks/idleTicks (это накопительные счётчики тиков с
+// момента запуска SP, а не готовый процент) - поэтому нужно МИНИМУМ 2
+// отсчёта, отсюда wait существенно больше interval.
+const (
+	unityLiveKpiInterval = 5
+	unityLiveKpiWait     = 11 * time.Second
+)
+
+// UnityLiveKpi - агрегированные (по всем LUN/SP массива) живые KPI Unity,
+// см. GetUnityLiveKpi.
+type UnityLiveKpi struct {
+	ReadIOPS, WriteIOPS, TotalIOPS float64
+	ReadMBps, WriteMBps, TotalMBps float64
+	ResponseTimeUs                 float64
+	ResponseTimeOK                 bool
+	CPUUtilPercent                 float64
+	CPUUtilOK                      bool
+}
+
+// sumFloatOrValueMap рекурсивно суммирует все числовые листья значения
+// Unity floatOrValueMap (см. doc-API-hardware/unity-restapi-refg...md) -
+// Values в ответе metricQueryResult может быть ПЛОСКОЙ map[string]interface{}
+// (например {"spa": "3675787", "spb": "1520850"} - подтверждено реальным
+// дампом, unity-realtime-dump2.json) или ВЛОЖЕННОЙ (документация
+// допускает иерархию, например LUN -> SP -> значение, для путей с
+// несколькими "+" в маске вроде kpi.lun.+.sp.+.*). Функция НЕ предполагает
+// конкретную структуру ("не гадать", тот же принцип, что и везде в этом
+// проекте) - просто складывает ВСЕ числа, найденные на любой глубине,
+// возвращая сумму и количество учтённых листьев (n=0 - ничего не нашлось,
+// путь пуст/не пришёл).
+func sumFloatOrValueMap(v interface{}) (sum float64, n int) {
+	switch t := v.(type) {
+	case nil:
+		return 0, 0
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(t), 64)
+		if err != nil {
+			return 0, 0
+		}
+		return f, 1
+	case float64:
+		return t, 1
+	case map[string]interface{}:
+		for _, vv := range t {
+			s, c := sumFloatOrValueMap(vv)
+			sum += s
+			n += c
+		}
+		return sum, n
+	default:
+		return 0, 0
+	}
+}
+
+// GetUnityLiveKpi запрашивает и агрегирует живые KPI Unity ОДНИМ real-time
+// запросом (создание -> ожидание unityLiveKpiWait -> один опрос результата
+// -> удаление, тот же механизм, что и у DumpUnityRealTimeMetrics выше):
+//   - IOPS/пропускная способность/задержка - сумма (для IOPS/bandwidth) по
+//     ВСЕМ LUN и SP массива (kpi.lun.+.sp.+.*, подтверждено каталогом
+//     метрик пользователя 2026-09-23, см. константы выше)
+//   - CPU % - через ДЕЛЬТУ первого и последнего отсчёта sp.*.cpu.summary.
+//     busyTicks/idleTicks; если за unityLiveKpiWait успел прийти только
+//     ОДИН отсчёт каждого - CPUUtilOK=false (недостаточно данных, не
+//     ошибка).
+//
+// Добавлено 2026-09-23 на основе РЕАЛЬНОГО каталога метрик пользователя
+// (2862 подтверждённых пути, массив 10.2.19.106) - см.
+// kontext/12-unity-rest-api.md. Взамен прежнего отсутствия живых
+// IOPS/throughput/latency/CPU для Unity (см. историю у case 2 в
+// cmdb/collectstoragemetrics.go).
+//
+// ⚠️ Пути метрик подтверждены каталогом устройства, но сама агрегация
+// (сумма по всем LUN, дельта тиков CPU) не сверена с независимым
+// источником (например, значениями в Unisphere UI) - см. предупреждения у
+// вызывающего кода (cmdb.collectUnityKpi).
+func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
+	session, err := openUnitySession(address)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseSession()
+
+	paths := []string{
+		unityKpiLunReadIOPS, unityKpiLunWriteIOPS, unityKpiLunTotalIOPS,
+		unityKpiLunReadBandwidth, unityKpiLunWriteBandwidth, unityKpiLunTotalBandwidth,
+		unityKpiLunResponseTime,
+		unityRawCPUBusyTicks, unityRawCPUIdleTicks,
+	}
+
+	created, err := session.NewMetricRealTimeQuery(paths, unityLiveKpiInterval)
+	if err != nil {
+		return nil, fmt.Errorf("создание real-time запроса: %w", err)
+	}
+	if created == nil || created.Content.ID == 0 {
+		return nil, fmt.Errorf("СХД не вернула id real-time запроса")
+	}
+	queryID := created.Content.ID
+	defer func() {
+		if derr := session.DeleteMetricRealTimeQuery(queryID); derr != nil {
+			log.Printf("storages.GetUnityLiveKpi(%s): не удалось удалить real-time запрос id=%d: %v", address, queryID, derr)
+		}
+	}()
+
+	time.Sleep(unityLiveKpiWait)
+
+	result, err := session.GetMetricRealTimeQueryResult(queryID)
+	if err != nil {
+		return nil, fmt.Errorf("получение результата real-time запроса (queryId=%d): %w", queryID, err)
+	}
+	if result == nil || len(result.Entries) == 0 {
+		return nil, fmt.Errorf("СХД не вернула ни одного отсчёта метрик")
+	}
+
+	out := &UnityLiveKpi{}
+
+	// последнее (по времени) значение для метрик, где нужно только одно
+	// свежее число (IOPS/bandwidth/responseTime).
+	latestByPath := map[string]float64{}
+	latestTimeByPath := map[string]time.Time{}
+
+	// ВСЕ отсчёты busyTicks/idleTicks - нужны минимум два, для дельты.
+	type tick struct {
+		t time.Time
+		v float64
+	}
+	var busy, idle []tick
+
+	for _, e := range result.Entries {
+		c := e.Content
+		sum, n := sumFloatOrValueMap(c.Values)
+		if n == 0 {
+			continue
+		}
+		switch c.Path {
+		case unityRawCPUBusyTicks:
+			busy = append(busy, tick{c.Timestamp, sum})
+		case unityRawCPUIdleTicks:
+			idle = append(idle, tick{c.Timestamp, sum})
+		default:
+			if prevT, ok := latestTimeByPath[c.Path]; !ok || c.Timestamp.After(prevT) {
+				latestByPath[c.Path] = sum
+				latestTimeByPath[c.Path] = c.Timestamp
+			}
+		}
+	}
+
+	out.ReadIOPS = latestByPath[unityKpiLunReadIOPS]
+	out.WriteIOPS = latestByPath[unityKpiLunWriteIOPS]
+	out.TotalIOPS = latestByPath[unityKpiLunTotalIOPS]
+	out.ReadMBps = latestByPath[unityKpiLunReadBandwidth] / 1024
+	out.WriteMBps = latestByPath[unityKpiLunWriteBandwidth] / 1024
+	out.TotalMBps = latestByPath[unityKpiLunTotalBandwidth] / 1024
+	if _, ok := latestTimeByPath[unityKpiLunResponseTime]; ok {
+		out.ResponseTimeUs = latestByPath[unityKpiLunResponseTime]
+		out.ResponseTimeOK = true
+	}
+
+	if len(busy) >= 2 && len(idle) >= 2 {
+		sort.Slice(busy, func(i, j int) bool { return busy[i].t.Before(busy[j].t) })
+		sort.Slice(idle, func(i, j int) bool { return idle[i].t.Before(idle[j].t) })
+		dBusy := busy[len(busy)-1].v - busy[0].v
+		dIdle := idle[len(idle)-1].v - idle[0].v
+		if dBusy+dIdle > 0 {
+			out.CPUUtilPercent = dBusy / (dBusy + dIdle) * 100
+			out.CPUUtilOK = true
+		}
+	}
+
+	return out, nil
 }
