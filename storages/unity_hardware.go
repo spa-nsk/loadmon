@@ -540,14 +540,110 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	}
 	defer session.CloseSession()
 
-	paths := []string{
+	out := &UnityLiveKpi{}
+	var errs []string
+
+	// ⚠️ 2026-09-23: раньше ОДИН real-time запрос сразу мешал в одном
+	// paths[] пути из ДВУХ разных пространств Unity REST API - "kpi.*"
+	// (курированные метрики) и низкоуровневые "sp.*" (сырые счётчики) - по
+	// жалобе пользователя "по Unity записывается только UsedPercent,
+	// ошибка HTTP status codes: 500" (real-time запрос падал целиком, обе
+	// группы метрик терялись разом). Совмещать оба пространства в одном
+	// запросе нигде документацией не подтверждено - "не гадать" (тот же
+	// принцип, что и везде в проекте): вместо предположения "почему именно
+	// 500" запросы РАЗДЕЛЕНЫ на два независимых real-time-цикла (каждый
+	// свой create/wait/get/delete) - так ошибка одной группы (если причина
+	// действительно в смешении пространств, или в чём-то ещё специфичном
+	// для одной группы путей) не блокирует другую, и в PollError видно,
+	// какая именно группа не удалась.
+	lunPaths := []string{
 		unityKpiLunReadIOPS, unityKpiLunWriteIOPS, unityKpiLunTotalIOPS,
 		unityKpiLunReadBandwidth, unityKpiLunWriteBandwidth, unityKpiLunTotalBandwidth,
 		unityKpiLunResponseTime,
-		unityRawCPUBusyTicks, unityRawCPUIdleTicks,
+	}
+	if lunResult, err := runUnityRealtimeQuery(session, address, lunPaths, unityLiveKpiInterval, unityLiveKpiWait); err != nil {
+		errs = append(errs, "IOPS/bandwidth/responseTime (kpi.lun.+.sp.+.*): "+err.Error())
+	} else {
+		latestByPath := map[string]float64{}
+		latestTimeByPath := map[string]time.Time{}
+		for _, e := range lunResult.Entries {
+			c := e.Content
+			sum, n := sumFloatOrValueMap(c.Values)
+			if n == 0 {
+				continue
+			}
+			if prevT, ok := latestTimeByPath[c.Path]; !ok || c.Timestamp.After(prevT) {
+				latestByPath[c.Path] = sum
+				latestTimeByPath[c.Path] = c.Timestamp
+			}
+		}
+		out.ReadIOPS = latestByPath[unityKpiLunReadIOPS]
+		out.WriteIOPS = latestByPath[unityKpiLunWriteIOPS]
+		out.TotalIOPS = latestByPath[unityKpiLunTotalIOPS]
+		out.ReadMBps = latestByPath[unityKpiLunReadBandwidth] / 1024
+		out.WriteMBps = latestByPath[unityKpiLunWriteBandwidth] / 1024
+		out.TotalMBps = latestByPath[unityKpiLunTotalBandwidth] / 1024
+		if _, ok := latestTimeByPath[unityKpiLunResponseTime]; ok {
+			out.ResponseTimeUs = latestByPath[unityKpiLunResponseTime]
+			out.ResponseTimeOK = true
+		} else {
+			errs = append(errs, "responseTime: не получено ни одного отсчёта")
+		}
 	}
 
-	created, err := session.NewMetricRealTimeQuery(paths, unityLiveKpiInterval)
+	cpuPaths := []string{unityRawCPUBusyTicks, unityRawCPUIdleTicks}
+	if cpuResult, err := runUnityRealtimeQuery(session, address, cpuPaths, unityLiveKpiInterval, unityLiveKpiWait); err != nil {
+		errs = append(errs, "CPU (sp.*.cpu.summary.*Ticks): "+err.Error())
+	} else {
+		type tick struct {
+			t time.Time
+			v float64
+		}
+		var busy, idle []tick
+		for _, e := range cpuResult.Entries {
+			c := e.Content
+			sum, n := sumFloatOrValueMap(c.Values)
+			if n == 0 {
+				continue
+			}
+			switch c.Path {
+			case unityRawCPUBusyTicks:
+				busy = append(busy, tick{c.Timestamp, sum})
+			case unityRawCPUIdleTicks:
+				idle = append(idle, tick{c.Timestamp, sum})
+			}
+		}
+		if len(busy) >= 2 && len(idle) >= 2 {
+			sort.Slice(busy, func(i, j int) bool { return busy[i].t.Before(busy[j].t) })
+			sort.Slice(idle, func(i, j int) bool { return idle[i].t.Before(idle[j].t) })
+			dBusy := busy[len(busy)-1].v - busy[0].v
+			dIdle := idle[len(idle)-1].v - idle[0].v
+			if dBusy+dIdle > 0 {
+				out.CPUUtilPercent = dBusy / (dBusy + dIdle) * 100
+				out.CPUUtilOK = true
+			} else {
+				errs = append(errs, "CPU: сумма дельт busy/idle <= 0")
+			}
+		} else {
+			errs = append(errs, "CPU: недостаточно отсчётов busyTicks/idleTicks для дельты")
+		}
+	}
+
+	if len(errs) > 0 {
+		return out, fmt.Errorf("%s", strings.Join(errs, "; "))
+	}
+	return out, nil
+}
+
+// runUnityRealtimeQuery - общий цикл ОДНОГО real-time запроса (create ->
+// wait -> get -> delete), вынесенный из GetUnityLiveKpi при разделении на
+// независимые запросы по группам путей (см. комментарий выше). Тот же
+// механизм, что и у DumpUnityRealTimeMetrics, но без открытия отдельной
+// сессии (использует уже открытую session вызывающего кода - несколько
+// real-time запросов подряд в рамках одного цикла опроса Unity СХД не
+// должны открывать сессию заново на каждый).
+func runUnityRealtimeQuery(session *emcstorage.Session, address string, paths []string, interval uint32, wait time.Duration) (*emcstorage.MetricRealTimeQueryResult, error) {
+	created, err := session.NewMetricRealTimeQuery(paths, interval)
 	if err != nil {
 		return nil, fmt.Errorf("создание real-time запроса: %w", err)
 	}
@@ -557,11 +653,11 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	queryID := created.Content.ID
 	defer func() {
 		if derr := session.DeleteMetricRealTimeQuery(queryID); derr != nil {
-			log.Printf("storages.GetUnityLiveKpi(%s): не удалось удалить real-time запрос id=%d: %v", address, queryID, derr)
+			log.Printf("storages.runUnityRealtimeQuery(%s): не удалось удалить real-time запрос id=%d: %v", address, queryID, derr)
 		}
 	}()
 
-	time.Sleep(unityLiveKpiWait)
+	time.Sleep(wait)
 
 	result, err := session.GetMetricRealTimeQueryResult(queryID)
 	if err != nil {
@@ -570,61 +666,5 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	if result == nil || len(result.Entries) == 0 {
 		return nil, fmt.Errorf("СХД не вернула ни одного отсчёта метрик")
 	}
-
-	out := &UnityLiveKpi{}
-
-	// последнее (по времени) значение для метрик, где нужно только одно
-	// свежее число (IOPS/bandwidth/responseTime).
-	latestByPath := map[string]float64{}
-	latestTimeByPath := map[string]time.Time{}
-
-	// ВСЕ отсчёты busyTicks/idleTicks - нужны минимум два, для дельты.
-	type tick struct {
-		t time.Time
-		v float64
-	}
-	var busy, idle []tick
-
-	for _, e := range result.Entries {
-		c := e.Content
-		sum, n := sumFloatOrValueMap(c.Values)
-		if n == 0 {
-			continue
-		}
-		switch c.Path {
-		case unityRawCPUBusyTicks:
-			busy = append(busy, tick{c.Timestamp, sum})
-		case unityRawCPUIdleTicks:
-			idle = append(idle, tick{c.Timestamp, sum})
-		default:
-			if prevT, ok := latestTimeByPath[c.Path]; !ok || c.Timestamp.After(prevT) {
-				latestByPath[c.Path] = sum
-				latestTimeByPath[c.Path] = c.Timestamp
-			}
-		}
-	}
-
-	out.ReadIOPS = latestByPath[unityKpiLunReadIOPS]
-	out.WriteIOPS = latestByPath[unityKpiLunWriteIOPS]
-	out.TotalIOPS = latestByPath[unityKpiLunTotalIOPS]
-	out.ReadMBps = latestByPath[unityKpiLunReadBandwidth] / 1024
-	out.WriteMBps = latestByPath[unityKpiLunWriteBandwidth] / 1024
-	out.TotalMBps = latestByPath[unityKpiLunTotalBandwidth] / 1024
-	if _, ok := latestTimeByPath[unityKpiLunResponseTime]; ok {
-		out.ResponseTimeUs = latestByPath[unityKpiLunResponseTime]
-		out.ResponseTimeOK = true
-	}
-
-	if len(busy) >= 2 && len(idle) >= 2 {
-		sort.Slice(busy, func(i, j int) bool { return busy[i].t.Before(busy[j].t) })
-		sort.Slice(idle, func(i, j int) bool { return idle[i].t.Before(idle[j].t) })
-		dBusy := busy[len(busy)-1].v - busy[0].v
-		dIdle := idle[len(idle)-1].v - idle[0].v
-		if dBusy+dIdle > 0 {
-			out.CPUUtilPercent = dBusy / (dBusy + dIdle) * 100
-			out.CPUUtilOK = true
-		}
-	}
-
-	return out, nil
+	return result, nil
 }
