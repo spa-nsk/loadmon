@@ -183,26 +183,27 @@ func (session *Session) RequestPage(method string, URI string, fields string, fi
 	case httpResp.StatusCode == 204:
 		return nil
 
-	case httpResp.StatusCode == 422:
-		// ИСПРАВЛЕНО (2026-09-17, по жалобе пользователя loadmon "журнал СХД
-		// пустой, диски/полки/пулы не появились" - при разборе присланного
-		// storage_update.log обнаружено, что реальный текст ошибки Unity был
-		// не виден): раньше здесь форматировался НЕПРОЧИТАННЫЙ
-		// httpResp.Body (io.ReadCloser) через %v - это печатает внутренние
-		// указатели структуры HTTP-тела ("&{0xc06b4d3000 {} {0 0}} false
-		// <nil> ..."), а не текст ошибки, который Unity реально вернула в
-		// теле ответа (обычно JSON вида {"error":{"messages":[...]}}).
-		// Теперь тело действительно читается - при ошибке чтения текст
-		// заменяется на короткую пометку, но сам HTTP-код всё равно
-		// возвращается вызывающему коду.
+	default:
+		// ИСПРАВЛЕНО (2026-09-17 - изначально только для 422, по жалобе
+		// пользователя loadmon "журнал СХД пустой, диски/полки/пулы не
+		// появились": раньше тело ответа не читалось вовсе, ошибка
+		// форматировалась как "HTTP status codes: %d" без единой детали,
+		// откуда реально не так. РАСШИРЕНО 2026-09-23 на ВСЕ коды ошибок
+		// (не только 422) - по жалобе "по Unity записывается только
+		// UsedPercent, ошибка HTTP status codes: 500" у нового
+		// collectUnityKpi (real-time KPI, metricRealTimeQuery): ветка
+		// default для 500 (и любого другого кода, кроме
+		// 200/201/202/204) точно так же не читала тело - реальное
+		// сообщение Unity (обычно JSON вида {"error":{"messages":[...]}},
+		// объясняющее ПОЧЕМУ запрос отклонён - например, недопустимая
+		// комбинация путей метрик в одном real-time-запросе) терялось,
+		// оставался только голый код. Теперь тело читается для ЛЮБОГО
+		// кода ошибки, не только 422.
 		body, readErr := ioutil.ReadAll(httpResp.Body)
 		if readErr != nil {
 			return fmt.Errorf("HTTP status codes: %d, detail: не удалось прочитать тело ответа: %v", httpResp.StatusCode, readErr)
 		}
 		return fmt.Errorf("HTTP status codes: %d, detail: %s", httpResp.StatusCode, string(body))
-
-	default:
-		return fmt.Errorf("HTTP status codes: %d", httpResp.StatusCode)
 	}
 }
 

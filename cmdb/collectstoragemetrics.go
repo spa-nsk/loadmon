@@ -576,8 +576,15 @@ func collectUnityUsedPercent(shd *models.StorageSystems) (float64, error) {
 // Unity-массивов это стоит учитывать (общее время цикла
 // cmdb.CollectStorageMetrics растёт линейно с числом Unity СХД).
 func collectUnityKpi(shd *models.StorageSystems, row *models.StorageMetric) error {
+	// 2026-09-23: GetUnityLiveKpi теперь делает ДВА независимых real-time
+	// запроса (LUN IOPS/bandwidth/responseTime и CPU busyTicks/idleTicks
+	// отдельно, см. комментарий там же - были объединены в один запрос,
+	// что давало HTTP 500 на реальном оборудовании) - поэтому она может
+	// вернуть И частично заполненный kpi (то, что удалось), И ошибку
+	// (что не удалось) ОДНОВРЕМЕННО. kpi нужно использовать в любом
+	// случае, когда он не nil - ошибка ниже лишь ДОБАВЛЯЕТСЯ к тексту.
 	kpi, err := storages.GetUnityLiveKpi(shd.IpAddress)
-	if err != nil {
+	if kpi == nil {
 		return fmt.Errorf("real-time KPI: %w", err)
 	}
 
@@ -586,23 +593,17 @@ func collectUnityKpi(shd *models.StorageSystems, row *models.StorageMetric) erro
 	row.TotalIOPS = kpi.TotalIOPS
 	row.ReadMBps = kpi.ReadMBps
 	row.WriteMBps = kpi.WriteMBps
-
-	var errs []string
 	if kpi.ResponseTimeOK {
-		latencyMs := kpi.ResponseTimeUs / 1000 // предположение "микросекунды", см. комментарий выше
+		latencyMs := kpi.ResponseTimeUs / 1000 // предположение "микросекунды", см. комментарий у storages.GetUnityLiveKpi
 		row.ReadLatencyMs = latencyMs
 		row.WriteLatencyMs = latencyMs
-	} else {
-		errs = append(errs, "responseTime: не получено ни одного отсчёта")
 	}
 	if kpi.CPUUtilOK {
 		row.CPUUtilPercent = kpi.CPUUtilPercent
-	} else {
-		errs = append(errs, "CPU: недостаточно отсчётов busyTicks/idleTicks для дельты")
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "; "))
+	if err != nil {
+		return err
 	}
 	return nil
 }
