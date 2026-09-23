@@ -100,19 +100,56 @@ func GetUnityPools(address string) ([]emcstorage.PoolContent, error) {
 	return out, nil
 }
 
-// DumpUnityMetricCatalog возвращает "сырой" (как есть) JSON-ответ Unity на
-// запрос каталога доступных метрик (тип metric, GET
-// /api/types/metric/instances) - по аналогии с тем, как для Huawei Dorado
-// ранее снимался сырой дамп GET /disk/{id} (см. kontext/10-huawei-dorado-rest-api.md,
-// CHANGELOG (174)) для проверки реальной схемы ответа перед реализацией
-// разбора. Добавлено 2026-09-22 в рамках починки Unity KPI (см.
-// cmdb/collectstoragemetrics.go, комментарий у case 2 в
-// collectStorageMetricForSystem) - чтобы для конкретного массива (модель/
-// версия Unity OE) можно было получить ДОСТОВЕРНЫЙ список путей метрик
-// (path/isHistoricalAvailable/isRealtimeAvailable) вместо предположений по
-// сторонним источникам, прежде чем реализовывать сбор IOPS/throughput/
-// latency/CPU. Поля fields/filter отдаются пустыми - получаем весь каталог
-// целиком, как он есть на этой конкретной СХД.
+// unityMetricCatalogFields - явный список полей для GET
+// /api/types/metric/instances. ⚠️ ОБЯЗАТЕЛЕН (2026-09-23, найдено по
+// реальному дампу пользователя `unity-metric-catalog1.json`): emcstorage.Request
+// всегда добавляет `compact=true`, а Unity REST API в compact-режиме БЕЗ
+// явного `fields` отдаёт для каждой записи коллекции ТОЛЬКО атрибут `id` -
+// весь дамп 2026-09-22 оказался бесполезен для поиска реальных путей
+// метрик именно по этой причине (раньше это не было известно - структура
+// ответа не была ещё проверена сырым дампом). См.
+// kontext/12-unity-rest-api.md.
+const unityMetricCatalogFields = "id,name,path,type,description,isHistoricalAvailable,isRealtimeAvailable,unitDisplayString"
+
+// unityCollectionEnvelope - минимальный разбор обёртки коллекции Unity REST
+// API, нужный только для обхода пагинации (`links`/`entries`) - содержимое
+// `entries` не типизируется (остаётся `json.RawMessage`), чтобы не терять
+// поля при последующей сериализации в файл.
+type unityCollectionEnvelope struct {
+	Base    string `json:"@base"`
+	Updated string `json:"updated"`
+	Links   []struct {
+		Rel  string `json:"rel"`
+		Href string `json:"href"`
+	} `json:"links"`
+	Entries []json.RawMessage `json:"entries"`
+}
+
+// DumpUnityMetricCatalog возвращает "сырой" (как есть, но объединённый по
+// всем страницам) JSON-ответ Unity на запрос каталога доступных метрик
+// (тип metric, GET /api/types/metric/instances) - по аналогии с тем, как
+// для Huawei Dorado ранее снимался сырой дамп GET /disk/{id} (см.
+// kontext/10-huawei-dorado-rest-api.md, CHANGELOG (174)) для проверки
+// реальной схемы ответа перед реализацией разбора. Добавлено 2026-09-22 в
+// рамках починки Unity KPI (см. cmdb/collectstoragemetrics.go, комментарий
+// у case 2 в collectStorageMetricForSystem) - чтобы для конкретного
+// массива (модель/версия Unity OE) можно было получить ДОСТОВЕРНЫЙ список
+// путей метрик (path/isHistoricalAvailable/isRealtimeAvailable) вместо
+// предположений по сторонним источникам, прежде чем реализовывать сбор
+// IOPS/throughput/latency/CPU.
+//
+// ⚠️ ИСПРАВЛЕНО 2026-09-23 (было скрытым багом с момента появления этой
+// функции): раньше `fields`/`filter` отдавались пустыми - в реальном дампе
+// пользователя (`unity-metric-catalog1.json`) это дало 2000 записей вида
+// `{"content": {"id": 1}}` БЕЗ единого поля `path`/`name` - т.е. каталог
+// был снят, но оказался бесполезен для поиска реальных путей метрик.
+// Причина - Unity REST API в compact-режиме (который `emcstorage.Request`
+// включает всегда) без явного `fields` возвращает только `id`. Теперь
+// запрашиваются явные поля (`unityMetricCatalogFields`). Также обнаружено,
+// что коллекция превышает один "page" (в том же дампе - `"links":
+// [{"rel": "next", "href": "&page=2"}]`) - раньше вторая и последующие
+// страницы вообще не запрашивались, теперь функция обходит все страницы
+// через `session.RequestPage` и объединяет `entries` в одну коллекцию.
 func DumpUnityMetricCatalog(address string) (json.RawMessage, error) {
 	session, err := openUnitySession(address)
 	if err != nil {
@@ -120,11 +157,39 @@ func DumpUnityMetricCatalog(address string) (json.RawMessage, error) {
 	}
 	defer session.CloseSession()
 
-	var raw json.RawMessage
-	if err := session.Request("GET", "/api/types/metric/instances", "", "", true, nil, &raw); err != nil {
-		return nil, err
+	var allEntries []json.RawMessage
+	page := 1
+	for {
+		var env unityCollectionEnvelope
+		if err := session.RequestPage("GET", "/api/types/metric/instances", unityMetricCatalogFields, "", true, page, nil, &env); err != nil {
+			return nil, fmt.Errorf("страница %d: %w", page, err)
+		}
+		allEntries = append(allEntries, env.Entries...)
+
+		hasNext := false
+		for _, l := range env.Links {
+			if l.Rel == "next" {
+				hasNext = true
+				break
+			}
+		}
+		if !hasNext {
+			break
+		}
+		page++
+		if page > 50 {
+			// Защита от зацикливания, если сервер вернёт "next" бесконечно -
+			// реальных каталогов метрик такого размера не бывает (см. дамп -
+			// первая страница уже 2000 записей).
+			log.Printf("storages.DumpUnityMetricCatalog(%s): остановлено на странице %d (защита от зацикливания)", address, page)
+			break
+		}
 	}
-	return raw, nil
+
+	merged := struct {
+		Entries []json.RawMessage `json:"entries"`
+	}{Entries: allEntries}
+	return json.Marshal(merged)
 }
 
 // UnityHardwareBundle - результат GetUnityHardwareBundle: полки/диски/пулы

@@ -80,6 +80,24 @@ func NewSession(adress string, insecure bool, login, pass string) (*Session, err
 
 //Request purpose is to send a Rest API request to the Unity array.
 func (session *Session) Request(method string, URI string, fields string, filter string, engineering bool, body, resp interface{}) error {
+	return session.RequestPage(method, URI, fields, filter, engineering, 0, body, resp)
+}
+
+// RequestPage - то же самое, что Request, но с поддержкой постраничной
+// выборки коллекций Unity REST API (`page=N` в query-строке). Добавлено
+// 2026-09-23 по факту диагностики: `GET /api/types/metric/instances` без
+// явного `fields` (как раньше делал storages.DumpUnityMetricCatalog) в
+// compact-режиме отдаёт ТОЛЬКО поле `id` (подтверждено реальным дампом
+// пользователя, `unity-metric-catalog1.json`) - для path/name/
+// isRealtimeAvailable и т.п. нужно явно перечислять `fields`. При этом
+// коллекция метрик на реальном массиве превышает один "page" (в том же
+// дампе видно `"links": [..., {"rel": "next", "href": "&page=2"}]`
+// - без обхода страниц `Request` молча возвращал бы только первую
+// страницу (2000 записей из большего числа), и это осталось бы незаметным
+// (в отличие от ошибки, пустой ИЛИ неполный ответ выглядит "успешно"). См.
+// storages.DumpUnityMetricCatalog и kontext/12-unity-rest-api.md.
+// page<=0 - без параметра page (как раньше, первая/единственная страница).
+func (session *Session) RequestPage(method string, URI string, fields string, filter string, engineering bool, page int, body, resp interface{}) error {
 
 	if method == "" || URI == "" || resp == nil {
 		return errors.New("Missing method, URI or response interface")
@@ -129,6 +147,10 @@ func (session *Session) Request(method string, URI string, fields string, filter
 
 		if engineering == true {
 			a.Add("visibility", "Engineering")
+		}
+
+		if page > 0 {
+			a.Add("page", fmt.Sprintf("%d", page))
 		}
 
 		a.Add("compact", "true")
