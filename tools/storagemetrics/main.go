@@ -46,10 +46,15 @@
 //	# kontext/11-storage-metrics.md) и выйти, ничего не опрашивая и никуда не записывая:
 //	go run ./tools/storagemetrics -dumpmetricsonly U450-MF-01 -dumpmetricsfile u450-mf-01-metrics.json
 //
-//	# сохранить сырой ответ Huawei Dorado/OceanStor на произвольный запрос
-//	# (по умолчанию GET /performance_statistic) в файл и выйти, ничего не
-//	# опрашивая и никуда не записывая (см. kontext/11-storage-metrics.md):
-//	go run ./tools/storagemetrics -huaweidumpraw D6V6-01 -huaweidumppath /performance_statistic -huaweidumpfile d6v6-01-perfstat.json
+//	# уточнить ID контроллеров Huawei (нужен для CMO_STATISTIC_UUID ниже) -
+//	# GET /controller без query-параметров:
+//	go run ./tools/storagemetrics -huaweidumpraw D6V6-01 -huaweidumppath /controller -huaweidumpquery "" -huaweidumpfile d6v6-01-controllers.json
+//
+//	# сохранить сырой ответ Huawei Dorado/OceanStor на текущие KPI контроллера
+//	# "0A" (по умолчанию - Read/Write MBps/IOPS + задержка, коды из
+//	# kontext/10-huawei-dorado-rest-api.md) в файл и выйти, ничего не опрашивая
+//	# и никуда не записывая:
+//	go run ./tools/storagemetrics -huaweidumpraw D6V6-01 -huaweidumpfile d6v6-01-perfstat.json
 package main
 
 import (
@@ -79,9 +84,15 @@ func main() {
 	logfile := flag.String("logfile", "storagemetrics.log", "путь к файлу лога (создаётся/дополняется); пусто (-logfile=\"\") - лог в stdout, как у storagesync")
 	dumpMetricsOnly := flag.String("dumpmetricsonly", "", "не опрашивать метрики - вместо этого снять СЫРОЙ каталог доступных метрик СХД Unity (ShortName) через GET /api/types/metric/instances и сохранить в -dumpmetricsfile, затем выйти (см. kontext/11-storage-metrics.md)")
 	dumpMetricsFile := flag.String("dumpmetricsfile", "unity-metric-catalog.json", "путь к файлу для -dumpmetricsonly")
-	huaweiDumpRaw := flag.String("huaweidumpraw", "", "не опрашивать метрики - вместо этого выполнить произвольный запрос к REST API Huawei Dorado/OceanStor СХД (ShortName) и сохранить СЫРОЙ ответ в -huaweidumpfile, затем выйти (см. kontext/11-storage-metrics.md). Путь запроса задаётся -huaweidumppath")
+	huaweiDumpRaw := flag.String("huaweidumpraw", "", "не опрашивать метрики - вместо этого выполнить произвольный запрос к REST API Huawei Dorado/OceanStor СХД (ShortName) и сохранить СЫРОЙ ответ в -huaweidumpfile, затем выйти (см. kontext/10-huawei-dorado-rest-api.md/11-storage-metrics.md). Путь задаётся -huaweidumppath, query-параметры - ОТДЕЛЬНО через -huaweidumpquery")
 	huaweiDumpMethod := flag.String("huaweidumpmethod", "GET", "HTTP-метод для -huaweidumpraw (GET или POST)")
-	huaweiDumpPath := flag.String("huaweidumppath", "/performance_statistic", "путь запроса (относительно /deviceManager/rest/<id>) для -huaweidumpraw, например /performance_statistic или /performance_statistic/cur")
+	// 2026-09-23: раньше был "/performance_statistic" (угаданный, неверный
+	// путь - см. историю в CHANGELOG (111)/(112)) - теперь подтверждённый
+	// официальной документацией (huawei-api.md) реальный путь для проверки
+	// живых KPI (по умолчанию - для КОНТРОЛЛЕРА "0A", уточнить реальный ID
+	// можно отдельным вызовом -huaweidumppath /controller без -huaweidumpquery).
+	huaweiDumpPath := flag.String("huaweidumppath", "/performace_statistic/cur_statistic_data", "путь запроса (относительно /deviceManager/rest/<id>) для -huaweidumpraw - например /controller (список контроллеров с ID/CPUUSAGE) или /performace_statistic/cur_statistic_data (текущие KPI, требует -huaweidumpquery); опечатка \"performace\" - буквальный путь реального API, не ошибка")
+	huaweiDumpQuery := flag.String("huaweidumpquery", "CMO_STATISTIC_UUID=207:0A&CMO_STATISTIC_DATA_ID_LIST=23,25,26,28,370", "сырая (уже готовая) query-строка без ведущего \"?\" для -huaweidumpraw - по умолчанию запрашивает Read/Write MBps/IOPS и задержку (мкс) у контроллера с ID \"0A\"; ID контроллера уточнить через -huaweidumppath /controller -huaweidumpquery \"\"")
 	huaweiDumpBody := flag.String("huaweidumpbody", "", "тело запроса (сырой JSON) для -huaweidumpraw при -huaweidumpmethod=POST; пусто - без тела")
 	huaweiDumpFile := flag.String("huaweidumpfile", "huawei-raw-dump.json", "путь к файлу для -huaweidumpraw")
 	flag.Parse()
@@ -134,7 +145,7 @@ func main() {
 	}
 
 	if *huaweiDumpRaw != "" {
-		dumpHuaweiRaw(*huaweiDumpRaw, *huaweiDumpMethod, *huaweiDumpPath, *huaweiDumpBody, *huaweiDumpFile)
+		dumpHuaweiRaw(*huaweiDumpRaw, *huaweiDumpMethod, *huaweiDumpPath, *huaweiDumpQuery, *huaweiDumpBody, *huaweiDumpFile)
 		return
 	}
 
@@ -232,15 +243,17 @@ func dumpUnityMetricCatalog(shortName, path string) {
 // Ничего не опрашивает и не пишет в storage_metric - только диагностика.
 // Добавлено 2026-09-22 по запросу пользователя loadmon "сделай сохранение
 // сырых запросов по huawei" - см. комментарий у cmdb.DumpHuaweiRawRequest и
-// kontext/11-storage-metrics.md (раздел про то, что живой KPI для Huawei
-// не реализован без проверки реальной схемы /performance_statistic).
+// kontext/10-huawei-dorado-rest-api.md/11-storage-metrics.md. 2026-09-23:
+// добавлен отдельный параметр rawQuery (query-строка) - раньше её нужно
+// было передавать прямо в -huaweidumppath, что было скрытым багом
+// (newRequest не распознаёт "?" внутри пути, см. dorado.RawRequestDump).
 //
 // ⚠️ В отличие от -dumpmetricsonly (Unity, безопасный read-only GET каталога),
 // -huaweidumpmethod POST может создавать состояние на СХД (например, подписку
 // на объекты статистики, если путь на это рассчитан) - перед использованием
 // POST на боевом массиве стоит свериться с официальной документацией Huawei
 // на предмет побочных эффектов конкретного эндпоинта.
-func dumpHuaweiRaw(shortName, method, reqPath, bodyStr, path string) {
+func dumpHuaweiRaw(shortName, method, reqPath, rawQuery, bodyStr, path string) {
 	o := orm.NewOrm()
 	var systems []*models.StorageSystems
 	if _, err := o.QueryTable(new(models.StorageSystems)).All(&systems); err != nil {
@@ -265,8 +278,12 @@ func dumpHuaweiRaw(shortName, method, reqPath, bodyStr, path string) {
 		body = []byte(bodyStr)
 	}
 
-	log.Printf("storagemetrics: -huaweidumpraw: %s %s у %s (%s)...", method, reqPath, shd.ShortName, shd.IpAddress)
-	if err := cmdb.DumpHuaweiRawRequest(shd, method, reqPath, body, path); err != nil {
+	logPath := reqPath
+	if rawQuery != "" {
+		logPath += "?" + rawQuery
+	}
+	log.Printf("storagemetrics: -huaweidumpraw: %s %s у %s (%s)...", method, logPath, shd.ShortName, shd.IpAddress)
+	if err := cmdb.DumpHuaweiRawRequest(shd, method, reqPath, rawQuery, body, path); err != nil {
 		// Сырой ответ (если СХД вообще успела его прислать) decodeBodyDump
 		// в go-dorado-sdk сохраняет ДО попытки разбора - см. комментарий
 		// cmdb.DumpHuaweiRawRequest/dorado.Device.RawRequestDump - поэтому
@@ -276,6 +293,6 @@ func dumpHuaweiRaw(shortName, method, reqPath, bodyStr, path string) {
 		fmt.Printf("storagemetrics: запрос завершился с ошибкой (см. лог); проверьте файл %s - сырой ответ мог всё равно сохраниться\n", path)
 		return
 	}
-	fmt.Printf("storagemetrics: сырой ответ %s %s от %s (%s) сохранён в %s\n", method, reqPath, shd.ShortName, shd.IpAddress, path)
+	fmt.Printf("storagemetrics: сырой ответ %s %s от %s (%s) сохранён в %s\n", method, logPath, shd.ShortName, shd.IpAddress, path)
 	log.Printf("storagemetrics: -huaweidumpraw: сырой ответ сохранён в %s", path)
 }

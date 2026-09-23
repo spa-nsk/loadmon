@@ -210,9 +210,23 @@ func collectStorageMetricForSystem(shd *models.StorageSystems, collectedAt time.
 			row.PollError = "UsedPercent (пулы): " + err.Error()
 			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса пулов Huawei", shd.ShortName, shd.IpAddress, "-", err)
 		}
-		// IOPS/throughput/latency/CPU - недоступны: используемый SDK
-		// (github.com/lovi-cloud/go-dorado-sdk) не содержит performance/KPI
-		// эндпоинтов, только LUN/host/pool/system - см. ревью в этой сессии.
+		// 2026-09-23: живые IOPS/throughput/latency/CPU через
+		// dorado.Device.GetControllers (CPUUSAGE) и GetCurStatisticData
+		// (performace_statistic) - добавлены в SDK этим же запросом
+		// ("переделай storagemetrics исходя из последних данных") после
+		// того, как пользователь предоставил официальный REST Interface
+		// Reference (huawei-api.md), подтвердивший реальную схему (см.
+		// kontext/10-huawei-dorado-rest-api.md, раздел "Источник:
+		// huawei-api.md"). Раньше здесь не было вообще ничего, кроме
+		// UsedPercent - см. комментарий у collectHuaweiKpi ниже.
+		if err := collectHuaweiKpi(shd, row); err != nil {
+			row.PollOK = false
+			if row.PollError != "" {
+				row.PollError += "; "
+			}
+			row.PollError += "KPI: " + err.Error()
+			log.Println("cmdb.collectStorageMetricForSystem: ошибка опроса KPI Huawei", shd.ShortName, shd.IpAddress, "-", err)
+		}
 
 	case 5: // Lenovo (SANtricity REST).
 		if v, err := collectLenovoUsedPercent(shd); err == nil {
@@ -300,6 +314,145 @@ func collectHuaweiUsedPercent(shd *models.StorageSystems) (float64, error) {
 	return 0, fmt.Errorf("не удалось разобрать процент использования ни одного пула")
 }
 
+// huaweiPerfIndicatorReadMBps/... - коды индикаторов производительности
+// Huawei DeviceManager REST API (`CMO_STATISTIC_DATA_ID_LIST`), подтверждённые
+// официальным REST Interface Reference (`huawei-api.md`, приложение "C.1
+// Block Storage Performance Indicators") - см. таблицу и цитаты в
+// kontext/10-huawei-dorado-rest-api.md. НЕ угаданы - взяты дословно из
+// документа, предоставленного пользователем 2026-09-23.
+const (
+	huaweiPerfIndicatorReadMBps  = "23" // Read Bandwidth (MB/s)
+	huaweiPerfIndicatorReadIOPS  = "25" // Read IOPS
+	huaweiPerfIndicatorWriteMBps = "26" // Write Bandwidth (MB/s)
+	huaweiPerfIndicatorWriteIOPS = "28" // Write IOPS
+	huaweiPerfIndicatorLatencyUs = "370" // Avg. I/O Response Time - ⚠️ МИКРОсекунды (us), не миллисекунды; общий (не раздельно read/write) показатель - см. комментарий ниже
+)
+
+// collectHuaweiKpi заполняет row живыми KPI Huawei (IOPS/throughput/
+// latency/CPU) через новые методы SDK dorado.Device.GetControllers
+// (CPUUSAGE - готовое поле объекта "controller", без отдельного
+// performance-запроса) и GetCurStatisticData (performace_statistic -
+// IOPS/throughput/latency). Добавлено 2026-09-23 по запросу пользователя
+// "переделай storagemetrics исходя из последних данных" - после того как
+// пользователь предоставил официальный REST Interface Reference
+// (huawei-api.md), подтвердивший точную схему обоих запросов (см.
+// kontext/10-huawei-dorado-rest-api.md, раздел "Источник: huawei-api.md").
+// Тот же принцип агрегации по контроллерам, что и у collectLenovoKpi -
+// суммируются IOPS/throughput по всем контроллерам, CPU и latency
+// усредняются по контроллерам, от которых удалось получить значение.
+//
+// ⚠️ Не подтверждено на реальном оборудовании этого проекта (в отличие,
+// например, от DISKTYPE/SECTORS) - схема взята из документации, но ни разу
+// не проверена сырым ответом реального массива (см.
+// tools/storagemetrics -huaweidumpraw для такой проверки). При первом
+// реальном сбое стоит свериться именно так, а не гадать дальше.
+//
+// ⚠️ Индикатор 370 (Avg. I/O Response Time) - ОДИН общий показатель
+// задержки, документация не даёт отдельных read/write кодов на уровне
+// контроллера (см. kontext/10-huawei-dorado-rest-api.md, раздел "Что ещё НЕ
+// подтверждено") - поэтому ReadLatencyMs и WriteLatencyMs заполняются ОДНИМ
+// и тем же значением (переведённым из микросекунд в миллисекунды), а не
+// раздельно измеренными величинами, как у Unity/Lenovo.
+func collectHuaweiKpi(shd *models.StorageSystems, row *models.StorageMetric) error {
+	key := "spaview"
+	keypass := datamap.GetKeyData(key)
+	remoteIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+	localIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
+
+	client, err := dorado.NewClient(localIps, remoteIps, key, keypass, "", nil)
+	if err != nil {
+		return fmt.Errorf("подключение: %w", err)
+	}
+
+	ctx := context.Background()
+	controllers, err := client.LocalDevice.GetControllers(ctx)
+	if err != nil {
+		return fmt.Errorf("список контроллеров: %w", err)
+	}
+	if len(controllers) == 0 {
+		return fmt.Errorf("СХД не вернула ни одного контроллера")
+	}
+
+	var errs []string
+
+	var cpuSum float64
+	var cpuN int
+	for _, c := range controllers {
+		if v, ok := c.CPUUsagePercent(); ok {
+			cpuSum += v
+			cpuN++
+		}
+	}
+	if cpuN > 0 {
+		row.CPUUtilPercent = cpuSum / float64(cpuN)
+	} else {
+		errs = append(errs, "CPUUSAGE: не удалось разобрать ни у одного контроллера")
+	}
+
+	var readIOPS, writeIOPS, readMBps, writeMBps, latencyUsSum float64
+	var latencyN int
+	var statErrs int
+	dataIDList := strings.Join([]string{
+		huaweiPerfIndicatorReadMBps,
+		huaweiPerfIndicatorReadIOPS,
+		huaweiPerfIndicatorWriteMBps,
+		huaweiPerfIndicatorWriteIOPS,
+		huaweiPerfIndicatorLatencyUs,
+	}, ",")
+	for _, c := range controllers {
+		if c.ID == "" {
+			continue
+		}
+		uuid := "207:" + c.ID // 207 = TYPE контроллера, подтверждено huawei-api.md
+		entries, serr := client.LocalDevice.GetCurStatisticData(ctx, uuid, dataIDList)
+		if serr != nil {
+			statErrs++
+			continue
+		}
+		for _, e := range entries {
+			vals := e.Values()
+			if v, ok := vals[huaweiPerfIndicatorReadMBps]; ok {
+				readMBps += v
+			}
+			if v, ok := vals[huaweiPerfIndicatorReadIOPS]; ok {
+				readIOPS += v
+			}
+			if v, ok := vals[huaweiPerfIndicatorWriteMBps]; ok {
+				writeMBps += v
+			}
+			if v, ok := vals[huaweiPerfIndicatorWriteIOPS]; ok {
+				writeIOPS += v
+			}
+			if v, ok := vals[huaweiPerfIndicatorLatencyUs]; ok {
+				latencyUsSum += v
+				latencyN++
+			}
+		}
+	}
+	if statErrs > 0 && statErrs == len(controllers) {
+		errs = append(errs, fmt.Sprintf("performace_statistic: не удалось получить данные ни у одного из %d контроллеров", len(controllers)))
+	} else {
+		row.ReadIOPS = readIOPS
+		row.WriteIOPS = writeIOPS
+		row.TotalIOPS = readIOPS + writeIOPS
+		row.ReadMBps = readMBps
+		row.WriteMBps = writeMBps
+		if latencyN > 0 {
+			latencyMs := (latencyUsSum / float64(latencyN)) / 1000 // us -> ms, см. предупреждение в комментарии функции
+			row.ReadLatencyMs = latencyMs
+			row.WriteLatencyMs = latencyMs
+		}
+		if statErrs > 0 {
+			errs = append(errs, fmt.Sprintf("performace_statistic: не удалось получить данные у %d из %d контроллеров (учтены только успешные)", statErrs, len(controllers)))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
 // DumpHuaweiRawRequest выполняет произвольный GET/POST-запрос к REST API
 // Huawei Dorado/OceanStor (та же авторизация/порт/схема, что и у
 // collectHuaweiUsedPercent выше - ключ "spaview", https://<ip>:8088) и
@@ -311,8 +464,11 @@ func collectHuaweiUsedPercent(shd *models.StorageSystems) (float64, error) {
 // сохранение сырых запросов по huawei" - для проверки реального формата
 // /performance_statistic/... (или любого другого не реализованного пока в
 // SDK эндпоинта) перед тем, как писать код разбора ответа - "не гадать", тот
-// же принцип, что и у Unity (kontext/11-storage-metrics.md).
-func DumpHuaweiRawRequest(shd *models.StorageSystems, method, path string, body []byte, dumpPath string) error {
+// же принцип, что и у Unity (kontext/11-storage-metrics.md). rawQuery -
+// СЫРАЯ query-строка без ведущего "?" (см. предупреждение в комментарии
+// dorado.Device.RawRequestDump, 2026-09-23 - раньше query нужно было класть
+// прямо в path, что было скрытым багом).
+func DumpHuaweiRawRequest(shd *models.StorageSystems, method, path, rawQuery string, body []byte, dumpPath string) error {
 	key := "spaview"
 	keypass := datamap.GetKeyData(key)
 	remoteIps := []string{fmt.Sprintf("https://%s:8088", shd.IpAddress)}
@@ -322,7 +478,7 @@ func DumpHuaweiRawRequest(shd *models.StorageSystems, method, path string, body 
 	if err != nil {
 		return fmt.Errorf("подключение: %w", err)
 	}
-	return client.LocalDevice.RawRequestDump(context.Background(), method, path, body, dumpPath)
+	return client.LocalDevice.RawRequestDump(context.Background(), method, path, rawQuery, body, dumpPath)
 }
 
 // collectUnityUsedPercent возвращает % использования СХД Unity как
