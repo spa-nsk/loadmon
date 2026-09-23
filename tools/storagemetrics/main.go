@@ -51,10 +51,16 @@
 //	go run ./tools/storagemetrics -huaweidumpraw D6V6-01 -huaweidumppath /controller -huaweidumpquery "" -huaweidumpfile d6v6-01-controllers.json
 //
 //	# сохранить сырой ответ Huawei Dorado/OceanStor на текущие KPI контроллера
-//	# "0A" (по умолчанию - Read/Write MBps/IOPS + задержка, коды из
-//	# kontext/10-huawei-dorado-rest-api.md) в файл и выйти, ничего не опрашивая
-//	# и никуда не записывая:
+//	# "0A" (по умолчанию - Read/Write MBps/IOPS + раздельная read/write задержка,
+//	# коды из kontext/10-huawei-dorado-rest-api.md) в файл и выйти, ничего не
+//	# опрашивая и никуда не записывая:
 //	go run ./tools/storagemetrics -huaweidumpraw D6V6-01 -huaweidumpfile d6v6-01-perfstat.json
+//
+//	# проверить подтверждённый документацией real-time REST-механизм Unity
+//	# (metricRealTimeQuery/metricQueryResult, см. kontext/12-unity-rest-api.md)
+//	# на примере CPU busy/idle ticks и сохранить сырой результат в файл, затем
+//	# выйти, ничего не опрашивая и никуда не записывая:
+//	go run ./tools/storagemetrics -unitydumprealtime U450-MF-01 -unitydumpfile u450-mf-01-realtime.json
 package main
 
 import (
@@ -92,9 +98,26 @@ func main() {
 	// живых KPI (по умолчанию - для КОНТРОЛЛЕРА "0A", уточнить реальный ID
 	// можно отдельным вызовом -huaweidumppath /controller без -huaweidumpquery).
 	huaweiDumpPath := flag.String("huaweidumppath", "/performace_statistic/cur_statistic_data", "путь запроса (относительно /deviceManager/rest/<id>) для -huaweidumpraw - например /controller (список контроллеров с ID/CPUUSAGE) или /performace_statistic/cur_statistic_data (текущие KPI, требует -huaweidumpquery); опечатка \"performace\" - буквальный путь реального API, не ошибка")
-	huaweiDumpQuery := flag.String("huaweidumpquery", "CMO_STATISTIC_UUID=207:0A&CMO_STATISTIC_DATA_ID_LIST=23,25,26,28,370", "сырая (уже готовая) query-строка без ведущего \"?\" для -huaweidumpraw - по умолчанию запрашивает Read/Write MBps/IOPS и задержку (мкс) у контроллера с ID \"0A\"; ID контроллера уточнить через -huaweidumppath /controller -huaweidumpquery \"\"")
+	// 2026-09-23: коды 384/385 (раздельные read/write Avg I/O Response Time)
+	// заменили ранее использовавшийся общий код 370 - см. комментарий у
+	// huaweiPerfIndicatorReadLatencyUs/WriteLatencyUs в
+	// cmdb/collectstoragemetrics.go (найдено в doc-API-hardware/OceanStor
+	// Dorado 6.1.6 и V700R001C10 REST Interface Reference-ru.md).
+	huaweiDumpQuery := flag.String("huaweidumpquery", "CMO_STATISTIC_UUID=207:0A&CMO_STATISTIC_DATA_ID_LIST=23,25,26,28,384,385", "сырая (уже готовая) query-строка без ведущего \"?\" для -huaweidumpraw - по умолчанию запрашивает Read/Write MBps/IOPS и раздельную read/write задержку (мкс) у контроллера с ID \"0A\"; ID контроллера уточнить через -huaweidumppath /controller -huaweidumpquery \"\"")
 	huaweiDumpBody := flag.String("huaweidumpbody", "", "тело запроса (сырой JSON) для -huaweidumpraw при -huaweidumpmethod=POST; пусто - без тела")
 	huaweiDumpFile := flag.String("huaweidumpfile", "huawei-raw-dump.json", "путь к файлу для -huaweidumpraw")
+	// 2026-09-23: диагностика Unity real-time метрик (POST metricRealTimeQuery
+	// + GET metricQueryResult + DELETE) - подтверждённый документацией механизм
+	// (см. storages.DumpUnityRealTimeMetrics/kontext/12-unity-rest-api.md),
+	// пришедший на смену несуществующему /api/types/kpiValue/instances.
+	// Значения по умолчанию - подтверждённый документацией пример путей
+	// (CPU busy/idle ticks); для других путей (IOPS/throughput/latency на
+	// уровне SP/пула) сначала свериться с -dumpmetricsonly ("не гадать").
+	unityDumpRealtime := flag.String("unitydumprealtime", "", "не опрашивать метрики - вместо этого выполнить real-time REST-запрос Unity (ShortName) через metricRealTimeQuery/metricQueryResult и сохранить сырой результат в -unitydumpfile, затем выйти (см. kontext/12-unity-rest-api.md)")
+	unityDumpPaths := flag.String("unitydumppaths", "sp.*.cpu.summary.busyTicks,sp.*.cpu.summary.idleTicks", "список путей метрик через запятую для -unitydumprealtime - по умолчанию подтверждённый документацией пример (CPU busy/idle ticks); другие пути сначала проверить через -dumpmetricsonly")
+	unityDumpInterval := flag.Uint("unitydumpinterval", 5, "интервал сэмплирования в секундах [5..300] для -unitydumprealtime (аргумент interval у metricRealTimeQuery)")
+	unityDumpWait := flag.Duration("unitydumpwait", 6*time.Second, "сколько ждать перед тем, как забрать первый отсчёт, для -unitydumprealtime - должно быть не меньше -unitydumpinterval")
+	unityDumpFile := flag.String("unitydumpfile", "unity-realtime-dump.json", "путь к файлу для -unitydumprealtime")
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -146,6 +169,11 @@ func main() {
 
 	if *huaweiDumpRaw != "" {
 		dumpHuaweiRaw(*huaweiDumpRaw, *huaweiDumpMethod, *huaweiDumpPath, *huaweiDumpQuery, *huaweiDumpBody, *huaweiDumpFile)
+		return
+	}
+
+	if *unityDumpRealtime != "" {
+		dumpUnityRealtime(*unityDumpRealtime, *unityDumpPaths, uint32(*unityDumpInterval), *unityDumpWait, *unityDumpFile)
 		return
 	}
 
@@ -295,4 +323,56 @@ func dumpHuaweiRaw(shortName, method, reqPath, rawQuery, bodyStr, path string) {
 	}
 	fmt.Printf("storagemetrics: сырой ответ %s %s от %s (%s) сохранён в %s\n", method, logPath, shd.ShortName, shd.IpAddress, path)
 	log.Printf("storagemetrics: -huaweidumpraw: сырой ответ сохранён в %s", path)
+}
+
+// dumpUnityRealtime ищет СХД по ShortName (без учёта регистра, как -only) в
+// справочнике storage_systems, проверяет, что это Unity (ApiType 2), и
+// выполняет через storages.DumpUnityRealTimeMetrics подтверждённый
+// документацией цикл real-time-опроса (POST metricRealTimeQuery + GET
+// metricQueryResult + DELETE) для заданных путей метрик, сохраняя сырой
+// результат в файл. Ничего не опрашивает штатно и не пишет в storage_metric -
+// только диагностика. Добавлено 2026-09-23 по запросу пользователя loadmon
+// "добавил свежие описания по работе с СХД Huawei и Dell EMC... используй для
+// доработок SDK" - см. комментарий у storages.DumpUnityRealTimeMetrics и
+// kontext/12-unity-rest-api.md.
+func dumpUnityRealtime(shortName, pathsCSV string, interval uint32, wait time.Duration, path string) {
+	o := orm.NewOrm()
+	var systems []*models.StorageSystems
+	if _, err := o.QueryTable(new(models.StorageSystems)).All(&systems); err != nil {
+		log.Fatalf("storagemetrics: -unitydumprealtime: ошибка чтения storage_systems: %v", err)
+	}
+	var shd *models.StorageSystems
+	for _, s := range systems {
+		if s != nil && strings.EqualFold(s.ShortName, shortName) {
+			shd = s
+			break
+		}
+	}
+	if shd == nil {
+		log.Fatalf("storagemetrics: -unitydumprealtime: СХД с ShortName=%q не найдена в storage_systems", shortName)
+	}
+	if shd.ApiType != 2 {
+		log.Fatalf("storagemetrics: -unitydumprealtime: СХД %q имеет ApiType=%d, а не 2 (Unity) - metricRealTimeQuery специфичен для Unity REST API", shortName, shd.ApiType)
+	}
+
+	paths := strings.Split(pathsCSV, ",")
+	for i := range paths {
+		paths[i] = strings.TrimSpace(paths[i])
+	}
+
+	log.Printf("storagemetrics: -unitydumprealtime: %v (interval=%ds, wait=%s) у %s (%s)...", paths, interval, wait, shd.ShortName, shd.IpAddress)
+	result, err := storages.DumpUnityRealTimeMetrics(shd.IpAddress, paths, interval, wait)
+	if err != nil {
+		log.Fatalf("storagemetrics: -unitydumprealtime: ошибка запроса к %s (%s): %v", shd.ShortName, shd.IpAddress, err)
+	}
+
+	pretty, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		log.Fatalf("storagemetrics: -unitydumprealtime: ошибка сериализации результата: %v", err)
+	}
+	if err := os.WriteFile(path, pretty, 0644); err != nil {
+		log.Fatalf("storagemetrics: -unitydumprealtime: не удалось записать файл %q: %v", path, err)
+	}
+	fmt.Printf("storagemetrics: real-time результат %s (%s) сохранён в %s (%d байт, %d записей)\n", shd.ShortName, shd.IpAddress, path, len(pretty), len(result.Entries))
+	log.Printf("storagemetrics: -unitydumprealtime: результат сохранён в %s (%d записей)", path, len(result.Entries))
 }

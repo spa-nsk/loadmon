@@ -2,6 +2,7 @@ package storages
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -276,4 +277,76 @@ func GetUnityKpiSum(address, path string) (float64, bool) {
 		sum += v
 	}
 	return sum, true
+}
+
+// DumpUnityRealTimeMetrics выполняет ПОЛНЫЙ подтверждённый документацией цикл
+// опроса живых метрик Unity через РЕАЛЬНО существующий REST-механизм
+// (в отличие от несуществующего /api/types/kpiValue/instances, см. комментарий
+// у unityKpiLatestPerEntry выше):
+//
+//  1. POST /api/types/metricRealTimeQuery/instances {paths, interval} -
+//     создаёт real-time-запрос (session.NewMetricRealTimeQuery)
+//  2. ожидание wait (должно быть >= interval, иначе первый отсчёт может быть
+//     ещё не готов)
+//  3. GET /api/types/metricQueryResult/instances?filter=queryId eq <id> -
+//     забирает отсчёт (session.GetMetricRealTimeQueryResult)
+//  4. DELETE /api/instances/metricRealTimeQuery/<id> - удаляет запрос
+//     (best-effort, ошибка только логируется - см. kontext, "session will be
+//     deleted automatically" через 10 периодов, если не удалить вручную)
+//
+// Добавлено 2026-09-23 по запросу пользователя loadmon "добавил свежие
+// описания по работе с СХД Huawei и Dell EMC... добавь в harness контекст и
+// базу знаний. Используй для доработок SDK" - точная схема (включая пример
+// "sp.*.cpu.summary.busyTicks"/"idleTicks" и структуру
+// metricRealTimeQuery/metricQueryResult) подтверждена документом
+// doc-API-hardware/unity-restapi-refg_en-us_reference_guide11-ru.md (см.
+// kontext/12-unity-rest-api.md). Методы session.NewMetricRealTimeQuery/
+// GetMetricRealTimeQueryResult/DeleteMetricRealTimeQuery (emcstorage/metrics.go)
+// существовали в SDK и раньше, но не вызывались НИОТКУДА - вместо них
+// ошибочно использовался несуществующий kpiValue.
+//
+// ⚠️ Это ДИАГНОСТИЧЕСКАЯ функция (по аналогии с DumpUnityMetricCatalog выше и
+// cmdb.DumpHuaweiRawRequest для Huawei) - она НЕ подключена к
+// cmdb.CollectStorageMetrics и ничего не пишет в storage_metric. Конкретные
+// пути метрик для агрегированных IOPS/throughput/latency/utilization на
+// уровне SP/пула (то, что раньше пытались получить через несуществующий
+// kpi.sp.*.*) в документации текстом НЕ перечислены - только категории
+// верхнего уровня (sp.*.storage, sp.*.physical, sp.*.cpu, ...) и два
+// подтверждённых примера конкретных листовых путей: "sp.*.cpu.summary.busyTicks"/
+// "idleTicks" (пример из документации) и "sp.*.physical.disk.*.responseTime"
+// (пример фильтра для metricValue). Полный список актуальных для конкретной
+// модели/прошивки Unity путей нужно снять с реального массива через
+// -dumpmetricsonly (GET /api/types/metric/instances, уже реализовано) и
+// свериться, прежде чем подставлять их сюда - "не гадать", тот же принцип,
+// что уже приводил к находке несуществующего kpiValue. См.
+// tools/storagemetrics -unitydumprealtime для проверки конкретных path на
+// реальном оборудовании перед тем, как подключать к постоянному сбору.
+func DumpUnityRealTimeMetrics(address string, paths []string, interval uint32, wait time.Duration) (*emcstorage.MetricRealTimeQueryResult, error) {
+	session, err := openUnitySession(address)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseSession()
+
+	created, err := session.NewMetricRealTimeQuery(paths, interval)
+	if err != nil {
+		return nil, fmt.Errorf("создание real-time запроса: %w", err)
+	}
+	if created == nil || created.Content.ID == 0 {
+		return nil, fmt.Errorf("СХД не вернула id real-time запроса")
+	}
+	queryID := created.Content.ID
+	defer func() {
+		if derr := session.DeleteMetricRealTimeQuery(queryID); derr != nil {
+			log.Printf("storages.DumpUnityRealTimeMetrics(%s): не удалось удалить real-time запрос id=%d: %v", address, queryID, derr)
+		}
+	}()
+
+	time.Sleep(wait)
+
+	result, err := session.GetMetricRealTimeQueryResult(queryID)
+	if err != nil {
+		return nil, fmt.Errorf("получение результата real-time запроса (queryId=%d): %w", queryID, err)
+	}
+	return result, nil
 }
