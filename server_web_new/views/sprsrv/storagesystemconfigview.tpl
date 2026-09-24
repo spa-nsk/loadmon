@@ -220,7 +220,7 @@
                             <tr>
                                 <td class="text-end">{{$d.SlotNumber}}</td>
                                 <td>{{$d.Vendor}} {{$d.Model}}</td>
-                                <td>{{if $d.DiskType}}{{$d.DiskType}}{{else}}&mdash;{{end}}</td>
+                                <td>{{if $d.DiskType}}{{$d.TypeLabel}}{{else}}&mdash;{{end}}</td>
                                 <td>{{if $d.SerialNum}}{{$d.SerialNum}}{{else}}&mdash;{{end}}</td>
                                 <td class="text-end">{{printf "%.1f" $d.CapacityGb}}</td>
                                 <td>{{if $d.RaidGroupId}}{{$d.RaidGroupId}}{{else}}&mdash;{{end}}</td>
@@ -276,7 +276,7 @@
                 <tr>
                     <td class="text-end">{{$d.SlotNumber}}</td>
                     <td>{{$d.Vendor}} {{$d.Model}}</td>
-                    <td>{{if $d.DiskType}}{{$d.DiskType}}{{else}}&mdash;{{end}}</td>
+                    <td>{{if $d.DiskType}}{{$d.TypeLabel}}{{else}}&mdash;{{end}}</td>
                     <td>{{if $d.SerialNum}}{{$d.SerialNum}}{{else}}&mdash;{{end}}</td>
                     <td class="text-end">{{printf "%.1f" $d.CapacityGb}}</td>
                     <td>{{if $d.RaidGroupId}}{{$d.RaidGroupId}}{{else}}&mdash;{{end}}</td>
@@ -409,7 +409,7 @@
                 <td class="text-end">{{$d.EnclosureNum}}</td>
                 <td class="text-end">{{$d.SlotNumber}}</td>
                 <td>{{$d.Vendor}} {{$d.Model}}</td>
-                <td>{{if $d.DiskType}}{{$d.DiskType}}{{else}}&mdash;{{end}}</td>
+                <td>{{if $d.DiskType}}{{$d.TypeLabel}}{{else}}&mdash;{{end}}</td>
                 <td>{{if $d.SerialNum}}{{$d.SerialNum}}{{else}}&mdash;{{end}}</td>
                 <td class="text-end">{{printf "%.1f" $d.CapacityGb}}</td>
                 <td>

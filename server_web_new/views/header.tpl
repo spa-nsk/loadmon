@@ -654,6 +654,7 @@
     <p class="text-danger small text-center mt-2 mb-1">
       С 1 октября 2026 года доступ в систему будет предоставляться только
       пользователям с правами доступа, предоставленным через IDM.<br>
+      Смотрите ИТ систему: Мониторинг утилизации ресурсов. Доступы: Чтение, Изменение при необходимости.<br> 	
       <a href="https://idm.global.bcs/apiserver/html/qer-app-portal/#/newrequest/allProducts" target="_blank" rel="noopener">Оформить заявку</a>
     </p>
     </div>

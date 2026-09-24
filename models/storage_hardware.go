@@ -1,6 +1,11 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+)
 
 // Типы полок СХД (StorageEnclosure.EnclosureType).
 const (
@@ -75,6 +80,100 @@ func (m *StorageDisk) TableName() string { return "storage_disk" }
 
 func (m *StorageDisk) TableUnique() [][]string {
 	return [][]string{{"StorageSystemsId", "ExternalKey"}}
+}
+
+// TypeLabel возвращает DiskType в читаемом виде для отображения в карточках
+// (server_web_new/views/sprsrv/storagesystemconfigview.tpl и т.п.).
+//
+// У всех вендоров, кроме Huawei, DiskType уже сохраняется читаемой строкой
+// (unityDiskTechnologyLabel, VNX DriveType и т.д.) - для них TypeLabel просто
+// возвращает поле как есть. У Huawei DISKTYPE декодируется в читаемую метку
+// на этапе синхронизации (huaweiDiskTypeLabel в cmdb/syncstoragehardware.go,
+// делегирует сюда, в HuaweiDiskTypeLabel), но записи, синхронизированные ДО
+// этого исправления (2026-09-22), в БД остались с "сырым" числовым кодом
+// ("14", "21" и т.п.) - пока СХД не пройдёт очередной цикл опроса.
+// TypeLabel - подстраховка на это переходное время: если DiskType состоит
+// только из цифр (что у других вендоров не встречается), расшифровывает его
+// по той же таблице, не дожидаясь пересинхронизации.
+func (m *StorageDisk) TypeLabel() string {
+	if m.DiskType == "" {
+		return ""
+	}
+	if isDigitsOnly(m.DiskType) {
+		return HuaweiDiskTypeLabel(m.DiskType)
+	}
+	return m.DiskType
+}
+
+func isDigitsOnly(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// HuaweiDiskTypeLabel переводит числовой код DISKTYPE Huawei DeviceManager
+// REST API (Dorado/OceanStor, поле disk.DISKTYPE, приходит строкой) в
+// читаемую метку. Источник таблицы - официальный MIB
+// HUAWEI-STORAGE-HARDWARE-MIB, hwInfoDiskType (коды 0-18), + код 21,
+// добавленный позже в V700R001C01 для Capacity-Optimized/QLC SSD (см.
+// kontext/10-huawei-dorado-rest-api.md). Коды 19/20/22 в открытом MIB не
+// задокументированы - для них, как и для любого другого нераспознанного
+// кода, возвращается "Код N", ничего не домысливая.
+func HuaweiDiskTypeLabel(code string) string {
+	code = strings.TrimSpace(code)
+	n, err := strconv.Atoi(code)
+	if err != nil {
+		// на случай прошивки, которая всё же прислала не число, а готовую
+		// строку (как в CLI) - возвращаем как есть, ничего не портим
+		return code
+	}
+	switch n {
+	case 0:
+		return "FC (HDD Fibre Channel)"
+	case 1:
+		return "SAS (HDD)"
+	case 2:
+		return "SATA (HDD)"
+	case 3:
+		return "SAS SSD"
+	case 4:
+		return "NL-SAS (HDD)"
+	case 5:
+		return "SLC SSD"
+	case 6:
+		return "MLC SSD"
+	case 7:
+		return "FC SED"
+	case 8:
+		return "SAS SED (HDD)"
+	case 9:
+		return "SATA SED (HDD)"
+	case 10:
+		return "SAS SSD SED"
+	case 11:
+		return "NL-SAS SED (HDD)"
+	case 12:
+		return "SLC SSD SED"
+	case 13:
+		return "MLC SSD SED"
+	case 14:
+		return "NVMe SSD"
+	case 15:
+		return "SMR SATA (HDD)"
+	case 16:
+		return "NVMe SSD SED"
+	case 17:
+		return "SCM SSD (Storage Class Memory)"
+	case 18:
+		return "SCM SED"
+	case 21:
+		return "Capacity-Optimized NVMe SSD (QLC)"
+	default:
+		return fmt.Sprintf("Код %d", n)
+	}
 }
 
 // TableIndex() намеренно не объявлен - StorageSystemsId/StorageEnclosureId/
