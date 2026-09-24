@@ -588,6 +588,17 @@ const (
 	unityLiveKpiWait     = 11 * time.Second
 )
 
+// unityCpuSampleCount/unityCpuSampleGap - параметры runUnityRealtimeQueryMultiSample
+// для CPU busyTicks/idleTicks (см. комментарий у этой функции): нужно
+// МИНИМУМ 2 отдельных GET с паузой между ними, а не один длинный wait -
+// gap выбран равным unityLiveKpiInterval (секунды сэмплирования самого
+// real-time-запроса), чтобы между двумя GET успел накопиться хотя бы один
+// новый интервал данных.
+const (
+	unityCpuSampleCount = 2
+	unityCpuSampleGap   = unityLiveKpiInterval * time.Second
+)
+
 // UnityLiveKpi - агрегированные (по всем LUN/SP массива) живые KPI Unity,
 // см. GetUnityLiveKpi.
 type UnityLiveKpi struct {
@@ -787,7 +798,7 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	}
 
 	cpuPaths := []string{unityRawCPUBusyTicks, unityRawCPUIdleTicks}
-	if cpuResult, err := runUnityRealtimeQuery(session, address, cpuPaths, unityLiveKpiInterval, unityLiveKpiWait); err != nil {
+	if cpuResult, err := runUnityRealtimeQueryMultiSample(session, address, cpuPaths, unityLiveKpiInterval, unityCpuSampleCount, unityCpuSampleGap); err != nil {
 		errs = append(errs, "CPU (sp.*.cpu.summary.*Ticks): "+err.Error())
 	} else {
 		type tick struct {
@@ -862,4 +873,59 @@ func runUnityRealtimeQuery(session *emcstorage.Session, address string, paths []
 		return nil, fmt.Errorf("СХД не вернула ни одного отсчёта метрик")
 	}
 	return result, nil
+}
+
+// runUnityRealtimeQueryMultiSample - вариант runUnityRealtimeQuery для
+// метрик, которым нужно НЕСКОЛЬКО последовательных отсчётов ОДНОГО и того
+// же real-time-запроса - например, CPU busyTicks/idleTicks: это
+// накопительные счётчики тиков, процент считается по ДЕЛЬТЕ между двумя
+// отсчётами с разницей во времени, одного отсчёта недостаточно.
+//
+// Экспериментально обнаружено 2026-09-24 (лог пользователя
+// storagemetrics-19bca738.log): "CPU: недостаточно отсчётов ... для
+// дельты" сохранялось ДАЖЕ при wait=11s и interval=5s (то есть время
+// ожидания перед единственным GET было МЕНЬШЕ, но заведомо больше одного
+// интервала) - значит один GET /api/types/metricQueryResult/instances
+// возвращает РОВНО ОДИН (последний) отсчёт на путь, а НЕ накопленную
+// историю за время ожидания, как изначально предполагалось в
+// runUnityRealtimeQuery/GetUnityLiveKpi (это предположение никогда не было
+// подтверждено документацией - "не гадать" сработало бы раньше, если бы
+// это было замечено сразу). Чтобы получить N отсчётов, нужно вызвать
+// GetMetricRealTimeQueryResult N РАЗ с паузой между вызовами, используя
+// ОДИН и тот же queryId (сам real-time-запрос создаётся один раз).
+func runUnityRealtimeQueryMultiSample(session *emcstorage.Session, address string, paths []string, interval uint32, sampleCount int, gap time.Duration) (*emcstorage.MetricRealTimeQueryResult, error) {
+	created, err := session.NewMetricRealTimeQuery(paths, interval)
+	if err != nil {
+		return nil, fmt.Errorf("создание real-time запроса: %w", err)
+	}
+	if created == nil || created.Content.ID == 0 {
+		return nil, fmt.Errorf("СХД не вернула id real-time запроса")
+	}
+	queryID := created.Content.ID
+	defer func() {
+		if derr := session.DeleteMetricRealTimeQuery(queryID); derr != nil {
+			log.Printf("storages.runUnityRealtimeQueryMultiSample(%s): не удалось удалить real-time запрос id=%d: %v", address, queryID, derr)
+		}
+	}()
+
+	combined := &emcstorage.MetricRealTimeQueryResult{}
+	var sampleErrs []string
+	for i := 0; i < sampleCount; i++ {
+		time.Sleep(gap)
+		result, err := session.GetMetricRealTimeQueryResult(queryID)
+		if err != nil {
+			sampleErrs = append(sampleErrs, fmt.Sprintf("отсчёт %d/%d: %v", i+1, sampleCount, err))
+			continue
+		}
+		if result != nil {
+			combined.Entries = append(combined.Entries, result.Entries...)
+		}
+	}
+	if len(combined.Entries) == 0 {
+		if len(sampleErrs) > 0 {
+			return nil, fmt.Errorf("не удалось получить ни одного отсчёта (queryId=%d): %s", queryID, strings.Join(sampleErrs, "; "))
+		}
+		return nil, fmt.Errorf("СХД не вернула ни одного отсчёта метрик (queryId=%d)", queryID)
+	}
+	return combined, nil
 }
