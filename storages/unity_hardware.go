@@ -527,9 +527,15 @@ func DumpUnityLunRealtimeByName(address, lunName string, interval uint32, wait t
 //	              totalBandwidth/readIOPS/writeIOPS/totalIOPS (isRealtimeAvailable=true)
 //	id 10693/10695: sp.*.cpu.summary.busyTicks/idleTicks (isRealtimeAvailable=true)
 //
-// "+" в kpi.lun.+.sp.+.* означает "по всем LUN, по всем SP" - в ответе
-// приходит одна запись на path с агрегированной (по всем экземплярам)
-// картой значений (см. sumFloatOrValueMap).
+// "+" в kpi.lun.+.sp.+.* ПРЕДПОЛАГАЛОСЬ означающим "по всем LUN, по всем
+// SP" (по аналогии с "*" у sp.*) - экспериментально ОПРОВЕРГНУТО 2026-09-24
+// (см. storages.DumpUnityLunRealtimeByName и комментарий у GetUnityLiveKpi
+// ниже): в real-time-запросе "+" для kpi.lun.* приводит к HTTP 500 в ЛЮБОЙ
+// позиции (и LUN, и SP), независимо от количества путей в запросе и от
+// смешения с sp.*-пространством. Константы ниже (unityKpiLunReadIOPS и
+// т.п., все со знаком "+") оставлены ТОЛЬКО как документация этой
+// неудачной гипотезы - в GetUnityLiveKpi больше НЕ используются, реальный
+// сбор строит литеральные пути через unityLunMetricSuffixes/unitySPNames.
 const (
 	unityKpiLunReadIOPS      = "kpi.lun.+.sp.+.readIOPS"
 	unityKpiLunWriteIOPS     = "kpi.lun.+.sp.+.writeIOPS"
@@ -550,6 +556,26 @@ const (
 	unityRawCPUBusyTicks = "sp.*.cpu.summary.busyTicks"
 	unityRawCPUIdleTicks = "sp.*.cpu.summary.idleTicks"
 )
+
+// unityLunMetricSuffixes/unitySPNames/unityLunRealtimeBatchSize - параметры
+// РАБОЧЕЙ (подтверждённой 2026-09-24 реальным тестом, см. комментарий у
+// unityKpiLunReadIOPS выше и у GetUnityLiveKpi) схемы получения LUN-метрик:
+// литеральный путь "kpi.lun.<ID>.sp.<spa|spb>.<suffix>" на каждую пару
+// LUN/SP отдельно, без wildcard. unitySPNames - фиксированный список, у
+// Unity всегда ровно два SP (spa/spb), независимо от того, каким из них
+// реально владеет конкретный LUN - для "неродного" SP путь всё равно
+// отвечает (подтверждено тестом: kpi.lun.sv_1.sp.spa.readIOPS вернул "0",
+// не ошибку), просто со значением 0, что для суммирования безвредно.
+// unityLunRealtimeBatchSize - на сколько путей бить один real-time-запрос;
+// НЕ подтверждено документацией или тестом с большим количеством LUN
+// (проверка была на массиве с 1 LUN) - подобрано консервативно, при
+// ошибках/таймаутах на массивах с сотнями LUN стоит уменьшить.
+var (
+	unityLunMetricSuffixes = []string{"readIOPS", "writeIOPS", "totalIOPS", "readBandwidth", "writeBandwidth", "totalBandwidth", "responseTime"}
+	unitySPNames            = []string{"spa", "spb"}
+)
+
+const unityLunRealtimeBatchSize = 200
 
 // unityLiveKpiInterval/unityLiveKpiWait - период сэмплирования (секунды
 // metricRealTimeQuery) и время ожидания перед опросом результата для
@@ -608,27 +634,34 @@ func sumFloatOrValueMap(v interface{}) (sum float64, n int) {
 	}
 }
 
-// GetUnityLiveKpi запрашивает и агрегирует живые KPI Unity ОДНИМ real-time
-// запросом (создание -> ожидание unityLiveKpiWait -> один опрос результата
-// -> удаление, тот же механизм, что и у DumpUnityRealTimeMetrics выше):
-//   - IOPS/пропускная способность/задержка - сумма (для IOPS/bandwidth) по
-//     ВСЕМ LUN и SP массива (kpi.lun.+.sp.+.*, подтверждено каталогом
-//     метрик пользователя 2026-09-23, см. константы выше)
+// GetUnityLiveKpi запрашивает и агрегирует живые KPI Unity:
+//   - IOPS/пропускная способность - СУММА, задержка - СРЕДНЕЕ по ВСЕМ LUN
+//     массива (GetLunsRest) и обоим SP (spa/spb), каждый через СВОЙ
+//     литеральный real-time-путь kpi.lun.<ID>.sp.<spa|spb>.<метрика> -
+//     единственная схема, подтверждённая экспериментально 2026-09-24 (см.
+//     комментарий у unityKpiLunReadIOPS/unityLunMetricSuffixes выше - "+"
+//     в любой позиции этого пространства путей даёт HTTP 500). Запросы
+//     бьются на пачки по unityLunRealtimeBatchSize.
 //   - CPU % - через ДЕЛЬТУ первого и последнего отсчёта sp.*.cpu.summary.
-//     busyTicks/idleTicks; если за unityLiveKpiWait успел прийти только
-//     ОДИН отсчёт каждого - CPUUtilOK=false (недостаточно данных, не
-//     ошибка).
+//     busyTicks/idleTicks (здесь "*" - подтверждённый рабочий wildcard,
+//     это ДРУГОЕ пространство путей, не kpi.*); если за unityLiveKpiWait
+//     успел прийти только ОДИН отсчёт каждого - CPUUtilOK=false
+//     (недостаточно данных, не ошибка).
 //
 // Добавлено 2026-09-23 на основе РЕАЛЬНОГО каталога метрик пользователя
 // (2862 подтверждённых пути, массив 10.2.19.106) - см.
 // kontext/12-unity-rest-api.md. Взамен прежнего отсутствия живых
 // IOPS/throughput/latency/CPU для Unity (см. историю у case 2 в
-// cmdb/collectstoragemetrics.go).
+// cmdb/collectstoragemetrics.go). Переписано 2026-09-24 (см. запись в
+// CHANGELOG.md от этой даты) - первая версия использовала "+"-пути,
+// которые оказались нерабочими (HTTP 500), взамен - перебор реальных LUN.
 //
-// ⚠️ Пути метрик подтверждены каталогом устройства, но сама агрегация
-// (сумма по всем LUN, дельта тиков CPU) не сверена с независимым
-// источником (например, значениями в Unisphere UI) - см. предупреждения у
-// вызывающего кода (cmdb.collectUnityKpi).
+// ⚠️ Пути метрик подтверждены реальным тестом, но сама агрегация (сумма по
+// всем LUN, среднее по задержке, дельта тиков CPU) не сверена с
+// независимым источником (например, значениями в Unisphere UI) - см.
+// предупреждения у вызывающего кода (cmdb.collectUnityKpi). ⚠️ Размер
+// пачки real-time-запроса (unityLunRealtimeBatchSize) не проверялся на
+// массиве с большим количеством LUN - см. предупреждение у константы.
 func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	session, err := openUnitySession(address)
 	if err != nil {
@@ -639,51 +672,117 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	out := &UnityLiveKpi{}
 	var errs []string
 
-	// ⚠️ 2026-09-23: раньше ОДИН real-time запрос сразу мешал в одном
-	// paths[] пути из ДВУХ разных пространств Unity REST API - "kpi.*"
-	// (курированные метрики) и низкоуровневые "sp.*" (сырые счётчики) - по
-	// жалобе пользователя "по Unity записывается только UsedPercent,
-	// ошибка HTTP status codes: 500" (real-time запрос падал целиком, обе
-	// группы метрик терялись разом). Совмещать оба пространства в одном
-	// запросе нигде документацией не подтверждено - "не гадать" (тот же
-	// принцип, что и везде в проекте): вместо предположения "почему именно
-	// 500" запросы РАЗДЕЛЕНЫ на два независимых real-time-цикла (каждый
-	// свой create/wait/get/delete) - так ошибка одной группы (если причина
-	// действительно в смешении пространств, или в чём-то ещё специфичном
-	// для одной группы путей) не блокирует другую, и в PollError видно,
-	// какая именно группа не удалась.
-	lunPaths := []string{
-		unityKpiLunReadIOPS, unityKpiLunWriteIOPS, unityKpiLunTotalIOPS,
-		unityKpiLunReadBandwidth, unityKpiLunWriteBandwidth, unityKpiLunTotalBandwidth,
-		unityKpiLunResponseTime,
-	}
-	if lunResult, err := runUnityRealtimeQuery(session, address, lunPaths, unityLiveKpiInterval, unityLiveKpiWait); err != nil {
-		errs = append(errs, "IOPS/bandwidth/responseTime (kpi.lun.+.sp.+.*): "+err.Error())
+	// ⚠️ 2026-09-24: экспериментально ПОДТВЕРЖДЕНО (storages.
+	// DumpUnityLunRealtimeByName, лог пользователя storagemetrics-1643bfd7.log
+	// + unity-lun-test.json), что "+" ни в позиции LUN, ни в позиции SP для
+	// пространства kpi.lun.* в real-time-запросе НЕ работает (оба варианта
+	// kpi.lun.<id>.sp.+.* и kpi.lun.<id>.sp.*.* дают тот же HTTP 500
+	// "Unknown internal metrics error", errorCode 131153939) - работает
+	// ТОЛЬКО полностью литеральный путь вида kpi.lun.<конкретный ID>.sp.
+	// <spa|spb>.<метрика>. Раньше здесь стоял ОДИН запрос с "+"-путями
+	// (unityKpiLunReadIOPS и т.п., ныне оставлены ниже как исторический
+	// комментарий/документация неудачной гипотезы) - переписано на перебор
+	// РЕАЛЬНЫХ LUN массива (GetLunsRest) и обоих SP (spa/spb, фиксированный
+	// список - Unity всегда ровно 2 SP), с построением литеральных путей и
+	// суммированием (для IOPS/bandwidth) / усреднением (для responseTime -
+	// задержку по LUN складывать бессмысленно) результата по всем LUN/SP.
+	// Запросы бьются на пачки по unityLunRealtimeBatchSize путей - размер
+	// пачки НЕ подтверждён документацией/тестом на массиве с большим числом
+	// LUN (при текущей проверке был 1 LUN) - если на боевых массивах с
+	// сотнями LUN появятся ошибки/таймауты, размер пачки нужно уменьшить.
+	if lunList, lunErr := GetLunsRest(address); lunErr != nil {
+		errs = append(errs, "получение списка LUN (GetLunsRest): "+lunErr.Error())
+	} else if len(lunList) == 0 {
+		errs = append(errs, "получение списка LUN: пустой список")
 	} else {
-		latestByPath := map[string]float64{}
-		latestTimeByPath := map[string]time.Time{}
-		for _, e := range lunResult.Entries {
-			c := e.Content
-			sum, n := sumFloatOrValueMap(c.Values)
-			if n == 0 {
+		var allPaths []string
+		for _, l := range lunList {
+			if l == nil || l.ID == "" {
 				continue
 			}
-			if prevT, ok := latestTimeByPath[c.Path]; !ok || c.Timestamp.After(prevT) {
-				latestByPath[c.Path] = sum
-				latestTimeByPath[c.Path] = c.Timestamp
+			for _, sp := range unitySPNames {
+				for _, suffix := range unityLunMetricSuffixes {
+					allPaths = append(allPaths, fmt.Sprintf("kpi.lun.%s.sp.%s.%s", l.ID, sp, suffix))
+				}
 			}
 		}
-		out.ReadIOPS = latestByPath[unityKpiLunReadIOPS]
-		out.WriteIOPS = latestByPath[unityKpiLunWriteIOPS]
-		out.TotalIOPS = latestByPath[unityKpiLunTotalIOPS]
-		out.ReadMBps = latestByPath[unityKpiLunReadBandwidth] / 1024
-		out.WriteMBps = latestByPath[unityKpiLunWriteBandwidth] / 1024
-		out.TotalMBps = latestByPath[unityKpiLunTotalBandwidth] / 1024
-		if _, ok := latestTimeByPath[unityKpiLunResponseTime]; ok {
-			out.ResponseTimeUs = latestByPath[unityKpiLunResponseTime]
+
+		latestByPath := map[string]float64{}
+		latestTimeByPath := map[string]time.Time{}
+		var batchErrs []string
+		for start := 0; start < len(allPaths); start += unityLunRealtimeBatchSize {
+			end := start + unityLunRealtimeBatchSize
+			if end > len(allPaths) {
+				end = len(allPaths)
+			}
+			batch := allPaths[start:end]
+			result, err := runUnityRealtimeQuery(session, address, batch, unityLiveKpiInterval, unityLiveKpiWait)
+			if err != nil {
+				batchErrs = append(batchErrs, fmt.Sprintf("пути %d-%d из %d: %s", start, end, len(allPaths), err.Error()))
+				continue
+			}
+			for _, e := range result.Entries {
+				c := e.Content
+				sum, n := sumFloatOrValueMap(c.Values)
+				if n == 0 {
+					continue
+				}
+				if prevT, ok := latestTimeByPath[c.Path]; !ok || c.Timestamp.After(prevT) {
+					latestByPath[c.Path] = sum
+					latestTimeByPath[c.Path] = c.Timestamp
+				}
+			}
+		}
+		if len(batchErrs) > 0 {
+			errs = append(errs, fmt.Sprintf("IOPS/bandwidth/responseTime (%d LUN x %d SP, часть пачек не удалась): %s", len(lunList), len(unitySPNames), strings.Join(batchErrs, "; ")))
+		}
+
+		// Суммируем (IOPS/bandwidth) или усредняем (responseTime) по всем
+		// собранным путям, группируя по последнему сегменту пути (имени
+		// метрики) - суффикс уникален среди unityLunMetricSuffixes, поэтому
+		// разбор через strings.Split безопасен даже при литеральных ID/SP в
+		// середине пути.
+		sums := map[string]float64{}
+		counts := map[string]int{}
+		for path, v := range latestByPath {
+			parts := strings.Split(path, ".")
+			suffix := parts[len(parts)-1]
+			sums[suffix] += v
+			counts[suffix]++
+		}
+		haveAny := false
+		if counts["readIOPS"] > 0 {
+			out.ReadIOPS = sums["readIOPS"]
+			haveAny = true
+		}
+		if counts["writeIOPS"] > 0 {
+			out.WriteIOPS = sums["writeIOPS"]
+			haveAny = true
+		}
+		if counts["totalIOPS"] > 0 {
+			out.TotalIOPS = sums["totalIOPS"]
+			haveAny = true
+		}
+		if counts["readBandwidth"] > 0 {
+			out.ReadMBps = sums["readBandwidth"] / 1024
+			haveAny = true
+		}
+		if counts["writeBandwidth"] > 0 {
+			out.WriteMBps = sums["writeBandwidth"] / 1024
+			haveAny = true
+		}
+		if counts["totalBandwidth"] > 0 {
+			out.TotalMBps = sums["totalBandwidth"] / 1024
+			haveAny = true
+		}
+		if counts["responseTime"] > 0 {
+			out.ResponseTimeUs = sums["responseTime"] / float64(counts["responseTime"])
 			out.ResponseTimeOK = true
-		} else {
+		} else if len(batchErrs) == 0 {
 			errs = append(errs, "responseTime: не получено ни одного отсчёта")
+		}
+		if !haveAny && len(batchErrs) == 0 {
+			errs = append(errs, "IOPS/bandwidth: не получено ни одного отсчёта ни по одному LUN/SP")
 		}
 	}
 
