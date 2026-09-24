@@ -850,6 +850,32 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	return out, nil
 }
 
+// deleteUnityRealtimeQueryQuiet вызывает DeleteMetricRealTimeQuery и
+// логирует ошибку ТОЛЬКО если она не является ожидаемой "Query ID not
+// found" (errorCode 131153932). Добавлено 2026-09-24 по запросу
+// пользователя loadmon ("лучше не спамить логами такими, но запрос
+// делать") - в проде (metrics_grpc, десятки Unity-систем опрашиваются
+// каждую минуту) explicit DELETE ПОЧТИ ВСЕГДА приходит уже после того, как
+// Unity сама успела удалить/инвалидировать real-time-запрос (судя по
+// консистентности этой ошибки - не единичные случаи, а systematically на
+// каждом запросе), поэтому строка "не удалось удалить ... Query ID not
+// found" на каждый цикл каждой СХД заливала лог практически бесполезным
+// шумом (сам DELETE при этом не убран - вызывается как и раньше, просто
+// его ожидаемая неудача больше не пишется в лог; неожиданная ошибка
+// удаления - любая, кроме "Query ID not found" - по-прежнему логируется,
+// чтобы не потерять сигнал о реальной проблеме).
+func deleteUnityRealtimeQueryQuiet(session *emcstorage.Session, address string, caller string, queryID int) {
+	err := session.DeleteMetricRealTimeQuery(queryID)
+	if err == nil {
+		return
+	}
+	if strings.Contains(err.Error(), "131153932") || strings.Contains(err.Error(), "Query ID not found") {
+		// Ожидаемо (см. комментарий выше) - не спамим лог.
+		return
+	}
+	log.Printf("storages.%s(%s): не удалось удалить real-time запрос id=%d: %v", caller, address, queryID, err)
+}
+
 // runUnityRealtimeQuery - общий цикл ОДНОГО real-time запроса (create ->
 // wait -> get -> delete), вынесенный из GetUnityLiveKpi при разделении на
 // независимые запросы по группам путей (см. комментарий выше). Тот же
@@ -866,11 +892,7 @@ func runUnityRealtimeQuery(session *emcstorage.Session, address string, paths []
 		return nil, fmt.Errorf("СХД не вернула id real-time запроса")
 	}
 	queryID := created.Content.ID
-	defer func() {
-		if derr := session.DeleteMetricRealTimeQuery(queryID); derr != nil {
-			log.Printf("storages.runUnityRealtimeQuery(%s): не удалось удалить real-time запрос id=%d: %v", address, queryID, derr)
-		}
-	}()
+	defer deleteUnityRealtimeQueryQuiet(session, address, "runUnityRealtimeQuery", queryID)
 
 	time.Sleep(wait)
 
@@ -911,11 +933,7 @@ func runUnityRealtimeQueryMultiSample(session *emcstorage.Session, address strin
 		return nil, fmt.Errorf("СХД не вернула id real-time запроса")
 	}
 	queryID := created.Content.ID
-	defer func() {
-		if derr := session.DeleteMetricRealTimeQuery(queryID); derr != nil {
-			log.Printf("storages.runUnityRealtimeQueryMultiSample(%s): не удалось удалить real-time запрос id=%d: %v", address, queryID, derr)
-		}
-	}()
+	defer deleteUnityRealtimeQueryQuiet(session, address, "runUnityRealtimeQueryMultiSample", queryID)
 
 	combined := &emcstorage.MetricRealTimeQueryResult{}
 	var sampleErrs []string
