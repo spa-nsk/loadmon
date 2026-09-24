@@ -704,7 +704,16 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	if lunList, lunErr := GetLunsRest(address); lunErr != nil {
 		errs = append(errs, "получение списка LUN (GetLunsRest): "+lunErr.Error())
 	} else if len(lunList) == 0 {
-		errs = append(errs, "получение списка LUN: пустой список")
+		// 2026-09-24: НЕ ошибка - подтверждено пользователем на реальном
+		// массиве (U680-RT-01): "есть пул но нет lun" - Unity может
+		// использоваться чисто под файловые ресурсы (NAS/CIFS/NFS поверх
+		// пула) без единого блочного LUN. Раньше это считалось ошибкой
+		// (errs += "получение списка LUN: пустой список"), из-за чего
+		// PollOK=false выставлялся каждый цикл на системах без блочных
+		// LUN, хотя CPU%/UsedPercent для них собираются штатно. Пустой
+		// список LUN просто означает "IOPS/bandwidth/latency недоступны
+		// для этой системы" - не ошибку опроса.
+		log.Printf("storages.GetUnityLiveKpi(%s): список LUN пуст (нет блочных LUN - вероятно, файловый/NAS-массив) - IOPS/bandwidth/latency недоступны, это не ошибка", address)
 	} else {
 		var allPaths []string
 		for _, l := range lunList {
