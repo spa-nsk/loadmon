@@ -419,6 +419,102 @@ func DumpUnityRealTimeMetrics(address string, paths []string, interval uint32, w
 	return result, nil
 }
 
+// ResolveUnityLunID ищет LUN по имени (точное совпадение) через
+// коллекционный запрос GET /api/types/lun/instances?filter=name eq "<name>"
+// и возвращает его id. Добавлено 2026-09-24 для диагностики HTTP 500 у
+// real-time-путей "kpi.lun.+.sp.+.*" (см. DumpUnityLunRealtimeByName) -
+// используется именно коллекционный запрос с filter, а НЕ
+// emcstorage.Session.GetLunByName (/api/instances/lun/name:<name>): у
+// инстанс-запроса ответ Unity приходит БЕЗ обёртки "entries" (один "content"
+// на верхнем уровне), а emcstorage.Lun ожидает "entries" - разбор для этого
+// случая потенциально сломан (отдельный, не проверявшийся баг, здесь не
+// трогаем, идём в обход через фильтр по коллекции, которая точно работает -
+// см. тот же приём в emcstorage/metrics.go).
+func ResolveUnityLunID(address, name string) (id string, err error) {
+	session, err := openUnitySession(address)
+	if err != nil {
+		return "", err
+	}
+	defer session.CloseSession()
+
+	filter := fmt.Sprintf("name eq \"%s\"", name)
+	var resp emcstorage.Lun
+	if err := session.Request("GET", "/api/types/lun/instances", "id,name", filter, false, nil, &resp); err != nil {
+		return "", fmt.Errorf("поиск LUN по имени %q: %w", name, err)
+	}
+	if len(resp.Entries) == 0 {
+		return "", fmt.Errorf("LUN с именем %q не найден (пустой ответ)", name)
+	}
+	return resp.Entries[0].Content.ID, nil
+}
+
+// DumpUnityLunRealtimeByName - диагностика причины HTTP 500 у
+// "kpi.lun.+.sp.+.*" в real-time-запросах (см. константы unityKpiLun* выше и
+// GetUnityLiveKpi). Экспериментально подтверждено (2026-09-24, лог
+// пользователя storagemetrics.log, -unitydumprealtime с ОДНИМ путём
+// "kpi.lun.+.sp.+.readIOPS"): даже единственный такой путь в отдельном
+// real-time-запросе (без смешения с sp.*-путями) даёт ту же ошибку
+// "Unknown internal metrics error has occurred." (errorCode 131153939,
+// Error Code 0x7d14013) - то есть дело не в количестве путей и не в
+// смешении пространств kpi./sp., которое подозревалось раньше.
+//
+// Официальная документация (doc-API-hardware/unity-restapi-refg...) в
+// разделе про ресурс "metric"/"stat paths" приводит ПОЛНЫЙ список префиксов
+// реальных (real-time) stat-путей - и ВСЕ они вида "sp.*.<категория>"; ни
+// "lun", ни "kpi." среди документированных примеров НЕТ. Рабочая гипотеза
+// (не подтверждённая документацией напрямую, поэтому проверяем
+// экспериментально, а не подставляем как факт): "+" в kpi.lun.+.sp.+.* -
+// это плейсхолдер каталога метрик ("параметризуется по объекту", удобный
+// для отображения в UI/каталоге), а не буквальный wildcard-символ,
+// понятный real-time query engine - в отличие от "*" в sp.*, который явно
+// понимается буквально (подтверждено рабочим запросом sp.*.cpu.summary.*).
+// Для LUN-метрик, видимо, нужно подставлять реальный id LUN (и, возможно,
+// конкретное имя SP - spa/spb - вместо второго "+").
+//
+// Резолвит LUN по имени (ResolveUnityLunID) и пробует НЕСКОЛЬКО вариантов
+// подстановки для одного показателя (readIOPS) ОТДЕЛЬНЫМИ real-time-
+// запросами (чтобы ошибка одного варианта не мешала увидеть результат
+// остальных):
+//  1. "kpi.lun.<id>.sp.+.readIOPS"   - id вместо LUN-плейсхолдера, "+" для SP как было
+//  2. "kpi.lun.<id>.sp.*.readIOPS"   - id для LUN, "*" (как у sp.*.cpu...) для SP
+//  3. "kpi.lun.<id>.sp.spa.readIOPS" - id для LUN, буквальное имя SP (spa)
+//
+// Возвращает map с lunId и результатом/ошибкой по каждому варианту - вызов
+// tools/storagemetrics -unitydumplunname сохраняет его в файл целиком.
+func DumpUnityLunRealtimeByName(address, lunName string, interval uint32, wait time.Duration) (map[string]interface{}, error) {
+	id, err := ResolveUnityLunID(address, lunName)
+	if err != nil {
+		return nil, fmt.Errorf("резолв LUN %q: %w", lunName, err)
+	}
+
+	type variant struct {
+		label string
+		path  string
+	}
+	variants := []variant{
+		{"id_plus_sp", fmt.Sprintf("kpi.lun.%s.sp.+.readIOPS", id)},
+		{"id_star_sp", fmt.Sprintf("kpi.lun.%s.sp.*.readIOPS", id)},
+		{"id_literal_spa", fmt.Sprintf("kpi.lun.%s.sp.spa.readIOPS", id)},
+	}
+
+	out := map[string]interface{}{
+		"lunName": lunName,
+		"lunId":   id,
+	}
+	for _, v := range variants {
+		log.Printf("storages.DumpUnityLunRealtimeByName(%s): пробую вариант %s: путь=%q", address, v.label, v.path)
+		result, err := DumpUnityRealTimeMetrics(address, []string{v.path}, interval, wait)
+		if err != nil {
+			out[v.label] = map[string]interface{}{"path": v.path, "error": err.Error()}
+			log.Printf("storages.DumpUnityLunRealtimeByName(%s): вариант %s (%q) - ошибка: %v", address, v.label, v.path, err)
+			continue
+		}
+		out[v.label] = map[string]interface{}{"path": v.path, "result": result}
+		log.Printf("storages.DumpUnityLunRealtimeByName(%s): вариант %s (%q) - успех", address, v.label, v.path)
+	}
+	return out, nil
+}
+
 // Пути живых KPI Unity (пространство "kpi." с wildcard "+", в отличие от
 // низкоуровневого "sp."/"lun." и т.п. с wildcard "*" - это ДВА разных
 // пространства путей одного REST API, оба встречаются в одном каталоге
