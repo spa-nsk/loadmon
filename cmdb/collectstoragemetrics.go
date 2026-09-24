@@ -290,7 +290,11 @@ func collectHuaweiUsedPercent(shd *models.StorageSystems) (float64, error) {
 		return 0, fmt.Errorf("список пулов: %w", err)
 	}
 	if len(pools) == 0 {
-		return 0, fmt.Errorf("СХД не вернула ни одного пула")
+		// 2026-09-24: НЕ ошибка - см. тот же комментарий у
+		// collectUnityUsedPercent (подтверждено пользователем на реальных
+		// СХД: "не размечены, пулов нет и это не ошибка").
+		log.Printf("cmdb.collectHuaweiUsedPercent(%s): пулы не найдены (СХД, вероятно, ещё не размечена) - UsedPercent недоступен, это не ошибка", shd.IpAddress)
+		return 0, nil
 	}
 
 	var usedSum, totalSum float64
@@ -523,7 +527,16 @@ func collectUnityUsedPercent(shd *models.StorageSystems) (float64, error) {
 		return 0, fmt.Errorf("список пулов: %w", err)
 	}
 	if len(pools) == 0 {
-		return 0, fmt.Errorf("СХД не вернула ни одного пула")
+		// 2026-09-24: НЕ ошибка - подтверждено пользователем ("есть такие
+		// СХД, он пока просто не размечены поэтому пулов нет и это не
+		// ошибка. Просто и метрик по ним ждать нет смысла") - СХД может
+		// быть заведена в справочник, но ещё не размечена (пулы не
+		// созданы/не презентованы) - раньше это считалось ошибкой опроса
+		// (PollOK=false на каждом цикле), хотя это ожидаемое состояние для
+		// таких систем. UsedPercent остаётся 0 (честно - данных нет), но
+		// PollOK не портится из-за этого.
+		log.Printf("cmdb.collectUnityUsedPercent(%s): пулы не найдены (СХД, вероятно, ещё не размечена) - UsedPercent недоступен, это не ошибка", shd.IpAddress)
+		return 0, nil
 	}
 	var usedSum, totalSum float64
 	for _, p := range pools {
@@ -624,7 +637,11 @@ func collectLenovoUsedPercent(shd *models.StorageSystems) (float64, error) {
 		return 0, fmt.Errorf("список пулов: %w", err)
 	}
 	if len(pools) == 0 {
-		return 0, fmt.Errorf("СХД не вернула ни одного пула")
+		// 2026-09-24: НЕ ошибка - см. тот же комментарий у
+		// collectUnityUsedPercent (подтверждено пользователем на реальных
+		// СХД: "не размечены, пулов нет и это не ошибка").
+		log.Printf("cmdb.collectLenovoUsedPercent(%s): пулы не найдены (СХД, вероятно, ещё не размечена) - UsedPercent недоступен, это не ошибка", shd.IpAddress)
+		return 0, nil
 	}
 
 	var usedSum, totalSum float64
