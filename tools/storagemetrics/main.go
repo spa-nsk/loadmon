@@ -61,6 +61,14 @@
 //	# на примере CPU busy/idle ticks и сохранить сырой результат в файл, затем
 //	# выйти, ничего не опрашивая и никуда не записывая:
 //	go run ./tools/storagemetrics -unitydumprealtime U450-MF-01 -unitydumpfile u450-mf-01-realtime.json
+//
+//	# диагностика HTTP 500 ("Unknown internal metrics error") у путей
+//	# "kpi.lun.+.sp.+.*" (подтверждено, что даже ОДИН такой путь падает сам
+//	# по себе - см. storages.DumpUnityLunRealtimeByName/kontext/12-unity-rest-api.md):
+//	# резолвит ID LUN по его ИМЕНИ (не нужно знать ID заранее) и пробует
+//	# несколько вариантов подстановки вместо "+" (kpi.lun.<ID>.sp.+.readIOPS,
+//	# kpi.lun.<ID>.sp.*.readIOPS, kpi.lun.<ID>.sp.spa.readIOPS):
+//	go run ./tools/storagemetrics -unitydumplunname U480-MSK-02 -unitydumplunlun "имя_лана" -unitydumpfile unity-lun-test.json
 package main
 
 import (
@@ -118,6 +126,15 @@ func main() {
 	unityDumpInterval := flag.Uint("unitydumpinterval", 5, "интервал сэмплирования в секундах [5..300] для -unitydumprealtime (аргумент interval у metricRealTimeQuery)")
 	unityDumpWait := flag.Duration("unitydumpwait", 6*time.Second, "сколько ждать перед тем, как забрать первый отсчёт, для -unitydumprealtime - должно быть не меньше -unitydumpinterval")
 	unityDumpFile := flag.String("unitydumpfile", "unity-realtime-dump.json", "путь к файлу для -unitydumprealtime")
+	// 2026-09-24: диагностика HTTP 500 ("Unknown internal metrics error")
+	// у путей "kpi.lun.+.sp.+.*" в реальном сборе (collectUnityKpi) -
+	// подтверждено, что даже ОДИН такой путь падает сам по себе (см.
+	// storages.DumpUnityLunRealtimeByName). У пользователя нет под рукой
+	// ID LUN, только имя - эта диагностика резолвит ID по имени сама и
+	// пробует несколько вариантов подстановки вместо "+" (см. комментарий
+	// у DumpUnityLunRealtimeByName).
+	unityDumpLunShort := flag.String("unitydumplunname", "", "не опрашивать метрики - вместо этого резолвнуть ID LUN по имени (-unitydumplunlun) на СХД с этим ShortName и проверить несколько вариантов real-time-пути kpi.lun.<ID>.sp.*.readIOPS (взамен непроверенного kpi.lun.+.sp.+.*), сохранить результат в -unitydumpfile, затем выйти")
+	unityDumpLunLun := flag.String("unitydumplunlun", "", "имя LUN (точное, как в Unisphere) для -unitydumplunname")
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -174,6 +191,14 @@ func main() {
 
 	if *unityDumpRealtime != "" {
 		dumpUnityRealtime(*unityDumpRealtime, *unityDumpPaths, uint32(*unityDumpInterval), *unityDumpWait, *unityDumpFile)
+		return
+	}
+
+	if *unityDumpLunShort != "" {
+		if *unityDumpLunLun == "" {
+			log.Fatalf("storagemetrics: -unitydumplunname требует также -unitydumplunlun (имя LUN)")
+		}
+		dumpUnityLunRealtime(*unityDumpLunShort, *unityDumpLunLun, uint32(*unityDumpInterval), *unityDumpWait, *unityDumpFile)
 		return
 	}
 
@@ -375,4 +400,52 @@ func dumpUnityRealtime(shortName, pathsCSV string, interval uint32, wait time.Du
 	}
 	fmt.Printf("storagemetrics: real-time результат %s (%s) сохранён в %s (%d байт, %d записей)\n", shd.ShortName, shd.IpAddress, path, len(pretty), len(result.Entries))
 	log.Printf("storagemetrics: -unitydumprealtime: результат сохранён в %s (%d записей)", path, len(result.Entries))
+}
+
+// dumpUnityLunRealtime ищет СХД по ShortName (без учёта регистра) в
+// storage_systems, проверяет, что это Unity (ApiType 2), и вызывает
+// storages.DumpUnityLunRealtimeByName - диагностику причины HTTP 500 у
+// путей "kpi.lun.+.sp.+.*" (подтверждено, что даже ОДИН такой путь падает
+// сам по себе - см. подробный комментарий у DumpUnityLunRealtimeByName).
+// Добавлено 2026-09-24 по запросу пользователя loadmon "у меня нет LUN ID
+// есть имя LUN сделай опрос сам" - резолвит ID LUN по имени сама (через
+// storages.ResolveUnityLunID) и пробует несколько вариантов подстановки
+// вместо "+" в одном показателе (readIOPS), сохраняя результат/ошибку по
+// каждому варианту в файл. Ничего не опрашивает штатно и не пишет в
+// storage_metric - только диагностика.
+func dumpUnityLunRealtime(shortName, lunName string, interval uint32, wait time.Duration, path string) {
+	o := orm.NewOrm()
+	var systems []*models.StorageSystems
+	if _, err := o.QueryTable(new(models.StorageSystems)).All(&systems); err != nil {
+		log.Fatalf("storagemetrics: -unitydumplunname: ошибка чтения storage_systems: %v", err)
+	}
+	var shd *models.StorageSystems
+	for _, s := range systems {
+		if s != nil && strings.EqualFold(s.ShortName, shortName) {
+			shd = s
+			break
+		}
+	}
+	if shd == nil {
+		log.Fatalf("storagemetrics: -unitydumplunname: СХД с ShortName=%q не найдена в storage_systems", shortName)
+	}
+	if shd.ApiType != 2 {
+		log.Fatalf("storagemetrics: -unitydumplunname: СХД %q имеет ApiType=%d, а не 2 (Unity)", shortName, shd.ApiType)
+	}
+
+	log.Printf("storagemetrics: -unitydumplunname: резолвлю LUN %q и проверяю варианты real-time-пути у %s (%s)...", lunName, shd.ShortName, shd.IpAddress)
+	result, err := storages.DumpUnityLunRealtimeByName(shd.IpAddress, lunName, interval, wait)
+	if err != nil {
+		log.Fatalf("storagemetrics: -unitydumplunname: ошибка у %s (%s): %v", shd.ShortName, shd.IpAddress, err)
+	}
+
+	pretty, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		log.Fatalf("storagemetrics: -unitydumplunname: ошибка сериализации результата: %v", err)
+	}
+	if err := os.WriteFile(path, pretty, 0644); err != nil {
+		log.Fatalf("storagemetrics: -unitydumplunname: не удалось записать файл %q: %v", path, err)
+	}
+	fmt.Printf("storagemetrics: результат диагностики LUN %q на %s (%s) сохранён в %s (%d байт) - смотрите поля id_plus_sp/id_star_sp/id_literal_spa\n", lunName, shd.ShortName, shd.IpAddress, path, len(pretty))
+	log.Printf("storagemetrics: -unitydumplunname: результат сохранён в %s", path)
 }
