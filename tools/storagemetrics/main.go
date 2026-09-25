@@ -41,6 +41,18 @@
 //	# явно указать конфиг, если бинарник запускается не рядом с conf/app2.json:
 //	LOADMON_CONFIG=/path/to/app2.json go run ./tools/storagemetrics
 //
+//	# storage_metric_record не появляется (report "/sprsrv/storagesystemmetricsview"
+//	# пустой) - проверить/пересчитать суточную агрегацию storage_metric ->
+//	# storage_metric_record за сегодня прямо сейчас, не дожидаясь ночного
+//	# запуска (23:59:59) в metrics_grpc; лог покажет, сколько строк
+//	# storage_metric найдено и сколько записей storage_metric_record создано/
+//	# обновлено/не удалось:
+//	go run ./tools/storagemetrics -aggregate today
+//
+//	# то же самое за конкретный прошедший день (например, если сбор метрик в тот
+//	# день работал, а агрегация - нет):
+//	go run ./tools/storagemetrics -aggregate 2026-09-24
+//
 //	# снять сырой каталог доступных метрик Unity (для сверки реальных путей
 //	# метрик перед реализацией живых IOPS/throughput/latency/CPU - см.
 //	# kontext/11-storage-metrics.md) и выйти, ничего не опрашивая и никуда не записывая:
@@ -135,6 +147,21 @@ func main() {
 	// у DumpUnityLunRealtimeByName).
 	unityDumpLunShort := flag.String("unitydumplunname", "", "не опрашивать метрики - вместо этого резолвнуть ID LUN по имени (-unitydumplunlun) на СХД с этим ShortName и проверить несколько вариантов real-time-пути kpi.lun.<ID>.sp.*.readIOPS (взамен непроверенного kpi.lun.+.sp.+.*), сохранить результат в -unitydumpfile, затем выйти")
 	unityDumpLunLun := flag.String("unitydumplunlun", "", "имя LUN (точное, как в Unisphere) для -unitydumplunname")
+	// 2026-09-25: по жалобе пользователя "не формируются записи в
+	// storage_metric_record и поэтому отчёт не формируется" - суточная
+	// агрегация storage_metric -> storage_metric_record
+	// (cmdb.SaveStorageMetricRecord) штатно запускается только изнутри
+	// полного metrics_grpc (cmdb.SaveMetricData, раз в сутки в 23:59:59 -
+	// см. metrics_grpc/metrics_grpc.go) - раньше не было способа проверить
+	// эту агрегацию отдельно, как уже можно для самого опроса метрик
+	// (-only/-interval выше). Теперь -aggregate запускает
+	// SaveStorageMetricRecord за указанную дату (YYYY-MM-DD, по умолчанию -
+	// сегодня) в обход опроса storage_metric и логирует результат (сколько
+	// строк storage_metric нашлось за день, сколько записей
+	// storage_metric_record создано/обновлено/не удалось - см. логирование,
+	// добавленное туда же в cmdb/savestoragemetricrecord.go) - не опрашивает
+	// СХД, работает по уже накопленным в storage_metric данным.
+	aggregate := flag.String("aggregate", "", "не опрашивать метрики - вместо этого выполнить суточную агрегацию storage_metric -> storage_metric_record (cmdb.SaveStorageMetricRecord) за дату YYYY-MM-DD (например 2026-09-25; \"today\" - за сегодня по текущий момент) и выйти")
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -194,6 +221,11 @@ func main() {
 		return
 	}
 
+	if *aggregate != "" {
+		runAggregate(*aggregate)
+		return
+	}
+
 	if *unityDumpLunShort != "" {
 		if *unityDumpLunLun == "" {
 			log.Fatalf("storagemetrics: -unitydumplunname требует также -unitydumplunlun (имя LUN)")
@@ -237,6 +269,35 @@ func main() {
 			return
 		}
 	}
+}
+
+// runAggregate запускает cmdb.SaveStorageMetricRecord за дату dateStr
+// (YYYY-MM-DD, или "today" - за сегодня по текущий момент) в обход опроса
+// СХД - работает по уже накопленным в storage_metric данным. См. комментарий
+// у флага -aggregate выше и у cmdb.SaveStorageMetricRecord
+// (cmdb/savestoragemetricrecord.go) - там же добавлено подробное
+// логирование каждого шага (сколько строк storage_metric нашлось, сколько
+// записей storage_metric_record создано/обновлено/не удалось), которое и
+// покажет, на каком шаге реально теряются данные.
+func runAggregate(dateStr string) {
+	var target time.Time
+	if strings.EqualFold(dateStr, "today") {
+		target = time.Now().Local()
+	} else {
+		d, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+		if err != nil {
+			log.Fatalf("storagemetrics: -aggregate: не удалось разобрать дату %q (ожидается YYYY-MM-DD или \"today\"): %v", dateStr, err)
+		}
+		now := time.Now().Local()
+		if d.Year() == now.Year() && d.Month() == now.Month() && d.Day() == now.Day() {
+			target = now // сегодняшний (неполный) день - агрегируем по текущий момент, как и штатный ночной запуск
+		} else {
+			target = time.Date(d.Year(), d.Month(), d.Day(), 23, 59, 59, 0, time.Local) // прошедший день целиком
+		}
+	}
+	log.Printf("storagemetrics: -aggregate: запуск суточной агрегации storage_metric -> storage_metric_record за %s", target.Format("2006-01-02"))
+	cmdb.SaveStorageMetricRecord(target)
+	log.Println("storagemetrics: -aggregate: завершено")
 }
 
 // dumpUnityMetricCatalog ищет СХД по ShortName (без учёта регистра, как

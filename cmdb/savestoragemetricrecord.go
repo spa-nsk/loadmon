@@ -1,7 +1,6 @@
 package cmdb
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"time"
@@ -13,9 +12,22 @@ import (
 
 // SaveStorageMetricRecord агрегирует поминутные метрики СХД (storage_metric)
 // в суточные записи storage_metric_record с max/min/avg и временем extrema.
+//
+// Логирование (2026-09-25) - по той же причине, что и у
+// cmdb.CollectStorageMetrics (см. комментарий там про "нет ни одной СХД с
+// Power=1"/"не собрано ни одной строки" - жалоба пользователя "метрики не
+// собираются, X пустая" без единой строки в логе, объясняющей, на каком шаге
+// теряются данные): раньше при num==0 (нет ни одной строки storage_metric за
+// сутки в вызывающем окне [dayStart, dayEnd)) функция молча возвращалась -
+// ни одной записи в storage_metric_record не появлялось, и понять, дошёл ли
+// вызов SaveStorageMetricRecord вообще до этой точки, было нельзя. Теперь
+// вход в функцию, пустой результат (с границами периода - для проверки
+// таймзоны) и итоговое число записанных/обновлённых записей логируются явно.
 func SaveStorageMetricRecord(currentTime time.Time) {
 	dayStart := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, currentTime.Location())
 	dayEnd := currentTime
+
+	log.Printf("cmdb.SaveStorageMetricRecord: запуск, период [%s, %s)", dayStart.Format("2006-01-02 15:04:05 MST"), dayEnd.Format("2006-01-02 15:04:05 MST"))
 
 	o := orm.NewOrm()
 	var rows []*models.StorageMetric
@@ -24,10 +36,11 @@ func SaveStorageMetricRecord(currentTime time.Time) {
 	qs = qs.OrderBy("StorageSystemsId", "CollectedAt")
 	num, err := qs.All(&rows)
 	if err != nil {
-		fmt.Println("cmdb.SaveStorageMetricRecord: ошибка чтения storage_metric:", err)
+		log.Println("cmdb.SaveStorageMetricRecord: ошибка чтения storage_metric:", err)
 		return
 	}
 	if num == 0 {
+		log.Printf("cmdb.SaveStorageMetricRecord: за период [%s, %s) в storage_metric не найдено ни одной строки - storage_metric_record не пополнится в этом цикле (проверьте, что cmdb.CollectStorageMetrics реально пишет в storage_metric - см. лог tools/storagemetrics)", dayStart.Format("2006-01-02 15:04:05 MST"), dayEnd.Format("2006-01-02 15:04:05 MST"))
 		return
 	}
 
@@ -43,6 +56,7 @@ func SaveStorageMetricRecord(currentTime time.Time) {
 		byStorage[r.StorageSystemsId] = append(byStorage[r.StorageSystemsId], r)
 	}
 
+	inserted, updated, failed := 0, 0, 0
 	for _, storageID := range storageOrder {
 		samples := byStorage[storageID]
 		rec := aggregateStorageMetricRecord(storageID, samples)
@@ -64,13 +78,21 @@ func SaveStorageMetricRecord(currentTime time.Time) {
 			rec.Id = existing.Id
 			if _, err := o.Update(rec); err != nil {
 				log.Println("cmdb.SaveStorageMetricRecord: ошибка обновления storage_metric_record StorageSystemsId=", storageID, err)
+				failed++
+			} else {
+				updated++
 			}
 		} else {
 			if _, err := o.Insert(rec); err != nil {
 				log.Println("cmdb.SaveStorageMetricRecord: ошибка вставки storage_metric_record StorageSystemsId=", storageID, err)
+				failed++
+			} else {
+				inserted++
 			}
 		}
 	}
+	log.Printf("cmdb.SaveStorageMetricRecord: из %d строк storage_metric по %d СХД: создано %d, обновлено %d, ошибок %d записей storage_metric_record за %s",
+		num, len(storageOrder), inserted, updated, failed, dayStart.Format("2006-01-02"))
 }
 
 func aggregateStorageMetricRecord(storageID int64, samples []*models.StorageMetric) *models.StorageMetricRecord {
