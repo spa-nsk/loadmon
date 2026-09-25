@@ -135,7 +135,8 @@
                 <td id="stRowMenu{{$st.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemsedit/{{$st.Id}}" target="_blank">Редактировать</a>
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemconfigview/{{$st.Id}}" target="_blank">Конфигурация СХД</a>
-                    <a class="ctx-menu-item" href="/sprsrv/storagesystemmetricsview/{{$st.Id}}" target="_blank">Метрики СХД</a>
+                    <a class="ctx-menu-item" href="/sprsrv/storagesystemmetricsview/{{$st.Id}}" target="_blank">Метрики СХД за период</a>
+                    <a class="ctx-menu-item" href="/sprsrv/storagesystemmetricsrecent/{{$st.Id}}" target="_blank">Метрики СХД за 3 суток</a>
                 </td>
             </tr>
             {{else}}
