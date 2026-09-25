@@ -150,8 +150,15 @@
                 colors.push(colorMax); strokeCurves.push('smooth'); strokeWidths.push(1.5);
             }
             if (hasRaw) {
-                series.push({ name: 'Текущее значение', type: 'scatter', data: toXY(chart.raw) });
-                colors.push(colorRaw); strokeCurves.push('straight'); strokeWidths.push(0);
+                // Раньше здесь был type: 'scatter' + strokeWidths: 0 - точки
+                // без соединяющей линии, из-за чего на плотных данных
+                // ClusterPerf (частые замеры за последние 3 суток) визуально
+                // получался "набор жирных точек", а не график. Меняем на
+                // обычную линию (как у Min/Avg/Max), чтобы этот "хвост"
+                // периода смотрелся продолжением общего графика, а не
+                // отдельным облаком точек.
+                series.push({ name: 'Текущее значение', type: 'line', data: toXY(chart.raw) });
+                colors.push(colorRaw); strokeCurves.push('straight'); strokeWidths.push(2);
             }
 
             var options = {
@@ -175,7 +182,7 @@
                         stops: [0, 90, 100]
                     }
                 },
-                markers: { size: series.map(function (s) { return s.type === 'scatter' ? 3 : 0; }), hover: { sizeOffset: 2 } },
+                markers: { size: 0, hover: { sizeOffset: 3 } },
                 dataLabels: { enabled: false },
                 legend: { show: true, labels: { colors: 'var(--bs-emphasis-color)' } },
                 xaxis: {
