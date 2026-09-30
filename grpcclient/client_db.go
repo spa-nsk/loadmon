@@ -95,3 +95,48 @@ func UpdateClusterSprRecord(in *models.ClusterSprRecords) (int64, int) {
 	}
 	return 0, 3 //ошибка операции
 }
+
+// UpdateVMSprDatastoreName обновляет поле VMSprRecord.DatastoreName (код ЦОД
+// DatacenterSite.CodeJira, определённый через физический ESXi хост ВМ) через
+// сервис LoadmonDB, по Id справочной записи ВМ (vm_spr_record.Id). Вызывается
+// из cmdb.UpdateVMDatastoreNames (cmdb/vmdatastorename.go) - отдельной
+// функции, запускаемой параллельно с сохранением метрик ВМ, а не встроенной
+// в cmdb.SaveVMRecord. Возвращает статус; при ошибке подключения возвращает
+// 1, при ошибке RPC - 3.
+func UpdateVMSprDatastoreName(id int64, datastoreName string) int {
+	c, conn, ctx, cancel, err := dialDB()
+	if err != nil {
+		return 1
+	}
+	defer conn.Close()
+	defer cancel()
+	req := pb.VMSprDatastoreNameRequest{Id: id, DatastoreName: datastoreName}
+	res, err := c.UpdateVMSprDatastoreName(ctx, &req)
+	if err == nil {
+		return int(res.Status)
+	}
+	return 3 //ошибка операции
+}
+
+// UpdateClusterSprDatastoreName обновляет поле ClusterSprRecord.DatastoreName
+// (объединённый через ";" без дублей список кодов ЦОД DatacenterSite.CodeJira
+// всех ESXi гипервизоров кластера) через сервис LoadmonDB, по Id справочной
+// записи кластера (cluster_spr_records.Id). Вызывается из
+// cmdb.UpdateClusterDatastoreNames (cmdb/clusterdatastorename.go) - отдельной
+// функции, запускаемой параллельно с сохранением метрик кластера, по
+// аналогии с UpdateVMSprDatastoreName. Возвращает статус; при ошибке
+// подключения возвращает 1, при ошибке RPC - 3.
+func UpdateClusterSprDatastoreName(id int64, datastoreName string) int {
+	c, conn, ctx, cancel, err := dialDB()
+	if err != nil {
+		return 1
+	}
+	defer conn.Close()
+	defer cancel()
+	req := pb.ClusterSprDatastoreNameRequest{Id: id, DatastoreName: datastoreName}
+	res, err := c.UpdateClusterSprDatastoreName(ctx, &req)
+	if err == nil {
+		return int(res.Status)
+	}
+	return 3 //ошибка операции
+}
