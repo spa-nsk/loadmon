@@ -128,8 +128,63 @@ func SaveMetricData() {
 	currentTime := time.Now().Local() //запоминаем текущее время
 	fmt.Println(currentTime.Format(fmtdate), "Запись данных кластеров, хостов и виртуальных машин в базу")
 
+	// ИСПРАВЛЕНО (2026-09-30, по жалобе пользователя "для отчёта Метрики СХД
+	// за период не формируются агрегированные данные за сутки, приходится
+	// запускать storagemetrics -aggregate <дата>"): суточная агрегация
+	// метрик СХД (SaveStorageMetricRecord) и метрик Zabbix
+	// (SaveServerMetricRecord) НИКАК не связаны с vSphere/vCenter, но раньше
+	// обе вызывались ПОСЛЕ блока сохранения кластеров/хостов/ВМ и поэтому
+	// пропускались целиком, если этот блок завершался ошибкой (ранний
+	// `return` при ошибке grpcclient.LoadClusterSpr) или паниковал внутри
+	// цикла по clList - а этот блок выполняется РОВНО РАЗ В СУТКИ (в
+	// 23:59:59, см. metrics_grpc/metrics_grpc.go), т.е. единственная ночная
+	// попытка агрегации СХД срывалась целиком из-за постороннего сбоя
+	// vSphere-части, без единой записи в логе, объясняющей пропажу. Теперь
+	// блок сохранения кластеров/хостов/ВМ вынесен в saveVMwareMetricData
+	// (ниже) и обёрнут в recover(), а SaveServerMetricRecord/
+	// SaveStorageMetricRecord вызываются БЕЗУСЛОВНО, независимо от его
+	// результата.
+	saveVMwareMetricData(currentTime)
+
+	// Суточная агрегация поминутных метрик Zabbix (models.ServerMetric,
+	// таблица server_metric, заполняется пакетом zabbixmetrics) в
+	// models.ServerMetricRecord (server_metric_record) - по аналогии с
+	// SaveVMRecord/SaveHostRecord/SaveClusterRecord выше, но не привязана к
+	// конкретному кластеру/vCenter (метрики server_metric идут по всем
+	// хостам группы Zabbix сразу), поэтому вызывается один раз за цикл, а
+	// не внутри цикла по clList. См. cmdb/saveservermetricrecord.go.
+	// НЕ зависит от saveVMwareMetricData выше - см. комментарий к ней.
+	SaveServerMetricRecord(currentTime)
+
+	// Суточная агрегация поминутных метрик СХД (storage_metric →
+	// storage_metric_record). НЕ зависит от saveVMwareMetricData выше - см.
+	// комментарий к ней.
+	SaveStorageMetricRecord(currentTime)
+
+	//  for !atomic.CompareAndSwapInt32(&flDelOldVMMetrics, 1, 0) {
+	//      runtime.Gosched()
+	//  }
+
+	fmt.Println(time.Now().Local().Format(fmtdate), "Запись данных завершена.")
+}
+
+// saveVMwareMetricData выполняет vSphere-часть SaveMetricData - загрузку
+// справочника кластеров и сохранение данных по кластерам/хостам/ВМ
+// (SaveClusterData для каждого кластера). Вынесена в отдельную функцию и
+// обёрнута в recover() (2026-09-30, см. комментарий в SaveMetricData) ровно
+// для того, чтобы ошибка или паника здесь не мешала SaveServerMetricRecord/
+// SaveStorageMetricRecord в SaveMetricData выполниться в этом же цикле - обе
+// эти агрегации логически независимы от vSphere.
+func saveVMwareMetricData(currentTime time.Time) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("cmdb.SaveMetricData: ПАНИКА в vSphere-части (сохранение кластеров/хостов/ВМ), пропущена только эта часть цикла:", r)
+		}
+	}()
+
 	clusterSpr, err := grpcclient.LoadClusterSpr("all", "all", "all")
 	if err != nil || clusterSpr == nil {
+		log.Println("cmdb.SaveMetricData: grpcclient.LoadClusterSpr вернул ошибку - сохранение кластеров/хостов/ВМ пропущено в этом цикле (суточная агрегация СХД/Zabbix ниже по коду НЕ пострадает):", err)
 		return
 	}
 
@@ -159,24 +214,6 @@ func SaveMetricData() {
 	// см. SaveClusterData -> SaveVMRecord) приводим в порядок статусы
 	// справочника серверов - см. комментарий к функции.
 	CheckServerSprRecordsExistence()
-
-	// Суточная агрегация поминутных метрик Zabbix (models.ServerMetric,
-	// таблица server_metric, заполняется пакетом zabbixmetrics) в
-	// models.ServerMetricRecord (server_metric_record) - по аналогии с
-	// SaveVMRecord/SaveHostRecord/SaveClusterRecord выше, но не привязана к
-	// конкретному кластеру/vCenter (метрики server_metric идут по всем
-	// хостам группы Zabbix сразу), поэтому вызывается один раз за цикл, а
-	// не внутри цикла по clList. См. cmdb/saveservermetricrecord.go.
-	SaveServerMetricRecord(currentTime)
-
-	// Суточная агрегация поминутных метрик СХД (storage_metric → storage_metric_record).
-	SaveStorageMetricRecord(currentTime)
-
-	//  for !atomic.CompareAndSwapInt32(&flDelOldVMMetrics, 1, 0) {
-	//      runtime.Gosched()
-	//  }
-
-	fmt.Println(time.Now().Local().Format(fmtdate), "Запись данных завершена.")
 }
 
 // ClearMetricData определяет период (текущие либо предыдущие сутки) и запускает очистку
@@ -332,6 +369,21 @@ func SaveClusterData(cl *vsphere.Cluster, clusterSpr map[string]*models.ClusterS
 	SaveStorageVolumes(cl)
 	SaveHostRecord(cl, clusterId, currentTime)
 	SaveVMRecord(cl, clusterId, currentTime)
+
+	// UpdateVMDatastoreNames (VMSprRecord.DatastoreName - код ЦОД по
+	// текущему физическому ESXi хосту ВМ) запускается ОТДЕЛЬНОЙ горутиной
+	// ПАРАЛЛЕЛЬНО с SaveVMRecord выше, а не встроена в него - по прямому
+	// указанию пользователя (см. cmdb/vmdatastorename.go). Использует
+	// собственное соединение через grpcclient/orm, поэтому безопасна для
+	// параллельного вызова.
+	go UpdateVMDatastoreNames(cl)
+
+	// UpdateClusterDatastoreNames (ClusterSprRecords.DatastoreName -
+	// объединённый список кодов ЦОД всех ESXi гипервизоров кластера) - по
+	// той же схеме: отдельная функция, отдельная горутина, не встроена в
+	// сохранение метрик (см. cmdb/clusterdatastorename.go). clId - Id
+	// записи в cluster_spr_records, уже известный на этот момент выше.
+	go UpdateClusterDatastoreNames(cl, clId)
 }
 
 // возврат mapStorSys, mapStorSysWWN
