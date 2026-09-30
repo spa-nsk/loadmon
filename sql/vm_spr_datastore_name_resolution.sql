@@ -1,6 +1,8 @@
 -- =============================================================================
 -- Проверка цепочки Vm_EsxHost -> DatacenterSite.CodeJira для vm_spr_record
--- (логика cmdb/vmdatastorename.go, PostgreSQL).
+-- (логика cmdb/vmdatacentername.go, PostgreSQL).
+--
+-- ПЕРЕИМЕНОВАНО (2026-09-30) из datastore_name - опечатка.
 --
 -- Подставьте vcenter и cluster_id (MOID кластера, как в cluster_spr_records).
 -- Имена столбцов — snake_case Beego ORM; при расхождении со схемой: \d vm_spr_record.
@@ -10,10 +12,10 @@ SELECT
     vm.id                   AS vm_spr_id,
     vm.vm_name,
     vm.vm_esx_host,
-    vm.datastore_name       AS stored_datastore_name,
+    vm.datacenter_name      AS stored_datacenter_name,
     ds.code_jira            AS resolved_code_jira,
     CASE
-        WHEN COALESCE(vm.datastore_name, '') = COALESCE(ds.code_jira, '')
+        WHEN COALESCE(vm.datacenter_name, '') = COALESCE(ds.code_jira, '')
         THEN 'ok'
         ELSE 'mismatch'
     END                     AS check_status

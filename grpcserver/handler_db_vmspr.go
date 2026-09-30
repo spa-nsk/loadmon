@@ -4,12 +4,15 @@
 // protocol/*.proto) и LoadmonDB (сервер serverdb, доступ к данным,
 // сохранённым в БД проекта).
 //
-// Настоящий файл содержит обработчик UpdateVMSprDatastoreName - точечное
-// обновление поля VMSprRecord.DatastoreName (код ЦОД DatacenterSite.CodeJira,
+// Настоящий файл содержит обработчик UpdateVMSprDatacenterName - точечное
+// обновление поля VMSprRecord.DatacenterName (код ЦОД DatacenterSite.CodeJira,
 // определяемый через физический ESXi хост ВМ). Вызывается отдельной функцией
-// cmdb.UpdateVMDatastoreNames (файл cmdb/vmdatastorename.go), запускаемой
+// cmdb.UpdateVMDatacenterNames (файл cmdb/vmdatacentername.go), запускаемой
 // параллельно с сохранением метрик ВМ (cmdb.SaveVMRecord) - см. комментарий
-// у rpc UpdateVMSprDatastoreName в protocol/db.proto.
+// у rpc UpdateVMSprDatacenterName в protocol/db.proto.
+//
+// ПЕРЕИМЕНОВАНО (2026-09-30) из UpdateVMSprDatastoreName/DatastoreName -
+// опечатка, поле не имеет отношения к датасторам vSphere, только к ЦОД.
 package grpcserver
 
 import (
@@ -27,12 +30,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const errUpdateVMSprDatastoreName = "Ошибка обновления DatastoreName в справочнике виртуальных машин"
+const errUpdateVMSprDatacenterName = "Ошибка обновления DatacenterName в справочнике виртуальных машин"
 
-// UpdateVMSprDatastoreName обновляет поле DatastoreName записи справочника
+// UpdateVMSprDatacenterName обновляет поле DatacenterName записи справочника
 // виртуальных машин (vm_spr_record) по Id. Возвращает Status=1 при успехе,
 // Status=2 при ошибке чтения/обновления записи.
-func (p *serverdb) UpdateVMSprDatastoreName(_ context.Context, in *pb.VMSprDatastoreNameRequest) (*pb.ClusterSprId, error) {
+func (p *serverdb) UpdateVMSprDatacenterName(_ context.Context, in *pb.VMSprDatacenterNameRequest) (*pb.ClusterSprId, error) {
 	if config.Switch.Endpoint.Count() > 0 {
 		for _, key := range config.Switch.Endpoint.Keys() {
 			endpoint, ok := config.Switch.Endpoint.Get(key)
@@ -49,12 +52,12 @@ func (p *serverdb) UpdateVMSprDatastoreName(_ context.Context, in *pb.VMSprDatas
 			c := pb.NewLoadmonDBClient(conn)
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			id, err := c.UpdateVMSprDatastoreName(ctx, in)
+			id, err := c.UpdateVMSprDatacenterName(ctx, in)
 			if err == nil { //как только получаем правильный ответ, пересылаем его
 				return id, nil
 			}
 		}
-		return &pb.ClusterSprId{}, errors.New(errUpdateVMSprDatastoreName) //ничего не найдено
+		return &pb.ClusterSprId{}, errors.New(errUpdateVMSprDatacenterName) //ничего не найдено
 	}
 
 	res := pb.ClusterSprId{Id: in.Id}
@@ -62,16 +65,16 @@ func (p *serverdb) UpdateVMSprDatastoreName(_ context.Context, in *pb.VMSprDatas
 	vmSpr := models.VMSprRecord{Id: in.Id}
 	if err := o.Read(&vmSpr, "Id"); err != nil {
 		res.Status = 2
-		return &res, errors.New(errUpdateVMSprDatastoreName)
+		return &res, errors.New(errUpdateVMSprDatacenterName)
 	}
-	if vmSpr.DatastoreName == in.DatastoreName { //уже актуально, обновление не требуется
+	if vmSpr.DatacenterName == in.DatacenterName { //уже актуально, обновление не требуется
 		res.Status = 1
 		return &res, nil
 	}
-	vmSpr.DatastoreName = in.DatastoreName
-	if _, err := o.Update(&vmSpr, "DatastoreName"); err != nil {
+	vmSpr.DatacenterName = in.DatacenterName
+	if _, err := o.Update(&vmSpr, "DatacenterName"); err != nil {
 		res.Status = 2
-		return &res, errors.New(errUpdateVMSprDatastoreName)
+		return &res, errors.New(errUpdateVMSprDatacenterName)
 	}
 	res.Status = 1
 	return &res, nil

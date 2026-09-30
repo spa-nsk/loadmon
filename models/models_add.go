@@ -508,12 +508,13 @@ type ClusterSprRecords struct {
 	Stat     int       `form:"Stat"`     //0- не указано 1 - активен 2 выведен из работы
 	Id_User  int64     `form:"Id_User"`
 	Time_Mfy time.Time `form:"Time_Mfy"`
-	// DatastoreName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
+	// DatacenterName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
 	// всех ESXi гипервизоров кластера, через разделитель ";", без дублей.
-	// Заполняется отдельной функцией (cmdb.UpdateClusterDatastoreNames),
+	// Заполняется отдельной функцией (cmdb.UpdateClusterDatacenterNames),
 	// запускаемой параллельно с сохранением метрик, а не внутри него - по
-	// аналогии с VMSprRecord.DatastoreName.
-	DatastoreName string `form:"DatastoreName"`
+	// аналогии с VMSprRecord.DatacenterName.
+	// ПЕРЕИМЕНОВАНО (2026-09-30) из DatastoreName - опечатка.
+	DatacenterName string `form:"DatacenterName"`
 }
 
 // TableName возвращает имя таблицы БД для модели ClusterSprRecords (используется beego ORM).
@@ -618,13 +619,15 @@ type VMSprRecord struct {
 	Mem_usage_maximum    float64 `form:"Mem_usage_maximum"`
 	Disk_usage_maximum   float64 `form:"Disk_usage_maximum"`
 	Net_usage_maximum    float64 `form:"Net_usage_maximum"`
-	// DatastoreName - код ЦОД (DatacenterSite.CodeJira), определяемый через
+	// DatacenterName - код ЦОД (DatacenterSite.CodeJira), определяемый через
 	// физический ESXi хост (Vm_EsxHost) и его размещение в стойке
 	// (ServerHardware.RackCabinetId -> RackCabinet.DatacenterSiteId ->
 	// DatacenterSite.CodeJira) на момент записи метрики. Заполняется
-	// отдельной функцией (cmdb.UpdateVMDatastoreName), запускаемой
+	// отдельной функцией (cmdb.UpdateVMDatacenterNames), запускаемой
 	// параллельно с сохранением метрик, а не внутри него.
-	DatastoreName string `form:"DatastoreName"`
+	// ПЕРЕИМЕНОВАНО (2026-09-30) из DatastoreName - опечатка, поле не имеет
+	// отношения к датасторам vSphere, только к ЦОД.
+	DatacenterName string `form:"DatacenterName"`
 }
 
 // TableName возвращает имя таблицы БД для модели VMSprRecord (используется beego ORM).

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Список активных СХД (power=1): размещение и агрегированный datastore_name
+-- Список активных СХД (power=1): размещение и агрегированный datacenter_name
 -- (коды DatacenterSite.CodeJira по всем точкам размещения, через ";").
 -- PostgreSQL (string_agg). Для одной СХД см. расшифровка местоположения СХД.sql
 -- =============================================================================
@@ -16,7 +16,7 @@ SELECT ss.status,
 
         END), '; '::text ORDER BY ds.name, rc.name, ssp.start_unit_pos) AS datacenter_room,
 
-    string_agg(DISTINCT NULLIF(ds.code_jira, ''), ';'::text ORDER BY NULLIF(ds.code_jira, '')) AS datastore_name,
+    string_agg(DISTINCT NULLIF(ds.code_jira, ''), ';'::text ORDER BY NULLIF(ds.code_jira, '')) AS datacenter_name,
 
     ss.technical_number_i_t AS inventory_num,
 

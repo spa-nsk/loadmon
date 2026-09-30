@@ -836,13 +836,13 @@ type VMSprRecord struct {
 	GuestDetailedData    string                 `protobuf:"bytes,32,opt,name=GuestDetailedData,proto3" json:"GuestDetailedData,omitempty"`
 	ToolsStatus          string                 `protobuf:"bytes,33,opt,name=ToolsStatus,proto3" json:"ToolsStatus,omitempty"`
 	DomainName           string                 `protobuf:"bytes,34,opt,name=DomainName,proto3" json:"DomainName,omitempty"`
-	// DatastoreName - код ЦОД (DatacenterSite.CodeJira), определяемый через
+	// DatacenterName - код ЦОД (DatacenterSite.CodeJira), определяемый через
 	// физический ESXi хост ВМ и его размещение в стойке (ServerHardware.RackCabinetId
 	// -> RackCabinet.DatacenterSiteId -> DatacenterSite.CodeJira) на момент записи
-	// метрики. Заполняется отдельно от остальных полей, см. UpdateVMSprDatastoreName.
-	DatastoreName string `protobuf:"bytes,35,opt,name=DatastoreName,proto3" json:"DatastoreName,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// метрики. Заполняется отдельно от остальных полей, см. UpdateVMSprDatacenterName.
+	DatacenterName string `protobuf:"bytes,35,opt,name=DatacenterName,proto3" json:"DatacenterName,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *VMSprRecord) Reset() {
@@ -1113,38 +1113,38 @@ func (x *VMSprRecord) GetDomainName() string {
 	return ""
 }
 
-func (x *VMSprRecord) GetDatastoreName() string {
+func (x *VMSprRecord) GetDatacenterName() string {
 	if x != nil {
-		return x.DatastoreName
+		return x.DatacenterName
 	}
 	return ""
 }
 
-// VMSprDatastoreNameRequest - запрос на точечное обновление
-// VMSprRecord.DatastoreName по Id справочной записи ВМ (см. rpc
-// UpdateVMSprDatastoreName).
-type VMSprDatastoreNameRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
-	DatastoreName string                 `protobuf:"bytes,2,opt,name=DatastoreName,proto3" json:"DatastoreName,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+// VMSprDatacenterNameRequest - запрос на точечное обновление
+// VMSprRecord.DatacenterName по Id справочной записи ВМ (см. rpc
+// UpdateVMSprDatacenterName).
+type VMSprDatacenterNameRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
+	DatacenterName string                 `protobuf:"bytes,2,opt,name=DatacenterName,proto3" json:"DatacenterName,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *VMSprDatastoreNameRequest) Reset() {
-	*x = VMSprDatastoreNameRequest{}
+func (x *VMSprDatacenterNameRequest) Reset() {
+	*x = VMSprDatacenterNameRequest{}
 	mi := &file_db_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *VMSprDatastoreNameRequest) String() string {
+func (x *VMSprDatacenterNameRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*VMSprDatastoreNameRequest) ProtoMessage() {}
+func (*VMSprDatacenterNameRequest) ProtoMessage() {}
 
-func (x *VMSprDatastoreNameRequest) ProtoReflect() protoreflect.Message {
+func (x *VMSprDatacenterNameRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_db_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1156,21 +1156,21 @@ func (x *VMSprDatastoreNameRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use VMSprDatastoreNameRequest.ProtoReflect.Descriptor instead.
-func (*VMSprDatastoreNameRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use VMSprDatacenterNameRequest.ProtoReflect.Descriptor instead.
+func (*VMSprDatacenterNameRequest) Descriptor() ([]byte, []int) {
 	return file_db_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *VMSprDatastoreNameRequest) GetId() int64 {
+func (x *VMSprDatacenterNameRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *VMSprDatastoreNameRequest) GetDatastoreName() string {
+func (x *VMSprDatacenterNameRequest) GetDatacenterName() string {
 	if x != nil {
-		return x.DatastoreName
+		return x.DatacenterName
 	}
 	return ""
 }
@@ -1188,12 +1188,12 @@ type ClusterSprRecord struct {
 	TypeWork   int32                  `protobuf:"varint,9,opt,name=TypeWork,proto3" json:"TypeWork,omitempty"`
 	Stat       int32                  `protobuf:"varint,10,opt,name=Stat,proto3" json:"Stat,omitempty"`
 	ClusterId  string                 `protobuf:"bytes,11,opt,name=ClusterId,proto3" json:"ClusterId,omitempty"`
-	// DatastoreName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
+	// DatacenterName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
 	// всех ESXi гипервизоров кластера через ";", без дублей. Заполняется
-	// отдельно, см. rpc UpdateClusterSprDatastoreName.
-	DatastoreName string `protobuf:"bytes,12,opt,name=DatastoreName,proto3" json:"DatastoreName,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// отдельно, см. rpc UpdateClusterSprDatacenterName.
+	DatacenterName string `protobuf:"bytes,12,opt,name=DatacenterName,proto3" json:"DatacenterName,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ClusterSprRecord) Reset() {
@@ -1303,38 +1303,38 @@ func (x *ClusterSprRecord) GetClusterId() string {
 	return ""
 }
 
-func (x *ClusterSprRecord) GetDatastoreName() string {
+func (x *ClusterSprRecord) GetDatacenterName() string {
 	if x != nil {
-		return x.DatastoreName
+		return x.DatacenterName
 	}
 	return ""
 }
 
-// ClusterSprDatastoreNameRequest - запрос на точечное обновление
-// ClusterSprRecord.DatastoreName по Id справочной записи кластера (см. rpc
-// UpdateClusterSprDatastoreName).
-type ClusterSprDatastoreNameRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
-	DatastoreName string                 `protobuf:"bytes,2,opt,name=DatastoreName,proto3" json:"DatastoreName,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+// ClusterSprDatacenterNameRequest - запрос на точечное обновление
+// ClusterSprRecord.DatacenterName по Id справочной записи кластера (см. rpc
+// UpdateClusterSprDatacenterName).
+type ClusterSprDatacenterNameRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
+	DatacenterName string                 `protobuf:"bytes,2,opt,name=DatacenterName,proto3" json:"DatacenterName,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *ClusterSprDatastoreNameRequest) Reset() {
-	*x = ClusterSprDatastoreNameRequest{}
+func (x *ClusterSprDatacenterNameRequest) Reset() {
+	*x = ClusterSprDatacenterNameRequest{}
 	mi := &file_db_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ClusterSprDatastoreNameRequest) String() string {
+func (x *ClusterSprDatacenterNameRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ClusterSprDatastoreNameRequest) ProtoMessage() {}
+func (*ClusterSprDatacenterNameRequest) ProtoMessage() {}
 
-func (x *ClusterSprDatastoreNameRequest) ProtoReflect() protoreflect.Message {
+func (x *ClusterSprDatacenterNameRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_db_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1346,21 +1346,21 @@ func (x *ClusterSprDatastoreNameRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ClusterSprDatastoreNameRequest.ProtoReflect.Descriptor instead.
-func (*ClusterSprDatastoreNameRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ClusterSprDatacenterNameRequest.ProtoReflect.Descriptor instead.
+func (*ClusterSprDatacenterNameRequest) Descriptor() ([]byte, []int) {
 	return file_db_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *ClusterSprDatastoreNameRequest) GetId() int64 {
+func (x *ClusterSprDatacenterNameRequest) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *ClusterSprDatastoreNameRequest) GetDatastoreName() string {
+func (x *ClusterSprDatacenterNameRequest) GetDatacenterName() string {
 	if x != nil {
-		return x.DatastoreName
+		return x.DatacenterName
 	}
 	return ""
 }
@@ -3476,7 +3476,7 @@ const file_db_proto_rawDesc = "" +
 	"\aCluster\x18@ \x01(\tR\aCluster\x12\x1e\n" +
 	"\n" +
 	"MacAddress\x18A \x01(\tR\n" +
-	"MacAddress\"\xf1\t\n" +
+	"MacAddress\"\xf3\t\n" +
 	"\vVMSprRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x1a\n" +
 	"\bServerId\x18\x02 \x01(\x03R\bServerId\x12\x18\n" +
@@ -3520,11 +3520,11 @@ const file_db_proto_rawDesc = "" +
 	"\vToolsStatus\x18! \x01(\tR\vToolsStatus\x12\x1e\n" +
 	"\n" +
 	"DomainName\x18\" \x01(\tR\n" +
-	"DomainName\x12$\n" +
-	"\rDatastoreName\x18# \x01(\tR\rDatastoreName\"Q\n" +
-	"\x19VMSprDatastoreNameRequest\x12\x0e\n" +
-	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12$\n" +
-	"\rDatastoreName\x18\x02 \x01(\tR\rDatastoreName\"\xf4\x02\n" +
+	"DomainName\x12&\n" +
+	"\x0eDatacenterName\x18# \x01(\tR\x0eDatacenterName\"T\n" +
+	"\x1aVMSprDatacenterNameRequest\x12\x0e\n" +
+	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12&\n" +
+	"\x0eDatacenterName\x18\x02 \x01(\tR\x0eDatacenterName\"\xf6\x02\n" +
 	"\x10ClusterSprRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x18\n" +
 	"\aVcenter\x18\x02 \x01(\tR\aVcenter\x12\x1e\n" +
@@ -3543,11 +3543,11 @@ const file_db_proto_rawDesc = "" +
 	"\bTypeWork\x18\t \x01(\x05R\bTypeWork\x12\x12\n" +
 	"\x04Stat\x18\n" +
 	" \x01(\x05R\x04Stat\x12\x1c\n" +
-	"\tClusterId\x18\v \x01(\tR\tClusterId\x12$\n" +
-	"\rDatastoreName\x18\f \x01(\tR\rDatastoreName\"V\n" +
-	"\x1eClusterSprDatastoreNameRequest\x12\x0e\n" +
-	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12$\n" +
-	"\rDatastoreName\x18\x02 \x01(\tR\rDatastoreName\"\x9d\x1a\n" +
+	"\tClusterId\x18\v \x01(\tR\tClusterId\x12&\n" +
+	"\x0eDatacenterName\x18\f \x01(\tR\x0eDatacenterName\"Y\n" +
+	"\x1fClusterSprDatacenterNameRequest\x12\x0e\n" +
+	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12&\n" +
+	"\x0eDatacenterName\x18\x02 \x01(\tR\x0eDatacenterName\"\x9d\x1a\n" +
 	"\bVMRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x1a\n" +
 	"\bServerId\x18\x02 \x01(\x03R\bServerId\x12\x18\n" +
@@ -3815,15 +3815,15 @@ const file_db_proto_rawDesc = "" +
 	" \x01(\x01R\bDiskRead\x12\x1b\n" +
 	"\tNet_usage\x18\v \x01(\x01R\bNetUsage\x12!\n" +
 	"\fNet_received\x18\f \x01(\x01R\vNetReceived\x12'\n" +
-	"\x0fNet_transmitted\x18\r \x01(\x01R\x0eNetTransmitted2\xc6\x04\n" +
+	"\x0fNet_transmitted\x18\r \x01(\x01R\x0eNetTransmitted2\xca\x04\n" +
 	"\tLoadmonDB\x12@\n" +
 	"\tGetServer\x12\x15.protocol.DBKeyString\x1a\x1a.protocol.ServerSprRecords\"\x00\x12P\n" +
 	"\x14GetClusterSprRecords\x12\x18.protocol.ClusterSprKey1\x1a\x1a.protocol.ClusterSprRecord\"\x000\x01\x12K\n" +
 	"\x13AddClusterSprRecord\x12\x1a.protocol.ClusterSprRecord\x1a\x16.protocol.ClusterSprId\"\x00\x12N\n" +
 	"\x16UpdateClusterSprRecord\x12\x1a.protocol.ClusterSprRecord\x1a\x16.protocol.ClusterSprId\"\x00\x12H\n" +
-	"\x10AddClusterRecord\x12\x17.protocol.ClusterRecord\x1a\x19.protocol.ClusterRecordId\"\x00\x12Y\n" +
-	"\x18UpdateVMSprDatastoreName\x12#.protocol.VMSprDatastoreNameRequest\x1a\x16.protocol.ClusterSprId\"\x00\x12c\n" +
-	"\x1dUpdateClusterSprDatastoreName\x12(.protocol.ClusterSprDatastoreNameRequest\x1a\x16.protocol.ClusterSprId\"\x00B\x12Z\x10loadmon/protocolb\x06proto3"
+	"\x10AddClusterRecord\x12\x17.protocol.ClusterRecord\x1a\x19.protocol.ClusterRecordId\"\x00\x12[\n" +
+	"\x19UpdateVMSprDatacenterName\x12$.protocol.VMSprDatacenterNameRequest\x1a\x16.protocol.ClusterSprId\"\x00\x12e\n" +
+	"\x1eUpdateClusterSprDatacenterName\x12).protocol.ClusterSprDatacenterNameRequest\x1a\x16.protocol.ClusterSprId\"\x00B\x12Z\x10loadmon/protocolb\x06proto3"
 
 var (
 	file_db_proto_rawDescOnce sync.Once
@@ -3839,22 +3839,22 @@ func file_db_proto_rawDescGZIP() []byte {
 
 var file_db_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_db_proto_goTypes = []any{
-	(*DBKeyString)(nil),                    // 0: protocol.DBKeyString
-	(*ClusterSprKey1)(nil),                 // 1: protocol.ClusterSprKey1
-	(*ClusterSprId)(nil),                   // 2: protocol.ClusterSprId
-	(*ClusterRecordId)(nil),                // 3: protocol.ClusterRecordId
-	(*ServerSprRecords)(nil),               // 4: protocol.ServerSprRecords
-	(*VMSprRecord)(nil),                    // 5: protocol.VMSprRecord
-	(*VMSprDatastoreNameRequest)(nil),      // 6: protocol.VMSprDatastoreNameRequest
-	(*ClusterSprRecord)(nil),               // 7: protocol.ClusterSprRecord
-	(*ClusterSprDatastoreNameRequest)(nil), // 8: protocol.ClusterSprDatastoreNameRequest
-	(*VMRecord)(nil),                       // 9: protocol.VMRecord
-	(*HostRecord)(nil),                     // 10: protocol.HostRecord
-	(*ClusterRecord)(nil),                  // 11: protocol.ClusterRecord
-	(*ClusterPerf)(nil),                    // 12: protocol.ClusterPerf
-	(*HostPerf)(nil),                       // 13: protocol.HostPerf
-	(*VMPerfRecord)(nil),                   // 14: protocol.VMPerfRecord
-	(*timestamppb.Timestamp)(nil),          // 15: google.protobuf.Timestamp
+	(*DBKeyString)(nil),                     // 0: protocol.DBKeyString
+	(*ClusterSprKey1)(nil),                  // 1: protocol.ClusterSprKey1
+	(*ClusterSprId)(nil),                    // 2: protocol.ClusterSprId
+	(*ClusterRecordId)(nil),                 // 3: protocol.ClusterRecordId
+	(*ServerSprRecords)(nil),                // 4: protocol.ServerSprRecords
+	(*VMSprRecord)(nil),                     // 5: protocol.VMSprRecord
+	(*VMSprDatacenterNameRequest)(nil),      // 6: protocol.VMSprDatacenterNameRequest
+	(*ClusterSprRecord)(nil),                // 7: protocol.ClusterSprRecord
+	(*ClusterSprDatacenterNameRequest)(nil), // 8: protocol.ClusterSprDatacenterNameRequest
+	(*VMRecord)(nil),                        // 9: protocol.VMRecord
+	(*HostRecord)(nil),                      // 10: protocol.HostRecord
+	(*ClusterRecord)(nil),                   // 11: protocol.ClusterRecord
+	(*ClusterPerf)(nil),                     // 12: protocol.ClusterPerf
+	(*HostPerf)(nil),                        // 13: protocol.HostPerf
+	(*VMPerfRecord)(nil),                    // 14: protocol.VMPerfRecord
+	(*timestamppb.Timestamp)(nil),           // 15: google.protobuf.Timestamp
 }
 var file_db_proto_depIdxs = []int32{
 	15, // 0: protocol.ServerSprRecords.TimeActiveState:type_name -> google.protobuf.Timestamp
@@ -3922,15 +3922,15 @@ var file_db_proto_depIdxs = []int32{
 	7,  // 62: protocol.LoadmonDB.AddClusterSprRecord:input_type -> protocol.ClusterSprRecord
 	7,  // 63: protocol.LoadmonDB.UpdateClusterSprRecord:input_type -> protocol.ClusterSprRecord
 	11, // 64: protocol.LoadmonDB.AddClusterRecord:input_type -> protocol.ClusterRecord
-	6,  // 65: protocol.LoadmonDB.UpdateVMSprDatastoreName:input_type -> protocol.VMSprDatastoreNameRequest
-	8,  // 66: protocol.LoadmonDB.UpdateClusterSprDatastoreName:input_type -> protocol.ClusterSprDatastoreNameRequest
+	6,  // 65: protocol.LoadmonDB.UpdateVMSprDatacenterName:input_type -> protocol.VMSprDatacenterNameRequest
+	8,  // 66: protocol.LoadmonDB.UpdateClusterSprDatacenterName:input_type -> protocol.ClusterSprDatacenterNameRequest
 	4,  // 67: protocol.LoadmonDB.GetServer:output_type -> protocol.ServerSprRecords
 	7,  // 68: protocol.LoadmonDB.GetClusterSprRecords:output_type -> protocol.ClusterSprRecord
 	2,  // 69: protocol.LoadmonDB.AddClusterSprRecord:output_type -> protocol.ClusterSprId
 	2,  // 70: protocol.LoadmonDB.UpdateClusterSprRecord:output_type -> protocol.ClusterSprId
 	3,  // 71: protocol.LoadmonDB.AddClusterRecord:output_type -> protocol.ClusterRecordId
-	2,  // 72: protocol.LoadmonDB.UpdateVMSprDatastoreName:output_type -> protocol.ClusterSprId
-	2,  // 73: protocol.LoadmonDB.UpdateClusterSprDatastoreName:output_type -> protocol.ClusterSprId
+	2,  // 72: protocol.LoadmonDB.UpdateVMSprDatacenterName:output_type -> protocol.ClusterSprId
+	2,  // 73: protocol.LoadmonDB.UpdateClusterSprDatacenterName:output_type -> protocol.ClusterSprId
 	67, // [67:74] is the sub-list for method output_type
 	60, // [60:67] is the sub-list for method input_type
 	60, // [60:60] is the sub-list for extension type_name

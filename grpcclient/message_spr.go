@@ -129,7 +129,7 @@ func MessageToClusterSprRecords(in *pb.ClusterSprRecord, out *models.ClusterSprR
 	out.Stat = int(in.Stat)
 	out.Id_User = in.Id_User
 	out.Time_Mfy = in.Time_Mfy.AsTime()
-	out.DatastoreName = in.DatastoreName
+	out.DatacenterName = in.DatacenterName
 }
 
 // ClusterSprRecordsToMessage конвертирует доменную модель models.ClusterSprRecords в gRPC-сообщение pb.ClusterSprRecord для передачи по сети. При in == nil или out == nil ничего не делает.
@@ -148,7 +148,7 @@ func ClusterSprRecordsToMessage(in *models.ClusterSprRecords, out *pb.ClusterSpr
 	//out.Production = int32(in.Production) //признак продуктового кластера 0-не заполнено 1-продуктовый с бизнес приложениями 2-тестовые среды
 	out.Id_User = in.Id_User
 	out.Time_Mfy = timestamppb.New(in.Time_Mfy)
-	out.DatastoreName = in.DatastoreName
+	out.DatacenterName = in.DatacenterName
 }
 
 // ClusterRecordToMessage конвертирует доменную модель models.ClusterRecord в gRPC-сообщение pb.ClusterRecord. При in == nil или out == nil ничего не делает.

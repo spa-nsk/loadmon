@@ -370,20 +370,22 @@ func SaveClusterData(cl *vsphere.Cluster, clusterSpr map[string]*models.ClusterS
 	SaveHostRecord(cl, clusterId, currentTime)
 	SaveVMRecord(cl, clusterId, currentTime)
 
-	// UpdateVMDatastoreNames (VMSprRecord.DatastoreName - код ЦОД по
+	// UpdateVMDatacenterNames (VMSprRecord.DatacenterName - код ЦОД по
 	// текущему физическому ESXi хосту ВМ) запускается ОТДЕЛЬНОЙ горутиной
 	// ПАРАЛЛЕЛЬНО с SaveVMRecord выше, а не встроена в него - по прямому
-	// указанию пользователя (см. cmdb/vmdatastorename.go). Использует
+	// указанию пользователя (см. cmdb/vmdatacentername.go). Использует
 	// собственное соединение через grpcclient/orm, поэтому безопасна для
 	// параллельного вызова.
-	go UpdateVMDatastoreNames(cl)
+	// ПЕРЕИМЕНОВАНО (2026-09-30) из UpdateVMDatastoreNames - опечатка.
+	go UpdateVMDatacenterNames(cl)
 
-	// UpdateClusterDatastoreNames (ClusterSprRecords.DatastoreName -
+	// UpdateClusterDatacenterNames (ClusterSprRecords.DatacenterName -
 	// объединённый список кодов ЦОД всех ESXi гипервизоров кластера) - по
 	// той же схеме: отдельная функция, отдельная горутина, не встроена в
-	// сохранение метрик (см. cmdb/clusterdatastorename.go). clId - Id
+	// сохранение метрик (см. cmdb/clusterdatacentername.go). clId - Id
 	// записи в cluster_spr_records, уже известный на этот момент выше.
-	go UpdateClusterDatastoreNames(cl, clId)
+	// ПЕРЕИМЕНОВАНО (2026-09-30) из UpdateClusterDatastoreNames - опечатка.
+	go UpdateClusterDatacenterNames(cl, clId)
 }
 
 // возврат mapStorSys, mapStorSysWWN

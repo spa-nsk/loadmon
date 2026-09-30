@@ -33,13 +33,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	LoadmonDB_GetServer_FullMethodName                     = "/protocol.LoadmonDB/GetServer"
-	LoadmonDB_GetClusterSprRecords_FullMethodName          = "/protocol.LoadmonDB/GetClusterSprRecords"
-	LoadmonDB_AddClusterSprRecord_FullMethodName           = "/protocol.LoadmonDB/AddClusterSprRecord"
-	LoadmonDB_UpdateClusterSprRecord_FullMethodName        = "/protocol.LoadmonDB/UpdateClusterSprRecord"
-	LoadmonDB_AddClusterRecord_FullMethodName              = "/protocol.LoadmonDB/AddClusterRecord"
-	LoadmonDB_UpdateVMSprDatastoreName_FullMethodName      = "/protocol.LoadmonDB/UpdateVMSprDatastoreName"
-	LoadmonDB_UpdateClusterSprDatastoreName_FullMethodName = "/protocol.LoadmonDB/UpdateClusterSprDatastoreName"
+	LoadmonDB_GetServer_FullMethodName                      = "/protocol.LoadmonDB/GetServer"
+	LoadmonDB_GetClusterSprRecords_FullMethodName           = "/protocol.LoadmonDB/GetClusterSprRecords"
+	LoadmonDB_AddClusterSprRecord_FullMethodName            = "/protocol.LoadmonDB/AddClusterSprRecord"
+	LoadmonDB_UpdateClusterSprRecord_FullMethodName         = "/protocol.LoadmonDB/UpdateClusterSprRecord"
+	LoadmonDB_AddClusterRecord_FullMethodName               = "/protocol.LoadmonDB/AddClusterRecord"
+	LoadmonDB_UpdateVMSprDatacenterName_FullMethodName      = "/protocol.LoadmonDB/UpdateVMSprDatacenterName"
+	LoadmonDB_UpdateClusterSprDatacenterName_FullMethodName = "/protocol.LoadmonDB/UpdateClusterSprDatacenterName"
 )
 
 // LoadmonDBClient is the client API for LoadmonDB service.
@@ -80,18 +80,18 @@ type LoadmonDBClient interface {
 	AddClusterSprRecord(ctx context.Context, in *ClusterSprRecord, opts ...grpc.CallOption) (*ClusterSprId, error)
 	UpdateClusterSprRecord(ctx context.Context, in *ClusterSprRecord, opts ...grpc.CallOption) (*ClusterSprId, error)
 	AddClusterRecord(ctx context.Context, in *ClusterRecord, opts ...grpc.CallOption) (*ClusterRecordId, error)
-	// UpdateVMSprDatastoreName - точечное обновление поля VMSprRecord.DatastoreName
+	// UpdateVMSprDatacenterName - точечное обновление поля VMSprRecord.DatacenterName
 	// (код ЦОД DatacenterSite.CodeJira, определяемый через физический ESXi хост
 	// виртуальной машины). Отдельный RPC, а не часть общего сохранения VMSprRecord,
 	// т.к. заполняется отдельной функцией, запускаемой параллельно с сохранением
-	// метрик (см. cmdb/vmdatastorename.go, cmdb.UpdateVMDatastoreNames).
-	UpdateVMSprDatastoreName(ctx context.Context, in *VMSprDatastoreNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error)
-	// UpdateClusterSprDatastoreName - точечное обновление поля
-	// ClusterSprRecord.DatastoreName (объединённый список кодов ЦОД всех ESXi
+	// метрик (см. cmdb/vmdatacentername.go, cmdb.UpdateVMDatacenterNames).
+	UpdateVMSprDatacenterName(ctx context.Context, in *VMSprDatacenterNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error)
+	// UpdateClusterSprDatacenterName - точечное обновление поля
+	// ClusterSprRecord.DatacenterName (объединённый список кодов ЦОД всех ESXi
 	// гипервизоров кластера через ";", без дублей). Отдельный RPC, заполняется
 	// отдельной функцией, запускаемой параллельно с сохранением метрик (см.
-	// cmdb/clusterdatastorename.go, cmdb.UpdateClusterDatastoreNames).
-	UpdateClusterSprDatastoreName(ctx context.Context, in *ClusterSprDatastoreNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error)
+	// cmdb/clusterdatacentername.go, cmdb.UpdateClusterDatacenterNames).
+	UpdateClusterSprDatacenterName(ctx context.Context, in *ClusterSprDatacenterNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error)
 }
 
 type loadmonDBClient struct {
@@ -161,20 +161,20 @@ func (c *loadmonDBClient) AddClusterRecord(ctx context.Context, in *ClusterRecor
 	return out, nil
 }
 
-func (c *loadmonDBClient) UpdateVMSprDatastoreName(ctx context.Context, in *VMSprDatastoreNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error) {
+func (c *loadmonDBClient) UpdateVMSprDatacenterName(ctx context.Context, in *VMSprDatacenterNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ClusterSprId)
-	err := c.cc.Invoke(ctx, LoadmonDB_UpdateVMSprDatastoreName_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, LoadmonDB_UpdateVMSprDatacenterName_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *loadmonDBClient) UpdateClusterSprDatastoreName(ctx context.Context, in *ClusterSprDatastoreNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error) {
+func (c *loadmonDBClient) UpdateClusterSprDatacenterName(ctx context.Context, in *ClusterSprDatacenterNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ClusterSprId)
-	err := c.cc.Invoke(ctx, LoadmonDB_UpdateClusterSprDatastoreName_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, LoadmonDB_UpdateClusterSprDatacenterName_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -219,18 +219,18 @@ type LoadmonDBServer interface {
 	AddClusterSprRecord(context.Context, *ClusterSprRecord) (*ClusterSprId, error)
 	UpdateClusterSprRecord(context.Context, *ClusterSprRecord) (*ClusterSprId, error)
 	AddClusterRecord(context.Context, *ClusterRecord) (*ClusterRecordId, error)
-	// UpdateVMSprDatastoreName - точечное обновление поля VMSprRecord.DatastoreName
+	// UpdateVMSprDatacenterName - точечное обновление поля VMSprRecord.DatacenterName
 	// (код ЦОД DatacenterSite.CodeJira, определяемый через физический ESXi хост
 	// виртуальной машины). Отдельный RPC, а не часть общего сохранения VMSprRecord,
 	// т.к. заполняется отдельной функцией, запускаемой параллельно с сохранением
-	// метрик (см. cmdb/vmdatastorename.go, cmdb.UpdateVMDatastoreNames).
-	UpdateVMSprDatastoreName(context.Context, *VMSprDatastoreNameRequest) (*ClusterSprId, error)
-	// UpdateClusterSprDatastoreName - точечное обновление поля
-	// ClusterSprRecord.DatastoreName (объединённый список кодов ЦОД всех ESXi
+	// метрик (см. cmdb/vmdatacentername.go, cmdb.UpdateVMDatacenterNames).
+	UpdateVMSprDatacenterName(context.Context, *VMSprDatacenterNameRequest) (*ClusterSprId, error)
+	// UpdateClusterSprDatacenterName - точечное обновление поля
+	// ClusterSprRecord.DatacenterName (объединённый список кодов ЦОД всех ESXi
 	// гипервизоров кластера через ";", без дублей). Отдельный RPC, заполняется
 	// отдельной функцией, запускаемой параллельно с сохранением метрик (см.
-	// cmdb/clusterdatastorename.go, cmdb.UpdateClusterDatastoreNames).
-	UpdateClusterSprDatastoreName(context.Context, *ClusterSprDatastoreNameRequest) (*ClusterSprId, error)
+	// cmdb/clusterdatacentername.go, cmdb.UpdateClusterDatacenterNames).
+	UpdateClusterSprDatacenterName(context.Context, *ClusterSprDatacenterNameRequest) (*ClusterSprId, error)
 	mustEmbedUnimplementedLoadmonDBServer()
 }
 
@@ -256,11 +256,11 @@ func (UnimplementedLoadmonDBServer) UpdateClusterSprRecord(context.Context, *Clu
 func (UnimplementedLoadmonDBServer) AddClusterRecord(context.Context, *ClusterRecord) (*ClusterRecordId, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddClusterRecord not implemented")
 }
-func (UnimplementedLoadmonDBServer) UpdateVMSprDatastoreName(context.Context, *VMSprDatastoreNameRequest) (*ClusterSprId, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateVMSprDatastoreName not implemented")
+func (UnimplementedLoadmonDBServer) UpdateVMSprDatacenterName(context.Context, *VMSprDatacenterNameRequest) (*ClusterSprId, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateVMSprDatacenterName not implemented")
 }
-func (UnimplementedLoadmonDBServer) UpdateClusterSprDatastoreName(context.Context, *ClusterSprDatastoreNameRequest) (*ClusterSprId, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateClusterSprDatastoreName not implemented")
+func (UnimplementedLoadmonDBServer) UpdateClusterSprDatacenterName(context.Context, *ClusterSprDatacenterNameRequest) (*ClusterSprId, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateClusterSprDatacenterName not implemented")
 }
 func (UnimplementedLoadmonDBServer) mustEmbedUnimplementedLoadmonDBServer() {}
 func (UnimplementedLoadmonDBServer) testEmbeddedByValue()                   {}
@@ -366,38 +366,38 @@ func _LoadmonDB_AddClusterRecord_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LoadmonDB_UpdateVMSprDatastoreName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VMSprDatastoreNameRequest)
+func _LoadmonDB_UpdateVMSprDatacenterName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VMSprDatacenterNameRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LoadmonDBServer).UpdateVMSprDatastoreName(ctx, in)
+		return srv.(LoadmonDBServer).UpdateVMSprDatacenterName(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: LoadmonDB_UpdateVMSprDatastoreName_FullMethodName,
+		FullMethod: LoadmonDB_UpdateVMSprDatacenterName_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LoadmonDBServer).UpdateVMSprDatastoreName(ctx, req.(*VMSprDatastoreNameRequest))
+		return srv.(LoadmonDBServer).UpdateVMSprDatacenterName(ctx, req.(*VMSprDatacenterNameRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LoadmonDB_UpdateClusterSprDatastoreName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClusterSprDatastoreNameRequest)
+func _LoadmonDB_UpdateClusterSprDatacenterName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClusterSprDatacenterNameRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LoadmonDBServer).UpdateClusterSprDatastoreName(ctx, in)
+		return srv.(LoadmonDBServer).UpdateClusterSprDatacenterName(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: LoadmonDB_UpdateClusterSprDatastoreName_FullMethodName,
+		FullMethod: LoadmonDB_UpdateClusterSprDatacenterName_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LoadmonDBServer).UpdateClusterSprDatastoreName(ctx, req.(*ClusterSprDatastoreNameRequest))
+		return srv.(LoadmonDBServer).UpdateClusterSprDatacenterName(ctx, req.(*ClusterSprDatacenterNameRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -426,12 +426,12 @@ var LoadmonDB_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _LoadmonDB_AddClusterRecord_Handler,
 		},
 		{
-			MethodName: "UpdateVMSprDatastoreName",
-			Handler:    _LoadmonDB_UpdateVMSprDatastoreName_Handler,
+			MethodName: "UpdateVMSprDatacenterName",
+			Handler:    _LoadmonDB_UpdateVMSprDatacenterName_Handler,
 		},
 		{
-			MethodName: "UpdateClusterSprDatastoreName",
-			Handler:    _LoadmonDB_UpdateClusterSprDatastoreName_Handler,
+			MethodName: "UpdateClusterSprDatacenterName",
+			Handler:    _LoadmonDB_UpdateClusterSprDatacenterName_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
