@@ -53,18 +53,18 @@ service LoadmonDB {
   rpc AddClusterSprRecord(ClusterSprRecord) returns(ClusterSprId){}
   rpc UpdateClusterSprRecord(ClusterSprRecord) returns(ClusterSprId){}
   rpc AddClusterRecord(ClusterRecord) returns(ClusterRecordId){}
-  // UpdateVMSprDatastoreName - точечное обновление поля VMSprRecord.DatastoreName
+  // UpdateVMSprDatacenterName - точечное обновление поля VMSprRecord.DatacenterName
   // (код ЦОД DatacenterSite.CodeJira, определяемый через физический ESXi хост
   // виртуальной машины). Отдельный RPC, а не часть общего сохранения VMSprRecord,
   // т.к. заполняется отдельной функцией, запускаемой параллельно с сохранением
-  // метрик (см. cmdb/vmdatastorename.go, cmdb.UpdateVMDatastoreNames).
-  rpc UpdateVMSprDatastoreName(VMSprDatastoreNameRequest) returns(ClusterSprId){}
-  // UpdateClusterSprDatastoreName - точечное обновление поля
-  // ClusterSprRecord.DatastoreName (объединённый список кодов ЦОД всех ESXi
+  // метрик (см. cmdb/vmdatacentername.go, cmdb.UpdateVMDatacenterNames).
+  rpc UpdateVMSprDatacenterName(VMSprDatacenterNameRequest) returns(ClusterSprId){}
+  // UpdateClusterSprDatacenterName - точечное обновление поля
+  // ClusterSprRecord.DatacenterName (объединённый список кодов ЦОД всех ESXi
   // гипервизоров кластера через ";", без дублей). Отдельный RPC, заполняется
   // отдельной функцией, запускаемой параллельно с сохранением метрик (см.
-  // cmdb/clusterdatastorename.go, cmdb.UpdateClusterDatastoreNames).
-  rpc UpdateClusterSprDatastoreName(ClusterSprDatastoreNameRequest) returns(ClusterSprId){}
+  // cmdb/clusterdatacentername.go, cmdb.UpdateClusterDatacenterNames).
+  rpc UpdateClusterSprDatacenterName(ClusterSprDatacenterNameRequest) returns(ClusterSprId){}
 }
 
 //
@@ -192,19 +192,19 @@ message VMSprRecord{
   string GuestDetailedData =32;
   string ToolsStatus =33;
   string DomainName =34;
-  // DatastoreName - код ЦОД (DatacenterSite.CodeJira), определяемый через
+  // DatacenterName - код ЦОД (DatacenterSite.CodeJira), определяемый через
   // физический ESXi хост ВМ и его размещение в стойке (ServerHardware.RackCabinetId
   // -> RackCabinet.DatacenterSiteId -> DatacenterSite.CodeJira) на момент записи
-  // метрики. Заполняется отдельно от остальных полей, см. UpdateVMSprDatastoreName.
-  string DatastoreName = 35;
+  // метрики. Заполняется отдельно от остальных полей, см. UpdateVMSprDatacenterName.
+  string DatacenterName = 35;
 }
 
-// VMSprDatastoreNameRequest - запрос на точечное обновление
-// VMSprRecord.DatastoreName по Id справочной записи ВМ (см. rpc
-// UpdateVMSprDatastoreName).
-message VMSprDatastoreNameRequest {
+// VMSprDatacenterNameRequest - запрос на точечное обновление
+// VMSprRecord.DatacenterName по Id справочной записи ВМ (см. rpc
+// UpdateVMSprDatacenterName).
+message VMSprDatacenterNameRequest {
   int64 Id = 1;
-  string DatastoreName = 2;
+  string DatacenterName = 2;
 }
 
 message ClusterSprRecord{
@@ -219,18 +219,18 @@ message ClusterSprRecord{
   int32 TypeWork=9;
   int32 Stat=10;
   string ClusterId=11;
-  // DatastoreName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
+  // DatacenterName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
   // всех ESXi гипервизоров кластера через ";", без дублей. Заполняется
-  // отдельно, см. rpc UpdateClusterSprDatastoreName.
-  string DatastoreName=12;
+  // отдельно, см. rpc UpdateClusterSprDatacenterName.
+  string DatacenterName=12;
 }
 
-// ClusterSprDatastoreNameRequest - запрос на точечное обновление
-// ClusterSprRecord.DatastoreName по Id справочной записи кластера (см. rpc
-// UpdateClusterSprDatastoreName).
-message ClusterSprDatastoreNameRequest {
+// ClusterSprDatacenterNameRequest - запрос на точечное обновление
+// ClusterSprRecord.DatacenterName по Id справочной записи кластера (см. rpc
+// UpdateClusterSprDatacenterName).
+message ClusterSprDatacenterNameRequest {
   int64 Id = 1;
-  string DatastoreName = 2;
+  string DatacenterName = 2;
 }
 
 message VMRecord {

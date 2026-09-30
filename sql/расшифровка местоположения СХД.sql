@@ -26,7 +26,7 @@ SELECT
     string_agg(
         DISTINCT NULLIF(ds.code_jira, ''),
         ';' ORDER BY NULLIF(ds.code_jira, '')
-    ) AS datastore_name
+    ) AS datacenter_name
 FROM storage_systems ss
 JOIN storage_system_placement ssp
     ON ssp.storage_systems_id = ss.id

@@ -131,7 +131,7 @@ func ClusterSprRecordsToMessage(in *models.ClusterSprRecords, out *pb.ClusterSpr
 	out.Stat = int32(in.Stat)
 	out.Id_User = in.Id_User
 	out.Time_Mfy = timestamppb.New(in.Time_Mfy)
-	out.DatastoreName = in.DatastoreName
+	out.DatacenterName = in.DatacenterName
 }
 
 // MessageToClusterSprRecords выполняет обратную конвертацию pb.ClusterSprRecord в models.ClusterSprRecords.
@@ -151,7 +151,7 @@ func MessageToClusterSprRecords(in *pb.ClusterSprRecord, out *models.ClusterSprR
 	out.Stat = int(in.Stat)
 	out.Id_User = in.Id_User
 	out.Time_Mfy = in.Time_Mfy.AsTime()
-	out.DatastoreName = in.DatastoreName
+	out.DatacenterName = in.DatacenterName
 }
 
 // ClusterRecordToMessage конвертирует models.ClusterRecord в gRPC-сообщение pb.ClusterRecord.
