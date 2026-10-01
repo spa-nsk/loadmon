@@ -191,25 +191,36 @@ fields:
 # менять придётся в Go-коде.
 composites:
   # "Местоположение": "Город1, ЦОД1 | 9 | 9.2 (991)" - первая часть (город +
-  # ЦОД) идёт в ServerHardware.DatacenterRoom как есть, вторая и третья
-  # части (внутренние коды корпуса/зала Итиллиум) сохраняются в extra на
-  # случай, если понадобится сматчить их со справочником models.RackCabinet/
-  # models.DatacenterSite (там пока нет автоматического сопоставления по
-  # имени - см. kontext/03-data-model.md, раздел 5a).
+  # ЦОД) идёт в extra.location_room_text как есть (ServerHardware.DatacenterRoom
+  # удалено 2026-10-01 - атавизм после внедрения RackCabinetId; текст
+  # используется только как рабочее значение при резолве DatacenterSite/
+  # RackCabinet в itilliumimport/importrackservers.go,
+  # importbladeservers.go), вторая и третья части (внутренние коды
+  # корпуса/зала Итиллиум) сохраняются в extra на случай, если понадобится
+  # сматчить их со справочником models.RackCabinet/models.DatacenterSite
+  # (там пока нет автоматического сопоставления по имени - см.
+  # kontext/03-data-model.md, раздел 5a).
   - name: location_split
     sources: ["Местоположение"]
-    targets: ["ServerHardware.DatacenterRoom"]
+    targets: ["extra.location_room_text"]
     params:
       separator: "|"
       extra_prefix: "location"
 
   # "Размещение в шкафу/стойке": "9.2-A-04 | 23-23" - первая часть - код
-  # шкафа (RackNum), вторая - диапазон юнитов "начало-конец" (23-23 значит
-  # один юнит №23; 23-25 значило бы юниты с 23 по 25, SizeUnit=3).
+  # шкафа, вторая - диапазон юнитов "начало-конец" (23-23 значит один юнит
+  # №23; 23-25 значило бы юниты с 23 по 25, SizeUnit=3).
+  # ИЗМЕНЕНО (2026-10-01): models.ServerHardware лишился текстового RackNum
+  # (атавизм после внедрения RackCabinetId, по той же причине, что и у
+  # BladeSystems ранее, см. conf/yaml/rack_blade.yaml) - код шкафа уходит в
+  # extra.rack_num и используется только как рабочее значение при резолве
+  # RackCabinet в itilliumimport/importrackservers.go (см. extra.rack_num у
+  # importblades.go - тот же приём). StartUnitPos/SizeUnit остались
+  # настоящими полями схемы.
   - name: rack_unit_split
     sources: ["Размещение в шкафу/стойке"]
     targets:
-      - "ServerHardware.RackNum"
+      - "extra.rack_num"
       - "ServerHardware.StartUnitPos"
       - "ServerHardware.SizeUnit"
     params:

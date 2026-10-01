@@ -9,47 +9,28 @@
 -- нет отдельной таблицы-связки размещения, все поля хранятся прямо в таблице
 -- server_hardware как обычные (не осиротевшие) поля текущей модели.
 --
--- ВАЖНО: у ServerHardware, в отличие от BladeSystems/StorageSystems, ЕСТЬ два
--- параллельных набора полей размещения (см. models_add.go):
---   1) новая схема - RackCabinetId (FK на справочник models.RackCabinet);
---   2) старые текстовые поля из разных источников -
---      DatacenterRoom/RackNum (текст, приходит из Итиллиум) и
---      DatacenterName/RackName (текст, приходит из HP OneView).
--- Обе группы полей заполняются НЕЗАВИСИМО (Итиллиум пишет группу 1+2а, HP
--- OneView синхронизация пишет только группу 2б - см. cmdb/updatehwsprhp.go).
--- Ниже зачищается ВСЯ информация о размещении - если вам нужно проверить
--- ТОЛЬКО импорт Итиллиум и не трогать данные, которые может восстановить
--- следующий опрос HP OneView, закомментируйте строки с DatacenterName/RackName
--- (группа 2б) в UPDATE ниже - тогда HP OneView не перезапишет их обратно, но
--- они и не будут зачищены для проверки самого Итиллиум-импорта.
+-- ВАЖНО: у ServerHardware размещение описывается ТОЛЬКО RackCabinetId (FK
+-- на справочник models.RackCabinet) и числовыми StartUnitPos/SizeUnit.
+-- Текстовые DatacenterRoom/DatacenterName/RackName/RackNum/StartUnit УДАЛЕНЫ
+-- из models.ServerHardware (2026-10-01, атавизм после внедрения
+-- RackCabinetId) - ниже зачищаются только оставшиеся поля размещения.
 --
 -- Совместим с обоими драйверами БД проекта (postgres и sqlite3).
 -- =============================================================================
 
--- Зачистка размещения ВСЕХ серверов/гипервизоров (обе группы полей):
+-- Зачистка размещения ВСЕХ серверов/гипервизоров:
 UPDATE server_hardware
 SET rack_cabinet_id = 0,
     start_unit_pos  = 0,
-    size_unit       = 0,
-    start_unit      = '',
-    datacenter_room = '',
-    rack_num        = '',
-    datacenter_name = '',
-    rack_name       = ''
+    size_unit       = 0
 WHERE rack_cabinet_id > 0
    OR start_unit_pos > 0
-   OR size_unit > 0
-   OR coalesce(start_unit, '') <> ''
-   OR coalesce(datacenter_room, '') <> ''
-   OR coalesce(rack_num, '') <> ''
-   OR coalesce(datacenter_name, '') <> ''
-   OR coalesce(rack_name, '') <> '';
+   OR size_unit > 0;
 
 -- Вариант с фильтром по конкретным серверам (раскомментировать и подставить
 -- нужные серийные номера вместо примера, вместо UPDATE выше):
 -- UPDATE server_hardware
--- SET rack_cabinet_id = 0, start_unit_pos = 0, size_unit = 0, start_unit = '',
---     datacenter_room = '', rack_num = '', datacenter_name = '', rack_name = ''
+-- SET rack_cabinet_id = 0, start_unit_pos = 0, size_unit = 0
 -- WHERE serial_num IN ('SERIAL1', 'SERIAL2');
 
 -- =============================================================================
@@ -69,6 +50,6 @@ WHERE rack_cabinet_id > 0
 -- 4) проверьте фильтр "Площадка/ЦОД" на /sprsrv/view2 и карточку
 --    /sprsrv/updatebase/all/:id (блок "Физическое размещение");
 -- 5) при необходимости проверьте канвасы /admin/hwinfra и /admin/infrastructure.
--- 6) учтите: если сервер также опрашивается HP OneView, следующий его опрос
---    сам восстановит DatacenterName/RackName (см. cmdb/updatehwsprhp.go) - это
---    ожидаемо, эти два поля не относятся к импорту Итиллиум.
+-- 6) DatacenterName/RackName (поля HP OneView), DatacenterRoom (поле
+--    Итиллиум) и текстовые RackNum/StartUnit в модели больше нет - опрос
+--    HP OneView их не восстановит.

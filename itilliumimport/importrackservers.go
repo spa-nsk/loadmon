@@ -109,8 +109,8 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 
 		// --- ЦОД (models.DatacenterSite) --------------------------------
 		datacenter := models.DatacenterSite{
-			Name:       r.Hw.DatacenterRoom + " " + r.Extra["location_room_code"],
-			Annotation: "ЦОД по адресу: " + r.Hw.DatacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
+			Name:       r.Extra["location_room_text"] + " " + r.Extra["location_room_code"],
+			Annotation: "ЦОД по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
 			Id_User:    models.UserSourceManual,
 			Time_Mfy:   time.Now().Local(),
 		}
@@ -132,9 +132,9 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		// "Размещение в шкафу/стойке" может указывать colocation-площадку
 		// ПЕРЕД "/", отличную от "Местоположение" строки - см.
 		// resolvecabinet.go:splitColocationCabinetName.
-		colocationDc, cabinetCode := splitColocationCabinetName(r.Hw.RackNum)
+		colocationDc, cabinetCode := splitColocationCabinetName(r.Extra["rack_num"])
 		rackSiteId := datacenterId
-		rackAnnotation := "Шкаф по адресу: " + r.Hw.DatacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
+		rackAnnotation := "Шкаф по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
 		if colocationDc != "" {
 			var errSite error
 			rackSiteId, errSite = resolveDatacenterSiteByName(trn, colocationDc)

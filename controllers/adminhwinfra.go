@@ -225,9 +225,6 @@ func buildHWInfraData() (HWInfraData, error) {
 			sizeU = 2
 		}
 		startU := hw.StartUnitPos
-		if startU <= 0 {
-			startU = parseStartUnit(hw.StartUnit)
-		}
 		siteID := siteOfCabinet(hw.RackCabinetId)
 		r := ensureRack(siteID, hw.RackCabinetId)
 		r.servers = append(r.servers, HWInfraServer{

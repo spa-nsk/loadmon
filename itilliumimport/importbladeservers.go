@@ -45,8 +45,8 @@ func mappingConfigPathBladeServer() string {
 //     корзины (она физически определяет размещение вложенного в неё
 //     сервера - это надёжнее, чем повторно разбирать место установки из
 //     строки самого сервера, тем более что в этой выгрузке нет колонки
-//     "Размещение в шкафу/стойке", т.е. с) ServerHardware.RackNum и так
-//     был бы пустым).
+//     "Размещение в шкафу/стойке", т.е. extra["rack_num"] и так был бы
+//     пустым).
 //     Порядок обработки места установки - СНАЧАЛА стандартный разбор
 //     "Местоположение" в DatacenterSite/RackCabinet (тот же код, что и в
 //     ImportItiliumServer - "аналогично обычным серверам", как просил
@@ -127,8 +127,8 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		// --- ЦОД (models.DatacenterSite) - стандартный разбор "Местоположение",
 		// как у ImportItiliumServer ("аналогично обычным серверам") -------
 		datacenter := models.DatacenterSite{
-			Name:       r.Hw.DatacenterRoom + " " + r.Extra["location_room_code"],
-			Annotation: "ЦОД по адресу: " + r.Hw.DatacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
+			Name:       r.Extra["location_room_text"] + " " + r.Extra["location_room_code"],
+			Annotation: "ЦОД по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
 			Id_User:    models.UserSourceManual,
 			Time_Mfy:   time.Now().Local(),
 		}
@@ -141,12 +141,12 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		}
 		datacenterId := datacenter.Id
 
-		// --- Шкаф (models.RackCabinet) - см. выше, RackNum в этой выгрузке
-		// обычно пуст (нет колонки "Размещение в шкафу/стойке"), поэтому
-		// find-or-create по пустому имени намеренно пропускается (иначе
-		// завели бы мусорную запись RackCabinet с пустым Name) - реальная
-		// привязка к шкафу приходит ниже, через блейд-корзину.
-		if strings.TrimSpace(r.Hw.RackNum) != "" {
+		// --- Шкаф (models.RackCabinet) - см. выше, extra["rack_num"] в этой
+		// выгрузке обычно пуст (нет колонки "Размещение в шкафу/стойке"),
+		// поэтому find-or-create по пустому имени намеренно пропускается
+		// (иначе завели бы мусорную запись RackCabinet с пустым Name) -
+		// реальная привязка к шкафу приходит ниже, через блейд-корзину.
+		if strings.TrimSpace(r.Extra["rack_num"]) != "" {
 			// Резолвится ПАРОЙ (Name, DatacenterSiteId), см.
 			// resolveRackCabinet: одинаковое имя шкафа допустимо на разных
 			// площадках.
@@ -156,9 +156,9 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			// шкафу/стойке" может указывать colocation-площадку ПЕРЕД "/",
 			// отличную от "Местоположение" строки - см.
 			// resolvecabinet.go:splitColocationCabinetName.
-			colocationDc, cabinetCode := splitColocationCabinetName(r.Hw.RackNum)
+			colocationDc, cabinetCode := splitColocationCabinetName(r.Extra["rack_num"])
 			rackSiteId := datacenterId
-			rackAnnotation := "Шкаф по адресу: " + r.Hw.DatacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
+			rackAnnotation := "Шкаф по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
 			if colocationDc != "" {
 				var errSite error
 				rackSiteId, errSite = resolveDatacenterSiteByName(trn, colocationDc)
@@ -189,9 +189,9 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 				// ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился
 				// текстовых DatacenterRoom/RackNum - расположение корзины
 				// теперь переносится на сервер только через RackCabinetId
-				// (FK), текстовые поля ServerHardware.DatacenterRoom/RackNum
-				// сервер получает исключительно из разбора "Местоположение"
-				// собственной строки выгрузки (см. выше).
+				// (FK). Текстовые DatacenterRoom/RackNum у ServerHardware
+				// также удалены (2026-10-01) - их текст сохраняется только
+				// в r.Extra["location_room_text"]/r.Extra["rack_num"].
 				if bs.RackCabinetId != 0 {
 					r.Hw.RackCabinetId = bs.RackCabinetId
 				}
