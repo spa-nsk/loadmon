@@ -41,50 +41,6 @@
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-lg-3">
-                <div class="d-flex align-items-end gap-2">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" id="apply_DatacenterRoom" name="apply_DatacenterRoom">
-                    </div>
-                    <div class="flex-grow-1">
-                        <label for="DatacenterRoom" class="form-label text-nowrap">ЦОД</label>
-                        <input type="text" id="DatacenterRoom" name="DatacenterRoom" class="form-control" value="{{.HW.DatacenterRoom}}">
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="d-flex align-items-end gap-2">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" id="apply_RackNum" name="apply_RackNum">
-                    </div>
-                    <div class="flex-grow-1">
-                        <label for="RackNum" class="form-label text-nowrap">Номер стойки</label>
-                        <input type="text" id="RackNum" name="RackNum" class="form-control" value="{{.HW.RackNum}}">
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="d-flex align-items-end gap-2">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" id="apply_DatacenterName" name="apply_DatacenterName">
-                    </div>
-                    <div class="flex-grow-1">
-                        <label for="DatacenterName" class="form-label text-nowrap">Серверное помещение (OneView)</label>
-                        <input type="text" id="DatacenterName" name="DatacenterName" class="form-control" value="{{.HW.DatacenterName}}">
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-lg-4">
-                <div class="d-flex align-items-end gap-2">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" id="apply_RackName" name="apply_RackName">
-                    </div>
-                    <div class="flex-grow-1">
-                        <label for="RackName" class="form-label text-nowrap">Шкаф (OneView)</label>
-                        <input type="text" id="RackName" name="RackName" class="form-control" value="{{.HW.RackName}}">
-                    </div>
-                </div>
-            </div>
             <div class="col-6 col-lg-4">
                 <div class="d-flex align-items-end gap-2">
                     <div class="form-check mt-4">

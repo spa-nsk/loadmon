@@ -817,9 +817,11 @@ func parseHWConfigIds(s string) []int64 {
 // SprHwConfigBulkEdit реализует групповое редактирование выделенных на
 // /sprsrv/hwconflist записей models.ServerHardware. В отличие от одиночного
 // редактирования (SprHwConfigEdit), здесь правится только статус (Active) и
-// размещение (DatacenterRoom/RackNum/DatacenterName/RackName/StartUnitPos/
-// SizeUnit) - остальные поля у выделенных серверов, как правило, разные и
-// группового смысла не имеют.
+// размещение (StartUnitPos/SizeUnit) - остальные поля у выделенных серверов,
+// как правило, разные и группового смысла не имеют.
+// Текстовые DatacenterRoom/DatacenterName/RackName/RackNum/StartUnit удалены
+// из models.ServerHardware (2026-10-01, атавизм после внедрения
+// RackCabinetId) и из этой формы тоже убраны.
 //
 // Каждое поле формы сопровождается отдельным чекбоксом "apply_<Поле>":
 // значение поля применяется к выделенным записям только если чекбокс
@@ -878,18 +880,6 @@ func (this *MainController) SprHwConfigBulkEdit() {
 		var bulkActiveErr error
 		if applyActive {
 			bulkActiveValue, bulkActiveErr = strconv.Atoi(this.GetString("Active"))
-		}
-		if this.GetString("apply_DatacenterRoom") == "on" {
-			values["DatacenterRoom"] = this.GetString("DatacenterRoom")
-		}
-		if this.GetString("apply_RackNum") == "on" {
-			values["RackNum"] = this.GetString("RackNum")
-		}
-		if this.GetString("apply_DatacenterName") == "on" {
-			values["DatacenterName"] = this.GetString("DatacenterName")
-		}
-		if this.GetString("apply_RackName") == "on" {
-			values["RackName"] = this.GetString("RackName")
 		}
 		if this.GetString("apply_StartUnitPos") == "on" {
 			if v, err := strconv.Atoi(this.GetString("StartUnitPos")); err == nil {

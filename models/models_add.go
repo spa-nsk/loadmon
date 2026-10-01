@@ -1839,13 +1839,8 @@ type ServerHardware struct {
 	MemoryMb          int       `form:"MemoryMb" csv:"Размер памяти в мб." json:"MemoryMb"`                                         // размер оперативной памяти в мб
 	BladeSystemId     int64     `form:"BladeSystemId" csv:"Ссылка на справочник корзин" json:"BladeSystemId"`                       // ссылка блэйд-шасси в справочнике
 	BladeNum          int       `form:"BladeNum" csv:"Номер слота в корзине" json:"BladeNum"`                                       // номер позиции в блэйд шасси
-	DatacenterRoom    string    `form:"DatacenterRoom" csv:"ЦОД" json:"DatacenterRoom"`                                             // серверная
-	RackNum           string    `form:"RackNum" csv:"Номер стойки" json:"RackNum"`                                                  // номер стойки
-	StartUnit         string    `form:"StartUnit" csv:"-" json:"StartUnit"`                                                         // юнит с которого начинается сервер или блэйд шасси, куда он установлен
 	StartUnitPos      int       `form:"StartUnitPos" csv:"Номер юнита" json:"StartUnitPos"`                                         // юнит
 	SizeUnit          int       `form:"SizeUnit" csv:"Количество юнитов" json:"SizeUnit"`                                           // количество занимаемых юнитов
-	DatacenterName    string    `form:"DatacenterName" csv:"Серверная" json:"DatacenterName"`                                       // Серверное помещение из HP One View
-	RackName          string    `form:"RackName" csv:"Шкаф" json:"RackName"`                                                        // Шкаф из HP One View
 	OwnerFromFGId     int64     `form:"OwnerFromFGId" csv:"-" json:"OwnerFromFGId"`                                                 // ЮЛ на которое покупается сервер из справочника MemberFG
 	CounterpartyId    int64     `form:"CounterpartyId" csv:"-" json:"CounterpartyId"`                                               // ЮЛ контрагент из справочника Counterparty
 	ContractDoc       string    `form:"ContractDoc" csv:"Номер договора" json:"ContractDoc"`                                        // договорной документ на покупку, название и номер дополнительного соглашения
@@ -1887,7 +1882,18 @@ type ServerHardware struct {
 	MpFirmwareVersion string `form:"MpFirmwareVersion" csv:"Прошивка контроллера управления" json:"MpFirmwareVersion"` // identity.MpFirmwareVersion
 	MpIPAddress       string `form:"MpIPAddress" csv:"IP контроллера управления" json:"MpIPAddress"`                   // identity.MpIPAddress - адрес iLO/OA
 	MpHostName        string `form:"MpHostName" csv:"Имя контроллера управления" json:"MpHostName"`                    // identity.MpHostName
-	RackCabinetId     int64  `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов" json:"RackCabinetId"`  // FK на models.RackCabinet.Id (новый справочник шкафов) - дополняет старые текстовые DatacenterRoom/RackNum/DatacenterName/RackName, не заменяет их
+	// RackCabinetId - FK на models.RackCabinet.Id (новый справочник шкафов).
+	// Текстовые DatacenterRoom/DatacenterName/RackName (старые поля ЦОД/
+	// помещения из HP OneView и Итиллиум, 2026-10-01) и RackNum/StartUnit
+	// (старые текстовые номер стойки/юнит, 2026-10-01) УДАЛЕНЫ - атавизм
+	// после внедрения новой модели размещения. Площадка/шкаф теперь
+	// резолвятся ТОЛЬКО через RackCabinetId -> RackCabinet.DatacenterSiteId
+	// -> DatacenterSite (см. controllers/srvhwviewbysn.go:fillDBPlacement
+	// для примера резолва этой цепочки), юнит - через StartUnitPos (число,
+	// не удалён). Импорт из Итиллиум (DatacenterRoom) перенесён на
+	// Extra["location_room_text"] - см. itilliumimport/importrackservers.go,
+	// importbladeservers.go.
+	RackCabinetId int64 `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов" json:"RackCabinetId"`
 }
 
 // Коды источника обновления записей ServerHardware/ServerSprRecords -

@@ -122,13 +122,13 @@ composites:
   # "Местоположение": тот же формат, что и у rack-серверов/блейд-корзин -
   # "Город, ЦОД | код | код (код)". В этой выгрузке НЕТ колонки "Размещение
   # в шкафу/стойке" (в отличие от rack-серверов) - значит
-  # ServerHardware.RackNum/StartUnitPos/SizeUnit не заполняются напрямую из
-  # этой строки; связка со шкафом идёт через найденную по "Корзина"
-  # блейд-корзину (см. importbladeservers.go) - RackCabinet этой корзины
-  # имеет приоритет над пустым RackNum.
+  # ServerHardware.StartUnitPos/SizeUnit не заполняются напрямую из этой
+  # строки; связка со шкафом идёт через найденную по "Корзина" блейд-
+  # корзину (см. importbladeservers.go) - RackCabinet этой корзины имеет
+  # приоритет, если он найден.
   - name: location_split
     sources: ["Местоположение"]
-    targets: ["ServerHardware.DatacenterRoom"]
+    targets: ["extra.location_room_text"]
     params:
       separator: "|"
       extra_prefix: "location"

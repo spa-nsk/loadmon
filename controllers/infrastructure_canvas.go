@@ -63,8 +63,10 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 	// DatacenterRoom/RackNum - расположение корзины теперь определяется
 	// только через RackCabinetId (FK на models.RackCabinet), поэтому для
 	// группировки по стойке/серверной здесь строится собственный лookup
-	// RackCabinetId -> (имя серверной, имя шкафа), в отличие от
-	// ServerHardware/StorageSystems, у которых текстовые поля остались.
+	// RackCabinetId -> (имя серверной, имя шкафа). models.ServerHardware
+	// лишился тех же текстовых полей позже (2026-10-01) - тот же lookup
+	// используется и для него (см. ниже), StorageSystems размещается через
+	// отдельную таблицу-связку models.StorageSystemPlacement.
 	type cabinetPlacement struct {
 		room, rack string
 	}
@@ -211,17 +213,16 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 			sizeU = 2
 		}
 		startU := hw.StartUnitPos
-		if startU <= 0 {
-			startU = parseStartUnit(hw.StartUnit)
-		}
 		// Размещение - в приоритете новая схема (RackCabinetId->RackCabinet/
 		// DatacenterSite, тот же lookup cabinetById, что и у блейд-корзин
 		// выше); если RackCabinetId не проставлен (старые данные, ещё не
-		// мигрированные через /sprsrv/hwconfedit) - fallback на легаси
-		// текстовые поля DatacenterRoom/RackNum, чтобы такие серверы не
-		// пропали с канваса молча.
+		// мигрированные через /sprsrv/hwconfedit) - легаси текстовые поля
+		// DatacenterRoom/RackNum удалены из ServerHardware (2026-10-01,
+		// атавизм), поэтому и "серверная", и "стойка" остаются пустыми -
+		// такой сервер попадёт в общий бакет "без привязки к шкафу", но не
+		// пропадёт с канваса молча.
 		placement := cabinetById[hw.RackCabinetId]
-		room, rack := hw.DatacenterRoom, hw.RackNum
+		room, rack := "", ""
 		if hw.RackCabinetId > 0 && (strings.TrimSpace(placement.room) != "" || strings.TrimSpace(placement.rack) != "") {
 			room, rack = placement.room, placement.rack
 		}
@@ -564,22 +565,6 @@ func buildClusterMapPage(o orm.Ormer, sprRows []models.ServerSprRecords) payload
 			VMCount:         totalVMs,
 		},
 	}
-}
-
-func parseStartUnit(s string) int {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0
-	}
-	parts := strings.FieldsFunc(s, func(r rune) bool {
-		return r == ',' || r == ';' || r == '-'
-	})
-	if len(parts) == 0 {
-		return 0
-	}
-	var n int
-	fmt.Sscanf(strings.TrimSpace(parts[0]), "%d", &n)
-	return n
 }
 
 func firstNonEmpty(values ...string) string {

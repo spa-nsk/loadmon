@@ -15,7 +15,18 @@
      прокрутки браузера закономерно оказывается внизу ВСЕГО экрана (у
      .content-panel height:100vh), а не где-то в середине страницы под
      таблицей - то есть штатное поведение браузера здесь и даёт нужный
-     "зафиксированный внизу экрана" скролл без отдельного JS. -->
+     "зафиксированный внизу экрана" скролл без отдельного JS.
+
+     ДОБАВЛЕНО (2026-10-01, по запросу пользователя "для всех выгрузок через
+     Выгрузку по View сделай фиксацию заголовка таблицы, фиксацию фильтра по
+     переключателю как делали ранее"): закреплённый sticky-заголовок таблицы
+     (.spr-classic-table thead th, уже был в loadmon.css, просто не
+     использовался без пересчёта --spr-thead-top) + переключатель
+     "Закреплять фильтр вверху экрана" у .viewexport-toolbar-bar - канонический
+     приём из kontext/06-list-page-pattern.md, см. JS внизу файла. Та же
+     страница обслуживает ВСЕ режимы выгрузки (server-hw/server-vm/cluster/
+     lun/storage-systems/storage-vm и т.п., см. ModeName) - правка в одном
+     шаблоне закрывает требование "для всех выгрузок" сразу. -->
 
 <div class="viewexport-toolbar-bar p-3 mb-3 rounded border">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -29,6 +40,17 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="/admin/viewexport/{{.ModeName}}?export=csv" class="btn btn-outline-primary rounded-pill px-3">Выгрузить в CSV</a>
             <a href="/admin/viewexport/{{.ModeName}}?export=xlsx" class="btn btn-outline-success rounded-pill px-3">Выгрузить в XLSX</a>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-12 d-flex justify-content-end">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox"
+                    id="viewExportFilterStickyToggle"
+                    onchange="viewExportToggleFilterSticky(this.checked)">
+                <label class="form-check-label small text-muted"
+                    for="viewExportFilterStickyToggle">Закреплять фильтр вверху экрана</label>
+            </div>
         </div>
     </div>
 </div>
@@ -86,6 +108,49 @@
 {{end}}
 
 <script>
+    // Закрепляемая верхняя панель (.viewexport-toolbar-bar) + sticky-заголовок
+    // таблицы (.spr-classic-table thead th, top: var(--spr-thead-top)) - тот
+    // же канонический приём, что на остальных страницах-списках, см.
+    // kontext/06-list-page-pattern.md. Учтены обе ошибки, задокументированные
+    // там же и в CHANGELOG (записи от 2026-09-03 (22)/(24)/(25)):
+    // 1) sticky-класс навешен ТОЛЬКО на компактный div с заголовком/кнопками/
+    //    переключателем - не на обёртку всей страницы и не на таблицу/пагинацию;
+    // 2) таблица ниже - БЕЗ <div class="table-responsive"> (ломает position:
+    //    sticky у thead, см. комментарий в начале файла) - здесь такой обёртки
+    //    и не было, оставляем как есть.
+    (function () {
+        var STORAGE_KEY = 'viewexportlist.filterSticky';
+        var bar = document.querySelector('.viewexport-toolbar-bar');
+        var toggle = document.getElementById('viewExportFilterStickyToggle');
+        if (!bar || !toggle) return;
+
+        function updateTheadOffset() {
+            var offset = 0;
+            if (!bar.classList.contains('viewexport-toolbar-bar-unpinned')) {
+                offset = bar.offsetHeight;
+            }
+            document.documentElement.style.setProperty('--spr-thead-top', offset + 'px');
+        }
+
+        function applySticky(sticky) {
+            bar.classList.toggle('viewexport-toolbar-bar-unpinned', !sticky);
+            toggle.checked = sticky;
+            updateTheadOffset();
+        }
+
+        var stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applySticky(stored === null ? true : stored === '1');   // по умолчанию закреплено
+
+        window.viewExportToggleFilterSticky = function (sticky) {
+            applySticky(sticky);
+            try { localStorage.setItem(STORAGE_KEY, sticky ? '1' : '0'); } catch (e) {}
+        };
+
+        window.addEventListener('resize', updateTheadOffset);
+        window.addEventListener('load', updateTheadOffset);
+    })();
+
     function viewExportPagerGoTo(page) {
         var url = new URL(window.location.href);
         url.searchParams.delete('export');

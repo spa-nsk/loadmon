@@ -1035,10 +1035,6 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 		models.SetActiveWithAudit(&h.Active, &h.TimeActiveState, &h.ActivatorUser, &h.TimeDeActiveState, &h.DeActivatorUser, 1, models.UserSourceOneView)
 	}
 
-	h.DatacenterName = srv.Datacenter.Name
-
-	h.RackName = srv.Rack.Name
-
 	h.Vendor = "HPE"
 	h.Model = identity.Model
 	h.FormFactor = 1
