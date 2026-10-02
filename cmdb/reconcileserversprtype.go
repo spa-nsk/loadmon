@@ -263,12 +263,14 @@ func appendHypervisorFields(srv *models.ServerSprRecords, host *vsphere.HostInfo
 		srv.Vcenter = host.Vcenter
 		fields = append(fields, "Vcenter")
 	}
-	if srv.Datacenter != host.Datacenter {
-		srv.Datacenter = host.Datacenter
+	// заглушки vsphere.NoDatacenter/NoCluster (хост без определённого
+	// размещения, 2026-10-02) пишутся пустой строкой
+	if dc := vsphere.PlacementValue(host.Datacenter); srv.Datacenter != dc {
+		srv.Datacenter = dc
 		fields = append(fields, "Datacenter")
 	}
-	if srv.Cluster != host.Cluster {
-		srv.Cluster = host.Cluster
+	if cl := vsphere.PlacementValue(host.Cluster); srv.Cluster != cl {
+		srv.Cluster = cl
 		fields = append(fields, "Cluster")
 	}
 	if srv.ClusterId != host.ClusterID {

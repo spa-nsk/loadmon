@@ -157,14 +157,16 @@ func (infra *VMInfrastructure) UpdateClusterInfo(ctx context.Context, vc VCenter
 // UpdateHosts обновляет данные хостов ESXi (список hostRefs) в глобальной
 // инфраструктуре: аппаратные характеристики, состояние, LUN и привязку к кластеру.
 func (infra *VMInfrastructure) UpdateHosts(ctx context.Context, c *govmomi.Client, hostRefs []types.ManagedObjectReference, vc VCenter, flEnd *int32) {
-	notData := "нет данных"
 	defer atomic.StoreInt32(flEnd, 1) //устанавливаем флаг завершения функции при выходе
 
 	hostref := make([]types.ManagedObjectReference, 0)
 	//hostref := make([]types.ManagedObjectReference, 500)
 	for _, ref := range hostRefs {
-		_, ok := infra.HostMapList.Get(vc.Hostname + "/" + ref.Value)
-		if !ok { //если хост не обнаружен пропускаем добавляем в обработку
+		known, ok := infra.HostMapList.Get(vc.Hostname + "/" + ref.Value)
+		// новый хост - в обработку; известный, но без определённого
+		// датацентра/кластера (2026-10-02) - тоже, чтобы размещение
+		// дозаполнилось, как только vCenter его отдаст.
+		if !ok || known == nil || known.Datacenter == NoDatacenter || known.Cluster == NoCluster {
 			hostref = append(hostref, ref)
 		}
 	}
@@ -186,120 +188,105 @@ func (infra *VMInfrastructure) UpdateHosts(ctx context.Context, c *govmomi.Clien
 	//	err = pc.Retrieve(ctx, refs, []string{"name", "config", "summary","hardware","network", "datastore", "storage","guest", "guest.ipAddress", "config.extraConfig", "..."}
 	var hst []mo.HostSystem
 	err := pc.Retrieve(ctx, hostref, nil, &hst) //получаем данные по по всем хостам
+	if err != nil && len(hostref) > 0 {
+		log.Printf("UpdateHosts(%s): ошибка чтения %d хостов: %v - в этом цикле они не обработаны", vc.Hostname, len(hostref), err)
+	}
 	if err == nil {
 		for _, hs := range hst {
 
-			datacenter := notData
-			cluster := notData
-			clusterID := ""
-			folder := notData
+			// Размещение хоста (2026-10-02, "мне важно собрать весь список
+			// гипервизоров"): раньше хост, для которого не удалось подняться
+			// по папкам до датацентра или прочитать родителя, молча
+			// пропускался (continue) и не попадал ни в пул, ни в справочники.
+			// Теперь:
+			//   - датацентр - из полного списка предков хоста одним запросом
+			//     (hostDatacenter / mo.Ancestors), без ручного обхода папок;
+			//   - любая неудача только логируется, хост всё равно попадает в
+			//     пул: датацентр/кластер подставляются NoDatacenter/NoCluster
+			//     (в справочники пишутся пустыми - см. PlacementValue).
+			datacenter := NoDatacenter
+			cluster := NoCluster
 			hostFlag := false
 			typeWork := 0
 			phi, ok := infra.HostMapList.Get(vc.Hostname + "/" + hs.Reference().Value)
 			hostFound := false
 			if ok && phi != nil { //если хост уже есть
 				hostFound = true
-				//continue //пропускаем
 			}
-			crList := make([]mo.ComputeResource, 0)
-			clList := make([]mo.ClusterComputeResource, 0)
-			refs := make([]types.ManagedObjectReference, 0)
-			refsdc := make([]types.ManagedObjectReference, 0)
-			refsfolder := make([]types.ManagedObjectReference, 0)
-			dcList := make([]mo.Datacenter, 0)
-			folderList := make([]mo.Folder, 0)
-
-			pComputeResource := (*mo.ComputeResource)(nil)
-			refs = append(refs, *hs.Parent)
-			var err error
-			if hs.Parent.Type == "ClusterComputeResource" {
-				err = pc.Retrieve(ctx, refs, nil, &clList) //получаем данные по родительскому объекту ClusterComputeResource
-			} else {
-				err = pc.Retrieve(ctx, refs, nil, &crList) //получаем данные по родительскому объекту ComputeResource
-				hostFlag = true
-			}
-
-			if err == nil {
-				if len(clList) > 0 { //если это кластер
-					pComputeResource = (*mo.ComputeResource)(&clList[0].ComputeResource)
-					cluster = clList[0].Name //Имя кластера
-					clusterID = fmt.Sprintf("%s:%s", vc.Hostname, pComputeResource.Reference().Value)
-					refsfolder = append(refsfolder, *clList[0].Parent)
-				} else if len(crList) > 0 {
-					pComputeResource = (*mo.ComputeResource)(&crList[0])
-					cluster = crList[0].Name //Имя одиночного хоста
-					clusterID = fmt.Sprintf("%s:%s", vc.Hostname, pComputeResource.Reference().Value)
-					refsfolder = append(refsfolder, *crList[0].Parent)
-				}
-				err = pc.Retrieve(ctx, refsfolder, nil, &folderList)
-				if err == nil && len(folderList) > 0 {
-					if folderList[0].Parent.Type != "Datacenter" {
-						for {
-							ref := *(folderList[0].Parent)
-							refsfolder = make([]types.ManagedObjectReference, 0)
-							folderList = make([]mo.Folder, 0)
-
-							refsfolder = append(refsfolder, ref)
-							err = pc.Retrieve(ctx, refsfolder, nil, &folderList)
-							if err == nil && len(folderList) > 0 {
-								if folderList[0].Parent.Type == "Datacenter" {
-									break
-								}
-							} else {
-								break
-							}
-						}
-					}
-					folder = folderList[0].Name
-					refsdc = make([]types.ManagedObjectReference, 0)
-					refsdc = append(refsdc, *folderList[0].Parent)
-					err = pc.Retrieve(ctx, refsdc, nil, &dcList)
-					if err == nil && len(dcList) > 0 {
-						datacenter = dcList[0].Name
-						f := find.NewFinder(c.Client, false)
-						dc, errdc := f.Datacenter(ctx, datacenter)
-						if errdc == nil {
-							// привязываем datacenter к finder на всякий случай
-							f.SetDatacenter(dc)
-							ref := dc.Reference()
-							tagIDs, errt := t.ListAttachedTags(ctx, ref)
-							if errt == nil {
-								for _, idTag := range tagIDs {
-									tag, errt := t.GetTag(ctx, idTag)
-									if errt != nil {
-										continue
-									}
-									cat, errc := t.GetCategory(ctx, tag.CategoryID)
-									if errc == nil {
-										if cat.Name == "BCS_ENV" {
-											switch tag.Name {
-											case "PROD":
-												typeWork = 1
-											case "INTTEST":
-												typeWork = 2
-											case "EXTTEST":
-												typeWork = 3
-											default:
-												typeWork = 0
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			_ = cluster
-			_ = clusterID
-			_ = datacenter
-			_ = folder
-
-			if cluster == notData || datacenter == notData { //пропускаем все где не заполнен кластер и датацентр 14.10.2025
+			hostName := strings.TrimSpace(hs.Name)
+			if hostName == "" {
+				log.Printf("UpdateHosts(%s): хост %s без имени - пропущен", vc.Hostname, hs.Reference().Value)
 				continue
 			}
 
-			cl := infra.UpdateClusterInfo(ctx, vc, c, pComputeResource, datacenter, cluster, typeWork, hostFlag)
+			dcName, dcRef, dcErr := hostDatacenter(ctx, c, hs.Reference())
+			if dcErr != nil {
+				log.Printf("UpdateHosts(%s): хост %s: датацентр не определён (%v) - хост учитывается без датацентра", vc.Hostname, hostName, dcErr)
+			} else {
+				datacenter = dcName
+			}
+
+			// Родитель хоста: кластер или одиночный ComputeResource (хост вне
+			// кластера - в том числе горячий резерв).
+			pComputeResource := (*mo.ComputeResource)(nil)
+			if hs.Parent == nil {
+				log.Printf("UpdateHosts(%s): хост %s: у объекта нет родителя (кластер/ComputeResource) - хост учитывается без кластера", vc.Hostname, hostName)
+			} else {
+				refs := []types.ManagedObjectReference{*hs.Parent}
+				var perr error
+				if hs.Parent.Type == "ClusterComputeResource" {
+					clList := make([]mo.ClusterComputeResource, 0)
+					if perr = pc.Retrieve(ctx, refs, nil, &clList); perr == nil && len(clList) > 0 {
+						pComputeResource = (*mo.ComputeResource)(&clList[0].ComputeResource)
+						cluster = clList[0].Name //Имя кластера
+					}
+				} else {
+					hostFlag = true
+					crList := make([]mo.ComputeResource, 0)
+					if perr = pc.Retrieve(ctx, refs, nil, &crList); perr == nil && len(crList) > 0 {
+						pComputeResource = (*mo.ComputeResource)(&crList[0])
+						cluster = crList[0].Name //Имя одиночного хоста (ComputeResource)
+					}
+				}
+				if pComputeResource == nil {
+					log.Printf("UpdateHosts(%s): хост %s: не удалось прочитать родителя %s (%v) - хост учитывается без кластера", vc.Hostname, hostName, hs.Parent.Value, perr)
+				}
+			}
+
+			// Признак среды (тег BCS_ENV у датацентра).
+			if dcRef != nil {
+				if tagIDs, errt := t.ListAttachedTags(ctx, *dcRef); errt == nil {
+					for _, idTag := range tagIDs {
+						tag, errt := t.GetTag(ctx, idTag)
+						if errt != nil {
+							continue
+						}
+						cat, errc := t.GetCategory(ctx, tag.CategoryID)
+						if errc == nil && cat.Name == "BCS_ENV" {
+							switch tag.Name {
+							case "PROD":
+								typeWork = 1
+							case "INTTEST":
+								typeWork = 2
+							case "EXTTEST":
+								typeWork = 3
+							default:
+								typeWork = 0
+							}
+						}
+					}
+				}
+			}
+
+			var cl *Cluster
+			if pComputeResource != nil {
+				cl = infra.UpdateClusterInfo(ctx, vc, c, pComputeResource, datacenter, cluster, typeWork, hostFlag)
+			} else {
+				// Родитель неизвестен - временный объект кластера только для
+				// заполнения HostInfo (в ClusterMapList не регистрируется,
+				// как и одиночные хосты).
+				cl = &Cluster{Date: time.Now().Local(), Vcenter: vc.Hostname, Datacenter: datacenter, Name: cluster, TypeWork: typeWork, HostFlag: true}
+			}
 
 			if hs.Hardware != nil {
 				p := hs.Summary.Config.Product
@@ -328,6 +315,8 @@ func (infra *VMInfrastructure) UpdateHosts(ctx context.Context, c *govmomi.Clien
 			if hostFound {
 				phi.LockObject()
 				phi.ImportData(hs)
+				phi.Datacenter = datacenter
+				phi.Cluster = cluster
 				phi.ClusterID = cl.ClusterID
 				phi.UnLockObject()
 			} else {
@@ -340,7 +329,7 @@ func (infra *VMInfrastructure) UpdateHosts(ctx context.Context, c *govmomi.Clien
 				infra.appendScsiLun(vc.Hostname, datacenter, cluster, hs)
 
 				hi.HostMaxVirtualDiskCapacity = cl.AllCapacityGb
-				hi.KeyName = fmt.Sprintf("%s/%s", vc.Hostname, hs.Summary.Host.Value)
+				hi.KeyName = fmt.Sprintf("%s/%s", vc.Hostname, hs.Reference().Value) // = Summary.Host, но без паники у отключённого хоста с пустым Summary.Host
 				infra.HostMapList.Set(hi.KeyName, hi)
 				infra.HostBySNMapList.Set(hi.SerialNumber, hi)
 

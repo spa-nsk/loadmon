@@ -64,8 +64,8 @@ func insertNewHostSprRecord(hs vsphere.HostInfo, serialNum string, hw *oneview.S
 	srvspr.OS = hs.ProductFullName //копируем точную версию esxi
 
 	srvspr.Vcenter = hs.Vcenter
-	srvspr.Datacenter = hs.Datacenter
-	srvspr.Cluster = hs.Cluster
+	srvspr.Datacenter = vsphere.PlacementValue(hs.Datacenter) // заглушка "не определён" -> пусто
+	srvspr.Cluster = vsphere.PlacementValue(hs.Cluster)
 	srvspr.ClusterId = hs.ClusterID
 	srvspr.SerialNumber = serialNum
 	srvspr.SourceUpdateType = models.SourceUpdateVMware
@@ -485,21 +485,30 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 			}
 		}
 
-		dc := models.DatacenterSprRecords{Name: hs.Datacenter, Vcenter: hs.Vcenter}
-		if err := o.Read(&dc, "Name", "Vcenter"); err != nil {
-			dc.Id_User = 0
-			dc.Time_Mfy = time.Now().Local()
-			if _, err := o.Insert(&dc); err != nil {
-				fmt.Println("Ошибка создания справочника датацентра:", hs.Vcenter, hs.Datacenter, err)
+		// 2026-10-02: хосты с неопределённым датацентром/родителем больше не
+		// теряются (vspheremetrics.UpdateHosts кладёт их в пул с заглушками
+		// NoDatacenter/NoCluster). Псевдо-записи с заглушками в справочники
+		// датацентров/кластеров НЕ заводим - только в ServerSprRecords с
+		// пустыми Datacenter/Cluster (см. vsphere.PlacementValue ниже).
+		if hs.Datacenter != vsphere.NoDatacenter {
+			dc := models.DatacenterSprRecords{Name: hs.Datacenter, Vcenter: hs.Vcenter}
+			if err := o.Read(&dc, "Name", "Vcenter"); err != nil {
+				dc.Id_User = 0
+				dc.Time_Mfy = time.Now().Local()
+				if _, err := o.Insert(&dc); err != nil {
+					fmt.Println("Ошибка создания справочника датацентра:", hs.Vcenter, hs.Datacenter, err)
+				}
 			}
 		}
 
-		cl := models.ClusterSprRecords{Name: hs.Cluster, Datacenter: hs.Datacenter, Vcenter: hs.Vcenter}
-		if err := o.Read(&cl, "Name", "Datacenter", "Vcenter"); err != nil {
-			cl.Id_User = 0
-			cl.Time_Mfy = time.Now().Local()
-			if _, err := o.Insert(&cl); err != nil {
-				fmt.Println("Ошибка создания справочника кластера:", hs.Vcenter, hs.Datacenter, hs.Cluster, err)
+		if hs.Datacenter != vsphere.NoDatacenter && hs.Cluster != vsphere.NoCluster {
+			cl := models.ClusterSprRecords{Name: hs.Cluster, Datacenter: hs.Datacenter, Vcenter: hs.Vcenter}
+			if err := o.Read(&cl, "Name", "Datacenter", "Vcenter"); err != nil {
+				cl.Id_User = 0
+				cl.Time_Mfy = time.Now().Local()
+				if _, err := o.Insert(&cl); err != nil {
+					fmt.Println("Ошибка создания справочника кластера:", hs.Vcenter, hs.Datacenter, hs.Cluster, err)
+				}
 			}
 		}
 
@@ -507,7 +516,7 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 		serverName := strings.TrimSpace(hs.Name)
 
 		if shortName == "" || serverName == "" || shortName == "localhost" || serverName == "localhost" {
-			fmt.Printf("Ошибка в данных гипервизора SN:%s shortName:%s serverName:%s\n", hs.SerialNumber, shortName, serverName)
+			fmt.Printf("UpdateHWHostInfoInfra: хост ПРОПУЩЕН (пустое/localhost имя) vCenter:%s SN:%s shortName:%s serverName:%s\n", hs.Vcenter, hs.SerialNumber, shortName, serverName)
 			continue
 		}
 
@@ -593,18 +602,33 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 		srvspr.OS = hs.ProductFullName //копируем точную версию esxi
 
 		srvspr.Vcenter = hs.Vcenter
-		srvspr.Datacenter = hs.Datacenter
-		srvspr.Cluster = hs.Cluster
+		srvspr.Datacenter = vsphere.PlacementValue(hs.Datacenter)
+		srvspr.Cluster = vsphere.PlacementValue(hs.Cluster)
 		srvspr.ClusterId = hs.ClusterID
 		srvspr.SerialNumber = serialNum
 
-		srvHW := models.ServerHardware{SerialNum: serialNum}
-		errHW := o.Read(&srvHW, "SerialNum")
+		// Поиск по SerialNum - только при непустом серийнике (иначе Read
+		// по SerialNum="" находил бы произвольную запись без серийника).
+		srvHW := models.ServerHardware{}
+		errHW := orm.ErrNoRows
+		if serialNum != "" {
+			srvHW = models.ServerHardware{SerialNum: serialNum}
+			errHW = o.Read(&srvHW, "SerialNum")
+		}
 		if errHW != nil {
 			srvHW = models.ServerHardware{ServerId: srvspr.Id}
 			errHW = o.Read(&srvHW, "ServerId")
 		}
-		if errHW == nil {
+		if errHW != nil {
+			// 2026-10-02: гипервизоров других брендов (не HPE) нет в OneView,
+			// и ServerHardware для них раньше не создавалась вовсе. Теперь
+			// каждый гипервизор из пула vSphere получает запись конфигурации
+			// по данным vSphere; если позже сервер появится в OneView, импорт
+			// OneView найдёт эту запись по SerialNum и дополнит её.
+			if id, err := insertHostServerHardware(o, hs, serialNum, srvspr.Id); err == nil {
+				srvspr.HWSprId = id
+			}
+		} else {
 			srvspr.HWSprId = srvHW.Id
 
 			if hs.PowerState {
@@ -639,7 +663,10 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 				srvHW.CPUCount = int(hs.NumCPUPkgs)
 			}
 			if srvHW.CorePerCPU == 0 {
-				srvHW.CorePerCPU = int(hs.NumCPUCores)
+				srvHW.CorePerCPU = hostCoresPerCPU(hs)
+			}
+			if srvHW.MemoryMb == 0 {
+				srvHW.MemoryMb = int(hs.MemorySizeGB * 1024)
 			}
 			if srvHW.CoreMHz == 0 {
 				srvHW.CoreMHz = int(hs.CPUMhz)
@@ -660,4 +687,56 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 		}
 	}
 	fmt.Println("Обновление конфигураций хостов завершено")
+}
+
+// hostCoresPerCPU - физических ядер на процессор: в vSphere
+// HostHardwareSummary.NumCpuCores - это ВСЕГО физических ядер хоста.
+func hostCoresPerCPU(hs *vsphere.HostInfo) int {
+	if hs.NumCPUPkgs > 0 {
+		return int(hs.NumCPUCores) / int(hs.NumCPUPkgs)
+	}
+	return int(hs.NumCPUCores)
+}
+
+// insertHostServerHardware создаёт запись ServerHardware для гипервизора hs
+// по данным vSphere (2026-10-02, "собрать весь список гипервизоров в
+// ServerSprRecords и ServerHardware"). Нужна для хостов, которых нет в HP
+// OneView (другие бренды). Active/PowerState - по единому правилу:
+// включён -> PowerState=1, Active=1; выключен -> PowerState=2, Active не
+// задаётся (0 - "не указано"), дальше его ведёт
+// ReconcileServerSprRecordsTypeAndState.
+func insertHostServerHardware(o orm.Ormer, hs *vsphere.HostInfo, serialNum string, serverId int64) (int64, error) {
+	now := time.Now().Local()
+	hw := models.ServerHardware{
+		ServerId:         serverId,
+		Vendor:           strings.TrimSpace(hs.Vendor),
+		Model:            strings.TrimSpace(hs.Model),
+		SerialNum:        serialNum,
+		CPUModel:         strings.TrimSpace(hs.CPUModel),
+		CPUCount:         int(hs.NumCPUPkgs),
+		CorePerCPU:       hostCoresPerCPU(hs),
+		CoreMHz:          int(hs.CPUMhz),
+		MemoryMb:         int(hs.MemorySizeGB * 1024),
+		SourceUpdate:     "Vmware " + hs.Vcenter + " " + hs.Datacenter + " " + hs.Cluster,
+		SourceUpdateType: models.SourceUpdateVMware,
+		TimeCreate:       now,
+		CreatorUser:      models.UserSourceVMware,
+		Time_Mfy:         now,
+	}
+	if hs.SerialNumber != "" && hs.SerialNumber != serialNum {
+		hw.VirtualSerialNum = hs.SerialNumber // ESXi видит виртуальный серийник blade
+	}
+	if hs.PowerState {
+		hw.PowerState = 1
+		models.SetActiveWithAudit(&hw.Active, &hw.TimeActiveState, &hw.ActivatorUser, &hw.TimeDeActiveState, &hw.DeActivatorUser, 1, models.UserSourceVMware)
+	} else {
+		hw.PowerState = 2
+	}
+	id, err := o.Insert(&hw)
+	if err != nil {
+		fmt.Println("UpdateHWHostInfoInfra: ошибка создания ServerHardware для хоста:", hs.Vcenter, hs.Name, "SN:", serialNum, err)
+		return 0, err
+	}
+	fmt.Println("UpdateHWHostInfoInfra: создана ServerHardware для хоста:", hs.Vcenter, hs.Name, "SN:", serialNum, "Id:", id)
+	return id, nil
 }

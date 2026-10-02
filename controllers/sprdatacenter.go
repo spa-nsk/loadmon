@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
@@ -21,8 +22,9 @@ import (
 // образцу controllers/sprbladesystems.go - структура/приём пагинации
 // идентичны BladeSystemsFilter там же.
 type DatacenterSiteFilter struct {
-	Name    string `form:"Name"`
-	AltName string `form:"AltName"`
+	Name     string `form:"Name"`
+	AltName  string `form:"AltName"`
+	CodeJira string `form:"CodeJira"` // 2026-10-02: фильтр по коду Jira (вхождение, без учёта регистра)
 }
 
 func defaultDatacenterSiteFilter() *DatacenterSiteFilter {
@@ -60,6 +62,7 @@ func (this *MainController) SprDatacenterSite() {
 	pageSize := 50
 	exportCSV := false
 	exportXLSX := false
+	bulkEdit := false
 
 	if this.Ctx.Input.Method() == "POST" {
 		if err := this.ParseForm(filter); err != nil {
@@ -82,6 +85,25 @@ func (this *MainController) SprDatacenterSite() {
 		}
 		exportCSV = this.GetString("ExportBTN") == "Экспорт в CSV"
 		exportXLSX = this.GetString("ExportBTN2") == "Экспорт в XLSX"
+		bulkEdit = this.GetString("SetBaseBTN") == "Редактировать выделенные"
+	}
+
+	// Групповое редактирование (2026-10-02) - по образцу /sprsrv/view2:
+	// отмеченные чекбоксами chSelection<Id> строки передаются в
+	// /sprsrv/datacentersiteupdateselected/<id-id-id>.
+	if bulkEdit {
+		ids := make([]string, 0)
+		for _, s := range this.GetStrings("chSelection") {
+			if id, err := strconv.ParseInt(s, 10, 64); err == nil && id > 0 {
+				ids = append(ids, strconv.FormatInt(id, 10))
+			}
+		}
+		if len(ids) > 0 {
+			this.Redirect("/sprsrv/datacentersiteupdateselected/"+strings.Join(ids, "-"), 302)
+			return
+		}
+		flash.Error("Выберите хотя бы одну площадку")
+		flash.Store(&this.Controller)
 	}
 
 	this.Data[keyFilter] = filter
@@ -93,6 +115,9 @@ func (this *MainController) SprDatacenterSite() {
 	}
 	if filter.AltName != "" {
 		qs = qs.Filter("AltName__icontains", filter.AltName)
+	}
+	if filter.CodeJira != "" {
+		qs = qs.Filter("CodeJira__icontains", filter.CodeJira)
 	}
 
 	totalRecords, err := qs.Count()
@@ -139,6 +164,7 @@ func (this *MainController) SprDatacenterSite() {
 	}
 
 	this.Data["DatacenterSiteList"] = records
+	this.Data["CanEdit"] = this.CanEditReference()
 	this.Data["DatacenterSiteCount"] = totalRecords
 	this.Data["Page"] = page
 	this.Data["PageSize"] = pageSize
