@@ -22,12 +22,19 @@
                 <label for="AltName" class="form-label">Альт. наименование</label>
                 <input type="text" id="AltName" name="AltName" class="form-control" value="{{.DatacenterSiteFilter.AltName}}">
             </div>
+            <div class="col-6 col-md-3">
+                <label for="CodeJira" class="form-label">Код Jira</label>
+                <input type="text" id="CodeJira" name="CodeJira" class="form-control" value="{{.DatacenterSiteFilter.CodeJira}}">
+            </div>
         </div>
         <div class="row mt-3">
             <div class="col-12 d-flex flex-wrap align-items-center gap-2">
                 <button type="submit" title="Просмотреть данные с учётом фильтров" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Просмотр</button>
                 <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель |)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
                 <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
+                {{if .CanEdit}}
+                <button type="submit" name="SetBaseBTN" value="Редактировать выделенные" title="Внести общие данные для площадок, выделенных в списке" class="btn btn-outline-warning rounded-pill px-3">Редактировать выделенные</button>
+                {{end}}
                 <a href="/sprsrv/datacentersiteedit/0" title="Добавить новую площадку/ЦОД" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
@@ -45,18 +52,19 @@
     <table class="table table-bordered table-striped table-hover align-middle spr-classic-table">
         <thead>
             <tr>
+                <th class="text-center"><input class="form-check-input" type="checkbox" id="dcSelectAll" title="Выделить все на странице" onchange="dcToggleSelectAll(this.checked)"></th>
                 <th class="text-center">Id</th>
                 <th>Наименование</th>
                 <th>Альт. наименование</th>
                 <th class="text-center">ЦОД</th>
-                <th class="text-end">Ширина</th>
-                <th class="text-end">Высота</th>
+                <th>Код Jira</th>
                 <th>Описание</th>
             </tr>
         </thead>
         <tbody>
             {{range $dc := .DatacenterSiteList}}
             <tr class="row-context-target" data-menu-id="dcRowMenu{{$dc.Id}}">
+                <td class="text-center"><input class="form-check-input dc-row-select" type="checkbox" name="chSelection" value="{{$dc.Id}}" title="Выделить для группового редактирования"></td>
                 <td class="text-end">{{$dc.Id}}</td>
                 <td><a href="/sprsrv/datacentersiteedit/{{$dc.Id}}" target="_blank">{{$dc.Name}}</a></td>
                 <td>{{$dc.AltName}}</td>
@@ -67,8 +75,7 @@
                     <span class="badge bg-secondary" title="Не ЦОД - площадка размещения без активного оборудования (склад, комната и т.п.)">площадка</span>
                     {{end}}
                 </td>
-                <td class="text-end">{{$dc.Width}}</td>
-                <td class="text-end">{{$dc.Height}}</td>
+                <td>{{$dc.CodeJira}}</td>
                 <td>{{$dc.Annotation}}</td>
                 <td id="dcRowMenu{{$dc.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/datacentersiteedit/{{$dc.Id}}" target="_blank">Редактировать</a>
@@ -114,6 +121,10 @@
      /sprsrv/bladesystemslist. -->
 
 <script>
+    function dcToggleSelectAll(checked) {
+        document.querySelectorAll('.dc-row-select').forEach(function (el) { el.checked = checked; });
+    }
+
     // Закрепление панели фильтра и sticky-заголовок таблицы - приём идентичен
     // /sprsrv/bladesystemslist (см. подробный комментарий там).
     (function () {

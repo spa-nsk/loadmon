@@ -738,7 +738,9 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 			batch := allPaths[start:end]
 			result, err := runUnityRealtimeQuery(session, address, batch, unityLiveKpiInterval, unityLiveKpiWait)
 			if err != nil {
-				batchErrs = append(batchErrs, fmt.Sprintf("пути %d-%d из %d: %s", start, end, len(allPaths), err.Error()))
+				// полный текст - в лог, в PollError (varchar(512)) - сводка ниже
+				log.Printf("storages.GetUnityLiveKpi(%s): пути %d-%d из %d: %v", address, start, end, len(allPaths), err)
+				batchErrs = append(batchErrs, shortUnityErr(err))
 				continue
 			}
 			for _, e := range result.Entries {
@@ -754,7 +756,8 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 			}
 		}
 		if len(batchErrs) > 0 {
-			errs = append(errs, fmt.Sprintf("IOPS/bandwidth/responseTime (%d LUN x %d SP, часть пачек не удалась): %s", len(lunList), len(unitySPNames), strings.Join(batchErrs, "; ")))
+			batches := (len(allPaths) + unityLunRealtimeBatchSize - 1) / unityLunRealtimeBatchSize
+			errs = append(errs, fmt.Sprintf("IOPS/bandwidth/responseTime (%d LUN x %d SP): не удалось %d из %d пачек, первая ошибка: %s", len(lunList), len(unitySPNames), len(batchErrs), batches, batchErrs[0]))
 		}
 
 		// Суммируем (IOPS/bandwidth) или усредняем (responseTime) по всем
@@ -808,7 +811,8 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 
 	cpuPaths := []string{unityRawCPUBusyTicks, unityRawCPUIdleTicks}
 	if cpuResult, err := runUnityRealtimeQueryMultiSample(session, address, cpuPaths, unityLiveKpiInterval, unityCpuSampleCount, unityCpuSampleGap); err != nil {
-		errs = append(errs, "CPU (sp.*.cpu.summary.*Ticks): "+err.Error())
+		log.Printf("storages.GetUnityLiveKpi(%s): CPU: %v", address, err)
+		errs = append(errs, "CPU (sp.*.cpu.summary.*Ticks): "+shortUnityErr(err))
 	} else {
 		type tick struct {
 			t time.Time
@@ -850,6 +854,49 @@ func GetUnityLiveKpi(address string) (*UnityLiveKpi, error) {
 	return out, nil
 }
 
+// unityRealtimeLimitRetries/unityRealtimeLimitPause - повторы создания
+// real-time запроса при HTTP 422 "The system has reached the maximum number of
+// real-time subscriptions" (errorCode 131153956, 0x7d14024, лог 2026-10-02).
+// Лимит общий на массив: его занимают и другие клиенты (Unisphere, другие
+// системы мониторинга), а подписка освобождается не мгновенно - короткая
+// пауза и повтор вместо потери пачки.
+const (
+	unityRealtimeLimitRetries = 2
+	unityRealtimeLimitPause   = 15 * time.Second
+)
+
+func isUnityRealtimeLimitErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	m := err.Error()
+	return strings.Contains(m, "131153956") || strings.Contains(m, "maximum number of real-time subscriptions")
+}
+
+// newUnityRealtimeQueryWithRetry - session.NewMetricRealTimeQuery с повтором
+// при исчерпании лимита real-time подписок массива.
+func newUnityRealtimeQueryWithRetry(session *emcstorage.Session, paths []string, interval uint32) (*emcstorage.MetricRealTimeQueryResponse, error) {
+	created, err := session.NewMetricRealTimeQuery(paths, interval)
+	for i := 0; i < unityRealtimeLimitRetries && isUnityRealtimeLimitErr(err); i++ {
+		time.Sleep(unityRealtimeLimitPause)
+		created, err = session.NewMetricRealTimeQuery(paths, interval)
+	}
+	return created, err
+}
+
+// shortUnityErr - компактный текст ошибки Unity для PollError: из длинного
+// JSON-ответа оставляем код ошибки и сообщение.
+func shortUnityErr(err error) string {
+	m := err.Error()
+	if isUnityRealtimeLimitErr(err) {
+		return "лимит real-time подписок СХД исчерпан (HTTP 422, 0x7d14024)"
+	}
+	if r := []rune(m); len(r) > 160 {
+		return string(r[:160]) + "…"
+	}
+	return m
+}
+
 // deleteUnityRealtimeQueryQuiet вызывает DeleteMetricRealTimeQuery и
 // логирует ошибку ТОЛЬКО если она не является ожидаемой "Query ID not
 // found" (errorCode 131153932). Добавлено 2026-09-24 по запросу
@@ -884,7 +931,7 @@ func deleteUnityRealtimeQueryQuiet(session *emcstorage.Session, address string, 
 // real-time запросов подряд в рамках одного цикла опроса Unity СХД не
 // должны открывать сессию заново на каждый).
 func runUnityRealtimeQuery(session *emcstorage.Session, address string, paths []string, interval uint32, wait time.Duration) (*emcstorage.MetricRealTimeQueryResult, error) {
-	created, err := session.NewMetricRealTimeQuery(paths, interval)
+	created, err := newUnityRealtimeQueryWithRetry(session, paths, interval)
 	if err != nil {
 		return nil, fmt.Errorf("создание real-time запроса: %w", err)
 	}
@@ -925,7 +972,7 @@ func runUnityRealtimeQuery(session *emcstorage.Session, address string, paths []
 // GetMetricRealTimeQueryResult N РАЗ с паузой между вызовами, используя
 // ОДИН и тот же queryId (сам real-time-запрос создаётся один раз).
 func runUnityRealtimeQueryMultiSample(session *emcstorage.Session, address string, paths []string, interval uint32, sampleCount int, gap time.Duration) (*emcstorage.MetricRealTimeQueryResult, error) {
-	created, err := session.NewMetricRealTimeQuery(paths, interval)
+	created, err := newUnityRealtimeQueryWithRetry(session, paths, interval)
 	if err != nil {
 		return nil, fmt.Errorf("создание real-time запроса: %w", err)
 	}
