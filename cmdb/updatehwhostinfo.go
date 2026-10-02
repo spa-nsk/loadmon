@@ -165,7 +165,7 @@ func checkAndCorrectHost(records []*models.ServerSprRecords, host vsphere.HostIn
 
 		srvspr := models.ServerSprRecords{Id: records[i].Id}
 		if err := o.Read(&srvspr, "Id"); err == nil {
-			srvspr.Stat = 666
+			srvspr.Stat = models.ServerSprStatDestroy
 			srvspr.OS = host.ProductFullName //копируем точную версию esxi
 
 			srvspr.Vcenter = host.Vcenter
@@ -278,10 +278,10 @@ func UpdateHWHostInfo() {
 		// оборудования - тот же сервер физически мог сначала попасть в
 		// справочник через HP OneView).
 		var records []*models.ServerSprRecords
-		qs := o.QueryTable("server_spr_records").OrderBy("name")
+		qs := models.ServerSprQS(o).OrderBy("name")
 		cond := orm.NewCondition()
 		cond1 := cond.And("Type__ne", 1).AndCond(cond.Or("Name__iexact", shortName).Or("Name__iexact", serverName).Or("NameFQDN__iexact", shortName).Or("NameFQDN__iexact", serverName))
-		qs = qs.SetCond(cond1)
+		qs = qs.SetCond(models.ExcludeDestroyedCond(cond1))
 		num, err := qs.All(&records)
 		if err != nil {
 			fmt.Println("Ошибка поиска записи справочника серверов по имени:", serverName, err)
@@ -301,9 +301,9 @@ func UpdateHWHostInfo() {
 					fmt.Println("Ошибка обновления справочника оборудования по серийному номеру:", serialNum, err)
 				}
 
-				qs = o.QueryTable("server_spr_records").OrderBy("name")
+				qs = models.ServerSprQS(o).OrderBy("name")
 				cond = orm.NewCondition().And("Id__eq", srvHW.ServerId)
-				qs = qs.SetCond(cond)
+				qs = qs.SetCond(models.ExcludeDestroyedCond(cond))
 				num, err = qs.All(&records)
 				if err != nil {
 					fmt.Println("Ошибка поиска записи справочника серверов по HWSprId:", srvHW.Id, err)
@@ -512,10 +512,10 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 		}
 
 		var records []*models.ServerSprRecords
-		qs := o.QueryTable("server_spr_records").OrderBy("name")
+		qs := models.ServerSprQS(o).OrderBy("name")
 		cond := orm.NewCondition()
 		cond1 := cond.And("Type__ne", 1).AndCond(cond.Or("Name__iexact", shortName).Or("Name__iexact", serverName).Or("NameFQDN__iexact", shortName).Or("NameFQDN__iexact", serverName))
-		qs = qs.SetCond(cond1)
+		qs = qs.SetCond(models.ExcludeDestroyedCond(cond1))
 		num, err := qs.All(&records)
 		if err != nil {
 			fmt.Println("Ошибка поиска записи справочника серверов по имени:", serverName, err)
@@ -535,9 +535,9 @@ func UpdateHWHostInfoInfra(infra *vsphere.VMInfrastructure) {
 					fmt.Println("Ошибка обновления справочника оборудования по серийному номеру:", serialNum, err)
 				}
 
-				qs = o.QueryTable("server_spr_records").OrderBy("name")
+				qs = models.ServerSprQS(o).OrderBy("name")
 				cond = orm.NewCondition().And("Id__eq", srvHW.ServerId)
-				qs = qs.SetCond(cond)
+				qs = qs.SetCond(models.ExcludeDestroyedCond(cond))
 				num, err = qs.All(&records)
 				if err != nil {
 					fmt.Println("Ошибка поиска записи справочника серверов по HWSprId:", srvHW.Id, err)

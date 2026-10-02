@@ -245,6 +245,9 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 			serverId = vmSpr.ServerId
 			srvSpr.Id = serverId
 			err = trn.Read(&srvSpr, "Id")
+			if err == nil && models.IsServerSprDestroyed(&srvSpr) {
+				err = fmt.Errorf("запись помечена к уничтожению (Stat=%d)", models.ServerSprStatDestroy)
+			}
 			if err != nil {
 				fmt.Println("Ошибка чтения в справочнике серверов: ", err, "по Id: ", serverId)
 				trn.Rollback()
@@ -293,6 +296,10 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 		}
 		srvSpr.Id = vmSpr.ServerId
 		err = o.Read(&srvSpr, "Id") //читаем запись в справочнике по serverid сервера
+		if err == nil && models.IsServerSprDestroyed(&srvSpr) {
+			srvSpr = models.ServerSprRecords{} // помеченная к уничтожению запись считается отсутствующей
+			err = fmt.Errorf("запись помечена к уничтожению (Stat=%d)", models.ServerSprStatDestroy)
+		}
 
 		srvSpr.TagName = vm.TagName
 		srvSpr.TagDescription = vm.TagDescription
@@ -303,7 +310,7 @@ func SaveVMRecord(cl *vsphere.Cluster, clusterId int64, currentTime time.Time) {
 		if err != nil {
 			fmt.Println("Ошибка поиска сервера Id=", vmSpr.ServerId, "в справочнике серверов: ", err)
 			srvSpr.VMSprId = VMSprId
-			err = o.Read(&srvSpr, "VMSprId") //читаем запись в справочнике по serverid сервера
+			err = models.ServerSprQS(o).Filter("VMSprId", srvSpr.VMSprId).Limit(1).One(&srvSpr) //читаем запись в справочнике по serverid сервера
 			if err != nil {
 				fmt.Println("Ошибка поиска сервера VMSprId=", VMSprId, "в справочнике серверов: ", err)
 			} else {

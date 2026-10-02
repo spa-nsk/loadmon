@@ -82,7 +82,7 @@ func (this *MainController) RequestAPI() {
 			o := orm.NewOrm()
 			//o.Using("default")
 			cond := orm.NewCondition()
-			cond = cond.And("Stat__ne", 666)
+			cond = cond.And("Stat__ne", models.ServerSprStatDestroy)
 			nameFQDN := strings.TrimSpace(pRec["NameFQDN"].(string))
 			if nameFQDN != "*" {
 				if nameFQDN != "" {
@@ -98,10 +98,10 @@ func (this *MainController) RequestAPI() {
 				}
 			}
 			var records []*models.ServerSprRecords
-			qs := o.QueryTable("server_spr_records")
+			qs := models.ServerSprQS(o)
 			qs = qs.OrderBy("active", "NameFQDN")
 
-			qs = qs.SetCond(cond)
+			qs = qs.SetCond(models.ExcludeDestroyedCond(cond))
 
 			count, err := qs.All(&records)
 			if err == nil {

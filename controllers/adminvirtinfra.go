@@ -66,7 +66,7 @@ func buildVirtInfraData() (VirtInfraData, error) {
 	var data VirtInfraData
 
 	var sprRows []models.ServerSprRecords
-	if _, err := o.QueryTable(new(models.ServerSprRecords)).
+	if _, err := models.ServerSprQS(o).
 		Filter("Stat", 1).Filter("Active", 1).All(&sprRows); err != nil {
 		return data, err
 	}

@@ -47,7 +47,7 @@ func UpdateClusterDatacenterNames(cl *vsphere.Cluster, clusterSprId int64) {
 	// гипервизоры (Type=2) этого кластера - сопоставление по Vcenter+ClusterId
 	// (канонический MOID кластера), без обращения к именам ВМ.
 	var hosts []models.ServerSprRecords
-	o.QueryTable("server_spr_records").Filter("Type", 2).
+	models.ServerSprQS(o).Filter("Type", 2).
 		Filter("Vcenter", cl.Vcenter).Filter("ClusterId", cl.ClusterID).
 		All(&hosts, "Id", "HWSprId")
 	if len(hosts) == 0 {

@@ -1,168 +1,251 @@
 package cmdb
 
 import (
-	"loadmon/grpcclient"
-	"loadmon/models"
 	"log"
 	"strings"
 
 	"github.com/beego/beego/v2/client/orm"
 	oneview "github.com/spa-nsk/oneview2"
+
+	"loadmon/models"
 	vsphere "loadmon/vspheremetrics"
 )
 
-// ReconcileServerSprRecordsTypeAndState обходит models.ServerSprRecords и
-// сверяет Type/PowerState с фактическим наличием объекта в VMware и HP OneView
-// (oneview2):
+// ReconcileServerSprRecordsTypeAndState - ЕДИНОЕ правило Stat/PowerState/
+// Active для models.ServerSprRecords и связанного models.ServerHardware
+// (2026-10-02, по решению владельца проекта). Вызывается после обновления
+// инвентаризации (раз в 6 часов) и раз в час (UpdatePowerStateForServers).
 //
-//   - Type 1 — виртуальная машина (найдена в vSphere как VM);
-//   - Type 2 — аппаратный сервер-гипервизор (приоритет: найден в vSphere как
-//     ESXi-хост, даже если также есть в OneView);
-//   - Type 0 — аппаратный сервер без роли гипервизора (есть в OneView, но не
-//     хост в vSphere; хосты других вендоров могут быть только в VMware);
-//   - если сервер не найден ни в VMware, ни в OneView — Stat=0, PowerState=2,
-//     Active=2 (выведен из эксплуатации), кроме записей с SourceUpdateType=1
-//     (вручную) в ServerSprRecords или связанном ServerHardware — их статус
-//     автоматической сверкой не затирается.
+// Источники (см. serverstate_sources.go): VMware (ВМ и хосты, включая
+// хосты вне кластеров и в горячем резерве, подключённые к vCenter), HP
+// OneView, Zabbix и SCOM (свежие метрики = агент доступен = включён).
+// Найден хотя бы в одном источнике - найден; хотя бы один говорит
+// "включён" - включён.
 //
-// Для проверки наличия используются прямые gRPC-запросы к metrics_grpc
-// (GetVMByKeyDirect, GetHostByKeyDirect, GetHostBySN) и индекс OneView
-// (GetHostData / FindServerHardwareSN), а не только закэшированные пулы
-// vSphere — см. комментарии к CheckServerSprRecordsExistence.
+//   - найден и включён:  Stat=1, PowerState=1, Active=1;
+//   - найден, выключен:  Stat=1, PowerState=2, Active=1, НО ручное Active=2
+//     (вывод из эксплуатации человеком или импортом Итиллиум) сохраняется -
+//     см. desiredActive;
+//   - не найден:         Stat=1, PowerState=2, Active=2 - только если все
+//     источники, где запись могла бы найтись, отработали достоверно
+//     (недоступный vCenter/OneView/сборщик метрик - запись не трогается);
+//     ручные записи и данные из Итиллиум, не найденные в источниках, не
+//     трогаются никогда (serverStateSources.isManual).
+//
+// Записи со Stat=0 (историческая запись) и Stat=2 (помечено для удаления)
+// ставит только человек - автоматика их не меняет; Stat=666 исключены из
+// выборки вообще.
+//
+// Для найденных записей также уточняются Type (2 - хост VMware, 1 - ВМ,
+// 0 - есть только в OneView) и место размещения, как и раньше.
 func ReconcileServerSprRecordsTypeAndState() {
 	o := orm.NewOrm()
-	ov := oneview.GetGlobalOVInfrastructure()
+	src := loadServerStateSources(o)
 
 	var records []*models.ServerSprRecords
-	if _, err := o.QueryTable("server_spr_records").OrderBy("Name").All(&records); err != nil {
+	if _, err := models.ServerSprQS(o).OrderBy("Name").All(&records); err != nil {
 		log.Println("ReconcileServerSprRecordsTypeAndState: ошибка чтения справочника:", err)
 		return
 	}
 
+	var skippedUncertain, skippedManual, updated int
 	for _, rec := range records {
-		if rec == nil || rec.Stat == 666 {
+		if rec == nil || models.IsServerSprDestroyed(rec) {
 			continue
 		}
-		reconcileServerSprRecord(o, ov, rec)
-	}
-}
-
-func reconcileServerSprRecord(o orm.Ormer, ov *oneview.Infrastructure, srv *models.ServerSprRecords) {
-	host := lookupVMwareHost(srv)
-	vm := lookupVMwareVM(o, srv)
-	hw := lookupOneViewServer(ov, srv)
-
-	inVMwareHost := host != nil
-	inVMwareVM := vm != nil
-	inOneView := hw != nil
-
-	if !inVMwareHost && !inVMwareVM && !inOneView {
-		if skipAbsentMarkDueToManualSource(o, srv) {
-			return
-		}
-		markServerSprAbsent(o, srv)
-		return
-	}
-
-	expectedType := expectedServerSprType(inVMwareHost, inVMwareVM)
-	fields := applyExpectedServerSprState(o, srv, expectedType, host, vm, hw)
-	if len(fields) == 0 {
-		return
-	}
-	if _, err := o.Update(srv, fields...); err != nil {
-		log.Printf("ReconcileServerSprRecordsTypeAndState: ошибка обновления %q (Id=%d): %v",
-			srv.Name, srv.Id, err)
-	}
-}
-
-func expectedServerSprType(inVMwareHost, inVMwareVM bool) int {
-	if inVMwareHost {
-		return 2
-	}
-	if inVMwareVM {
-		return 1
-	}
-	return 0
-}
-
-func lookupVMwareHost(srv *models.ServerSprRecords) *vsphere.HostInfo {
-	sn := serverSprSerial(srv)
-	if sn != "" {
-		if hs := grpcclient.GetHostBySN(sn); hs != nil {
-			return hs
+		switch reconcileServerSprRecord(o, src, rec) {
+		case reconcileSkippedUncertain:
+			skippedUncertain++
+		case reconcileSkippedManual:
+			skippedManual++
+		case reconcileUpdated:
+			updated++
 		}
 	}
-	if srv.Vcenter != "" && srv.Cluster != "" && srv.Name != "" {
-		if hs, err := grpcclient.GetHostByKeyDirect(srv.Vcenter, srv.Datacenter, srv.Cluster, srv.Name); err == nil {
-			return &hs
-		}
-	}
-	if srv.Vcenter != "" && srv.Cluster != "" && srv.NameFQDN != "" && srv.NameFQDN != srv.Name {
-		if hs, err := grpcclient.GetHostByKeyDirect(srv.Vcenter, srv.Datacenter, srv.Cluster, srv.NameFQDN); err == nil {
-			return &hs
-		}
-	}
-	return nil
+	log.Printf("ReconcileServerSprRecordsTypeAndState: записей %d, изменено %d, пропущено (источник недостоверен) %d, пропущено (ручные/Итиллиум, нет в источниках) %d",
+		len(records), updated, skippedUncertain, skippedManual)
 }
 
-// vmPlacement - результат поиска ВМ в vSphere для reconcile: факт наличия,
-// состояние питания и место размещения (vCenter/Датацентр/Кластер),
-// взятое из уже прочитанного models.VMSprRecord - используется, чтобы
-// заполнить (а не затереть, см. историю бага ниже) Vcenter/Datacenter/
-// Cluster/ClusterId в самой ServerSprRecords для записей Type=1.
-type vmPlacement struct {
-	poweredOn bool
-	vcenter   string
-	datacenter string
-	cluster   string
-	clusterId string
-}
+type reconcileResult int
 
-func lookupVMwareVM(o orm.Ormer, srv *models.ServerSprRecords) *vmPlacement {
-	if srv.VMSprId <= 0 {
-		return nil
-	}
-	vmSpr := models.VMSprRecord{Id: srv.VMSprId}
-	if err := o.Read(&vmSpr); err != nil {
-		return nil
-	}
-	if vmSpr.Vcenter == "" || vmSpr.Cluster == "" || vmSpr.Vm_Name == "" {
-		return nil
-	}
-	vm, err := grpcclient.GetVMByKeyDirect(vmSpr.Vcenter, vmSpr.Datacenter, vmSpr.Cluster, vmSpr.Vm_Name)
-	if err != nil {
-		return nil
-	}
-	return &vmPlacement{
-		poweredOn: vm.PowerState,
-		vcenter:   vmSpr.Vcenter,
-		datacenter: vmSpr.Datacenter,
-		cluster:   vmSpr.Cluster,
-		clusterId: vmSpr.ClusterId,
-	}
-}
+const (
+	reconcileNoChange reconcileResult = iota
+	reconcileUpdated
+	reconcileSkippedUncertain
+	reconcileSkippedManual
+	reconcileSkippedManualStat
+)
 
-func lookupOneViewServer(ov *oneview.Infrastructure, srv *models.ServerSprRecords) *oneview.Server {
-	sn := serverSprSerial(srv)
-	if sn != "" {
-		if hw, _, _ := GetHostData(sn); hw != nil {
-			return hw
+func reconcileServerSprRecord(o orm.Ormer, src *serverStateSources, srv *models.ServerSprRecords) reconcileResult {
+	if srv.Stat == models.ServerSprStatHistory || srv.Stat == models.ServerSprStatMarkedForDelete {
+		return reconcileSkippedManualStat // Stat 0/2 ставит только человек
+	}
+
+	ev := src.evidence(srv)
+	found := ev.found()
+	on := found && ev.poweredOn()
+
+	if !found {
+		if !ev.certainAbsent {
+			return reconcileSkippedUncertain
 		}
-		if ov != nil {
-			if hw, err := ov.FindServerHardwareSN(sn); err == nil && hw != nil {
-				return hw
+		if src.isManual(srv) {
+			return reconcileSkippedManual
+		}
+	}
+
+	var fields []string
+
+	// Тип и место размещения - только для найденных.
+	if found {
+		expectedType := srv.Type
+		switch {
+		case ev.host != nil:
+			expectedType = 2
+		case ev.vm != nil:
+			expectedType = 1
+		case ev.ovSrv != nil:
+			expectedType = 0
+		}
+		if srv.Type != expectedType {
+			srv.Type = expectedType
+			fields = append(fields, "Type")
+		}
+		switch expectedType {
+		case 2:
+			fields = appendHypervisorFields(srv, ev.host, fields)
+		case 1:
+			fields = appendVMFields(srv, vmPlacementFrom(ev), fields)
+		case 0:
+			if ev.ovSrv != nil && ev.host == nil {
+				clearHypervisorPlacement(srv, &fields)
 			}
 		}
 	}
-	for _, name := range []string{strings.TrimSpace(srv.NameFQDN), strings.TrimSpace(srv.Name)} {
-		if name == "" {
-			continue
-		}
-		if hw, ok := grpcclient.GetServerHardwareByName(name); ok && hw != nil {
-			return hw
+
+	newPower := powerStateFromBool(on)
+	if srv.PowerState != newPower {
+		srv.PowerState = newPower
+		fields = append(fields, "PowerState")
+	}
+	if srv.Stat != models.ServerSprStatUsed {
+		srv.Stat = models.ServerSprStatUsed
+		fields = append(fields, "Stat")
+	}
+
+	newActive := desiredActive(found, on, srv.Active, srv.DeActivatorUser)
+	if srv.Type == 1 && vmNameMarkedForRemoval(srv.Name) {
+		newActive = 2 // ВМ переименована перед удалением (_OFF/_DEL) - прежнее правило сохранено
+	}
+	auditSrc := ev.auditSource(srv.Type)
+	if srv.Active != newActive {
+		models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, newActive, auditSrc)
+		fields = append(fields, "Active", "TimeActiveState", "ActivatorUser", "TimeDeActiveState", "DeActivatorUser")
+	}
+
+	result := reconcileNoChange
+	if fields = uniqueFields(fields); len(fields) > 0 {
+		if _, err := o.Update(srv, fields...); err != nil {
+			log.Printf("ReconcileServerSprRecordsTypeAndState: ошибка обновления %q (Id=%d): %v", srv.Name, srv.Id, err)
+		} else {
+			result = reconcileUpdated
 		}
 	}
+
+	// Справочник ВМ: состояние питания по VMware.
+	if ev.vmSpr != nil && srv.Type == 1 {
+		vmOn := ev.vm != nil && ev.vm.PowerState
+		if ev.vmSpr.Vm_PowerState != vmOn {
+			ev.vmSpr.Vm_PowerState = vmOn
+			if _, err := o.Update(ev.vmSpr, "Vm_PowerState"); err != nil {
+				log.Printf("ReconcileServerSprRecordsTypeAndState: Vm_PowerState %q: %v", srv.Name, err)
+			}
+		}
+	}
+
+	// ServerHardware - то же правило: PowerState как у карточки, Active по
+	// desiredActive с учётом собственного ручного вывода из эксплуатации.
+	if hw := src.hw[srv.HWSprId]; hw != nil && srv.HWSprId > 0 {
+		var hwCols []string
+		if hw.PowerState != newPower {
+			hw.PowerState = newPower
+			hwCols = append(hwCols, "PowerState")
+		}
+		if hwActive := desiredActive(found, on, hw.Active, hw.DeActivatorUser); hw.Active != hwActive {
+			models.SetActiveWithAudit(&hw.Active, &hw.TimeActiveState, &hw.ActivatorUser, &hw.TimeDeActiveState, &hw.DeActivatorUser, hwActive, auditSrc)
+			hwCols = append(hwCols, "Active", "TimeActiveState", "ActivatorUser", "TimeDeActiveState", "DeActivatorUser")
+		}
+		if len(hwCols) > 0 {
+			if _, err := o.Update(hw, hwCols...); err != nil {
+				log.Printf("ReconcileServerSprRecordsTypeAndState: ServerHardware Id=%d: %v", hw.Id, err)
+			}
+		}
+	}
+	return result
+}
+
+// desiredActive - Active по правилу: найден и включён -> 1; найден и
+// выключен -> 1, кроме ручного вывода из эксплуатации (Active=2, поставленного
+// человеком или импортом Итиллиум - см. isAutoDeactivation); не найден -> 2.
+func desiredActive(found, on bool, cur int, deActivator int64) int {
+	switch {
+	case found && on:
+		return 1
+	case found:
+		if cur == 2 && !isAutoDeactivation(deActivator) {
+			return 2
+		}
+		return 1
+	default:
+		return 2
+	}
+}
+
+// isAutoDeactivation - Active=2 поставила автоматика (VMware/OneView/Zabbix/
+// SCOM). Реальный пользователь, models.UserSourceManual (ручной ввод/импорт
+// Итиллиум) и 0 (автор не записан - деактивация до появления аудита,
+// 2026-09-22; трактуется как ручная, чтобы не потерять решение человека)
+// считаются ручным выводом.
+func isAutoDeactivation(user int64) bool {
+	switch user {
+	case models.UserSourceVMware, models.UserSourceOneView, models.UserSourceZabbix, models.UserSourceSCOM:
+		return true
+	}
+	return false
+}
+
+func vmNameMarkedForRemoval(name string) bool {
+	up := strings.ToUpper(name)
+	return strings.Contains(up, "_OFF") || strings.Contains(up, "_DEL")
+}
+
+// vmPlacement - место размещения ВМ для заполнения Vcenter/Datacenter/
+// Cluster/ClusterId записи Type=1 (по живым данным VMware, иначе по
+// vm_spr_record).
+type vmPlacement struct {
+	vcenter    string
+	datacenter string
+	cluster    string
+	clusterId  string
+}
+
+func vmPlacementFrom(ev serverEvidence) *vmPlacement {
+	if ev.vm != nil {
+		return &vmPlacement{vcenter: ev.vm.Vcenter, datacenter: ev.vm.Datacenter, cluster: ev.vm.Cluster, clusterId: ev.vm.ClusterID}
+	}
+	if ev.vmSpr != nil {
+		return &vmPlacement{vcenter: ev.vmSpr.Vcenter, datacenter: ev.vmSpr.Datacenter, cluster: ev.vmSpr.Cluster, clusterId: ev.vmSpr.ClusterId}
+	}
 	return nil
+}
+
+// activeAuditSource - код системы для аудита Active по типу записи (0 -
+// HP OneView, 1/2 - VMware); используется для ненайденных записей.
+func activeAuditSource(srvType int) int64 {
+	if srvType == 0 {
+		return models.UserSourceOneView
+	}
+	return models.UserSourceVMware
 }
 
 func serverSprSerial(srv *models.ServerSprRecords) string {
@@ -170,122 +253,6 @@ func serverSprSerial(srv *models.ServerSprRecords) string {
 		return s
 	}
 	return strings.TrimSpace(GetSNFromServerSprRecords(srv))
-}
-
-// skipAbsentMarkDueToManualSource сообщает, что запись не должна получать
-// Stat=0/PowerState=2/Active=2 при отсутствии в VMware и OneView: источник
-// последнего обновления — ручной ввод (SourceUpdateType=1) у самой записи
-// server_spr_records или у связанного server_hardware (HWSprId).
-func skipAbsentMarkDueToManualSource(o orm.Ormer, srv *models.ServerSprRecords) bool {
-	if srv.SourceUpdateType == models.SourceUpdateManual {
-		return true
-	}
-	if srv.HWSprId <= 0 {
-		return false
-	}
-	hw := models.ServerHardware{Id: srv.HWSprId}
-	if err := o.Read(&hw, "Id"); err != nil {
-		return false
-	}
-	return hw.SourceUpdateType == models.SourceUpdateManual
-}
-
-func markServerSprAbsent(o orm.Ormer, srv *models.ServerSprRecords) {
-	changed := srv.Stat != 0 || srv.PowerState != 2 || srv.Active != 2
-	srv.Stat = 0
-	srv.PowerState = 2
-	// 2026-09-22: audit-helper (models.SetActiveWithAudit) вместо прямого
-	// присвоения - источник выбирается по srv.Type (см. activeAuditSource
-	// в cmdb/updatepower.go), т.к. проверка отсутствия ведётся по данным
-	// того же внешнего источника (HP OneView/vSphere), что и обнаружение.
-	models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, 2, activeAuditSource(srv.Type))
-	if changed {
-		// TimeDeActiveState/DeActivatorUser добавлены в список полей
-		// обновления, т.к. теперь проставляются вместе с Active через
-		// audit-helper выше (2026-09-22).
-		if _, err := o.Update(srv, "Stat", "PowerState", "Active", "TimeDeActiveState", "DeActivatorUser"); err != nil {
-			log.Printf("ReconcileServerSprRecordsTypeAndState: ошибка пометки отсутствующего %q: %v", srv.Name, err)
-		}
-	}
-	if srv.Type == 1 && srv.VMSprId > 0 {
-		vmSpr := models.VMSprRecord{Id: srv.VMSprId}
-		if err := o.Read(&vmSpr); err == nil && vmSpr.Vm_PowerState {
-			vmSpr.Vm_PowerState = false
-			if _, err := o.Update(&vmSpr, "Vm_PowerState"); err != nil {
-				log.Printf("ReconcileServerSprRecordsTypeAndState: Vm_PowerState для %q: %v", srv.Name, err)
-			}
-		}
-	}
-}
-
-func applyExpectedServerSprState(
-	o orm.Ormer,
-	srv *models.ServerSprRecords,
-	expectedType int,
-	host *vsphere.HostInfo,
-	vm *vmPlacement,
-	hw *oneview.Server,
-) []string {
-	var fields []string
-
-	if srv.Type != expectedType {
-		srv.Type = expectedType
-		fields = append(fields, "Type")
-	}
-
-	oldPower := srv.PowerState
-
-	switch expectedType {
-	case 2:
-		fields = appendHypervisorFields(srv, host, fields)
-		srv.PowerState = powerStateFromBool(host != nil && host.PowerState)
-	case 1:
-		// (2026-09-04) Раньше здесь безусловно вызывался
-		// clearHypervisorPlacement - функция, написанная для случая "сервер
-		// перестал быть гипервизором", случайно вызывалась и для ВМ, из-за
-		// чего Vcenter/Datacenter/Cluster/ClusterId каждой ВМ затирались на
-		// каждом цикле сверки почти сразу после того, как их заполнял
-		// первичный импорт - отсюда жалоба "в ServerSprRecords появились ВМ
-		// с пустыми vcenter/datacenter/cluster". Для ВМ место размещения
-		// нужно ЗАПОЛНЯТЬ (из vmPlacement, полученного в lookupVMwareVM по
-		// уже привязанному VMSprRecord), как для гипервизоров -
-		// appendHypervisorFields, а не очищать.
-		fields = appendVMFields(srv, vm, fields)
-		poweredOn := vm != nil && vm.poweredOn
-		srv.PowerState = powerStateFromBool(poweredOn)
-		updateVMSprPowerState(o, srv, poweredOn)
-	case 0:
-		clearHypervisorPlacement(srv, &fields)
-		srv.PowerState = powerStateFromOneView(hw)
-	}
-
-	if srv.PowerState != oldPower {
-		fields = append(fields, "PowerState")
-	}
-
-	// (2026-09-04) Раньше при обнаружении сервера (host/VM/OneView найден -
-	// иначе выполнение сюда не доходит, см. markServerSprAbsent в вызывающей
-	// reconcileServerSprRecord) обновлялся только PowerState - Stat/Active
-	// оставались как есть. Из-за этого запись, ранее помеченная
-	// отсутствующей (Stat=0/Active=2 - см. markServerSprAbsent), при
-	// повторном обнаружении сервера так и оставалась со Stat=0/Active=2,
-	// хотя PowerState уже корректно менялся на 1/2 - получалась
-	// недопустимая комбинация (PowerState=1 при Stat=0), которой не должно
-	// быть по правилу: найден+включен -> Stat=1/PowerState=1/Active=1;
-	// найден+выключен -> Stat=1/PowerState=2/Active∈{0,1,2} (не форсируем).
-	if srv.Stat != 1 {
-		srv.Stat = 1
-		fields = append(fields, "Stat")
-	}
-	if srv.PowerState == 1 && srv.Active != 1 {
-		// 2026-09-22: audit-helper вместо прямого присвоения, источник по
-		// expectedType (та же классификация, что и activeAuditSource по
-		// srv.Type в cmdb/updatepower.go: 0 - OneView, 1/2 - vSphere).
-		models.SetActiveWithAudit(&srv.Active, &srv.TimeActiveState, &srv.ActivatorUser, &srv.TimeDeActiveState, &srv.DeActivatorUser, 1, activeAuditSource(expectedType))
-		fields = append(fields, "Active", "TimeActiveState", "ActivatorUser")
-	}
-
-	return uniqueFields(fields)
 }
 
 func appendHypervisorFields(srv *models.ServerSprRecords, host *vsphere.HostInfo, fields []string) []string {
@@ -320,11 +287,10 @@ func appendHypervisorFields(srv *models.ServerSprRecords, host *vsphere.HostInfo
 }
 
 // appendVMFields заполняет Vcenter/Datacenter/Cluster/ClusterId записи
-// ServerSprRecords (Type=1) местом размещения ВМ, найденным в
-// lookupVMwareVM (vmPlacement, взято из уже привязанного VMSprRecord) -
-// аналог appendHypervisorFields для гипервизоров. До 2026-09-04 вместо
-// этого вызывался clearHypervisorPlacement, который эти поля затирал - см.
-// комментарий в applyExpectedServerSprState.
+// ServerSprRecords (Type=1) местом размещения ВМ (vmPlacementFrom: живые
+// данные VMware, иначе vm_spr_record) - аналог appendHypervisorFields для
+// гипервизоров. До 2026-09-04 вместо этого вызывался
+// clearHypervisorPlacement, который эти поля затирал.
 func appendVMFields(srv *models.ServerSprRecords, vm *vmPlacement, fields []string) []string {
 	if vm == nil {
 		return fields

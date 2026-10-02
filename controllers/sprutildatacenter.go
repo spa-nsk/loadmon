@@ -247,7 +247,7 @@ func (this *MainController) SprUtilizationDatacenter() {
 	hwSprIdByServerId := map[int64]int64{}
 	if len(serverIds) > 0 {
 		var sprs []models.ServerSprRecords
-		o.QueryTable(new(models.ServerSprRecords)).Filter("Id__in", serverIds).All(&sprs, "Id", "HWSprId")
+		models.ServerSprQS(o).Filter("Id__in", serverIds).All(&sprs, "Id", "HWSprId")
 		for _, s := range sprs {
 			if s.HWSprId > 0 {
 				hwSprIdByServerId[s.Id] = s.HWSprId

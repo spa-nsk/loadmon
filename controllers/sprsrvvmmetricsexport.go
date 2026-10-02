@@ -157,7 +157,7 @@ func (this *MainController) SprVMMetricsExport() {
 				serverIds = append(serverIds, id)
 			}
 			var srvSprList []*models.ServerSprRecords
-			if _, err := o.QueryTable("server_spr_records").
+			if _, err := models.ServerSprQS(o).
 				Filter("Id__in", serverIds).
 				All(&srvSprList, "Id", "ITSystemKey", "TypeWork", "TagName", "TagDescription"); err != nil {
 				flash.Error("Ошибка чтения справочника серверов: %v", err)

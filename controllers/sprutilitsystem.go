@@ -89,9 +89,10 @@ type utilItSysSummary struct {
 //     bare-metal сервер), метрики CPU/RAM из models.ServerMetric (замеры
 //     на уровне ОС через Zabbix-агента, см. комментарий у самой модели) -
 //     ПРЯМО указано пользователем: "Утилизацию по аппаратным серверам
-//     выбирай из models.ServerMetric". Связь ServerMetric.HostId ->
-//     ServerSprRecords - через ServerSprRecords.ZabbixHostId (прямое поле,
-//     без промежуточного справочника ZabbixHost).
+//     выбирай из models.ServerMetric". Связь ServerMetric (Source, HostId) ->
+//     ServerSprRecords - через ServerSprRecords.ZabbixHostId (Zabbix, в
+//     приоритете) или ScomHostId (SCOM, только для серверов без Zabbix),
+//     правило - models.ServerMetricHostFor.
 //
 // ServerSprRecords.Type == 2 (host vmware, сам гипервизор) в этот отчёт
 // СОЗНАТЕЛЬНО не включается - гипервизор является инфраструктурным
@@ -152,23 +153,30 @@ func (this *MainController) SprUtilizationItSystem() {
 	// одним запросом на оба блока (Type IN (0,1)), см. комментарий у
 	// функции выше про то, почему Type=2 (гипервизор) сюда не входит. ---
 	var sprs []models.ServerSprRecords
-	o.QueryTable(new(models.ServerSprRecords)).
+	models.ServerSprQS(o).
 		Filter("Type__in", 0, 1).
 		Exclude("ITSystemKey", "").
 		Filter("Active", 1).
-		All(&sprs, "Id", "Type", "Name", "NameFQDN", "ITSystemKey", "ZabbixHostId")
+		All(&sprs, "Id", "Type", "Name", "NameFQDN", "ITSystemKey", "ZabbixHostId", "ScomHostId")
 
 	vmSprById := map[int64]models.ServerSprRecords{}
 	hwSprById := map[int64]models.ServerSprRecords{}
-	hwSprIdByZabbixHostId := map[int64]int64{}
+	// Источник метрик аппаратного сервера - по единому правилу
+	// models.ServerMetricHostFor: Zabbix в приоритете, SCOM - только для
+	// серверов без ZabbixHostId. HostId уникален лишь в пределах источника,
+	// поэтому обратный индекс - по источнику: hwSprIdByHost[source][hostId].
+	hwSprIdByHost := map[int]map[int64]int64{}
 	for _, s := range sprs {
 		switch s.Type {
 		case 1:
 			vmSprById[s.Id] = s
 		case 0:
 			hwSprById[s.Id] = s
-			if s.ZabbixHostId > 0 {
-				hwSprIdByZabbixHostId[s.ZabbixHostId] = s.Id
+			if source, hostId, ok := models.ServerMetricHostFor(&s); ok {
+				if hwSprIdByHost[source] == nil {
+					hwSprIdByHost[source] = map[int64]int64{}
+				}
+				hwSprIdByHost[source][hostId] = s.Id
 			}
 		}
 	}
@@ -266,26 +274,31 @@ func (this *MainController) SprUtilizationItSystem() {
 	// приемлемо (аналогично тому, как cmdb/saveservermetricrecord.go уже
 	// делает суточное усреднение ServerMetric -> ServerMetricRecord, только
 	// здесь усреднение "по требованию" за произвольный период, а не за
-	// сутки). Связь HostId -> ServerSprRecords - через
-	// ServerSprRecords.ZabbixHostId (обратный индекс
-	// hwSprIdByZabbixHostId, собран выше). ---
-	if len(hwSprIdByZabbixHostId) > 0 {
-		hostIds := make([]int64, 0, len(hwSprIdByZabbixHostId))
-		for hostId := range hwSprIdByZabbixHostId {
+	// сутки). Связь (Source, HostId) -> ServerSprRecords - через
+	// ServerSprRecords.ZabbixHostId/ScomHostId (обратный индекс
+	// hwSprIdByHost, собран выше; с 2026-10-01 серверы без Zabbix берутся
+	// из SCOM). ---
+	type metricAccum struct {
+		n              int
+		cpuSum, ramSum float64
+	}
+	for source, byHostId := range hwSprIdByHost {
+		if len(byHostId) == 0 {
+			continue
+		}
+		hostIds := make([]int64, 0, len(byHostId))
+		for hostId := range byHostId {
 			hostIds = append(hostIds, hostId)
 		}
 		var metricRecs []models.ServerMetric
 		o.QueryTable(new(models.ServerMetric)).
+			Filter("Source", source).
 			Filter("HostId__in", hostIds).
 			Filter("CollectedAt__gte", from).
 			Filter("CollectedAt__lt", toExclusive).
 			OrderBy("HostId", "-CollectedAt").
 			All(&metricRecs)
 
-		type metricAccum struct {
-			n              int
-			cpuSum, ramSum float64
-		}
 		accByHost := map[int64]*metricAccum{}
 		for _, r := range metricRecs {
 			a, ok := accByHost[r.HostId]
@@ -298,11 +311,15 @@ func (this *MainController) SprUtilizationItSystem() {
 			a.ramSum += r.RAMUtilPercent
 		}
 
+		sourceLabel := "Zabbix"
+		if source == models.MetricSourceSCOM {
+			sourceLabel = "SCOM"
+		}
 		for hostId, a := range accByHost {
 			if a.n == 0 {
 				continue
 			}
-			serverId, ok := hwSprIdByZabbixHostId[hostId]
+			serverId, ok := byHostId[hostId]
 			if !ok {
 				continue
 			}
@@ -317,7 +334,7 @@ func (this *MainController) SprUtilizationItSystem() {
 			}
 			avgCpu := a.cpuSum / float64(a.n)
 			avgRam := a.ramSum / float64(a.n)
-			detail := fmt.Sprintf("среднее по %d замерам за период", a.n)
+			detail := fmt.Sprintf("%s · среднее по %d замерам за период", sourceLabel, a.n)
 			sum.HW.Servers = append(sum.HW.Servers, utilItSysServer{Name: name, CpuPct: avgCpu, RamPct: avgRam, Detail: detail})
 		}
 	}

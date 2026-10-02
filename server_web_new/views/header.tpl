@@ -519,7 +519,7 @@
             <li>
               <a href="/admin/deactivatedservers"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Список серверов,
-                выведенных из учёта</a>
+                выведенных из эксплуатации</a>
             </li>
             <li>
               <a href="/admin/infrastructure"

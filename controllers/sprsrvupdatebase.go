@@ -42,7 +42,7 @@ func (this *MainController) SprSrvUpdateBaseByVMName() {
 
 	o := orm.NewOrm()
 	var rec models.ServerSprRecords
-	if err := o.QueryTable("server_spr_records").Filter("Name", name).Filter("Type", 1).One(&rec); err != nil {
+	if err := models.ServerSprQS(o).Filter("Name", name).Filter("Type", 1).One(&rec); err != nil {
 		flash.Notice("Виртуальная машина с именем \"%s\" не найдена в справочнике серверов.", name)
 		flash.Store(&this.Controller)
 		this.Redirect("/sprsrv/view2/all/0", 302)
@@ -81,6 +81,12 @@ func (this *MainController) SprSrvUpdateBase() {
 	record := models.ServerSprRecords{Id: id}
 	if err := o.Read(&record); err != nil {
 		flash.Error("Запись с id=%d не найдена: %v", id, err)
+		flash.Store(&this.Controller)
+		this.Redirect("/sprsrv/view2/"+backmode+"/0", 302)
+		return
+	}
+	if models.IsServerSprDestroyed(&record) {
+		flash.Error("Запись с id=%d помечена к уничтожению (Stat=%d) и не редактируется", id, models.ServerSprStatDestroy)
 		flash.Store(&this.Controller)
 		this.Redirect("/sprsrv/view2/"+backmode+"/0", 302)
 		return
@@ -382,7 +388,7 @@ func resolveVMPlacementText(o orm.Ormer, vmSprId int64) (text string, placementH
 	cond := orm.NewCondition().
 		And("Type", 2).
 		AndCond(orm.NewCondition().Or("Name__iexact", hostName).Or("NameFQDN__iexact", hostName))
-	if err := o.QueryTable(new(models.ServerSprRecords)).SetCond(cond).One(&host, "Id", "Name", "HWSprId"); err != nil {
+	if err := models.ServerSprQS(o).SetCond(models.ExcludeDestroyedCond(cond)).One(&host, "Id", "Name", "HWSprId"); err != nil {
 		return "хост \"" + hostName + "\" (не найден в справочнике серверов)", 0
 	}
 	if host.HWSprId <= 0 {
@@ -499,7 +505,7 @@ func (this *MainController) SprSrvVMPlacementTextAsync() {
 
 	o := orm.NewOrm()
 	var record models.ServerSprRecords
-	if err := o.QueryTable(new(models.ServerSprRecords)).Filter("Id", id).One(&record, "Id", "Type", "VMSprId"); err != nil {
+	if err := models.ServerSprQS(o).Filter("Id", id).One(&record, "Id", "Type", "VMSprId"); err != nil {
 		this.Data["json"] = map[string]interface{}{"placementText": ""}
 		this.ServeJSON()
 		return

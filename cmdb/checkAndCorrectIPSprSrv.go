@@ -15,7 +15,7 @@ import (
 func CheckAndCorrectIPSprSrv() {
 	records := make([]*models.ServerSprRecords, 0)
 	o := orm.NewOrm()
-	qs := o.QueryTable("server_spr_records")
+	qs := models.ServerSprQS(o)
 	qs = qs.OrderBy("name").Filter("Type__ne", 1) // сортировка по именам серверов и фильтр по имени и Type !=1
 	num, err := qs.All(&records)
 	if err != nil || num < 1 {

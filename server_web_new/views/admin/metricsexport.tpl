@@ -23,7 +23,7 @@
     <h2>Выгрузка метрик утилизации</h2>
     <p class="text-muted">
         Единообразная выгрузка метрик CPU / память / диск / сеть по виртуальным машинам и
-        аппаратным серверам, зарегистрированным в Zabbix, за произвольный период.
+        аппаратным серверам, зарегистрированным в Zabbix (или, если сервера нет в Zabbix, в Microsoft SCOM), за произвольный период.
         Период до {{.DetailedPeriodLimitDays}} суток включительно выгружается подробно
         (минутная сетка, значение "продлевается" от последнего известного замера), более
         длинный период - по дням (среднее за календарные сутки). Детальные метрики
@@ -87,7 +87,7 @@
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="includeZabbix" name="includezabbix"
                     value="on" {{if .IncludeZabbix}}checked{{end}}>
-                <label class="form-check-label" for="includeZabbix">Аппаратные серверы в Zabbix (по данным server_metric / server_metric_record)</label>
+                <label class="form-check-label" for="includeZabbix">Аппаратные серверы в Zabbix/SCOM (server_metric / server_metric_record; Zabbix в приоритете)</label>
             </div>
         </div>
     </div>

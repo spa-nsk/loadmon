@@ -60,7 +60,7 @@ func UpdateVMDatacenterNames(cl *vsphere.Cluster) {
 	// Name/NameFQDN, по аналогии с controllers/sprsrvview2.go (фильтр
 	// размещения VM по хосту).
 	var hosts []models.ServerSprRecords
-	o.QueryTable("server_spr_records").Filter("Type", 2).Filter("Vcenter", cl.Vcenter).
+	models.ServerSprQS(o).Filter("Type", 2).Filter("Vcenter", cl.Vcenter).
 		All(&hosts, "Id", "Name", "NameFQDN", "HWSprId")
 	if len(hosts) == 0 {
 		return //нет данных о гипервизорах этого vcenter - резолвить не из чего

@@ -622,7 +622,7 @@ func (this *MainController) SprBladeSystemServersList() {
 	nameById := make(map[int64]string, len(serverIds))
 	if len(serverIds) > 0 {
 		var srvsprs []models.ServerSprRecords
-		if _, err := o.QueryTable("server_spr_records").Filter("Id__in", serverIds).All(&srvsprs); err == nil {
+		if _, err := models.ServerSprQS(o).Filter("Id__in", serverIds).All(&srvsprs); err == nil {
 			for _, s := range srvsprs {
 				name := s.Name
 				if name == "" {

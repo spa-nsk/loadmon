@@ -24,7 +24,7 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 
 	hwNameByID := map[int64]string{}
 	var sprRows []models.ServerSprRecords
-	if _, err := o.QueryTable(new(models.ServerSprRecords)).
+	if _, err := models.ServerSprQS(o).
 		Filter("Stat", 1).Filter("Active", 1).All(&sprRows); err != nil {
 		return data, err
 	}
@@ -369,9 +369,9 @@ func buildInfrastructureCanvasData() (payload.CanvasData, error) {
 	}
 
 	// Виртуализация: активные VM/гипервизоры и кластеры.
-	vmCount, _ := o.QueryTable(new(models.ServerSprRecords)).
+	vmCount, _ := models.ServerSprQS(o).
 		Filter("Stat", 1).Filter("Active", 1).Filter("Type", 1).Count()
-	hsCount, _ := o.QueryTable(new(models.ServerSprRecords)).
+	hsCount, _ := models.ServerSprQS(o).
 		Filter("Stat", 1).Filter("Active", 1).Filter("Type", 2).Count()
 	clusterCount, _ := o.QueryTable(new(models.ClusterSprRecords)).
 		Filter("Stat", 1).Count()

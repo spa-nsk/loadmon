@@ -192,7 +192,7 @@ func SaveHostRecordOld(cl *vsphere.Cluster, clusterId int64, currentTime time.Ti
 		serverSprRecord := models.ServerSprRecords{Id: serverId}
 
 		//читаем запись в справочнике серверов (должна быть)
-		if err := o.Read(&serverSprRecord, "Id"); err == nil {
+		if err := o.Read(&serverSprRecord, "Id"); err == nil && !models.IsServerSprDestroyed(&serverSprRecord) {
 			//добавлено 27.02.2023
 
 			CopyHostToSprSrv(*host, &serverSprRecord)      //формируем данные для обновления записи в справочнике серверов (включая, vcenter, datacenter, cluster)

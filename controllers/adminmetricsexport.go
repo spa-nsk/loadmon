@@ -49,7 +49,10 @@ const detailedPeriodLimit = 3 * 24 * time.Hour
 //     VMRecord.Id (детальные точки конкретного дня "подвешены" к суточной
 //     записи этого же дня).
 //  2. Аппаратные серверы, зарегистрированные в Zabbix
-//     (models.ServerSprRecords.Type == 0 && ZabbixHostId > 0) - источник
+//     (models.ServerSprRecords.Type == 0 && ZabbixHostId > 0), а с
+//     2026-10-01 и серверы без Zabbix, найденные в SCOM (ScomHostId > 0) -
+//     выбор источника по models.ServerMetricHostFor, Zabbix в приоритете;
+//     источник
 //     переведён с "сырых" данных Zabbix (models.ZabbixItem/ZabbixKey) на
 //     уже готовые метрики пакета zabbixmetrics (см. kontext/03-data-model.md):
 //     - "Подробный" режим (период ≤ detailedPeriodLimit) - models.ServerMetric
@@ -359,7 +362,7 @@ func (this *MainController) AdminMetricsUnifiedExport() {
 		// snake_case. Несуществующее имя поля приводило к ошибке ORM при
 		// каждом запросе с непустым фильтром по ИТ-системе (qs.All() возвращал
 		// err != nil) - именно из-за этого выгрузка не работала.
-		qs := o.QueryTable("server_spr_records").Filter("Active", 1)
+		qs := models.ServerSprQS(o).Filter("Active", 1)
 		if nameFilter != "" {
 			qs = qs.Filter("Name__icontains", nameFilter)
 		}
@@ -383,8 +386,12 @@ func (this *MainController) AdminMetricsUnifiedExport() {
 			switch {
 			case srv.Type == 1 && includeVM:
 				rows = append(rows, buildVMWideRows(o, srv, from, dateTo, detailed)...)
-			case srv.Type == 0 && srv.ZabbixHostId > 0 && includeZabbix:
-				rows = append(rows, buildServerMetricWideRows(o, srv, from, dateTo, detailed)...)
+			case srv.Type == 0 && includeZabbix:
+				// Аппаратные серверы: Zabbix в приоритете, SCOM - только для
+				// серверов без ZabbixHostId (models.ServerMetricHostFor).
+				if source, hostId, ok := models.ServerMetricHostFor(srv); ok {
+					rows = append(rows, buildServerMetricWideRows(o, srv, source, hostId, from, dateTo, detailed)...)
+				}
 			}
 		}
 	}
@@ -546,14 +553,17 @@ func buildVMWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, dateTo tim
 }
 
 // buildServerMetricWideRows строит широкие строки (CPU/RAM/диск чтение-
-// запись/сеть приём-передача) для сервера, зарегистрированного в Zabbix
-// (srv.ZabbixHostId - ссылка на models.ZabbixHost.Id), из уже готовых
+// запись/сеть приём-передача) для аппаратного сервера по паре
+// (source, hostId) из models.ServerMetricHostFor: Zabbix (srv.ZabbixHostId)
+// в приоритете, SCOM (srv.ScomHostId) - для серверов без Zabbix. У SCOM
+// снимки реже (период опроса, по умолчанию 5 минут) - в подробном режиме
+// resampleToMinuteGrid продлевает их на минутную сетку. Из уже готовых
 // метрик пакета zabbixmetrics - НЕ из "сырых" models.ZabbixItem/ZabbixKey
 // (см. комментарий к AdminMetricsUnifiedExport выше):
 //
 //   - detailed == true (период ≤ detailedPeriodLimit): источник -
 //     models.ServerMetric (таблица server_metric, поминутные снимки,
-//     HostId == srv.ZabbixHostId). Метрики уже сведены к одному числу на
+//     Source/HostId из ServerMetricHostFor). Метрики уже сведены к одному числу на
 //     хост (агрегация по дискам/интерфейсам сделана на стороне сборщика
 //     zabbixmetrics, см. kontext/03-data-model.md), поэтому в отличие от
 //     старой ZabbixItem-реализации здесь не нужен свод по максимуму
@@ -561,8 +571,8 @@ func buildVMWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, dateTo tim
 //   - detailed == false (период длиннее): источник - models.ServerMetricRecord
 //     (таблица server_metric_record, суточная агрегация, строится
 //     cmdb.SaveServerMetricRecord) - поля *Average, одна точка на сутки.
-func buildServerMetricWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, dateTo time.Time, detailed bool) []wideMetricRow {
-	if srv.ZabbixHostId <= 0 {
+func buildServerMetricWideRows(o orm.Ormer, srv *models.ServerSprRecords, source int, hostId int64, from, dateTo time.Time, detailed bool) []wideMetricRow {
+	if hostId <= 0 {
 		return nil
 	}
 
@@ -571,7 +581,8 @@ func buildServerMetricWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, 
 	if detailed {
 		var samples []*models.ServerMetric
 		_, err := o.QueryTable(new(models.ServerMetric)).
-			Filter("HostId", srv.ZabbixHostId).
+			Filter("Source", source).
+			Filter("HostId", hostId).
 			Filter("CollectedAt__gte", from).
 			Filter("CollectedAt__lt", dateTo).
 			OrderBy("CollectedAt").
@@ -599,7 +610,8 @@ func buildServerMetricWideRows(o orm.Ormer, srv *models.ServerSprRecords, from, 
 	} else {
 		var recs []*models.ServerMetricRecord
 		_, err := o.QueryTable(new(models.ServerMetricRecord)).
-			Filter("HostId", srv.ZabbixHostId).
+			Filter("Source", source).
+			Filter("HostId", hostId).
 			Filter("Date__gte", from).
 			Filter("Date__lt", dateTo).
 			OrderBy("Date").

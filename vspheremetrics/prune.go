@@ -174,6 +174,8 @@ func (infra *VMInfrastructure) PruneStaleObjects(ctx context.Context, vc VCenter
 		log.Println("PruneStaleObjects: удалён отсутствующий в VMware кластер:", key)
 	}
 
+	// Пул по этому vCenter теперь достоверен - см. vspheremetrics/syncstate.go.
+	MarkVCenterSynced(vc.Hostname)
 	return nil
 }
 

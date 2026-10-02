@@ -27,6 +27,8 @@
 	"OneViewOperationTimeoutSec": 90,
 	"OneViewCollectTimeoutSec": 300,
 	"GrpcHardwareTimeoutSec": 120,
+	"ConfigSCOM": [
+		{"Name":"scom-main","Enabled":false,"Endpoint":"https://scom-ms01.example.local/OperationsManager","AuthMode":"Network","Domain":"EXAMPLE","Login":"svc-loadmon-scom","Password":"password","InsecureSkipVerify":false,"ClassName":"Microsoft.Windows.Computer","IntervalSec":300,"InventoryIntervalSec":3600,"PerfDuration":60,"OperationTimeoutSec":120}],
 	"ConfigVCenters": [
 		{"Hostname":"127.0.0.1:8989","Username":"vcsim@local","Password":"password","Wait":60}],
 	"ConfigOV": [

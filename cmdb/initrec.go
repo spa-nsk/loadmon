@@ -6,7 +6,7 @@
 // полученные из внешних систем мониторинга и управления оборудованием, в записи справочников
 // CMDB (ServerSprRecords, ServerHardware, VMSprRecord, ClusterSprRecords и др.), поддерживают
 // их актуальность, устраняют дубликаты и восстанавливают связи между записями, а также
-// выгружают показатели производительности в Zabbix и SCOM.
+// выгружают показатели производительности в Zabbix.
 package cmdb
 
 import (
@@ -165,7 +165,7 @@ func UpdateVmToSprSrv(from vsphere.VMPoint, to *models.ServerSprRecords) {
 	// исправиться, если поля ранее оказались пустыми/устаревшими (миграция
 	// ВМ между кластерами, или баг в cmdb/reconcileserversprtype.go, из-за
 	// которого эти поля обнулялись на каждом цикле сверки - см. комментарий
-	// в reconcileserversprtype.go:applyExpectedServerSprState). Приводим к
+	// в reconcileserversprtype.go, сверка размещения). Приводим к
 	// единообразию с CopyVmToSprSrv.
 	to.Vcenter = from.Vcenter
 	to.Datacenter = from.Datacenter
@@ -777,68 +777,6 @@ func CopyReportRecToPerfZabbix(from *models.ReportServerRecord, to *models.Serve
 	to.Mem_usage_average = from.MemUseAvg
 	to.Mem_usage_max = from.MemUseMax
 	to.Mem_usage_minimum = from.MemUseMin
-}
-
-// CopyReportRecToPerfSCOM преобразует запись отчёта по серверу (ReportServerRecord) в
-// формат метрик для выгрузки производительности в SCOM (ServerPerfSCOM).
-func CopyReportRecToPerfSCOM(from *models.ReportServerRecord, to *models.ServerPerfSCOM) {
-	if from == nil || to == nil {
-		return
-	}
-
-	to.Date = from.Time
-	if from.Virtual {
-		to.Type = 1
-	} else {
-		to.Type = 0
-	}
-	to.NameFQDN = from.ServerName
-	to.CPUCount = from.CPUCount
-	to.CPULogical = from.CoreCount
-	to.MemSize = from.MemSize
-	to.SysDiskSize = from.SysDiskSize
-	to.WorkDiskSize = from.WorkDiskSize
-	to.CPULoadAvg = from.CPULoadAvg
-	to.CPULoadMin = from.CPULoadMin
-	to.CPULoadMax = from.CPULoadMax
-	to.MemUseAvg = from.MemUseAvg
-	to.MemUseMin = from.MemUseMin
-	to.MemUseMax = from.MemUseMax
-	to.SysDiskFreePercentAvg = from.SysDiskFreePercentAvg
-	to.SysDiskFreePercentMin = from.SysDiskFreePercentMin
-	to.SysDiskFreePercentMax = from.SysDiskFreePercentMax
-	to.SysDiskIdleTimeAvg = from.SysDiskIdleTimeAvg
-	to.SysDiskIdleTimeMin = from.SysDiskIdleTimeMin
-	to.SysDiskIdleTimeMax = from.SysDiskIdleTimeMax
-	to.SysDiskQueueAvg = from.SysDiskQueueAvg
-	to.SysDiskQueueMin = from.SysDiskQueueMin
-	to.SysDiskQueueMax = from.SysDiskQueueMax
-	to.WorkDiskFreePercentAvg = from.WorkDiskFreePercentAvg
-	to.WorkDiskFreePercentMin = from.WorkDiskFreePercentMin
-	to.WorkDiskFreePercentMax = from.WorkDiskFreePercentMax
-	to.WorkDiskIdleTimeAvg = from.WorkDiskIdleTimeAvg
-	to.WorkDiskIdleTimeMin = from.WorkDiskIdleTimeMin
-	to.WorkDiskIdleTimeMax = from.WorkDiskIdleTimeMax
-	to.WorkDiskQueueAvg = from.WorkDiskQueueAvg
-	to.WorkDiskQueueMin = from.WorkDiskQueueMin
-	to.WorkDiskQueueMax = from.WorkDiskQueueMax
-	to.SysDiskIOAvg = from.SysDiskIOAvg
-	to.SysDiskIOMin = from.SysDiskIOMin
-	to.SysDiskIOMax = from.SysDiskIOMax
-	to.SysDiskFreeMbAvg = from.SysDiskFreeMbAvg
-	to.SysDiskFreeMbMin = from.SysDiskFreeMbMin
-	to.SysDiskFreeMbMax = from.SysDiskFreeMbMax
-	to.WorkDiskIOAvg = from.WorkDiskIOAvg
-	to.WorkDiskIOMin = from.WorkDiskIOMin
-	to.WorkDiskIOMax = from.WorkDiskIOMax
-	to.WorkDiskFreeMbAvg = from.WorkDiskFreeMbAvg
-	to.WorkDiskFreeMbMin = from.WorkDiskFreeMbMin
-	to.WorkDiskFreeMbMax = from.WorkDiskFreeMbMax
-	if from.UseWorkDisk {
-		to.UseWorkDisk = 1
-	} else {
-		to.UseWorkDisk = 0
-	}
 }
 
 // RestoreSprData переносит ранее заполненные вручную атрибуты записи ServerSprRecords
