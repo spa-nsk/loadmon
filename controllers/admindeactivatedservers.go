@@ -11,11 +11,12 @@ import (
 )
 
 // AdminDeactivatedServersList отображает список записей справочника серверов
-// (models.ServerSprRecords), выведенных из учёта автоматической сверкой
-// (Stat == 0 - см. kontext/05-conventions-and-gotchas.md, раздел
-// "cmdb.markServerSprAbsent и родственный код" - записи, которые
-// авто-обновление из VMware/OneView/Zabbix посчитало пропавшими из
-// источника и пометило Stat=0/PowerState=2/Active=2).
+// (models.ServerSprRecords), выведенных из эксплуатации (Active == 2) -
+// автоматически (единое правило Stat/PowerState/Active, сервер не найден ни
+// в одном источнике: Stat=1/PowerState=2/Active=2, см.
+// cmdb/reconcileserversprtype.go) или вручную. До 2026-10-02 страница
+// отбирала Stat == 0: тогда автосверка помечала отсутствующие записи
+// Stat=0, теперь Stat=0 ставит только человек ("историческая запись").
 //
 // Назначение страницы - ручной разбор: часть таких записей выведена из
 // учёта ОШИБОЧНО (временная недоступность источника на момент сверки,
@@ -59,7 +60,7 @@ func (this *MainController) AdminDeactivatedServersList() {
 	// controllers/sprsrvview2.go).
 	if this.Ctx.Input.Method() == "POST" && this.GetString("RestoreSelectedBTN") != "" {
 		var candidates []*models.ServerSprRecords
-		o.QueryTable("server_spr_records").Filter("Stat", 0).All(&candidates)
+		models.ServerSprQS(o).Filter("Active", 2).All(&candidates)
 
 		strList := ""
 		for _, s := range candidates {
@@ -86,7 +87,7 @@ func (this *MainController) AdminDeactivatedServersList() {
 
 	RegisterRequest(this, LogTypeAdminAction) // просмотр списка серверов, выведенных из учёта (администрирование)
 
-	qs := o.QueryTable("server_spr_records").Filter("Stat", 0)
+	qs := models.ServerSprQS(o).Filter("Active", 2)
 	if nameFilter != "" {
 		qs = qs.Filter("Name__icontains", nameFilter)
 	}
@@ -148,18 +149,15 @@ func (this *MainController) AdminDeactivatedServersList() {
 
 // AdminDeactivatedServersRestore показывает форму (GET) и применяет (POST)
 // возврат в работу выбранных записей models.ServerSprRecords, ранее
-// выведенных из учёта (Stat == 0) - как по одной, так и группой
+// выведенных из эксплуатации (Active == 2) - как по одной, так и группой
 // (:selected - разделённые "-" id, тот же формат, что и в
 // /sprsrv/updateselectedbase/:selected).
 //
-// Логика возврата - точное зеркало логики вывода из учёта
-// (cmdb.markServerSprAbsent и родственные функции в cmdb/checkserversprexistence.go,
-// cmdb/updatehwhostinfo.go и т.п. - см. kontext/05-conventions-and-gotchas.md):
-// там при выводе из учёта одновременно проставляются Stat=0/PowerState=2/
-// Active=2, здесь при возврате - наоборот, Stat выставляется в 1 ТОЛЬКО
-// когда итоговые PowerState/Active после применения формы означают
-// "включен и активен" (PowerState==1 && Active==1) - то есть недостаточно
-// просто открыть форму, нужно явно подтвердить оба значения.
+// Возврат в эксплуатацию (2026-10-02) - смена Active с 2 на 1 через форму.
+// Stat=1 у таких записей уже стоит (единое правило ставит "не найденным"
+// Stat=1/PowerState=2/Active=2); историческая запись (Stat=0), если её
+// вернули в эксплуатацию, получает Stat=1. Учтите: если сервер не найден ни
+// в одном источнике и не ручной, единое правило снова поставит Active=2.
 //
 // SourceUpdateType записи ServerSprRecords в этой форме РЕДАКТИРУЕМ (по
 // прямой просьбе пользователя - обычная договорённость "формы
@@ -178,7 +176,7 @@ func (this *MainController) AdminDeactivatedServersList() {
 // самой ServerSprRecords значение теперь может быть изменено явно.
 //
 // Связанные записи, которые правятся при фактическом возврате в работу
-// (Stat стал 1):
+// (Active стал 1):
 //   - models.VMSprRecord (если Type == 1 и VMSprId > 0) - Vm_PowerState
 //     выставляется в соответствии с PowerState (это единственное поле
 //     жизненного цикла VM в vm_spr_record - у неё нет Stat/Active).
@@ -227,7 +225,7 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 	o := orm.NewOrm()
 
 	selectedRecords := make([]*models.ServerSprRecords, 0, len(ids))
-	qs := o.QueryTable("server_spr_records").Filter("Id__in", ids).OrderBy("Name")
+	qs := models.ServerSprQS(o).Filter("Id__in", ids).OrderBy("Name")
 	qs.All(&selectedRecords)
 
 	this.Data["SelectedRecords"] = selectedRecords
@@ -274,6 +272,14 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 			lastErr = err
 			continue
 		}
+		if models.IsServerSprDestroyed(&rec) {
+			continue // помечена к уничтожению (Stat=666) - не восстанавливается и не изменяется
+		}
+
+		// Выведена из эксплуатации ДО применения формы (Active=2) - с
+		// 2026-10-02 признак вывода - Active, а не Stat (см. комментарий к
+		// AdminDeactivatedServersList).
+		wasDeactivated := rec.Active == 2
 
 		if powerState != 0 {
 			rec.PowerState = powerState
@@ -286,9 +292,8 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 			models.SetActiveWithAudit(&rec.Active, &rec.TimeActiveState, &rec.ActivatorUser, &rec.TimeDeActiveState, &rec.DeActivatorUser, active, currentUserId)
 		}
 
-		wasDeactivated := rec.Stat == 0
-		if rec.PowerState == 1 && rec.Active == 1 {
-			rec.Stat = 1 // возврат в учёт - см. комментарий к функции выше
+		if wasDeactivated && rec.Active == 1 && rec.Stat == models.ServerSprStatHistory {
+			rec.Stat = models.ServerSprStatUsed // возврат в работу исторической записи
 		}
 
 		if sourceUpdateTypeSet {
@@ -304,7 +309,7 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 		}
 		updated++
 
-		if wasDeactivated && rec.Stat == 1 {
+		if wasDeactivated && rec.Active == 1 {
 			restored++
 
 			if rec.Type == 1 && rec.VMSprId > 0 {
@@ -342,7 +347,7 @@ func (this *MainController) AdminDeactivatedServersRestore() {
 	if updated < len(ids) {
 		flash.Error("Обновлено %d из %d записей (возвращено в учёт: %d), часть записей не удалось сохранить: %v", updated, len(ids), restored, lastErr)
 	} else if restored < updated {
-		flash.Notice("Обновлено записей: %d, возвращено в учёт (Stat=1): %d - у остальных PowerState/Active ещё не означают полный возврат в работу", updated, restored)
+		flash.Notice("Обновлено записей: %d, возвращено в эксплуатацию (Active=1): %d", updated, restored)
 	} else {
 		flash.Notice("Возвращено в учёт: %d", restored)
 	}

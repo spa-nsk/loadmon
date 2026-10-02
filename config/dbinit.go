@@ -193,7 +193,6 @@ func DBInit() {
 
 	orm.RegisterModel(new(models.ServerOwnershipHistory))
 
-	orm.RegisterModel(new(models.ServerPerfSCOM))
 	orm.RegisterModel(new(models.ServerPerfZabbix))
 	orm.RegisterModel(new(models.ServerDiskPerfZabbix))
 	orm.RegisterModel(new(models.InsightVm))
@@ -237,6 +236,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.ZabbixKey))
 	orm.RegisterModel(new(models.ServerMetric))
 	orm.RegisterModel(new(models.ServerMetricRecord))
+	orm.RegisterModel(new(models.ScomHost)) // справочник компьютеров Microsoft SCOM (пакет scommetrics), см. kontext/13-scom-metrics.md
 	orm.RegisterModel(new(models.StorageEnclosure))
 	orm.RegisterModel(new(models.StorageDisk))
 	orm.RegisterModel(new(models.StoragePool))
@@ -266,6 +266,26 @@ func DBInit() {
 	// Вызывается ПОСЛЕ RunSyncdb, т.к. таблица storage_system_placement
 	// должна уже существовать.
 	migrateStorageSystemsPlacement()
+
+	// Перенос уникальности server_metric/server_metric_record с (HostId, ...)
+	// на (Source, HostId, ...) на уже существующих базах - см.
+	// config/dbinit_servermetric.go. Тоже ПОСЛЕ RunSyncdb: колонку source
+	// добавляет именно он.
+	addDriver := "postgres"
+	if ConfigData.DriverName == "sqlite3" {
+		addDriver = "sqlite3"
+	}
+	aliasDrivers := map[string]string{alias: driver, "default-add": addDriver}
+	migrateServerMetricSourceUnique(aliasDrivers)
+
+	// Записи server_spr_records со Stat=666 ("к уничтожению") не должны
+	// меняться никаким кодом - защита триггером БД, см.
+	// config/dbinit_serverspr_destroy.go.
+	ensureServerSprDestroyTrigger(aliasDrivers)
+
+	// Одноразовые миграции данных (таблица loadmon_migration), см.
+	// config/dbinit_migrations.go. Справочник серверов живёт в "default".
+	runDataMigrations(alias)
 
 	/*
 		name := "default"

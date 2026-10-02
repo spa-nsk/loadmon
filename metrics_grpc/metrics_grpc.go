@@ -17,6 +17,7 @@ import (
 	"loadmon/grpcclient"
 	"loadmon/grpcserver"
 	"loadmon/itsystem"
+	"loadmon/scommetrics"
 	_ "loadmon/routers"
 	"loadmon/vspheremetrics"
 	"loadmon/zabbix"
@@ -139,6 +140,15 @@ func main() {
 		if err := zabbixmetrics.Run(ctx); err != nil && err != context.Canceled {
 			log.Printf("Ошибка сбора метрик zabbixmetrics: %v", err)
 		}
+	}()
+	// Сбор метрик ОС и сведений о серверах из Microsoft SCOM (пакет
+	// scommetrics, app2.json -> ConfigSCOM, только записи с Enabled=true).
+	// Метрики пишутся в server_metric с Source=SCOM и только для аппаратных
+	// серверов без ZabbixHostId - см. kontext/13-scom-metrics.md.
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		scommetrics.RunAll(ctx)
 	}()
 
 	log.Println("Используется : ", runtime.NumCPU(), " CPU", "Количество Goroutine: ", runtime.NumGoroutine()) //количество потоков на старте

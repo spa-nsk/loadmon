@@ -14,7 +14,8 @@ import (
 // SaveServerMetricRecord строит суточную агрегированную запись
 // models.ServerMetricRecord (таблица server_metric_record) из поминутных
 // "сырых" снимков models.ServerMetric (таблица server_metric, заполняется
-// пакетом zabbixmetrics, см. kontext/03-data-model.md) - по аналогии с тем,
+// пакетами zabbixmetrics и scommetrics, см. kontext/03-data-model.md и
+// kontext/13-scom-metrics.md) - по аналогии с тем,
 // как cmdb.SaveVMRecord строит суточный models.VMRecord (vm_record) из
 // "сырых" замеров models.VMPerfRecord (vm_perf).
 //
@@ -33,73 +34,89 @@ func SaveServerMetricRecord(currentTime time.Time) {
 	var rows []*models.ServerMetric
 	qs := o.QueryTable(new(models.ServerMetric))
 	qs = qs.Filter("CollectedAt__gte", dayStart).Filter("CollectedAt__lt", dayEnd)
-	qs = qs.OrderBy("HostId", "CollectedAt")
+	qs = qs.OrderBy("Source", "HostId", "CollectedAt")
 	num, err := qs.All(&rows)
 	if err != nil {
 		fmt.Println("cmdb.SaveServerMetricRecord: ошибка чтения server_metric за", dayStart, "-", dayEnd, ":", err)
 		return
 	}
 	if num == 0 {
-		return // за сутки не было ни одного снимка - агрегировать нечего (например, zabbixmetrics ещё не собирал данные)
+		return // за сутки не было ни одного снимка - агрегировать нечего (например, сборщики ещё не собирали данные)
 	}
 
-	// Группируем по HostId, сохраняя порядок появления - агрегируем в один
-	// проход по отсортированному (HostId, CollectedAt) списку.
-	byHost := make(map[int64][]*models.ServerMetric)
-	hostOrder := make([]int64, 0)
+	// Группируем по паре (Source, HostId) - с 2026-10-01 HostId уникален
+	// только в пределах источника (Zabbix -> ZabbixHost.Id, SCOM ->
+	// ScomHost.Id, см. models.MetricSource*), поэтому группировка по одному
+	// HostId смешала бы в одну суточную запись два разных сервера.
+	type hostKey struct {
+		source int
+		hostId int64
+	}
+	byHost := make(map[hostKey][]*models.ServerMetric)
+	hostOrder := make([]hostKey, 0)
 	for _, r := range rows {
 		if r == nil {
 			continue
 		}
-		if _, ok := byHost[r.HostId]; !ok {
-			hostOrder = append(hostOrder, r.HostId)
+		k := hostKey{r.Source, r.HostId}
+		if _, ok := byHost[k]; !ok {
+			hostOrder = append(hostOrder, k)
 		}
-		byHost[r.HostId] = append(byHost[r.HostId], r)
+		byHost[k] = append(byHost[k], r)
 	}
 
-	for _, hostId := range hostOrder {
-		samples := byHost[hostId]
+	for _, k := range hostOrder {
+		samples := byHost[k]
+		hostId := k.hostId
 		rec := aggregateServerMetricRecord(hostId, samples)
+		rec.Source = k.source
 		rec.Date = dayStart
 		rec.Time_Mfy = time.Now().Local()
 
-		// ServerName/ServerId - через справочник zabbix_host (models.ZabbixHost),
-		// на который ссылается ServerMetric.HostId (см. её комментарий).
-		zh := models.ZabbixHost{Id: hostId}
-		if err := o.Read(&zh); err == nil {
-			rec.ServerName = zh.Name
-			if rec.ServerName == "" {
-				rec.ServerName = zh.Host
+		// ServerName/ServerId - через справочник хостов своего источника:
+		// zabbix_host (models.ZabbixHost) или scom_host (models.ScomHost).
+		found := false
+		switch k.source {
+		case models.MetricSourceSCOM:
+			sh := models.ScomHost{Id: hostId}
+			if err := o.Read(&sh); err == nil {
+				rec.ServerName = sh.DisplayName
+				rec.ServerId = sh.ServerId
+				found = true
 			}
-			rec.ServerId = zh.ServerId
-		} else {
-			// Хост мог быть удалён из справочника между сбором сырых метрик и
-			// формированием суточной записи - не блокируем агрегацию, просто
-			// оставляем ServerName/ServerId пустыми (роднит с обработкой
-			// отсутствующих связей в остальном cmdb, см. например
-			// cmdb.CheckServerSprRecordsExistence).
-			if len(samples) > 0 {
-				rec.ServerName = samples[0].ServerName
+		default:
+			zh := models.ZabbixHost{Id: hostId}
+			if err := o.Read(&zh); err == nil {
+				rec.ServerName = zh.Name
+				if rec.ServerName == "" {
+					rec.ServerName = zh.Host
+				}
+				rec.ServerId = zh.ServerId
+				found = true
 			}
 		}
+		if !found && len(samples) > 0 {
+			// Хост мог быть удалён из справочника между сбором сырых метрик и
+			// формированием суточной записи - не блокируем агрегацию, просто
+			// оставляем ServerId пустым (роднит с обработкой отсутствующих
+			// связей в остальном cmdb, см. например
+			// cmdb.CheckServerSprRecordsExistence).
+			rec.ServerName = samples[0].ServerName
+		}
 
-		// Идемпотентный upsert по (HostId, Date) - как models.ReplaceMetrics
-		// для "сырой" таблицы server_metric, чтобы повторный вызов
-		// SaveMetricData за те же сутки не плодил дублирующихся суточных
-		// записей (TableUnique у ServerMetricRecord тоже (HostId, Date), но
-		// полагаться только на ошибку уникального индекса означало бы терять
-		// обновлённые за более поздний вызов агрегаты).
-		existing := models.ServerMetricRecord{}
-		existing.HostId = hostId
-		existing.Date = dayStart
-		if err := o.Read(&existing, "HostId", "Date"); err == nil {
+		// Идемпотентный upsert по (Source, HostId, Date) - как
+		// models.ReplaceMetrics для "сырой" таблицы server_metric, чтобы
+		// повторный вызов SaveMetricData за те же сутки не плодил
+		// дублирующихся суточных записей.
+		existing := models.ServerMetricRecord{Source: k.source, HostId: hostId, Date: dayStart}
+		if err := o.Read(&existing, "Source", "HostId", "Date"); err == nil {
 			rec.Id = existing.Id
 			if _, err := o.Update(rec); err != nil {
-				log.Println("cmdb.SaveServerMetricRecord: ошибка обновления записи server_metric_record HostId=", hostId, err)
+				log.Println("cmdb.SaveServerMetricRecord: ошибка обновления записи server_metric_record Source=", k.source, "HostId=", hostId, err)
 			}
 		} else {
 			if _, err := o.Insert(rec); err != nil {
-				log.Println("cmdb.SaveServerMetricRecord: ошибка вставки записи server_metric_record HostId=", hostId, err)
+				log.Println("cmdb.SaveServerMetricRecord: ошибка вставки записи server_metric_record Source=", k.source, "HostId=", hostId, err)
 			}
 		}
 	}

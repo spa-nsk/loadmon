@@ -210,10 +210,9 @@ func saveVMwareMetricData(currentTime time.Time) {
 		SaveClusterData(cl, clusterSpr, currentTime)
 	}
 
-	// После сохранения данных по всем кластерам (в т.ч. виртуальным машинам,
-	// см. SaveClusterData -> SaveVMRecord) приводим в порядок статусы
-	// справочника серверов - см. комментарий к функции.
-	CheckServerSprRecordsExistence()
+	// Ночная CheckServerSprRecordsExistence удалена 2026-10-02: статусы
+	// справочника серверов приводит в порядок единое правило
+	// (ReconcileServerSprRecordsTypeAndState, раз в час и раз в 6 часов).
 }
 
 // ClearMetricData определяет период (текущие либо предыдущие сутки) и запускает очистку

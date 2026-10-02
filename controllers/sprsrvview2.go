@@ -127,11 +127,11 @@ func (this *MainController) SprSrvViewV2() {
 
 	this.Data["AppService"] = appservice
 
-	qs = o.QueryTable("server_spr_records")
+	qs = models.ServerSprQS(o)
 	qs = qs.OrderBy("active", "name")
 	cond := orm.NewCondition()
 
-	cond = cond.And("Stat__ne", 666)
+	cond = cond.And("Stat__ne", models.ServerSprStatDestroy)
 	active := 0
 
 	switch Mode {
@@ -574,7 +574,7 @@ func (this *MainController) SprSrvViewV2() {
 
 		//	cond = cond.AndCond(cond1)
 
-		qs = qs.SetCond(cond)
+		qs = qs.SetCond(models.ExcludeDestroyedCond(cond))
 
 		num, err = qs.All(&records)
 	}
@@ -785,7 +785,7 @@ func (this *MainController) SprSrvViewV2() {
 			}
 
 			for j, rec := range list {
-				if rec.S.Stat == 666 {
+				if rec.S.Stat == models.ServerSprStatDestroy {
 					continue
 				}
 				row, _ := csvtools.GetCSVData(&rec)
@@ -858,7 +858,7 @@ func (this *MainController) SprSrvViewV2() {
 			_ = csvwriter.Write(header)
 
 			for _, rec := range list {
-				if rec.S.Stat == 666 {
+				if rec.S.Stat == models.ServerSprStatDestroy {
 					continue
 				}
 				data, _ := csvtools.GetCSVData(&rec)
@@ -1089,7 +1089,7 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 
 	// --- виртуальные машины - по размещению хоста ------------------------
 	var hosts []models.ServerSprRecords
-	o.QueryTable("server_spr_records").Filter("Id__in", result).Filter("Type", 2).
+	models.ServerSprQS(o).Filter("Id__in", result).Filter("Type", 2).
 		All(&hosts, "Id", "Name", "NameFQDN", "Vcenter", "Datacenter", "Cluster")
 	if len(hosts) == 0 {
 		return result
@@ -1123,7 +1123,7 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 			return
 		}
 		var vmSpr []models.ServerSprRecords
-		o.QueryTable("server_spr_records").Filter("Type", 1).Filter("VMSprId__in", vmSprIds).All(&vmSpr, "Id")
+		models.ServerSprQS(o).Filter("Type", 1).Filter("VMSprId__in", vmSprIds).All(&vmSpr, "Id")
 		for _, s := range vmSpr {
 			if !alreadyInResult[s.Id] {
 				alreadyInResult[s.Id] = true

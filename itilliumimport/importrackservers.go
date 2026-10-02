@@ -172,7 +172,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		} else {
 			r.Spr.PowerState = 2
 			r.Hw.PowerState = 2
-			r.Spr.Stat = 0
+			r.Spr.Stat = models.ServerSprStatUsed // 2026-10-02: Stat=0 ставит только человек; "не активен" = Stat=1, Active=2
 			r.Spr.Active = 2
 			r.Hw.Active = 2
 			r.Spr.TimeDeActiveState = time.Now().Local()
@@ -242,7 +242,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		sprFound := hw.ServerId != 0
 		if sprFound {
 			sprsrv = models.ServerSprRecords{Id: hw.ServerId}
-			sprFound = trn.Read(&sprsrv) == nil
+			sprFound = trn.Read(&sprsrv) == nil && !models.IsServerSprDestroyed(&sprsrv) // запись Stat=666 считается отсутствующей
 		}
 		if !sprFound {
 			//новый сервер не обнаруженный системами сбора метрик и HP One View, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
@@ -251,6 +251,11 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Spr.Time_Mfy = time.Now().Local()
 			r.Spr.Id_User = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.TimeActiveState = time.Now().Local() //фиксируем времяя активации и автора
+			// Источник - ручной импорт ВСЕГДА для новой записи (и для статуса
+			// "не активен" тоже, как у блейд-серверов в importbladeservers.go):
+			// по SourceUpdateManual ночная проверка, почасовое обновление
+			// питания и сверка не трогают записи, которых нет в HP OneView/VMware.
+			r.Spr.SourceUpdateType = models.SourceUpdateManual
 
 			sprId, err := trn.Insert(&r.Spr)
 			if err != nil {

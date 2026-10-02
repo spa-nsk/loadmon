@@ -691,7 +691,7 @@ func Get10MinutesHistory() {
 
 	for _, h := range hosts {
 		records := make([]*models.ServerSprRecords, 0)
-		qs := o.QueryTable("server_spr_records")
+		qs := models.ServerSprQS(o)
 		qs = qs.OrderBy("active", "name")
 		cond := orm.NewCondition()
 		shortName := strings.Split(h.Host, ".")[0]
@@ -699,7 +699,7 @@ func Get10MinutesHistory() {
 		cond = cond.Or("Name__icontains", h.Name)
 		cond = cond.Or("NameFQDN__icontains", h.Host)
 		cond = cond.Or("NameFQDN__icontains", h.Name)
-		qs = qs.SetCond(cond)
+		qs = qs.SetCond(models.ExcludeDestroyedCond(cond))
 
 		num, err := qs.All(&records)
 		_ = num
@@ -770,9 +770,12 @@ func Get10MinutesHistory() {
 				}
 			}
 			err = trn.Read(&srv, "Id")
+			if err == nil && models.IsServerSprDestroyed(&srv) {
+				err = fmt.Errorf("запись помечена к уничтожению")
+			}
 		} else {
 			srv.Name = h.Host
-			err = trn.Read(&srv, "Name")
+			err = models.ServerSprQS(trn).Filter("Name", srv.Name).Limit(1).One(&srv) // без записей Stat=666
 		}
 		if err == nil {
 			hostdb.ServerId = srv.Id

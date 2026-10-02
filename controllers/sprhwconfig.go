@@ -217,7 +217,7 @@ func (this *MainController) SprHwConfig() {
 			Or("Name__icontains", filter.ServerName).
 			Or("NameFQDN__icontains", filter.ServerName)
 		var sprMatches []models.ServerSprRecords
-		if _, err := o.QueryTable("server_spr_records").SetCond(cond).All(&sprMatches, "Id"); err != nil {
+		if _, err := models.ServerSprQS(o).SetCond(models.ExcludeDestroyedCond(cond)).All(&sprMatches, "Id"); err != nil {
 			flash.Error("Ошибка поиска по имени сервера: %v", err)
 			flash.Store(&this.Controller)
 			return
@@ -277,7 +277,7 @@ func (this *MainController) SprHwConfig() {
 	}
 	if len(serverIds) > 0 {
 		var sprRecs []models.ServerSprRecords
-		_, _ = o.QueryTable("server_spr_records").Filter("Id__in", serverIds).All(&sprRecs, "Id", "Name", "NameFQDN")
+		_, _ = models.ServerSprQS(o).Filter("Id__in", serverIds).All(&sprRecs, "Id", "Name", "NameFQDN")
 		sprById := make(map[int64]models.ServerSprRecords, len(sprRecs))
 		for _, s := range sprRecs {
 			sprById[s.Id] = s
@@ -634,7 +634,7 @@ func (this *MainController) SprHwConfigEditByName() {
 
 	o := orm.NewOrm()
 	var rec models.ServerSprRecords
-	err := o.QueryTable("server_spr_records").
+	err := models.ServerSprQS(o).
 		Filter("Name", name).
 		Filter("Type__in", 0, 2).
 		One(&rec)

@@ -767,11 +767,12 @@ type ServerSprRecords struct {
 	VMSprId              int64     `form:"VMSprId" json:"VMSprId"`                                      //ссылка на справочник VM если Type = 1 иначе null
 	HWSprId              int64     `form:"HWSprId" json:"HWSprId"`                                      //ссылка на ServerHardware
 	ZabbixHostId         int64     `form:"ZabbixHostId" json:"ZabbixHostId"`                            //ссылка на ZabbixHost.Id если есть данные из Zabbix по этому серверу
+	ScomHostId           int64     `form:"ScomHostId" json:"ScomHostId"`                                //ссылка на ScomHost.Id если сервер найден в Microsoft SCOM (пакет scommetrics, 2026-10-01)
 	TypeMicroservice     int       `form:"TypeMicroservice" json:"TypeMicroservice"`                    // 0 не указано принадлежность к микросервисам, роль в этом пространстве
 	RoleType             int       `form:"RoleType" json:"RoleType"`                                    //не указано 1-APP 2-DB
 	TypeWork             int       `form:"TypeWork" json:"TypeWork"`                                    //0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
 	CriticalLevel        int       `form:"CriticalLevel" json:"CriticalLevel"`                          //контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
-	Stat                 int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования
+	Stat                 int       `form:"Stat" json:"Stat"`                                            //0 историческая запись 1 используется 2 помечено для удаления 666 - техническая пометка "к уничтожению": не меняется и исключается из всех запросов (см. models/serverspr_stat.go)
 	PowerState           int       `form:"PowerState" json:"PowerState"`                                //0-не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием
 	Active               int       `form:"Active" json:"Active"`                                        //1 активен 2 выведен из эксплуатации
 	TimeActiveState      time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"`           //время изменения статуса активности введения в эксплуатацию
@@ -826,7 +827,7 @@ type ServerSprRecords struct {
 	Privilage            int       `form:"Privilage" json:"Privilage"`                                  //уровень привилегий (в формах должны отображаться сервисы с уровнем не выше чем текущие привелегии пользователя)
 	// SourceUpdateType - источник последнего обновления записи: 0 - не
 	// указано, 1 - добавлен/изменён вручную, 2 - VMware, 3 - HPE OneView,
-	// 4 - Zabbix. См. константы SourceUpdate* и комментарий к одноимённому
+	// 4 - Zabbix, 5 - Microsoft SCOM. См. константы SourceUpdate* и комментарий к одноимённому
 	// полю в ServerHardware выше.
 	SourceUpdateType int `form:"SourceUpdateType" json:"SourceUpdateType"`
 }
@@ -834,74 +835,6 @@ type ServerSprRecords struct {
 // ServerSprRecordsArch описывает запись/справочник БД loadmon, соответствующую сущности ServerSprRecordsArch.
 type ServerSprRecordsArch struct {
 	ServerSprRecords
-}
-
-// структура с метриками из SCOM, усреднение за 1 день
-type ServerPerfSCOM struct {
-	Id                     int64     `form:"Id" csv:"-"`             //уникальный идентификатор записи
-	Date                   time.Time `form:"Date" csv:"-"`           //дата сбора метрик
-	NameFQDN               string    `form:"NameFQDN" csv:"-"`       //полное имя сервера как пришло из SCOM
-	ServerId               int64     `form:"ServerId" csv:"-"`       //ссылка на справочник серверов
-	Type                   int       `form:"Type" csv:"-"`           //0 - физический сервер 1 - виртуальный как пришло из SCOM
-	CPUCount               float64   `form:"CPUCount"`               //Количество физических процессоров или vCPU
-	CPULogical             float64   `form:"CPULogical"`             //количество логических CPU включая hyper threading
-	FoundAddInfo           int       `form:"FoundAddInfo"`           //0 - не найдено 1 есть данные (для аппаратных серверов найдены данные конфигурации, для виртуальной инфраструктуры найден объект)
-	MemSize                float64   `form:"MemSize"`                //
-	SysDiskSize            float64   `form:"SysDiskSize"`            //
-	WorkDiskSize           float64   `form:"WorkDiskSize"`           //
-	CPULoadAvg             float64   `form:"CPULoadAvg"`             //
-	CPULoadMin             float64   `form:"CPULoadMin"`             //
-	CPULoadMax             float64   `form:"CPULoadMax"`             //
-	MemUseAvg              float64   `form:"MemUseAvg"`              //
-	MemUseMin              float64   `form:"MemUseMin"`              //
-	MemUseMax              float64   `form:"MemUseMax"`              //
-	SysDiskFreePercentAvg  float64   `form:"SysDiskFreePercentAvg"`  //
-	SysDiskFreePercentMin  float64   `form:"SysDiskFreePercentMin"`  //
-	SysDiskFreePercentMax  float64   `form:"SysDiskFreePercentMax"`  //
-	SysDiskIdleTimeAvg     float64   `form:"SysDiskIdleTimeAvg"`     //
-	SysDiskIdleTimeMin     float64   `form:"SysDiskIdleTimeMin"`     //
-	SysDiskIdleTimeMax     float64   `form:"SysDiskIdleTimeMax"`     //
-	SysDiskQueueAvg        float64   `form:"SysDiskQueueAvg"`        //
-	SysDiskQueueMin        float64   `form:"SysDiskQueueMin"`        //
-	SysDiskQueueMax        float64   `form:"SysDiskQueueMax"`        //
-	WorkDiskFreePercentAvg float64   `form:"WorkDiskFreePercentAvg"` //
-	WorkDiskFreePercentMin float64   `form:"WorkDiskFreePercentMin"` //
-	WorkDiskFreePercentMax float64   `form:"WorkDiskFreePercentMax"` //
-	WorkDiskIdleTimeAvg    float64   `form:"WorkDiskIdleTimeAvg"`    //
-	WorkDiskIdleTimeMin    float64   `form:"WorkDiskIdleTimeMin"`    //
-	WorkDiskIdleTimeMax    float64   `form:"WorkDiskIdleTimeMax"`    //
-	WorkDiskQueueAvg       float64   `form:"WorkDiskQueueAvg"`       //
-	WorkDiskQueueMin       float64   `form:"WorkDiskQueueMin"`       //
-	WorkDiskQueueMax       float64   `form:"WorkDiskQueueMax"`       //
-	SysDiskIOAvg           float64   `form:"SysDiskIOAvg"`           //
-	SysDiskIOMin           float64   `form:"SysDiskIOMin"`           //
-	SysDiskIOMax           float64   `form:"SysDiskIOMax"`           //
-	SysDiskFreeMbAvg       float64   `form:"SysDiskFreeMbAvg"`       //
-	SysDiskFreeMbMin       float64   `form:"SysDiskFreeMbMin"`       //
-	SysDiskFreeMbMax       float64   `form:"SysDiskFreeMbMax"`       //
-	WorkDiskIOAvg          float64   `form:"WorkDiskIOAvg"`          //
-	WorkDiskIOMin          float64   `form:"WorkDiskIOMin"`          //
-	WorkDiskIOMax          float64   `form:"WorkDiskIOMax"`          //
-	WorkDiskFreeMbAvg      float64   `form:"WorkDiskFreeMbAvg"`      //
-	WorkDiskFreeMbMin      float64   `form:"WorkDiskFreeMbMin"`      //
-	WorkDiskFreeMbMax      float64   `form:"WorkDiskFreeMbMax"`      //
-	UseWorkDisk            int       `form:"UseWorkDisk" csv:"-"`    //
-}
-
-// TableName возвращает имя таблицы БД для модели ServerPerfSCOM (используется beego ORM).
-func (a *ServerPerfSCOM) TableName() string {
-	return "server_perf_scom"
-}
-
-// TableIndex возвращает список индексов для регистрации таблицы модели ServerPerfSCOM в beego ORM.
-func (a *ServerPerfSCOM) TableIndex() [][]string {
-	return [][]string{
-		[]string{"Id"},
-		[]string{"Date"},
-		[]string{"ServerId"},
-		[]string{"ServerId", "Date"},
-		[]string{"NameFQDN", "Date"},
-	}
 }
 
 // структура с метриками из Zabbix, усреднение за 1 день
@@ -1192,7 +1125,6 @@ type ServerSprView struct {
 	VM                 *VMSprRecordView       `form:"VM"`                 //подробная информация по VM
 	VMPerf             *VMRecord              `form:"VMPerf"`             //усредненные метрики производительности VM за период
 	HostPerf           *HostRecord            `form:"HostPerf"`           //усредненные метрики производительности Host за период
-	SrvScomPerf        *ServerPerfSCOM        `form:"SrvScomPerf"`        ////усредненные метрики производительности Srv за период из SCOM
 	SrvZabbixPerf      *ServerPerfZabbixView  `form:"SrvZabbixPerf"`      ////усредненные метрики производительности Srv за период из Zabbix + диски
 	SrvPerf            *ReportServerRecord    `form:"SrvPerf"`            //усредненные метрики производительности Srv за период
 	CFO                []SprCFOAllocation     `form:"CFO"`                //алокация по ЦФО
@@ -1904,6 +1836,7 @@ const (
 	SourceUpdateVMware  = 2 // VMware (vSphere)
 	SourceUpdateOneView = 3 // HPE OneView
 	SourceUpdateZabbix  = 4 // Zabbix
+	SourceUpdateSCOM    = 5 // Microsoft SCOM (пакет scommetrics)
 )
 
 // Псевдо-ID "пользователей" для полей вида Id_User/CreatorUser/ActivatorUser/
@@ -1924,9 +1857,14 @@ const (
 	UserSourceOneView = 10003 // HPE OneView
 	// UserSourceZabbix зарезервирован под запись изменений из Zabbix -
 	// заведён про запас (2026-09-22), реальный путь автодеактивации через
-	// Zabbix сейчас закомментирован (zabbix/zabbixupdate.go, //srv.Active=1)
-	// и не используется.
+	// Zabbix сейчас закомментирован (zabbix/zabbixupdate.go, //srv.Active=1);
+	// с 2026-10-02 используется единым правилом Stat/PowerState/Active, когда
+	// сервер обнаружен только по свежим метрикам Zabbix.
 	UserSourceZabbix = 10004
+	// UserSourceSCOM - Microsoft SCOM (пакет scommetrics); используется единым
+	// правилом Stat/PowerState/Active (cmdb/reconcileserversprtype.go), когда
+	// сервер обнаружен только по свежим метрикам SCOM (2026-10-02).
+	UserSourceSCOM = 10005
 )
 
 // Блок описания для cmdb

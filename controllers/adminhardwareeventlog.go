@@ -245,7 +245,7 @@ func (this *MainController) buildHardwareEventLogRows(o orm.Ormer, records []mod
 			sprNameById := make(map[int64]string, len(srvIds))
 			if len(srvIds) > 0 {
 				var sprs []models.ServerSprRecords
-				if _, err := o.QueryTable("server_spr_records").Filter("Id__in", srvIds).All(&sprs, "Id", "Name"); err == nil {
+				if _, err := models.ServerSprQS(o).Filter("Id__in", srvIds).All(&sprs, "Id", "Name"); err == nil {
 					for _, s := range sprs {
 						sprNameById[s.Id] = s.Name
 					}

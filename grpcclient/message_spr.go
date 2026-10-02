@@ -19,7 +19,7 @@ func MessageToServerSprRecod(in *pb.ServerSprRecords, out *models.ServerSprRecor
 	out.TypeWork = int(in.TypeWork)                             //int        0 - не указано 1 - продуктовая среда 2- тестовая
 	out.CriticalLevel = int(in.CriticalLevel)                   //int        контур 0 не указано 1-Vital 2-Critical 3-Secondary 4-Non Priority
 	out.VMSprId = in.VMSprId                                    //int64      ссылка на справочник VM если Type = 1 иначе null
-	out.Stat = int(in.Stat)                                     //int        0 историческая запись 1 используется 2 помечено для удаления 3-архивная запись после переименования 911 - новая запись,неполные
+	out.Stat = int(in.Stat)                                     //int        0 историческая запись 1 используется 2 помечено для удаления 666 техническая пометка к уничтожению (models.ServerSprStatDestroy)
 	out.PowerState = int(in.PowerState)                         //int        0 не указано 1 включен 2 выключен (последнее состояние) при отображении переопределять текущим состоянием если есть
 	out.Active = int(in.Active)                                 //int        1 активен 2 выведен из эксплуатации
 	out.TimeActiveState = in.TimeActiveState.AsTime()           //time.Time  время изменения статуса активности введения в эксплуатацию

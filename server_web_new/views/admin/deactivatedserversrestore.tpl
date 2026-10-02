@@ -4,16 +4,13 @@
      форма применяемых значений снизу. -->
 
 <div class="hero-text mb-3">
-    <h2>Возврат в учёт: {{.SelectedCount}} серверов</h2>
+    <h2>Возврат в эксплуатацию: {{.SelectedCount}} серверов</h2>
     <p class="text-muted">
-        Выбранные записи будут обновлены значениями ниже. Stat автоматически станет
-        1 (в учёте) только если итоговые PowerState и Active означают "Включен" и
-        "Активен" одновременно - иначе запись останется выведенной из учёта с новыми
-        значениями PowerState/Active. При фактическом возврате в учёт также
-        обновляются связанные записи: у виртуальных машин - признак включения
-        (Vm_PowerState), у аппаратных серверов - PowerState/Active и источник
-        обновления (SourceUpdateType синхронизируется с итоговым значением записи
-        справочника серверов, после применения формы ниже).
+        Выбранные записи будут обновлены значениями ниже. Возврат в эксплуатацию - выбор
+        "Активен" (Active=1); историческая запись (Stat=0) при этом получает Stat=1. При
+        возврате также обновляются связанные записи: у виртуальных машин - признак включения
+        (Vm_PowerState), у аппаратных серверов - PowerState/Active и источник обновления
+        (SourceUpdateType синхронизируется с итоговым значением записи справочника серверов).
     </p>
 </div>
 
@@ -46,7 +43,7 @@
                 <td class="text-center">{{if eq $r.PowerState 1}}Включен{{else if eq $r.PowerState 2}}Выключен{{else}}—{{end}}</td>
                 <td class="text-center">{{if eq $r.Active 1}}Активен{{else if eq $r.Active 2}}Выведен{{else}}—{{end}}</td>
                 <td class="text-center">
-                    {{if eq $r.SourceUpdateType 1}}Вручную{{else if eq $r.SourceUpdateType 2}}VMware{{else if eq $r.SourceUpdateType 3}}HPE OneView{{else if eq $r.SourceUpdateType 4}}Zabbix{{else}}не указано{{end}}
+                    {{if eq $r.SourceUpdateType 1}}Вручную{{else if eq $r.SourceUpdateType 2}}VMware{{else if eq $r.SourceUpdateType 3}}HPE OneView{{else if eq $r.SourceUpdateType 4}}Zabbix{{else if eq $r.SourceUpdateType 5}}SCOM{{else}}не указано{{end}}
                 </td>
             </tr>
             {{end}}
@@ -81,6 +78,7 @@
                 <option value="2">VMware</option>
                 <option value="3">HPE OneView</option>
                 <option value="4">Zabbix</option>
+                <option value="5">SCOM</option>
             </select>
         </div>
         <div class="col-12 col-md-4">
@@ -93,7 +91,7 @@
             <span class="text-muted small">
                 "Не менять" у поля "Источник" оставляет SourceUpdateType записи как
                 есть; при выборе конкретного значения оно применится к выбранным
-                записям. При фактическом возврате в учёт (Stat стал 1) связанного
+                записям. При фактическом возврате в эксплуатацию (Active стал 1) связанного
                 аппаратного сервера ИТОГОВОЕ значение SourceUpdateType переносится и
                 на него.
             </span>

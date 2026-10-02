@@ -219,7 +219,7 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		} else {
 			r.Spr.PowerState = 2
 			r.Hw.PowerState = 2
-			r.Spr.Stat = 0 //выведен из эксплуатации (см. cmdb/updatehwsprhp.go)
+			r.Spr.Stat = models.ServerSprStatUsed // 2026-10-02: Stat=0 ставит только человек; "не активен" = Stat=1, Active=2
 			r.Spr.Active = 2
 			r.Hw.Active = 2
 			r.Spr.TimeDeActiveState = time.Now().Local()
@@ -279,7 +279,7 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		sprFound := hw.ServerId != 0
 		if sprFound {
 			sprsrv = models.ServerSprRecords{Id: hw.ServerId}
-			sprFound = trn.Read(&sprsrv) == nil
+			sprFound = trn.Read(&sprsrv) == nil && !models.IsServerSprDestroyed(&sprsrv) // запись Stat=666 считается отсутствующей
 		}
 		if !sprFound {
 			r.Spr.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора

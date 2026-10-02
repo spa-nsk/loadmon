@@ -30,7 +30,7 @@ func PatchCoreCPURecords(records []*models.ReportServerRecord) {
 		name := strings.Split(strings.ToLower(strings.TrimSpace(serverName[0])), ".")
 		srv := models.ServerSprRecords{}
 		//o.Using("default")
-		qs := o.QueryTable(srv)
+		qs := models.ServerSprQS(o) // без записей Stat=666
 		qs = qs.OrderBy("Name").Filter("Name__icontains", name[0])
 		if !rec.Virtual {
 			if rec.CPUCount <= 4 && rec.CoreCount > 36 {

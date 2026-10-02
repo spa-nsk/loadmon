@@ -23,6 +23,7 @@ SELECT
 FROM cluster_spr_records csr
 JOIN server_spr_records h
     ON h.type = 2
+   AND h.stat <> 666 -- 666 - запись помечена к уничтожению
    AND h.vcenter = csr.vcenter
    AND h.cluster_id = csr.cluster_id
    AND h.hw_spr_id > 0

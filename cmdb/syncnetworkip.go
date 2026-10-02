@@ -39,7 +39,7 @@ import (
 //  2. Справочник IP-АДРЕСОВ (models.IPAddressSprRecords) - ЦЕЛИКОМ производная
 //     таблица, у нее нет формы редактирования - пересобирается С НУЛЯ
 //     (полное удаление + вставка) при каждом запуске: для каждой активной
-//     записи ServerSprRecords (Stat != 666) разбираются списки IPAddress/
+//     записи ServerSprRecords (кроме помеченных к уничтожению, Stat=666) разбираются списки IPAddress/
 //     MacAddress/Network (все - через ";") и сопоставляются ПО ПОЗИЦИИ В
 //     СПИСКЕ, только если длины списков совпадают (гарантированного порядка/
 //     соответствия элементов друг другу в исходных текстовых полях нет -
@@ -53,7 +53,7 @@ func SyncNetworkAndIPDirectories() {
 	o := orm.NewOrm()
 
 	var records []models.ServerSprRecords
-	if _, err := o.QueryTable("server_spr_records").Filter("Stat__ne", 666).
+	if _, err := models.ServerSprQS(o).
 		All(&records, "Id", "Name", "Network", "IPAddress", "MacAddress"); err != nil {
 		log.Println("SyncNetworkAndIPDirectories: ошибка чтения server_spr_records:", err)
 		return

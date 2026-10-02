@@ -13,4 +13,5 @@ SELECT
     time__mfy
 FROM server_spr_records
 WHERE type = 1
+  AND stat <> 666 -- 666 - запись помечена к уничтожению, исключается из всех запросов
 ORDER BY name;

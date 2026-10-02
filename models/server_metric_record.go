@@ -10,16 +10,17 @@ import (
 // по аналогии с тем, как models.VMRecord (таблица vm_record) является
 // суточной агрегацией "сырых" замеров models.VMPerfRecord (vm_perf).
 //
-// Один HostId (см. models.ServerMetric.HostId - ссылка на
-// models.ZabbixHost.Id) и одни сутки (Date, время обнулено до начала дня,
+// Одна пара (Source, HostId) (см. models.ServerMetric.Source/HostId) и
+// одни сутки (Date, время обнулено до начала дня,
 // как и у VMRecord.Date) - одна запись. Формируется в
 // cmdb.SaveServerMetricRecord, вызываемой из cmdb.SaveMetricData (см.
 // metrics_grpc/metrics_grpc.go).
 type ServerMetricRecord struct {
 	Id         int64     `form:"Id" orm:"auto;pk;column(id)"`
-	HostId     int64     `form:"HostId" orm:"column(host_id);index"`       // ссылка на models.ZabbixHost.Id (как и у ServerMetric.HostId)
-	ServerId   int64     `form:"ServerId" orm:"column(server_id);index"`   // ссылка на models.ServerSprRecords.Id (через ZabbixHost.ServerId, если он проставлен)
-	ServerName string    `form:"ServerName" orm:"column(server_name);size(255);index"` // видимое имя хоста в Zabbix (денормализовано, как и у ServerMetric)
+	Source     int       `form:"Source" orm:"column(source);default(0)"`   // источник, как у ServerMetric.Source (MetricSourceZabbix/MetricSourceSCOM)
+	HostId     int64     `form:"HostId" orm:"column(host_id);index"`       // ссылка на ZabbixHost.Id или ScomHost.Id - в паре с Source, как и у ServerMetric.HostId
+	ServerId   int64     `form:"ServerId" orm:"column(server_id);index"`   // ссылка на models.ServerSprRecords.Id (через ZabbixHost.ServerId/ScomHost.ServerId, если проставлен)
+	ServerName string    `form:"ServerName" orm:"column(server_name);size(255);index"` // видимое имя хоста в источнике (денормализовано, как и у ServerMetric)
 	Date       time.Time `form:"Date" orm:"column(date);type(date);index"` // сутки, за которые агрегированы данные (00:00 локального времени)
 
 	CPUUtilMaximum     float64   `form:"CPUUtilMaximum" orm:"column(cpu_util_maximum);digits(10);decimals(4)"`
@@ -96,7 +97,7 @@ func (m *ServerMetricRecord) TableEngine() string {
 
 func (m *ServerMetricRecord) TableUnique() [][]string {
 	return [][]string{
-		{"HostId", "Date"},
+		{"Source", "HostId", "Date"},
 	}
 }
 

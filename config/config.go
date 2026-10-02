@@ -33,6 +33,64 @@ type OvEndpoint struct {
 	OperationTimeoutSec int // таймаут одной HTTP-операции к appliance; 0 — OneViewOperationTimeoutSec
 }
 
+// ScomEndpoint описывает подключение к одной management group Microsoft
+// System Center Operations Manager (SCOM) через официальный REST API
+// (SCOM 2019 UR1+, базовый путь /OperationsManager, см.
+// kontext/13-scom-metrics.md).
+//
+// Используется сборщиком scommetrics (metrics_grpc запускает по горутине
+// на каждую запись с Enabled=true). Пустой список ConfigSCOM или
+// Enabled=false у всех записей - штатное состояние, сбор не идёт.
+type ScomEndpoint struct {
+	// Name - короткая метка источника (имя management group), попадает в
+	// логи сборщика; должна быть уникальной в пределах ConfigSCOM.
+	Name string
+	// Enabled - разрешает опрос этой записи. По умолчанию false, чтобы
+	// появление записи в app2.json само по себе не запускало сбор.
+	Enabled bool
+	// Endpoint - базовый URL REST API management-сервера, БЕЗ завершающего
+	// "/", например "https://scom-ms01.example.local/OperationsManager".
+	Endpoint string
+	// AuthMode - режим аутентификации POST /OperationsManager/authenticate
+	// (тело - base64 строки "<AuthMode>:<Domain\Login>:<Password>", см.
+	// PowerShell-пример в официальном Operations Manager REST API
+	// Reference): "Network" - явные учётные данные (Domain/Login/Password
+	// ниже); "Windows" - учётные данные процесса (Negotiate/Kerberos), для
+	// Go потребует отдельного SPNEGO-клиента - до проверки на реальном
+	// сервере использовать "Network".
+	AuthMode string
+	Domain   string // домен AD учётной записи (часть "DOMAIN\login")
+	Login    string // сервисная учётная запись с правами Operator/Read-only Operator в SCOM
+	// Password - пароль; значение "password" - как и у ConfigOV/vCenter,
+	// признак "подставить из хранилища ключей" (utilities.GetKeyData(Login)).
+	Password string
+	// InsecureSkipVerify - отключить проверку TLS-сертификата (как
+	// zabbixmetrics.InsecureSkipVerify); только для тестовых стендов.
+	InsecureSkipVerify bool
+	// ClassName - класс объектов SCOM, которые опрашиваются (тело запроса
+	// POST /data/scomObjectsByClass); пусто -> "Microsoft.Windows.Computer".
+	// Метрики собираются только для тех из них, кто сопоставлен с
+	// ServerSprRecords аппаратного сервера (Type=0) без ZabbixHostId.
+	ClassName string
+	// IntervalSec - период опроса, сек; 0 -> 300. Правила сбора
+	// счётчиков Windows Server MP по умолчанию пишут значения раз в 5
+	// минут, поэтому поминутный опрос (как у Zabbix) смысла не имеет.
+	IntervalSec int
+	// InventoryIntervalSec - период обновления списка компьютеров, их
+	// свойств (ScomHost, дозаполнение ServerSprRecords) и списков счётчиков,
+	// сек; 0 -> 3600.
+	InventoryIntervalSec int
+	// PerfDuration - значение поля "duration" запроса POST
+	// /OperationsManager/data/performance (окно, за которое SCOM вернёт
+	// average/min/max/last). Единица измерения в документации НЕ указана,
+	// поэтому сборщик берёт "lastvalue" (последний замер), а окно нужно
+	// лишь достаточно широким, чтобы в него попал хотя бы один замер;
+	// 0 -> 60.
+	PerfDuration int
+	// OperationTimeoutSec - таймаут одного HTTP-запроса к SCOM, сек; 0 -> 120.
+	OperationTimeoutSec int
+}
+
 // AuthenticationGroup описывает соответствие одной группы MS Active
 // Directory уровню привилегий loadmon (см. JsonConfig.Auth) - используется
 // при доменной (Kerberos/SPNEGO) аутентификации: список групп пользователя,
@@ -97,6 +155,11 @@ type JsonConfig struct {
 	OneViewCollectTimeoutSec int
 	// GrpcHardwareTimeoutSec — таймаут gRPC-запросов к инвентарю оборудования OneView (сек).
 	GrpcHardwareTimeoutSec int
+
+	// ConfigSCOM - подключения к Microsoft SCOM (REST API) для сбора
+	// метрик ОС серверов и сведений для ServerSprRecords (пакет
+	// scommetrics), см. ScomEndpoint и kontext/13-scom-metrics.md.
+	ConfigSCOM []ScomEndpoint
 
 	// --- Уведомления по электронной почте (SMTP) - добавлено 2026-09-04
 	// по запросу "реализовать возможность отправки уведомлений по
@@ -229,7 +292,7 @@ func (s *JsonConfig) LoadConfigData() (JsonConfig, error) {
 	if err != nil {
 		return *s, err
 	}
-	log.Printf("config: загружен %s (WorkMode=%s, vCenters=%d Oneview=%d)", fullPath, s.WorkMode, len(s.ConfigVCenters), len(s.ConfigOV))
+	log.Printf("config: загружен %s (WorkMode=%s, vCenters=%d Oneview=%d SCOM=%d)", fullPath, s.WorkMode, len(s.ConfigVCenters), len(s.ConfigOV), len(s.ConfigSCOM))
 	return *s, nil
 }
 

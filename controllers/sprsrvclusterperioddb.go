@@ -301,7 +301,7 @@ func (this *MainController) SprClusterPeriodDB() {
 			serverIds = append(serverIds, id)
 		}
 		var srvList []models.ServerSprRecords
-		_, _ = o.QueryTable("server_spr_records").Filter("Id__in", serverIds).All(&srvList, "Id", "SerialNumber")
+		_, _ = models.ServerSprQS(o).Filter("Id__in", serverIds).All(&srvList, "Id", "SerialNumber")
 		for _, s := range srvList {
 			serialByServerId[s.Id] = s.SerialNumber
 		}

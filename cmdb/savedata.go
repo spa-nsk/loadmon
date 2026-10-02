@@ -72,7 +72,7 @@ func UpdateHostSprRecord(hs vsphere.HostInfo, cl *vsphere.Cluster) (int64, error
 	foundSrvSpr := false
 	if foundHWSpr { // если есть запись в ServerHardware и нет данных по ServerSprRecords
 		srvspr.HWSprId = hwspr.Id
-		err := trn.Read(&srvspr, "HWSprId")
+		err := models.ServerSprQS(trn).Filter("HWSprId", srvspr.HWSprId).Limit(1).One(&srvspr) // без записей Stat=666
 		if err == nil {
 			foundSrvSpr = true
 			hwspr.ServerId = srvspr.Id
@@ -169,21 +169,21 @@ func UpdateHostSprRecordOld(hs vsphere.HostInfo) (int64, error) {
 	foundSrvSpr := false
 	if !foundSrvSpr {
 		srvspr.SerialNumber = hs.SerialNumber
-		err := o.Read(&srvspr, "SerialNumber")
+		err := models.ServerSprQS(o).Filter("SerialNumber", srvspr.SerialNumber).Limit(1).One(&srvspr)
 		if err == nil {
 			foundSrvSpr = true
 		}
 	}
 	if !foundSrvSpr {
 		srvspr.Name = hs.Name
-		err := o.Read(&srvspr, "Name") //пытамся найти запись в справочнике  по Name
+		err := models.ServerSprQS(o).Filter("Name", srvspr.Name).Limit(1).One(&srvspr) //пытамся найти запись в справочнике  по Name
 		if err == nil {
 			foundSrvSpr = true
 		}
 	}
 	if !foundSrvSpr {
 		srvspr.NameFQDN = hs.Name
-		err := o.Read(&srvspr, "NameFQDN") //пытамся найти запись в справочнике по NameFQDN
+		err := models.ServerSprQS(o).Filter("NameFQDN", srvspr.NameFQDN).Limit(1).One(&srvspr) //пытамся найти запись в справочнике по NameFQDN
 		if err == nil {
 			foundSrvSpr = true
 		}
@@ -452,7 +452,7 @@ func SaveHostCMDBData(cl *vsphere.Cluster, clusterID int64, currentTime time.Tim
 		serverSprRecord := models.ServerSprRecords{Id: serverId}
 
 		//читаем запись в справочнике серверов (должна быть)
-		if err := o.Read(&serverSprRecord, "Id"); err == nil {
+		if err := o.Read(&serverSprRecord, "Id"); err == nil && !models.IsServerSprDestroyed(&serverSprRecord) {
 			//добавлено 27.02.2023
 
 			CopyHostToSprSrv(*host, &serverSprRecord)      //формируем данные для обновления записи в справочнике серверов (включая, vcenter, datacenter, cluster)
@@ -629,7 +629,7 @@ func SaveVMCMDBData(cl *vsphere.Cluster, clusterId int64, currentTime time.Time,
 		srvspr.Datacenter = vm.Datacenter
 		srvspr.Cluster = vm.Cluster
 		srvspr.Name = vm.Name
-		err = trn.Read(&srvspr, "Vcenter", "Datacenter", "Cluster", "Name")
+		err = models.ServerSprQS(trn).Filter("Vcenter", srvspr.Vcenter).Filter("Datacenter", srvspr.Datacenter).Filter("Cluster", srvspr.Cluster).Filter("Name", srvspr.Name).Limit(1).One(&srvspr) // без записей Stat=666
 
 		CopyVmToSprSrv(vm, &srvspr)
 		srvspr.VMSprId = VMSprId

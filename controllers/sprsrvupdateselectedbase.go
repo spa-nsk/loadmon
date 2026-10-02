@@ -56,7 +56,7 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 
 	// список выбранных серверов - показываем, что именно будет изменено
 	selectedRecords := make([]models.ServerSprRecords, 0, len(ids))
-	qs := o.QueryTable("server_spr_records")
+	qs := models.ServerSprQS(o)
 	qs = qs.Filter("Id__in", ids).OrderBy("Name")
 	qs.All(&selectedRecords)
 
@@ -138,6 +138,9 @@ func (this *MainController) SprSrvUpdateSelectedBase() {
 			if err := o.Read(&rec); err != nil {
 				lastErr = err
 				continue
+			}
+			if models.IsServerSprDestroyed(&rec) {
+				continue // помечена к уничтожению (Stat=666) - не изменяется
 			}
 
 			if typeMicroservice != 0 {

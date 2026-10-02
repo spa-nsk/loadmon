@@ -165,7 +165,7 @@ func checkAndCorrect(records []*models.ServerSprRecords, serverName string, cpuC
 
 		srvspr := models.ServerSprRecords{Id: records[i].Id}
 		if err := o.Read(&srvspr, "Id"); err == nil {
-			srvspr.Stat = 666
+			srvspr.Stat = models.ServerSprStatDestroy
 			num, err := o.Update(&srvspr)
 			_ = num
 			_ = err
@@ -446,7 +446,7 @@ func UpdateHwSprHPServers(ov *oneview.Infrastructure) {
 			//                 }
 			srvspr.HWSprId = hw.Id
 
-			err := trn.Read(&srvspr, "HWSprId")
+			err := models.ServerSprQS(trn).Filter("HWSprId", srvspr.HWSprId).Limit(1).One(&srvspr) // без записей Stat=666 ("к уничтожению")
 			if err == nil {
 				foundSrvSpr = true
 				hw.ServerId = srvspr.Id
@@ -618,7 +618,7 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 		if foundHwBySN {
 			srvspr.HWSprId = hw.Id
 
-			err := trn.Read(&srvspr, "HWSprId")
+			err := models.ServerSprQS(trn).Filter("HWSprId", srvspr.HWSprId).Limit(1).One(&srvspr) // без записей Stat=666 ("к уничтожению")
 			if err == nil {
 				foundSrvSpr = true
 				hw.ServerId = srvspr.Id

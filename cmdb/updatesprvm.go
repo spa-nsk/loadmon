@@ -66,7 +66,7 @@ func checkAndCorrectVmSpr(records []*models.VMSprRecord, vm vsphere.VMPoint) int
 		vmspr := models.VMSprRecord{Id: records[i].Id}
 		if err := o.Read(&vmspr, "Id"); err == nil {
 			var list []*models.ServerSprRecords
-			qs := o.QueryTable("server_spr_records")
+			qs := models.ServerSprQS(o)
 			qs = qs.OrderBy("VMSprId")
 			qs = qs.Filter("VMSprId", records[i].Id)
 			num, err := qs.All(&list)
@@ -74,7 +74,7 @@ func checkAndCorrectVmSpr(records []*models.VMSprRecord, vm vsphere.VMPoint) int
 				r := models.ServerSprRecords{Id: srv.Id}
 				o.Read(&r, "Id")
 				r.VMSprId = 0
-				r.Stat = 6666
+				r.Stat = models.ServerSprStatDestroy // было 6666 - опечатка, значение вне всех фильтров
 				num, err := o.Update(&r)
 				_ = num
 				_ = err
@@ -159,7 +159,7 @@ func checkAndCorrectVM(records []*models.ServerSprRecords, vm vsphere.VMPoint) i
 
 		srvspr := models.ServerSprRecords{Id: records[i].Id}
 		if err := o.Read(&srvspr, "Id"); err == nil {
-			srvspr.Stat = 666
+			srvspr.Stat = models.ServerSprStatDestroy
 			num, err := o.Update(&srvspr)
 			_ = num
 			_ = err
@@ -260,14 +260,14 @@ func UpdateSprVM() {
 			continue
 		}
 
-		qs = o.QueryTable("server_spr_records")
+		qs = models.ServerSprQS(o)
 		qs = qs.OrderBy("name") //сортировка по кратким именам серверов
 		//		qs = qs.Filter("type__eq", 1).Filter("VMSprId__eq", VMSprId).Filter("name__icontains", vmName) // type == 1 виртуальные серверы + краткое имя без учета регистра
 
 		cond := orm.NewCondition()
 		cond1 := cond.And("Type__eq", 1).And("VMSprId__eq", VMSprId).AndCond(cond.Or("Name__iexact", vmName).Or("Name__iexact", vmHostName).Or("NameFQDN__iexact", vmName).Or("NameFQDN__iexact", vmHostName))
 		//cond1 := cond.And("type__eq", 1).AndCond(cond.And("name__iexact", vmName).Or("name__iexact", vmHostName).Or("NameFQDN__iexact", vmName).Or("NameFQDN__iexact", vmHostName))
-		qs = qs.SetCond(cond1) // type == 1 виртуальные серверы + краткое имя без учета регистра
+		qs = qs.SetCond(models.ExcludeDestroyedCond(cond1)) // type == 1 виртуальные серверы + краткое имя без учета регистра
 
 		num, err := qs.All(&records)
 		_ = err
@@ -328,313 +328,6 @@ func UpdateSprVM() {
 			}
 		} else {
 			_ = err
-		}
-	}
-}
-
-// UpdateVMMove корректирует записи справочника виртуальных машин после их переноса между
-// кластерами и хостами, синхронизируя привязку к текущей инфраструктуре vSphere.
-func UpdateVMMove() {
-	fmt.Println("Корректировка данных после переносов виртуальных машин")
-	//LockBase()
-	//defer UnlockBase()
-
-	infra := vsphere.GetGlobalVMInfrastructure()
-	if infra == nil {
-		log.Println("Ошибка сохранения данных по виртуальным машинам: Инфраструктура не инициализирована")
-		return
-	}
-
-	/*	vmlist, err := infra.GetVMList()
-		if err != nil {
-			log.Println("Ошибка сохранения данных по виртуальным машинам: ", err)
-			return
-		}
-		//currentTime := time.Now().In(LocalTimezone)
-	*/
-	var (
-		records []*models.ServerSprRecords
-		srvlist map[string]*models.ServerSprRecords
-	)
-	srvlist = make(map[string]*models.ServerSprRecords)
-
-	o := orm.NewOrm()
-	//o.Using("default")
-
-	qs := o.QueryTable("server_spr_records")
-	qs = qs.OrderBy("Type", "Name").Filter("Type", 1).Filter("Stat__ne", 666).Filter("Stat__ne", 3).Filter("OldId", 0) //выбираем VM
-	srvCount, srvErr := qs.All(&records)
-	_ = srvCount
-	_ = srvErr
-
-	for _, srv := range records {
-
-		if srv.Stat == 666 { //пропускаем так как формально удалён
-			continue
-		}
-
-		if srv.Stat == 3 { //пропускаем так как флаг архивного, после переименования
-			continue
-		}
-
-		if srv.OldId > 0 { //пропускаем так как уже обрабатывался и помечена ссылка на архив
-			continue
-		}
-		if srv.VMSprId == 0 {
-			//добавить обработку
-			continue
-		}
-		/*
-			if !vm.Vm_PowerState { //игнорируем выключенные VM
-				continue
-			}
-		*/
-
-		var (
-			//vmRecs []*models.VMSprRecord
-			vm  models.VMSprRecord
-			vm2 models.VMSprRecord
-		)
-		vm.Id = srv.VMSprId
-		err := o.Read(&vm, "Id")
-		if err != nil {
-			fmt.Println("Ошибка: обрыв связи", srv.Id, " с vm_spr_record", srv.VMSprId)
-			continue
-		}
-
-		keyName := vm.Vcenter + "/" + vm.Datacenter + "/" + vm.Cluster + "/" + vm.Vm_Name
-		//		okvm := infra.VM_list[keyName]
-		_, okvm := infra.VMMapList.Get(keyName)
-		if s, ok := srvlist[vm.Vcenter+"/"+vm.Vm_Name+"/"+vm.Vm_Uuid]; ok {
-			vm2.Id = s.VMSprId
-			err := o.Read(&vm2, "Id")
-			if err != nil {
-				fmt.Println("Ошибка: обрыв связи ", s.Id, " с vm_spr_record", s.VMSprId)
-				continue
-			}
-			if s.PowerState == 1 && !okvm { // считаем сервер с id == s.id активным, а srv.Id архивным
-
-				fmt.Println(" on", s.Id, vm2.Id, s.Time_Mfy.Format("02.01.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
-				fmt.Println("off", srv.Id, vm.Id, srv.Time_Mfy.Format("02.01.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
-				srv2 := models.ServerSprRecords{Id: s.Id}
-				o.Read(&srv2, "Id")         //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *srv) //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = srv.Id         //
-				o.Update(&srv2)             //
-				srv2.Id = srv.Id            //
-				o.Read(&srv2, "Id")         //
-				srv2.Stat = 3               //архивная запись
-				srv2.PowerState = 2         //
-				// 2026-09-22: audit-helper (models.SetActiveWithAudit) вместо
-				// прямых присвоений Active/TimeDeActiveState - также
-				// проставляет DeActivatorUser (models.UserSourceVMware, т.к.
-				// это дедупликация архивных дублей VM/vSphere-записей) и не
-				// перезаписывает дату/автора при повторной деактивации.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-			} else if s.PowerState == 2 && okvm { //считаем сервер srv.Id активным, а s.Id архивным
-				fmt.Println("on", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
-				fmt.Println("off", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
-				srv2 := models.ServerSprRecords{Id: srv.Id}
-				o.Read(&srv2, "Id")       //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *s) //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = s.Id         //
-				o.Update(&srv2)           //
-				srv2.Id = s.Id            //
-				o.Read(&srv2, "Id")       //
-				srv2.Stat = 3             //архивная запись
-				srv2.PowerState = 2       //
-				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
-				// models.UserSourceVMware.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-			} else { //оба сервера считаем архивными
-				fmt.Println("off", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
-				fmt.Println("off", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
-				srv2 := models.ServerSprRecords{Id: srv.Id}
-				o.Read(&srv2, "Id") //
-				srv2.Stat = 3       //архивная запись
-				srv2.PowerState = 2 //
-				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
-				// models.UserSourceVMware.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-				srv2.Id = s.Id
-				o.Read(&srv2, "Id") //
-				srv2.Stat = 3       //архивная запись
-				srv2.PowerState = 2 //
-				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
-				// models.UserSourceVMware.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-			}
-			continue
-		} else {
-			p := *srv
-			srvlist[vm.Vcenter+"/"+vm.Vm_Name+"/"+vm.Vm_Uuid] = &p
-			if okvm {
-				p.PowerState = 1
-			} else {
-				p.PowerState = 2
-			}
-		}
-	}
-}
-
-// UpdateVMMoveRename корректирует записи справочника виртуальных машин после переноса и
-// переименования виртуальных машин, восстанавливая соответствие с данными vSphere.
-func UpdateVMMoveRename() {
-	fmt.Println("Корректировка данных после переносов и переименований виртуальных машин")
-	//LockBase()
-	//	defer UnlockBase()
-
-	infra := vsphere.GetGlobalVMInfrastructure()
-	if infra == nil {
-		log.Println("Ошибка сохранения данных по виртуальным машинам: Инфраструктура не инициализирована")
-		return
-	}
-
-	/*	vmlist, err := infra.GetVMList()
-		if err != nil {
-			log.Println("Ошибка сохранения данных по виртуальным машинам: ", err)
-			return
-		}
-		//currentTime := time.Now().In(LocalTimezone)
-	*/
-	var (
-		records []*models.ServerSprRecords
-		srvlist map[string]*models.ServerSprRecords
-	)
-	srvlist = make(map[string]*models.ServerSprRecords)
-
-	o := orm.NewOrm()
-	//o.Using("default")
-
-	qs := o.QueryTable("server_spr_records")
-	qs = qs.OrderBy("Type", "Name").Filter("Type", 1).Filter("Stat__ne", 666).Filter("Stat__ne", 3).Filter("OldId", 0) //выбираем VM
-	srvCount, srvErr := qs.All(&records)
-	_ = srvCount
-	_ = srvErr
-
-	for _, srv := range records {
-
-		if srv.Stat == 666 { //пропускаем так как формально удалён
-			continue
-		}
-
-		if srv.Stat == 3 { //пропускаем так как флаг архивного, после переименования
-			continue
-		}
-
-		if srv.OldId > 0 { //пропускаем так как уже обрабатывался и помечена ссылка на архив
-			continue
-		}
-		if srv.VMSprId == 0 {
-			//добавить обработку
-			continue
-		}
-		/*
-			if !vm.Vm_PowerState { //игнорируем выключенные VM
-				continue
-			}
-		*/
-
-		var (
-			//vmRecs []*models.VMSprRecord
-			vm  models.VMSprRecord
-			vm2 models.VMSprRecord
-		)
-		vm.Id = srv.VMSprId
-		err := o.Read(&vm, "Id")
-		if err != nil {
-			fmt.Println("Ошибка: обрыв связи", srv.Id, " с vm_spr_record", srv.VMSprId) //нет записи в справочнике виртуальных машин
-			continue
-		}
-
-		keyName := vm.Vcenter + "/" + vm.Datacenter + "/" + vm.Cluster + "/" + vm.Vm_Name
-		//		_, okvm := infra.VM_list[keyName] //проверяем наличие виртуальной машины среди включенных
-		_, okvm := infra.VMMapList.Get(keyName) //проверяем наличие виртуальной машины среди включенных
-
-		if s, ok := srvlist[vm.Vcenter+"/"+vm.Vm_Uuid]; ok { //проверяем встречалась ли vm с этим uuid (было переименование или перенос)
-			vm2.Id = s.VMSprId
-			err := o.Read(&vm2, "Id") //проверяем наличие vm в справочнике
-			if err != nil {
-				fmt.Println("Ошибка: обрыв связи ", s.Id, " с vm_spr_record", s.VMSprId)
-				continue
-			}
-			if s.PowerState == 1 && !okvm { // считаем сервер c id == s.id активным, а srv.Id архивным
-
-				fmt.Println(" on", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
-				fmt.Println("off", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
-				srv2 := models.ServerSprRecords{Id: s.Id}
-				o.Read(&srv2, "Id")         //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *srv) //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = srv.Id         //
-				o.Update(&srv2)             //
-				srv2.Id = srv.Id            //
-				o.Read(&srv2, "Id")         //
-				srv2.Stat = 3               //архивная запись
-				srv2.PowerState = 2         //
-				// 2026-09-22: audit-helper (models.SetActiveWithAudit) вместо
-				// прямых присвоений Active/TimeDeActiveState - также
-				// проставляет DeActivatorUser (models.UserSourceVMware, т.к.
-				// это дедупликация архивных дублей VM/vSphere-записей) и не
-				// перезаписывает дату/автора при повторной деактивации.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-			} else if s.PowerState == 2 && okvm { //считаем сервер srv.Id активным, а s.Id архивным
-				fmt.Println(" on", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
-				fmt.Println("off", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
-				srv2 := models.ServerSprRecords{Id: srv.Id}
-				o.Read(&srv2, "Id")       //запоминаем ссылку на архивную запись
-				RestoreSprData(&srv2, *s) //копируем данные из архивной записи, если не заполнены
-				srv2.OldId = s.Id         //
-				o.Update(&srv2)           //
-				srv2.Id = s.Id            //
-				o.Read(&srv2, "Id")       //
-				srv2.Stat = 3             //архивная запись
-				srv2.PowerState = 2       //
-				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
-				// models.UserSourceVMware.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-			} else { //оба сервера считаем архивными
-				fmt.Println("off", srv.Id, vm.Id, srv.Time_Mfy.Format("01.02.2006"), vm.Vcenter, vm.Datacenter, vm.Cluster, vm.Vm_Name, vm.Vm_HostName, vm.Vm_Uuid)
-				fmt.Println("off", s.Id, vm2.Id, s.Time_Mfy.Format("01.02.2006"), vm2.Vcenter, vm2.Datacenter, vm2.Cluster, vm2.Vm_Name, vm2.Vm_HostName, vm2.Vm_Uuid)
-				srv2 := models.ServerSprRecords{Id: srv.Id}
-				o.Read(&srv2, "Id") //
-				srv2.Stat = 3       //архивная запись
-				srv2.PowerState = 2 //
-				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
-				// models.UserSourceVMware.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-				srv2.Id = s.Id
-				o.Read(&srv2, "Id") //
-				srv2.Stat = 3       //архивная запись
-				srv2.PowerState = 2 //
-				// 2026-09-22: audit-helper вместо прямого присвоения, источник -
-				// models.UserSourceVMware.
-				models.SetActiveWithAudit(&srv2.Active, &srv2.TimeActiveState, &srv2.ActivatorUser, &srv2.TimeDeActiveState, &srv2.DeActivatorUser, 2, models.UserSourceVMware)
-				o.Update(&srv2) //
-
-			}
-			continue
-		} else {
-			p := *srv
-			srvlist[vm.Vcenter+"/"+vm.Vm_Uuid] = &p
-			if okvm {
-				p.PowerState = 1
-			} else {
-				p.PowerState = 2
-			}
 		}
 	}
 }

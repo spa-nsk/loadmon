@@ -16,16 +16,15 @@
      внутреннего контейнера. -->
 
 <div class="hero-text mb-3">
-    <h2>Серверы, выведенные из учёта</h2>
+    <h2>Серверы, выведенные из эксплуатации</h2>
     <p class="text-muted">
-        Записи справочника серверов со статусом Stat=0 - автоматическая сверка с
-        VMware/HPE OneView/Zabbix посчитала, что сервер пропал из соответствующей
-        системы, и вывела запись из учёта (PowerState=выключен, Active=выведен из
-        эксплуатации). Часть таких записей может быть выведена ошибочно (временная
-        недоступность источника, смена идентификатора и т.п.) - здесь их можно
-        вернуть в работу, по одной или группой. Возврат в работу происходит только
-        когда явно выбраны значения "Включен" и "Активен" - тогда Stat автоматически
-        становится 1, и правятся связанные записи по ВМ/аппаратному серверу.
+        Записи справочника серверов с Active=2 (выведен из эксплуатации). Автоматически
+        так помечается сервер, который не найден ни в одном источнике (VMware, HPE OneView,
+        Zabbix, SCOM) при условии, что все источники отработали без ошибок; ручные записи и
+        данные из Итиллиум автоматически не выводятся. Здесь записи можно вернуть в работу,
+        по одной или группой: выберите "Активен" - вместе с записью обновятся связанные
+        записи по ВМ/аппаратному серверу. Если сервер так и не появится в источниках,
+        автоматика снова выведет его из эксплуатации.
     </p>
 </div>
 
@@ -87,7 +86,7 @@
                 <th class="text-center">PowerState</th>
                 <th class="text-center">Active</th>
                 <th class="text-center">Источник (SourceUpdateType)</th>
-                <th>Выведен из учёта</th>
+                <th>Выведен из эксплуатации</th>
             </tr>
         </thead>
         <tbody>
@@ -107,7 +106,7 @@
                 <td class="text-center">{{if eq $r.PowerState 1}}Включен{{else if eq $r.PowerState 2}}Выключен{{else}}—{{end}}</td>
                 <td class="text-center">{{if eq $r.Active 1}}Активен{{else if eq $r.Active 2}}Выведен{{else}}—{{end}}</td>
                 <td class="text-center">
-                    {{if eq $r.SourceUpdateType 1}}Вручную{{else if eq $r.SourceUpdateType 2}}VMware{{else if eq $r.SourceUpdateType 3}}HPE OneView{{else if eq $r.SourceUpdateType 4}}Zabbix{{else}}не указано{{end}}
+                    {{if eq $r.SourceUpdateType 1}}Вручную{{else if eq $r.SourceUpdateType 2}}VMware{{else if eq $r.SourceUpdateType 3}}HPE OneView{{else if eq $r.SourceUpdateType 4}}Zabbix{{else if eq $r.SourceUpdateType 5}}SCOM{{else}}не указано{{end}}
                 </td>
                 <td class="small">{{if not $r.TimeDeActiveState.IsZero}}{{$r.TimeDeActiveState.Format "2006-01-02 15:04"}}{{else}}—{{end}}</td>
                 <td id="deactRowMenu{{$ind}}" class="d-none">
@@ -140,7 +139,7 @@
         </div>
     </div>
     {{else}}
-    <p class="text-muted mt-3">Нет серверов, выведенных из учёта, по текущему фильтру.</p>
+    <p class="text-muted mt-3">Нет серверов, выведенных из эксплуатации, по текущему фильтру.</p>
     {{end}}
 </form>
 
