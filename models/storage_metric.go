@@ -69,6 +69,11 @@ func ReplaceStorageMetrics(ctx context.Context, rows []*StorageMetric) error {
 			if row.StorageSystemsId <= 0 {
 				return fmt.Errorf("models: StorageMetric.StorageSystemsId is required")
 			}
+			// PollError - varchar(512): длинный текст ошибки (например,
+			// перечень всех неудавшихся пачек real-time запросов Unity)
+			// ронял вставку ВСЕЙ пачки строк за минуту ("pq: value too long
+			// for type character varying(512)", 2026-10-02) - обрезаем.
+			row.PollError = TruncateRunes(row.PollError, StoragePollErrorMaxLen)
 			if _, err := qs.Filter("StorageSystemsId", row.StorageSystemsId).
 				Filter("CollectedAt", row.CollectedAt).
 				Delete(); err != nil {
@@ -78,4 +83,17 @@ func ReplaceStorageMetrics(ctx context.Context, rows []*StorageMetric) error {
 		_, err := tx.InsertMultiWithCtx(ctx, 50, rows)
 		return err
 	})
+}
+
+// StoragePollErrorMaxLen - размер колонки storage_metric.poll_error (size(512)).
+const StoragePollErrorMaxLen = 512
+
+// TruncateRunes обрезает строку до max символов (не байт - PostgreSQL varchar(n)
+// считает символы), добавляя "…" в конце, если обрезка была.
+func TruncateRunes(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max || max <= 0 {
+		return s
+	}
+	return string(r[:max-1]) + "…"
 }

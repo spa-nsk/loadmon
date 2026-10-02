@@ -151,6 +151,16 @@ func main() {
 		scommetrics.RunAll(ctx)
 	}()
 
+	// Суточная агрегация метрик СХД и серверов (storage_metric_record,
+	// server_metric_record): догон за 3 дня при старте, ежечасно за сегодня,
+	// после полуночи - за прошедший день. Не зависит от ночного
+	// SaveMetricData, см. cmdb/aggregation_scheduler.go.
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		cmdb.RunMetricAggregation(ctx)
+	}()
+
 	log.Println("Используется : ", runtime.NumCPU(), " CPU", "Количество Goroutine: ", runtime.NumGoroutine()) //количество потоков на старте
 
 	fmt.Println("Запуск в режиме: ", config.ConfigData.WorkMode)

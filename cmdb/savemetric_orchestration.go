@@ -146,20 +146,12 @@ func SaveMetricData() {
 	// результата.
 	saveVMwareMetricData(currentTime)
 
-	// Суточная агрегация поминутных метрик Zabbix (models.ServerMetric,
-	// таблица server_metric, заполняется пакетом zabbixmetrics) в
-	// models.ServerMetricRecord (server_metric_record) - по аналогии с
-	// SaveVMRecord/SaveHostRecord/SaveClusterRecord выше, но не привязана к
-	// конкретному кластеру/vCenter (метрики server_metric идут по всем
-	// хостам группы Zabbix сразу), поэтому вызывается один раз за цикл, а
-	// не внутри цикла по clList. См. cmdb/saveservermetricrecord.go.
-	// НЕ зависит от saveVMwareMetricData выше - см. комментарий к ней.
-	SaveServerMetricRecord(currentTime)
-
-	// Суточная агрегация поминутных метрик СХД (storage_metric →
-	// storage_metric_record). НЕ зависит от saveVMwareMetricData выше - см.
-	// комментарий к ней.
-	SaveStorageMetricRecord(currentTime)
+	// Суточная агрегация server_metric/storage_metric отсюда УБРАНА
+	// (2026-10-02): её выполняет независимый планировщик
+	// cmdb.RunMetricAggregation (cmdb/aggregation_scheduler.go) - догон при
+	// старте, ежечасно за сегодня и окончательно за прошедший день после
+	// полуночи. Здесь она зависела от vSphere-части, которая идёт часами, и
+	// срывалась при её зависании или перезапуске процесса.
 
 	//  for !atomic.CompareAndSwapInt32(&flDelOldVMMetrics, 1, 0) {
 	//      runtime.Gosched()

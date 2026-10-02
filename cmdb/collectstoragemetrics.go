@@ -6,6 +6,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"loadmon/lenovostorage"
@@ -29,6 +31,21 @@ const storageMetricRetention = time.Hour * 24 * 3
 // опрашиваются все СХД с Power=1, как раньше.
 var CollectStorageMetricsOnly string
 
+// collectStorageMetricsRunning - признак выполняющегося цикла
+// CollectStorageMetrics. metrics_grpc запускает его каждую минуту в новой
+// горутине, а цикл по всем СХД длится дольше минуты (один опрос Unity с
+// сотнями LUN - 10+ пачек real-time запросов по ~11 с). Без этой защиты
+// циклы накладывались, и к одной Unity одновременно шло несколько
+// real-time запросов из разных циклов - отсюда HTTP 422 "The system has
+// reached the maximum number of real-time subscriptions" (0x7d14024,
+// 2026-10-02). Новый цикл, пока предыдущий не закончился, пропускается.
+var collectStorageMetricsRunning int32
+
+// storageMetricWorkers - сколько СХД опрашивается параллельно в одном цикле.
+// Разные СХД не делят лимит real-time подписок (он у каждой Unity свой),
+// а одну СХД в цикле опрашивает ровно один воркер.
+const storageMetricWorkers = 4
+
 // CollectStorageMetrics собирает поминутные метрики всех активных СХД -
 // обязательно по КАЖДОЙ записи справочника storage_systems (Power==1),
 // вне зависимости от вендора/ApiType (см. collectStorageMetricForSystem -
@@ -36,6 +53,13 @@ var CollectStorageMetricsOnly string
 // задан CollectStorageMetricsOnly - опрашивается только одна СХД с этим
 // ShortName.
 func CollectStorageMetrics() {
+	if !atomic.CompareAndSwapInt32(&collectStorageMetricsRunning, 0, 1) {
+		log.Println("cmdb.CollectStorageMetrics: предыдущий цикл опроса СХД ещё выполняется - этот запуск пропущен")
+		return
+	}
+	defer atomic.StoreInt32(&collectStorageMetricsRunning, 0)
+	started := time.Now()
+
 	o := orm.NewOrm()
 	var systems []*models.StorageSystems
 	if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Power", 1).All(&systems); err != nil {
@@ -70,15 +94,33 @@ func CollectStorageMetrics() {
 
 	collectedAt := time.Now().Local().Truncate(time.Minute)
 	rows := make([]*models.StorageMetric, 0, len(systems))
+	var (
+		mu   sync.Mutex
+		wg   sync.WaitGroup
+		jobs = make(chan *models.StorageSystems)
+	)
+	for w := 0; w < storageMetricWorkers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for shd := range jobs {
+				row := safeCollectStorageMetricForSystem(shd, collectedAt)
+				if row != nil {
+					mu.Lock()
+					rows = append(rows, row)
+					mu.Unlock()
+				}
+			}
+		}()
+	}
 	for _, shd := range systems {
 		if shd == nil || shd.Id <= 0 {
 			continue
 		}
-		row := safeCollectStorageMetricForSystem(shd, collectedAt)
-		if row != nil {
-			rows = append(rows, row)
-		}
+		jobs <- shd
 	}
+	close(jobs)
+	wg.Wait()
 	if len(rows) == 0 {
 		// (2026-09-22) Аналогично случаю "нет СХД с Power=1" выше - раньше
 		// здесь тоже был молчаливый return. По жалобе пользователя
@@ -95,7 +137,7 @@ func CollectStorageMetrics() {
 		log.Println("cmdb.CollectStorageMetrics: ошибка записи storage_metric:", err)
 		return
 	}
-	log.Printf("cmdb.CollectStorageMetrics: записано %d строк в storage_metric за %s (СХД с Power=1: %d)", len(rows), collectedAt.Format("2006-01-02 15:04:05"), len(systems))
+	log.Printf("cmdb.CollectStorageMetrics: записано %d строк в storage_metric за %s (СХД с Power=1: %d), цикл занял %s", len(rows), collectedAt.Format("2006-01-02 15:04:05"), len(systems), time.Since(started).Round(time.Second))
 }
 
 // safeCollectStorageMetricForSystem оборачивает collectStorageMetricForSystem
