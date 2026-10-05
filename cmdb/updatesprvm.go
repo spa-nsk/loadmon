@@ -211,8 +211,22 @@ func UpdateSprVM() {
 		qs := o.QueryTable("vm_spr_record")
 		qs = qs.Filter("Vcenter", vm.Vcenter).Filter("Datacenter", vm.Datacenter).Filter("Cluster", vm.Cluster).Filter("Vm_Name", vm.Name)
 		vmCount, vmErr := qs.All(&vmRecs)
-		_ = vmCount
 		_ = vmErr
+
+		// 2026-10-05: точный поиск по имени регистрозависим, поэтому при
+		// смене только регистра имени ВМ ("SRV-01" -> "srv-01") не находилась
+		// и заводилась новая пара vm_spr_record + server_spr_records, а
+		// старая оставалась дублем. Если по имени ничего нет - пробуем найти
+		// запись ровно по UUID в том же vCenter (как savevmrecord.go); берём
+		// только однозначное совпадение (одна запись), чтобы не трогать уже
+		// существующие дубли - их разбирают отдельно.
+		if vmCount == 0 && vm.UUID != "" {
+			var byUUID []*models.VMSprRecord
+			if n, err := o.QueryTable("vm_spr_record").Filter("Vcenter", vm.Vcenter).Filter("Vm_Uuid", vm.UUID).All(&byUUID); err == nil && n == 1 {
+				vmRecs = byUUID
+				vmCount = 1
+			}
+		}
 
 		id := int64(0)
 		if vmCount > 1 {
