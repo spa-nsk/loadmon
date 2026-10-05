@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,7 +29,17 @@ import (
 type Infrastructure struct {
 	LockFlag int32
 
-	Endpoints []Config
+	// Endpoints - точки подключения. Меняются только через AddEndpoint/
+	// ReplaceEndpoints (под endpointsMu), читаются через EndpointList()
+	// (снимок) - см. 2026-10-05: перезагрузка конфигурации больше не
+	// пересоздаёт всю структуру, а лишь заменяет этот список.
+	Endpoints   []Config
+	endpointsMu sync.Mutex
+
+	// Refreshing != 0 - сейчас идёт LoadServerHardwareList (сбор из OneView).
+	// Старый снимок данных при этом остаётся доступным (см. B в
+	// LoadServerHardwareList); флаг нужен для индикатора на страницах.
+	Refreshing int32
 
 	// CollectTimeout — общий таймаут на групповой сбор инвентаризации (LoadServerHardwareList).
 	CollectTimeout time.Duration
@@ -106,10 +117,18 @@ func (infra *Infrastructure) CheckLockGetData() int32 {
 // AddEndpoint регистрирует точку подключения HPE OneView/Global Dashboard.
 // operationTimeout — таймаут одной HTTP-операции к appliance (0 — 60 с по умолчанию).
 func (infra *Infrastructure) AddEndpoint(endpoint string, domain string, login string, password string, version int, operationTimeout time.Duration) {
+	infra.endpointsMu.Lock()
+	defer infra.endpointsMu.Unlock()
+	infra.Endpoints = append(infra.Endpoints, NewEndpointConfig(endpoint, domain, login, password, version, operationTimeout))
+}
+
+// NewEndpointConfig собирает Config точки подключения (те же значения по
+// умолчанию, что и в AddEndpoint).
+func NewEndpointConfig(endpoint string, domain string, login string, password string, version int, operationTimeout time.Duration) Config {
 	if operationTimeout <= 0 {
 		operationTimeout = 60 * time.Second
 	}
-	infra.Endpoints = append(infra.Endpoints, Config{
+	return Config{
 		Endpoint:    endpoint,
 		Username:    login,
 		Password:    password,
@@ -117,7 +136,47 @@ func (infra *Infrastructure) AddEndpoint(endpoint string, domain string, login s
 		APIVersion:  version,
 		InsecureTLS: true,
 		Timeout:     operationTimeout,
-	})
+	}
+}
+
+// ReplaceEndpoints атомарно заменяет список точек подключения, НЕ трогая
+// собранные данные (Servers/ServerBySN/...). Используется при перезагрузке
+// конфигурации (config.InitParams) вместо пересоздания всей структуры:
+// раньше GlobalInitOVInfrastructure обнуляла данные, и на всё время
+// очередного сбора из OneView списки серверов были пустыми.
+func (infra *Infrastructure) ReplaceEndpoints(cfgs []Config) {
+	infra.endpointsMu.Lock()
+	defer infra.endpointsMu.Unlock()
+	infra.Endpoints = append(make([]Config, 0, len(cfgs)), cfgs...)
+}
+
+// EndpointList возвращает копию списка точек подключения (потокобезопасно).
+func (infra *Infrastructure) EndpointList() []Config {
+	infra.endpointsMu.Lock()
+	defer infra.endpointsMu.Unlock()
+	return append(make([]Config, 0, len(infra.Endpoints)), infra.Endpoints...)
+}
+
+// OVState - состояние последнего сбора данных для индикатора в интерфейсе.
+type OVState struct {
+	Refreshing  bool
+	LastRefresh time.Time
+	LastError   string
+	ServerCount int
+}
+
+// State возвращает текущее состояние сбора и размер загруженного снимка.
+func (infra *Infrastructure) State() OVState {
+	infra.WaitUnLockGetData()
+	st := OVState{
+		Refreshing:  atomic.LoadInt32(&infra.Refreshing) != 0,
+		LastRefresh: infra.LastRefresh,
+		ServerCount: infra.ServersCount,
+	}
+	if infra.LastError != nil {
+		st.LastError = infra.LastError.Error()
+	}
+	return st
 }
 
 // SetCollectTimeout задаёт общий таймаут на групповой сбор инвентаризации.
@@ -191,17 +250,39 @@ func DestroyGlobalOVInfrastructureObj() {
 func (infra *Infrastructure) LoadServerHardwareList() ([]*Server, error) {
 	infra.WaitUnLockGetData()
 
+	// Параллельные вызовы (тикер + старт) не нужны: второй просто ждёт
+	// окончания первого, чтобы не нагружать OneView дважды.
+	if !atomic.CompareAndSwapInt32(&infra.Refreshing, 0, 1) {
+		log.Println("LoadServerHardwareList: сбор уже выполняется - повторный запуск пропущен")
+		return infra.Servers, nil
+	}
+	defer atomic.StoreInt32(&infra.Refreshing, 0)
+
 	collectTimeout := infra.CollectTimeout
 	if collectTimeout <= 0 {
 		collectTimeout = 120 * time.Minute
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), collectTimeout)
 	defer cancel()
-	log.Println("количество конфигураций: ", len(infra.Endpoints), infra.Endpoints)
-	servers, err := CollectServers(ctx, infra.Endpoints)
+	endpoints := infra.EndpointList()
+	log.Println("количество конфигураций: ", len(endpoints))
+	servers, err := CollectServers(ctx, endpoints)
 
 	infra.LockGetData()
 	defer infra.UnLockGetData()
+
+	// B (2026-10-05): сбор шёл БЕЗ блокировки и старый снимок оставался
+	// доступным, но результат при ошибке/таймауте раньше безусловно
+	// заменял снимок - пустой или урезанный список держался до следующего
+	// цикла (6 часов). Теперь при ошибке сбора, если новый результат меньше
+	// предыдущего, предыдущий снимок сохраняется, ошибка фиксируется в
+	// LastError (по ней источник OneView считается недоступным и
+	// ReconcileServerSprRecordsTypeAndState не помечает серверы "не найден").
+	if err != nil && len(servers) < len(infra.Servers) {
+		log.Printf("LoadServerHardwareList: ошибка сбора (%v); получено %d серверов, в предыдущем снимке %d - предыдущий снимок сохранён", err, len(servers), len(infra.Servers))
+		infra.LastError = err
+		return infra.Servers, err
+	}
 
 	list := make([]*Server, 0, len(servers))
 	bySN := make(map[string]*Server, len(servers))

@@ -82,9 +82,13 @@ func collectFromConfig(ctx context.Context, cfg Config) ([]Server, error) {
 	}
 	defer c.Logout(ctx)
 
-	exports, err := c.ExportServers(ctx, ListOptions{Count: -1}, ExportOptions{})
-	if err != nil {
-		return nil, err
+	// C (2026-10-05): ExportServers при частичных ошибках возвращает уже
+	// собранные серверы вместе с ошибкой - их нужно сохранить, а не
+	// отбросить; ошибка передаётся дальше (CollectServers объединяет её с
+	// остальными, LoadServerHardwareList фиксирует в LastError).
+	exports, exportErr := c.ExportServers(ctx, ListOptions{Count: -1}, ExportOptions{Concurrency: cfg.Workers})
+	if exportErr != nil && len(exports) == 0 {
+		return nil, exportErr
 	}
 	cat := c.loadLocationCatalog(ctx)
 	src := ServerSource{
@@ -102,7 +106,7 @@ func collectFromConfig(ctx context.Context, cfg Config) ([]Server, error) {
 		fillServerLocation(&s, exp, cat)
 		addOrMergeServer(&out, seen, s)
 	}
-	return out, nil
+	return out, exportErr
 }
 
 func serverFromExport(exp *ServerExport, src ServerSource) Server {

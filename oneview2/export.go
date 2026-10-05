@@ -3,6 +3,7 @@ package oneview
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +12,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -66,16 +69,83 @@ func (c *Client) ExportServers(ctx context.Context, listOpts ListOptions, opts E
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ServerExport, 0, len(col.Members))
-	for i := range col.Members {
-		log.Printf("Exporting server: %d/%d %s (%s)", i+1, len(col.Members), col.Members[i].Name, col.Members[i].SerialNumber)
-		exp, err := c.exportHardware(ctx, &col.Members[i], opts)
-		if err != nil {
-			return out, fmt.Errorf("oneview: export %s: %w", col.Members[i].Name, err)
-		}
-		out = append(out, exp)
+	total := len(col.Members)
+	workers := opts.Concurrency
+	if workers < 1 {
+		workers = 1
 	}
-	return out, nil
+	if workers > maxExportConcurrency {
+		workers = maxExportConcurrency
+	}
+	if workers > total {
+		workers = total
+	}
+
+	// D (2026-10-05): пул воркеров; результаты складываются по индексу, чтобы
+	// порядок серверов в итоговом списке не зависел от скорости ответов.
+	// C (2026-10-05): сбой одного сервера не прерывает остальных - ошибки
+	// накапливаются и возвращаются вместе с уже собранным списком; при
+	// отмене/таймауте контекста оставшиеся серверы не запрашиваются.
+	type result struct {
+		exp     *ServerExport
+		err     error
+		skipped bool // не обработан из-за отмены контекста
+	}
+	results := make([]result, total)
+	var counter int32
+	var wg sync.WaitGroup
+	jobs := make(chan int)
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				if ctx.Err() != nil {
+					results[i].skipped = true
+					continue
+				}
+				m := &col.Members[i]
+				log.Printf("Exporting server: %d/%d %s (%s)", atomic.AddInt32(&counter, 1), total, m.Name, m.SerialNumber)
+				results[i].exp, results[i].err = c.safeExportHardware(ctx, m, opts)
+			}
+		}()
+	}
+	for i := 0; i < total; i++ {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+
+	out := make([]*ServerExport, 0, total)
+	var errs []error
+	skipped := 0
+	for i := range results {
+		r := results[i]
+		switch {
+		case r.skipped:
+			skipped++
+		case r.err != nil:
+			log.Printf("Exporting server: ошибка %s (%s): %v - сервер пропущен, сбор продолжается", col.Members[i].Name, col.Members[i].SerialNumber, r.err)
+			errs = append(errs, fmt.Errorf("oneview: export %s: %w", col.Members[i].Name, r.err))
+		case r.exp != nil:
+			out = append(out, r.exp)
+		}
+	}
+	if skipped > 0 {
+		errs = append(errs, fmt.Errorf("oneview: сбор прерван, не обработано серверов: %d из %d: %w", skipped, total, ctx.Err()))
+	}
+	return out, errors.Join(errs...)
+}
+
+// safeExportHardware - exportHardware с защитой от паники воркера (паника в
+// одной горутине без recover уронила бы весь процесс metrics_grpc).
+func (c *Client) safeExportHardware(ctx context.Context, listed *ServerHardware, opts ExportOptions) (exp *ServerExport, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			exp, err = nil, fmt.Errorf("oneview: паника при сборе сервера: %v", r)
+		}
+	}()
+	return c.exportHardware(ctx, listed, opts)
 }
 
 // WriteServerExportJSON writes one dump as indented JSON.

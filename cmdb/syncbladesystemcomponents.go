@@ -46,7 +46,7 @@ func SyncBladeSystemsFromOneView(ov *oneview.Infrastructure) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	for _, cfg := range ov.Endpoints {
+	for _, cfg := range ov.EndpointList() {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {

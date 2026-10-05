@@ -80,11 +80,27 @@ func (this *MainController) SprHwViewList() {
 		log.Println("GetHWRackNames:", err)
 	}
 
-	records, err := grpcclient.GetServerHardwareList(hwFilter.DatacenterName, hwFilter.RackName, hwFilter.Status, hwFilter.MaintenanceMode, hwFilter.PowerState)
+	records, ovState, err := grpcclient.GetServerHardwareListState(hwFilter.DatacenterName, hwFilter.RackName, hwFilter.Status, hwFilter.MaintenanceMode, hwFilter.PowerState)
 	num := len(records)
 
+	// G (2026-10-05): индикатор состояния сбора OneView (баннер в шаблоне).
+	// Пока идёт обновление, показывается предыдущий снимок данных.
+	this.Data["OVStateValid"] = ovState.Valid
+	this.Data["OVRefreshing"] = ovState.Refreshing
+	this.Data["OVLastError"] = ovState.LastError
+	this.Data["OVServerCount"] = ovState.ServerCount
+	if ovState.LastRefresh.IsZero() {
+		this.Data["OVLastRefresh"] = ""
+	} else {
+		this.Data["OVLastRefresh"] = ovState.LastRefresh.Local().Format("02.01.2006 15:04:05")
+	}
+
 	if err != nil || num == 0 {
-		flash.Error("Нет данных для отображения. Измените фильтр для выборки")
+		if ovState.Valid && ovState.Refreshing && ovState.LastRefresh.IsZero() {
+			flash.Notice("Идёт первичная загрузка данных из HPE OneView - список появится после её завершения. Обновите страницу через несколько минут.")
+		} else {
+			flash.Error("Нет данных для отображения. Измените фильтр для выборки")
+		}
 		flash.Store(&this.Controller)
 		this.Data[keyHW] = hwFilter
 		this.Data["OnView"] = 0

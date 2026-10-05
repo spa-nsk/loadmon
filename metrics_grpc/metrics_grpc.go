@@ -121,8 +121,13 @@ func main() {
 		log.Println("Загрузка данных по конфигурациям серверов")
 		srv, err := ov.LoadServerHardwareList()
 		if err != nil {
+			// 2026-10-05: при частичной ошибке сбора (C) серверы всё равно
+			// есть - инвентаризацию выполняем, если что-то загружено;
+			// деактивацию "не найден" защищает LastError источника OneView
+			// (cmdb/serverstate_sources.go: ovCertain).
 			log.Println("Ошибка загрузки данных по конфигурациям серверов: ", err)
-		} else {
+		}
+		if len(srv) > 0 {
 			log.Println("Загрузка данных по конфигурациям серверов завершена. Всего серверов: ", len(srv))
 			log.Println("Обновление конфигураций серверов")
 			cmdb.UpdateServerInventory()

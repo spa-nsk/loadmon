@@ -28,6 +28,9 @@ type Config struct {
 	// InsecureTLS skips TLS certificate verification (lab use only).
 	InsecureTLS bool
 	Timeout     time.Duration
+	// Workers - число параллельных воркеров при подробном сборе серверов
+	// (CollectServers -> ExportServers); 0/1 - последовательно.
+	Workers   int
 	IfMatch     string
 	UserAgent   string
 	HTTPClient  *http.Client

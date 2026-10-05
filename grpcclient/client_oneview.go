@@ -21,8 +21,12 @@ import (
 	"io"
 	pb "loadmon/protocol"
 	"log"
+	"net/url"
+	"strconv"
+	"time"
 
 	oneview "github.com/spa-nsk/oneview2"
+	"google.golang.org/grpc/metadata"
 )
 
 // GetServerHardwareBySN возвращает данные сервера HPE OneView по серийному
@@ -84,14 +88,74 @@ func GetServerHardwareByVirtualSN(sn string) (*oneview.Server, bool) {
 	return &out, true
 }
 
+// OVRefreshState - состояние сбора данных HPE OneView на стороне сервера
+// (передаётся в trailer-метаданных потока GetServerHardwareList, см.
+// grpcserver.OVStateTrailer). Valid=false - сервер состояние не передал
+// (старая версия сервера или ошибка до начала потока).
+type OVRefreshState struct {
+	Valid       bool
+	Refreshing  bool      // сейчас идёт сбор из OneView
+	LastRefresh time.Time // время последнего успешного снимка (zero - ещё не было)
+	LastError   string    // ошибка последнего сбора
+	ServerCount int       // число серверов в снимке
+}
+
+// Имена trailer-метаданных - дублируют grpcserver.TrailerOV* (пакет
+// grpcclient не импортирует grpcserver).
+const (
+	trailerOVRefreshing  = "x-ov-refreshing"
+	trailerOVLastRefresh = "x-ov-last-refresh"
+	trailerOVLastError   = "x-ov-last-error"
+	trailerOVCount       = "x-ov-server-count"
+)
+
+func ovStateFromTrailer(md metadata.MD) OVRefreshState {
+	first := func(key string) (string, bool) {
+		if v := md.Get(key); len(v) > 0 {
+			return v[0], true
+		}
+		return "", false
+	}
+	st := OVRefreshState{}
+	r, ok := first(trailerOVRefreshing)
+	if !ok {
+		return st
+	}
+	st.Valid = true
+	st.Refreshing = r == "1"
+	if v, ok := first(trailerOVLastRefresh); ok {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			st.LastRefresh = time.Unix(n, 0)
+		}
+	}
+	if v, ok := first(trailerOVLastError); ok {
+		if u, err := url.QueryUnescape(v); err == nil {
+			st.LastError = u
+		}
+	}
+	if v, ok := first(trailerOVCount); ok {
+		st.ServerCount, _ = strconv.Atoi(v)
+	}
+	return st
+}
+
 // GetServerHardwareList возвращает список серверов HPE OneView,
 // отфильтрованных по датацентру, стойке, статусу, режиму обслуживания и
 // состоянию питания (пустая строка — фильтр не применяется).
 func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, powerState string) ([]*oneview.Server, error) {
+	out, _, err := GetServerHardwareListState(datacenterName, rackName, status, maintenanceMode, powerState)
+	return out, err
+}
+
+// GetServerHardwareListState - то же, что GetServerHardwareList, плюс
+// состояние сбора OneView на сервере (для индикатора "идёт обновление" на
+// страницах, 2026-10-05).
+func GetServerHardwareListState(datacenterName, rackName, status, maintenanceMode, powerState string) ([]*oneview.Server, OVRefreshState, error) {
 	out := make([]*oneview.Server, 0)
+	state := OVRefreshState{}
 	c, conn, ctx, cancel, err := dialAPIHardware()
 	if err != nil {
-		return out, err
+		return out, state, err
 	}
 	defer conn.Close()
 	defer cancel()
@@ -114,8 +178,9 @@ func GetServerHardwareList(datacenterName, rackName, status, maintenanceMode, po
 			MessageToServerHardware(srv, &s)
 			out = append(out, &s)
 		}
+		state = ovStateFromTrailer(stream.Trailer()) // trailer доступен после завершения чтения потока
 	}
-	return out, nil
+	return out, state, nil
 }
 
 // messageToEnclosureSummary конвертирует ответ pb.BladeEnclosure в
