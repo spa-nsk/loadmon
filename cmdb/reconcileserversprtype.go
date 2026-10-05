@@ -64,6 +64,55 @@ func ReconcileServerSprRecordsTypeAndState() {
 	}
 	log.Printf("ReconcileServerSprRecordsTypeAndState: записей %d, изменено %d, пропущено (источник недостоверен) %d, пропущено (ручные/Итиллиум, нет в источниках) %d",
 		len(records), updated, skippedUncertain, skippedManual)
+
+	syncVMSprPowerState(o, src)
+}
+
+// syncVMSprPowerState поддерживает VMSprRecord.Vm_PowerState в актуальном
+// состоянии для ВСЕХ записей справочника ВМ (2026-10-05), а не только для
+// связанных с обрабатываемыми server_spr_records: в vm_spr_record остаются
+// исторические записи удалённых ВМ, у них признак "включена" не должен
+// оставаться true.
+//
+// Правило: ВМ присутствует в пуле vSphere и эта запись - основная для неё
+// (см. serverStateSources.vmPrimary) -> Vm_PowerState = состояние питания
+// ВМ; ВМ нет в пуле или запись - неосновной дубль -> false. Записи
+// vCenter, который не опрашивает этот процесс или который недавно не был
+// успешно сверен, не меняются (состояние неизвестно, а не "выключено").
+func syncVMSprPowerState(o orm.Ormer, src *serverStateSources) {
+	var changed, toOff, toOn, skipped int
+	for _, vs := range src.vmSpr {
+		if vs == nil {
+			continue
+		}
+		if !src.localVC[vs.Vcenter] || !src.syncedVC[vs.Vcenter] {
+			skipped++
+			continue
+		}
+		vm, _ := src.resolveLocalVM(vs)
+		if vm != nil {
+			if prim := src.vmPrimary[vm]; prim != 0 && prim != vs.Id {
+				vm = nil
+			}
+		}
+		want := vm != nil && vm.PowerState
+		if vs.Vm_PowerState == want {
+			continue
+		}
+		vs.Vm_PowerState = want
+		if _, err := o.Update(vs, "Vm_PowerState"); err != nil {
+			log.Printf("syncVMSprPowerState: vm_spr_record Id=%d %q: %v", vs.Id, vs.Vm_Name, err)
+			continue
+		}
+		changed++
+		if want {
+			toOn++
+		} else {
+			toOff++
+		}
+	}
+	log.Printf("syncVMSprPowerState: записей vm_spr_record %d, изменено %d (включена %d, выключена/нет в vSphere %d), пропущено (vCenter не опрашивается/не сверен) %d",
+		len(src.vmSpr), changed, toOn, toOff, skipped)
 }
 
 type reconcileResult int
