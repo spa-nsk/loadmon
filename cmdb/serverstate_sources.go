@@ -62,6 +62,44 @@ type serverStateSources struct {
 
 	vmSpr map[int64]*models.VMSprRecord
 	hw    map[int64]*models.ServerHardware
+
+	// vmPrimary - для каждой ВМ из локального пула Id "основной" записи
+	// vm_spr_record. Несколько записей vm_spr_record (и связанных
+	// server_spr_records) могут указывать на одну и ту же ВМ - дубли от
+	// смены регистра имени/пересоздания записи; "живой" считается только
+	// основная (2026-10-05, см. resolveLocalVM).
+	vmPrimary map[*vsphere.VMPoint]int64
+}
+
+// resolveLocalVM ищет в локальном пуле vSphere ВМ, описываемую записью
+// vm_spr_record vs: по точному ключу, по UUID, затем по имени без учёта
+// регистра. Найденная по ключу/имени ВМ принимается, только если UUID не
+// противоречат (иначе это другой объект с тем же именем). Возвращает ВМ и
+// оценку совпадения: 2 - точный ключ (с учётом регистра имени), 1 - прочее.
+func (s *serverStateSources) resolveLocalVM(vs *models.VMSprRecord) (*vsphere.VMPoint, int) {
+	sameVM := func(vm *vsphere.VMPoint) *vsphere.VMPoint {
+		if vm == nil {
+			return nil
+		}
+		if vs.Vm_Uuid != "" && vm.UUID != "" && !strings.EqualFold(vs.Vm_Uuid, vm.UUID) {
+			return nil
+		}
+		return vm
+	}
+	if vm := sameVM(s.vmByKey[vs.Vcenter+"/"+vs.Datacenter+"/"+vs.Cluster+"/"+vs.Vm_Name]); vm != nil {
+		return vm, 2
+	}
+	if vs.Vm_Uuid != "" {
+		if vm := s.vmByVcUUID[vs.Vcenter+"/"+vs.Vm_Uuid]; vm != nil {
+			return vm, 1
+		}
+	}
+	if vs.Vm_Name != "" {
+		if vm := sameVM(s.vmByVcName[vs.Vcenter+"/"+strings.ToLower(vs.Vm_Name)]); vm != nil {
+			return vm, 1
+		}
+	}
+	return nil, 0
 }
 
 func loadServerStateSources(o orm.Ormer) *serverStateSources {
@@ -141,6 +179,21 @@ func loadServerStateSources(o orm.Ormer) *serverStateSources {
 	for _, v := range vms {
 		s.vmSpr[v.Id] = v
 	}
+	// основная запись vm_spr_record для каждой ВМ пула: с точным совпадением
+	// ключа (с учётом регистра имени), при равенстве - с большим Id (новее)
+	s.vmPrimary = map[*vsphere.VMPoint]int64{}
+	primaryScore := map[*vsphere.VMPoint]int{}
+	for _, v := range vms {
+		vm, score := s.resolveLocalVM(v)
+		if vm == nil {
+			continue
+		}
+		cur, ok := s.vmPrimary[vm]
+		if !ok || score > primaryScore[vm] || (score == primaryScore[vm] && v.Id > cur) {
+			s.vmPrimary[vm] = v.Id
+			primaryScore[vm] = score
+		}
+	}
 	var hws []*models.ServerHardware
 	if _, err := o.QueryTable(new(models.ServerHardware)).All(&hws, "Id", "PowerState", "Active", "TimeActiveState", "ActivatorUser", "TimeDeActiveState", "DeActivatorUser", "SourceUpdateType"); err != nil {
 		log.Println("serverstate: чтение server_hardware:", err)
@@ -214,17 +267,24 @@ func (s *serverStateSources) evidence(srv *models.ServerSprRecords) serverEviden
 	if srv.VMSprId > 0 {
 		if vs := s.vmSpr[srv.VMSprId]; vs != nil {
 			ev.vmSpr = vs
-			vm := s.vmByKey[vs.Vcenter+"/"+vs.Datacenter+"/"+vs.Cluster+"/"+vs.Vm_Name]
-			if vm == nil && vs.Vm_Uuid != "" {
-				vm = s.vmByVcUUID[vs.Vcenter+"/"+vs.Vm_Uuid]
-			}
-			if vm == nil && vs.Vm_Name != "" {
-				vm = s.vmByVcName[vs.Vcenter+"/"+strings.ToLower(vs.Vm_Name)]
+			// 2026-10-05: ВМ принимается, только если это тот же объект, что
+			// описан записью vm_spr_record (UUID не противоречат), и если эта
+			// запись - основная для данной ВМ. Иначе старая запись
+			// удалённой/переименованной ВМ ("SRV-01") совпадала по имени без
+			// учёта регистра с текущей ВМ ("srv-01"), считалась найденной и
+			// "оживала" как дубль актуальной.
+			vm, _ := s.resolveLocalVM(vs)
+			if vm != nil {
+				if prim := s.vmPrimary[vm]; prim != 0 && prim != srv.VMSprId {
+					vm = nil // дубль: ВМ ведётся другой записью (vm_spr_record Id=prim)
+				}
 			}
 			if vm == nil && !s.localVC[vs.Vcenter] && vs.Vcenter != "" && vs.Cluster != "" && vs.Vm_Name != "" {
 				// vCenter опрашивает другой экземпляр metrics_grpc - спрашиваем его
 				if p, err := grpcclient.GetVMByKeyDirect(vs.Vcenter, vs.Datacenter, vs.Cluster, vs.Vm_Name); err == nil {
-					vm = &p
+					if vs.Vm_Uuid == "" || p.UUID == "" || strings.EqualFold(vs.Vm_Uuid, p.UUID) {
+						vm = &p
+					}
 				}
 			}
 			ev.vm = vm
