@@ -18,7 +18,19 @@ type ExportOptions struct {
 	SkipHardwareType bool
 	SkipEnclosure    bool
 	SkipSubresources bool // do not GET /memory, /devices, /processors, …
+
+	// Concurrency - число параллельных воркеров ExportServers (подробный
+	// сбор по серверам одного appliance). 0 или 1 - последовательно;
+	// максимум maxExportConcurrency. Клиент потокобезопасен (состояние
+	// сессии под mutex, http.Client общий), каждый воркер пишет только в
+	// свой ServerExport.
+	Concurrency int
 }
+
+// maxExportConcurrency - верхняя граница ExportOptions.Concurrency, чтобы
+// не перегрузить appliance (у OneView есть ограничения на параллельные
+// запросы одной сессии).
+const maxExportConcurrency = 16
 
 // ServerExport is a high-level dump of one physical server: identity, CPUs,
 // DIMMs, local disks/RAID, PCI devices, NICs, firmware, BIOS and profile.

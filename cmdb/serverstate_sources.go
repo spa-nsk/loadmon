@@ -111,7 +111,7 @@ func loadServerStateSources(o orm.Ormer) *serverStateSources {
 
 	// --- HP OneView ---
 	ov := oneview.GetGlobalOVInfrastructure()
-	if ov == nil || len(ov.Endpoints) == 0 {
+	if ov == nil || len(ov.EndpointList()) == 0 {
 		s.ovCertain = true // OneView не настроен - отсутствие в нём ничего не меняет
 	} else {
 		ov.WaitUnLockGetData()

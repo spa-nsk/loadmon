@@ -17,12 +17,15 @@ import (
 	"loadmon/config"
 	pb "loadmon/protocol"
 	"log"
+	"net/url"
 	"sort"
+	"strconv"
 	"time"
 
 	oneview "github.com/spa-nsk/oneview2"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 func hardwareGrpcTimeout() time.Duration {
@@ -229,12 +232,17 @@ func (s *server) GetServerHardwareList(in *pb.HWReq, stream grpc.ServerStreaming
 						return err
 					}
 				}
+				stream.SetTrailer(streamhw.Trailer()) // состояние сбора OneView на воркере (G)
 			}
 		}
 		return nil
 	}
 	ov := oneview.GetGlobalOVInfrastructure()
 	ov.WaitUnLockGetData() // см. комментарий в GetServerHardwareBySN про гонку с LoadServerHardwareList
+
+	// G (2026-10-05): состояние сбора OneView передаётся клиенту в trailer-
+	// метаданных потока (без изменения .proto) - см. OVStateTrailer.
+	stream.SetTrailer(OVStateTrailer(ov.State()))
 
 	for key := range ov.ServerBySN {
 		hw, ok := ov.ServerBySN[key]
@@ -443,3 +451,31 @@ func mergedHWNameList(_ context.Context, call func(c pb.LoadmonClient, ctx conte
 
 // GetClusterSprRecords (реализация LoadmonDBServer) отдаёт клиенту потоком записи справочника кластеров из БД
 // по фильтру ключа. Используется отдельным сервером БД (см. StartDBServerAddr).
+
+// Ключи trailer-метаданных GetServerHardwareList (состояние сбора OneView).
+const (
+	TrailerOVRefreshing  = "x-ov-refreshing"   // "1" - сейчас идёт сбор
+	TrailerOVLastRefresh = "x-ov-last-refresh"  // unix-время последнего успешного снимка, "0" - ещё не было
+	TrailerOVLastError   = "x-ov-last-error"    // текст ошибки последнего сбора (может быть пустым)
+	TrailerOVCount       = "x-ov-server-count"  // число серверов в снимке
+)
+
+// OVStateTrailer формирует trailer-метаданные потока по состоянию сбора.
+// Текст ошибки приводится к ASCII-безопасному виду через url.QueryEscape,
+// т.к. значения gRPC-метаданных не должны содержать непечатаемых символов.
+func OVStateTrailer(st oneview.OVState) metadata.MD {
+	refreshing := "0"
+	if st.Refreshing {
+		refreshing = "1"
+	}
+	last := "0"
+	if !st.LastRefresh.IsZero() {
+		last = strconv.FormatInt(st.LastRefresh.Unix(), 10)
+	}
+	return metadata.Pairs(
+		TrailerOVRefreshing, refreshing,
+		TrailerOVLastRefresh, last,
+		TrailerOVLastError, url.QueryEscape(st.LastError),
+		TrailerOVCount, strconv.Itoa(st.ServerCount),
+	)
+}

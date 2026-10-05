@@ -2,6 +2,19 @@
     <h2>Список конфигураций серверов</h2>
 </div>
 
+{{if .OVStateValid}}
+{{if .OVRefreshing}}
+<div class="alert alert-info py-2 mb-3" role="alert">
+    Идёт обновление данных из HPE OneView. Показан предыдущий снимок{{if .OVLastRefresh}} от {{.OVLastRefresh}}{{end}} ({{.OVServerCount}} серверов).
+</div>
+{{else if .OVLastError}}
+<div class="alert alert-warning py-2 mb-3" role="alert">
+    Последнее обновление данных из HPE OneView завершилось с ошибкой{{if .OVLastRefresh}}; данные актуальны на {{.OVLastRefresh}}{{end}}: {{.OVLastError}}
+</div>
+{{else if .OVLastRefresh}}
+<div class="text-muted small mb-2">Данные HPE OneView актуальны на {{.OVLastRefresh}} ({{.OVServerCount}} серверов).</div>
+{{end}}
+{{end}}
 {{if .flash.error}}
 <blockquote class="blockquote text-danger">{{.flash.error}}</blockquote>
 {{end}}

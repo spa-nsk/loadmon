@@ -31,6 +31,7 @@ type OvEndpoint struct {
 	Endpoint            string
 	Version             int
 	OperationTimeoutSec int // таймаут одной HTTP-операции к appliance; 0 — OneViewOperationTimeoutSec
+	Workers             int // параллельных воркеров подробного сбора серверов; 0 — OneViewWorkers
 }
 
 // ScomEndpoint описывает подключение к одной management group Microsoft
@@ -153,6 +154,10 @@ type JsonConfig struct {
 	OneViewOperationTimeoutSec int
 	// OneViewCollectTimeoutSec — общий таймаут на групповой сбор инвентаризации OneView (сек).
 	OneViewCollectTimeoutSec int
+	// OneViewWorkers — число параллельных воркеров подробного сбора серверов
+	// одного appliance (2026-10-05); 0 — defaultOneViewWorkers, максимум
+	// maxOneViewWorkers. Переопределяется в OvEndpoint.Workers.
+	OneViewWorkers int
 	// GrpcHardwareTimeoutSec — таймаут gRPC-запросов к инвентарю оборудования OneView (сек).
 	GrpcHardwareTimeoutSec int
 
@@ -351,16 +356,23 @@ func (s *JsonConfig) InitParams() error {
 		//		}
 		infra.AddVCenter(vc.Hostname, vc.Username, utilities.GetKeyData(vc.Username), vc.Wait) //добавляем запись с указанием времени опроса и заменой пароля
 	}
-	ov := oneview.GlobalInitOVInfrastructure() //пересоздаем структуру по оборудованию
+	// A (2026-10-05): структура OneView больше НЕ пересоздаётся
+	// (GlobalInitOVInfrastructure обнуляла собранные данные, и на всё время
+	// очередного сбора из OneView списки серверов были пустыми) - заменяется
+	// только список точек подключения и таймаут, собранный снимок остаётся.
+	ov := oneview.GetGlobalOVInfrastructure()
 	ov.SetCollectTimeout(s.OneViewCollectTimeout())
+	endpoints := make([]oneview.Config, 0, len(s.ConfigOV))
 	for _, ovi := range s.ConfigOV {
-		switch ovi.Password {
-		case "password":
-			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
-		default:
-			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, ovi.Password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
+		pwd := ovi.Password
+		if pwd == "password" {
+			pwd = password
 		}
+		ec := oneview.NewEndpointConfig(ovi.Endpoint, ovi.Domain, ovi.Login, pwd, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
+		ec.Workers = s.OneViewWorkersFor(&ovi)
+		endpoints = append(endpoints, ec)
 	}
+	ov.ReplaceEndpoints(endpoints)
 
 	if infra.VCenterMapList.Count() > 0 {
 		if s.WorkMode == "api" {
@@ -379,14 +391,17 @@ func (s *JsonConfig) InitParams() error {
 func (s *JsonConfig) InitOVParams() {
 	password := utilities.GetKeyData("usr-nsk-dati-02@global.bcs")
 
-	ov := oneview.GlobalInitOVInfrastructure()
+	ov := oneview.GetGlobalOVInfrastructure() // не пересоздаём - см. InitParams (A, 2026-10-05)
 	ov.SetCollectTimeout(s.OneViewCollectTimeout())
+	endpoints := make([]oneview.Config, 0, len(s.ConfigOV))
 	for _, ovi := range s.ConfigOV {
-		switch ovi.Password {
-		case "password":
-			ov.AddEndpoint(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
+		if ovi.Password == "password" {
+			ec := oneview.NewEndpointConfig(ovi.Endpoint, ovi.Domain, ovi.Login, password, ovi.Version, s.OneViewOperationTimeoutFor(&ovi))
+			ec.Workers = s.OneViewWorkersFor(&ovi)
+			endpoints = append(endpoints, ec)
 		}
 	}
+	ov.ReplaceEndpoints(endpoints)
 }
 
 // GetCliApiAddr возвращает адрес "host:port" клиента gRPC API из глобальной конфигурации.
@@ -423,7 +438,25 @@ const (
 	defaultOneViewOperationTimeoutSec = 90
 	defaultOneViewCollectTimeoutSec   = 300
 	defaultGrpcHardwareTimeoutSec     = 120
+	defaultOneViewWorkers             = 4
+	maxOneViewWorkers                 = 16
 )
+
+// OneViewWorkersFor возвращает число параллельных воркеров сбора для endpoint
+// (с учётом переопределения), ограниченное [1, maxOneViewWorkers].
+func (s *JsonConfig) OneViewWorkersFor(ovi *OvEndpoint) int {
+	n := s.OneViewWorkers
+	if ovi != nil && ovi.Workers > 0 {
+		n = ovi.Workers
+	}
+	if n <= 0 {
+		n = defaultOneViewWorkers
+	}
+	if n > maxOneViewWorkers {
+		n = maxOneViewWorkers
+	}
+	return n
+}
 
 // OneViewOperationTimeout возвращает таймаут одной HTTP-операции к OneView.
 func (s *JsonConfig) OneViewOperationTimeout() time.Duration {
