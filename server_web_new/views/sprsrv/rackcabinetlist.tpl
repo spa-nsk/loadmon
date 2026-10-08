@@ -50,6 +50,9 @@
                 <th>Альт. наименование</th>
                 <th>ЦОД</th>
                 <th class="text-end">Высота, U</th>
+                <th class="text-end" title="Rack-серверы + корзины (без блейдов)">Ср. 24ч, Вт</th>
+                <th class="text-end">Пик 24ч, Вт</th>
+                <th class="text-end">Паспорт, Вт</th>
             </tr>
         </thead>
         <tbody>
@@ -60,13 +63,16 @@
                 <td>{{$rc.AltName}}</td>
                 <td>{{$rc.DatacenterSiteName}}</td>
                 <td class="text-end">{{$rc.UHeight}}</td>
+                <td class="text-end">{{printf "%.0f" $rc.PowerAvg24hW}}</td>
+                <td class="text-end">{{printf "%.0f" $rc.PowerPeak24hW}}</td>
+                <td class="text-end">{{printf "%.0f" $rc.PowerRatedMaxW}}</td>
                 <td id="rcRowMenu{{$rc.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/rackcabinetedit/{{$rc.Id}}" target="_blank">Редактировать</a>
                 </td>
             </tr>
             {{else}}
             <tr>
-                <td colspan="5" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
+                <td colspan="8" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
             </tr>
             {{end}}
         </tbody>

@@ -59,6 +59,9 @@
                 <th class="text-center">ЦОД</th>
                 <th>Код Jira</th>
                 <th>Описание</th>
+                <th class="text-end" title="Сумма по шкафам площадки">Ср. 24ч, Вт</th>
+                <th class="text-end">Пик 24ч, Вт</th>
+                <th class="text-end">Паспорт, Вт</th>
             </tr>
         </thead>
         <tbody>
@@ -77,13 +80,16 @@
                 </td>
                 <td>{{$dc.CodeJira}}</td>
                 <td>{{$dc.Annotation}}</td>
+                <td class="text-end">{{printf "%.0f" $dc.PowerAvg24hW}}</td>
+                <td class="text-end">{{printf "%.0f" $dc.PowerPeak24hW}}</td>
+                <td class="text-end">{{printf "%.0f" $dc.PowerRatedMaxW}}</td>
                 <td id="dcRowMenu{{$dc.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/datacentersiteedit/{{$dc.Id}}" target="_blank">Редактировать</a>
                 </td>
             </tr>
             {{else}}
             <tr>
-                <td colspan="7" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
+                <td colspan="10" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
             </tr>
             {{end}}
         </tbody>

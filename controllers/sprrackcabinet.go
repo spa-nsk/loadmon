@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"loadmon/csvtools"
+	"loadmon/rackpower"
 	"loadmon/models"
 	"net/http"
 	"os"
@@ -35,6 +36,9 @@ func defaultRackCabinetFilter() *RackCabinetFilter {
 type RackCabinetRow struct {
 	models.RackCabinet
 	DatacenterSiteName string
+	PowerAvg24hW       float64
+	PowerPeak24hW      float64
+	PowerRatedMaxW     float64
 }
 
 // SprRackCabinet отображает список записей справочника шкафов
@@ -168,9 +172,24 @@ func (this *MainController) SprRackCabinet() {
 		}
 	}
 
+	rackIds := make([]int64, 0, len(records))
+	for _, r := range records {
+		if r.Id > 0 {
+			rackIds = append(rackIds, r.Id)
+		}
+	}
+	powerByRack := rackpower.RackCabinetPowerTotalsBatch(o, rackIds)
+
 	rows := make([]RackCabinetRow, 0, len(records))
 	for _, r := range records {
-		rows = append(rows, RackCabinetRow{RackCabinet: r, DatacenterSiteName: dcNameById[r.DatacenterSiteId]})
+		p := powerByRack[r.Id]
+		rows = append(rows, RackCabinetRow{
+			RackCabinet:        r,
+			DatacenterSiteName: dcNameById[r.DatacenterSiteId],
+			PowerAvg24hW:       p.Avg24hW,
+			PowerPeak24hW:      p.Peak24hW,
+			PowerRatedMaxW:     p.RatedMaxW,
+		})
 	}
 
 	this.Data["RackCabinetList"] = rows

@@ -3,12 +3,21 @@ package cmdb
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	models "loadmon/models"
 
 	"github.com/beego/beego/v2/client/orm"
 	oneview "github.com/spa-nsk/oneview2"
 )
+
+// FormatPowerW форматирует ватты для журнала/UI (0 → "0").
+func FormatPowerW(w float64) string {
+	if w == 0 {
+		return "0"
+	}
+	return strconv.FormatFloat(w, 'f', -1, 64)
+}
 
 func oneViewMayUpdateHardwarePower(h *models.ServerHardware) bool {
 	if h == nil {
@@ -38,12 +47,12 @@ func ApplyServerHardwarePowerFromOneView(h *models.ServerHardware, p oneview.Pow
 	}
 }
 
-// ApplyBladeSystemPowerFromOneView — primary: enclosure power; fallback: sum(blades)+overhead.
-func ApplyBladeSystemPowerFromOneView(o orm.QueryExecutor, bls *models.BladeSystems, enc *oneview.Enclosure) {
+// ApplyBladeSystemPowerVariantC — primary measured (enclosure REST или ChassisPower с export);
+// fallback: sum(включённых блейдов)+overhead.
+func ApplyBladeSystemPowerVariantC(o orm.QueryExecutor, bls *models.BladeSystems, measured oneview.PowerWatts) {
 	if bls == nil {
 		return
 	}
-	measured := oneview.EnclosurePowerWatts(enc)
 	var applied oneview.PowerWatts
 	if measured.HasMeasured() || measured.RatedMaxW > 0 {
 		applied = measured
@@ -54,6 +63,29 @@ func ApplyBladeSystemPowerFromOneView(o orm.QueryExecutor, bls *models.BladeSyst
 	bls.PowerPeak24hW = applied.Peak24hW
 	if applied.RatedMaxW > 0 {
 		bls.PowerRatedMaxW = applied.RatedMaxW
+	}
+}
+
+// ApplyBladeSystemPowerFromOneView — GET /rest/enclosures/{id}.
+func ApplyBladeSystemPowerFromOneView(o orm.QueryExecutor, bls *models.BladeSystems, enc *oneview.Enclosure) {
+	ApplyBladeSystemPowerVariantC(o, bls, oneview.EnclosurePowerWatts(enc))
+}
+
+// MaybeUpdateBladeSystemPowerFromServer — дозаполнение корзины из ChassisPower сервера (CollectServers).
+func MaybeUpdateBladeSystemPowerFromServer(o orm.QueryExecutor, bls *models.BladeSystems, chassis oneview.PowerWatts) {
+	if bls == nil || bls.Id <= 0 {
+		return
+	}
+	if !chassis.HasMeasured() && chassis.RatedMaxW <= 0 {
+		return
+	}
+	prev := *bls
+	ApplyBladeSystemPowerVariantC(o, bls, chassis)
+	if bls.PowerAvg24hW == prev.PowerAvg24hW && bls.PowerPeak24hW == prev.PowerPeak24hW && bls.PowerRatedMaxW == prev.PowerRatedMaxW {
+		return
+	}
+	if _, err := o.Update(bls, "PowerAvg24hW", "PowerPeak24hW", "PowerRatedMaxW"); err != nil {
+		fmt.Println("MaybeUpdateBladeSystemPowerFromServer: ошибка обновления корзины Id=", bls.Id, err)
 	}
 }
 

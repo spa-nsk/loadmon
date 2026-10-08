@@ -48,6 +48,18 @@
                             <option value="2" {{if eq .HW.PowerState 2}}selected{{end}}>Выключен</option>
                         </select>
                     </div>
+                    <div class="col-4">
+                        <label class="form-label">Ср. мощность 24ч, Вт</label>
+                        <input type="text" class="form-control" value="{{printf "%.0f" .HW.PowerAvg24hW}}" readonly title="OneView environmentalConfiguration; не редактируется вручную">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Пик 24ч, Вт</label>
+                        <input type="text" class="form-control" value="{{printf "%.0f" .HW.PowerPeak24hW}}" readonly>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Паспорт max, Вт</label>
+                        <input type="text" class="form-control" value="{{printf "%.0f" .HW.PowerRatedMaxW}}" readonly>
+                    </div>
                     <div class="col-6">
                         <label for="Active" class="form-label">Статус</label>
                         <select id="Active" name="Active" class="form-select">

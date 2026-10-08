@@ -143,9 +143,9 @@ func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure) {
 	ApplyBladeSystemPowerFromOneView(o, &bls, enc)
 
 	if found {
-		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerAvg24hW", formatPowerW(prev.PowerAvg24hW), formatPowerW(bls.PowerAvg24hW))
-		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerPeak24hW", formatPowerW(prev.PowerPeak24hW), formatPowerW(bls.PowerPeak24hW))
-		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerRatedMaxW", formatPowerW(prev.PowerRatedMaxW), formatPowerW(bls.PowerRatedMaxW))
+		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerAvg24hW", FormatPowerW(prev.PowerAvg24hW), FormatPowerW(bls.PowerAvg24hW))
+		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerPeak24hW", FormatPowerW(prev.PowerPeak24hW), FormatPowerW(bls.PowerPeak24hW))
+		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerRatedMaxW", FormatPowerW(prev.PowerRatedMaxW), FormatPowerW(bls.PowerRatedMaxW))
 	}
 
 	if found {

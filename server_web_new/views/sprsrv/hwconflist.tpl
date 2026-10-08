@@ -117,6 +117,8 @@
                     <th>Серийный №</th>
                     <th>Процессор</th>
                     <th class="text-end">Память, МБ</th>
+                    <th class="text-end">Ср. 24ч, Вт</th>
+                    <th class="text-end">Пик 24ч, Вт</th>
                     <th>Размещение</th>
                     <th>Имя</th>
                 </tr>
@@ -148,6 +150,8 @@
                         </div>
                     </td>
                     <td class="text-end">{{$hw.MemoryMb}}</td>
+                    <td class="text-end">{{printf "%.0f" $hw.PowerAvg24hW}}</td>
+                    <td class="text-end">{{printf "%.0f" $hw.PowerPeak24hW}}</td>
                     <td>{{index $.HWConfigPlacement $hw.RackCabinetId}}</td>
                     <td>
                         {{if gt $hw.ServerId 0}}
