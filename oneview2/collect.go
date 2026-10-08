@@ -21,6 +21,7 @@ type Server struct {
 	Devices       []PCIDevice         `json:"devices"`
 	NetworkPorts  []NetworkPortExport `json:"networkPorts"`
 	Firmware      []FirmwareComponent `json:"firmware"`
+	Power         PowerWatts          `json:"power"`
 	Datacenter    DatacenterInfo      `json:"datacenter"`
 	Rack          RackInfo            `json:"rack"`
 	EnclosureInfo EnclosureInfo       `json:"enclosure"`
@@ -118,6 +119,7 @@ func serverFromExport(exp *ServerExport, src ServerSource) Server {
 		Devices:      copyDevices(exp.Devices),
 		NetworkPorts: copyPorts(exp.NetworkPorts),
 		Firmware:     copyFirmware(exp.Firmware),
+		Power:        DeriveServerPower(exp),
 		APIVersion:   exp.APIVersion,
 		Product:      exp.Product,
 		Endpoint:     src.Endpoint,
@@ -184,6 +186,7 @@ func mergeServer(dst *Server, src Server) {
 	dst.Devices = preferSlice(dst.Devices, src.Devices, devicesRicher)
 	dst.NetworkPorts = preferSlice(dst.NetworkPorts, src.NetworkPorts, portsRicher)
 	dst.Firmware = preferSlice(dst.Firmware, src.Firmware, firmwareRicher)
+	mergePowerWatts(&dst.Power, src.Power)
 	mergeDatacenterInfo(&dst.Datacenter, src.Datacenter)
 	mergeRackInfo(&dst.Rack, src.Rack)
 	mergeEnclosureInfo(&dst.EnclosureInfo, src.EnclosureInfo)

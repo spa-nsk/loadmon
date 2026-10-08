@@ -140,6 +140,14 @@ func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure) {
 		bls.Anotation = enc.SerialNumber + " Данные добавлены из HP OneView"
 	}
 
+	ApplyBladeSystemPowerFromOneView(o, &bls, enc)
+
+	if found {
+		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerAvg24hW", formatPowerW(prev.PowerAvg24hW), formatPowerW(bls.PowerAvg24hW))
+		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerPeak24hW", formatPowerW(prev.PowerPeak24hW), formatPowerW(bls.PowerPeak24hW))
+		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerRatedMaxW", formatPowerW(prev.PowerRatedMaxW), formatPowerW(bls.PowerRatedMaxW))
+	}
+
 	if found {
 		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "Model", prev.Model, bls.Model)
 		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "Type", prev.Type, bls.Type)
