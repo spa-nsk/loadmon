@@ -742,7 +742,7 @@ func UpdateHwSprHPServersInfra(ov *oneview.Infrastructure, infra *vsphere.VMInfr
 func UpdateHwSprHP() {
 	fmt.Println("Обновление справочника оборудования по данным из HP OneView")
 	ov := oneview.GetGlobalOVInfrastructure()
-	UpdateHwSprHPBladeSystem(ov)
 	UpdateHwSprHPServers(ov)
+	UpdateHwSprHPBladeSystem(ov)
 	fmt.Println("Обновление справочника оборудования завершено")
 }

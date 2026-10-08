@@ -1061,6 +1061,7 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 					}
 				}
 			}
+			MaybeUpdateBladeSystemPowerFromServer(o, &bls, srv.ChassisPower)
 		} else if chassisName != "" { //добавить запись в справочник корзин
 			// Данные о самой корзине (серийный номер/модель/тип) сначала
 			// берём из агрегата ov.EnclosureByName (Infrastructure, см.
@@ -1108,6 +1109,7 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 			} else {
 				bls.Id = id
 				h.BladeSystemId = bls.Id
+				MaybeUpdateBladeSystemPowerFromServer(o, &bls, srv.ChassisPower)
 			}
 		}
 	}
@@ -1167,17 +1169,10 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 		if prev.MemoryMb != h.MemoryMb {
 			logHardwareFieldChange(o, "Server", h.Id, 0, key, "MemoryMb", strconv.Itoa(prev.MemoryMb), strconv.Itoa(h.MemoryMb))
 		}
-		logHardwareFieldChange(o, "Server", h.Id, 0, key, "PowerAvg24hW", formatPowerW(prev.PowerAvg24hW), formatPowerW(h.PowerAvg24hW))
-		logHardwareFieldChange(o, "Server", h.Id, 0, key, "PowerPeak24hW", formatPowerW(prev.PowerPeak24hW), formatPowerW(h.PowerPeak24hW))
-		logHardwareFieldChange(o, "Server", h.Id, 0, key, "PowerRatedMaxW", formatPowerW(prev.PowerRatedMaxW), formatPowerW(h.PowerRatedMaxW))
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "PowerAvg24hW", FormatPowerW(prev.PowerAvg24hW), FormatPowerW(h.PowerAvg24hW))
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "PowerPeak24hW", FormatPowerW(prev.PowerPeak24hW), FormatPowerW(h.PowerPeak24hW))
+		logHardwareFieldChange(o, "Server", h.Id, 0, key, "PowerRatedMaxW", FormatPowerW(prev.PowerRatedMaxW), FormatPowerW(h.PowerRatedMaxW))
 	}
-}
-
-func formatPowerW(w float64) string {
-	if w == 0 {
-		return "0"
-	}
-	return strconv.FormatFloat(w, 'f', -1, 64)
 }
 
 // ImportServerSprFromHW переносит данные о процессорах, памяти, дисковой ёмкости,

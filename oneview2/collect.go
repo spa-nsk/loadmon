@@ -22,6 +22,7 @@ type Server struct {
 	NetworkPorts  []NetworkPortExport `json:"networkPorts"`
 	Firmware      []FirmwareComponent `json:"firmware"`
 	Power         PowerWatts          `json:"power"`
+	ChassisPower  PowerWatts          `json:"chassisPower,omitempty"`
 	Datacenter    DatacenterInfo      `json:"datacenter"`
 	Rack          RackInfo            `json:"rack"`
 	EnclosureInfo EnclosureInfo       `json:"enclosure"`
@@ -105,6 +106,9 @@ func collectFromConfig(ctx context.Context, cfg Config) ([]Server, error) {
 		}
 		s := serverFromExport(exp, src)
 		fillServerLocation(&s, exp, cat)
+		if exp != nil && exp.Enclosure != nil {
+			s.ChassisPower = EnclosurePowerWatts(exp.Enclosure)
+		}
 		addOrMergeServer(&out, seen, s)
 	}
 	return out, exportErr
@@ -187,6 +191,7 @@ func mergeServer(dst *Server, src Server) {
 	dst.NetworkPorts = preferSlice(dst.NetworkPorts, src.NetworkPorts, portsRicher)
 	dst.Firmware = preferSlice(dst.Firmware, src.Firmware, firmwareRicher)
 	mergePowerWatts(&dst.Power, src.Power)
+	mergePowerWatts(&dst.ChassisPower, src.ChassisPower)
 	mergeDatacenterInfo(&dst.Datacenter, src.Datacenter)
 	mergeRackInfo(&dst.Rack, src.Rack)
 	mergeEnclosureInfo(&dst.EnclosureInfo, src.EnclosureInfo)

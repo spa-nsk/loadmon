@@ -101,8 +101,10 @@ func UpdateServerInventory() {
 	infra := vsphere.GetGlobalVMInfrastructure()
 
 	fmt.Println("Синхронизация справочника серверов: HP OneView (аппаратные серверы, передача владения ролью)")
-	UpdateHwSprHPBladeSystem(ov)
+	// Сначала серверы (мощность environmentalConfiguration в ServerHardware),
+	// затем корзины (вариант C: enclosure power или fallback sum блейдов).
 	UpdateHwSprHPServersInfra(ov, infra)
+	UpdateHwSprHPBladeSystem(ov)
 
 	fmt.Println("Синхронизация справочника серверов: VMware (виртуальные машины)")
 	UpdateSprVM()

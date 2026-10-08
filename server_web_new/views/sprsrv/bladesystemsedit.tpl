@@ -56,6 +56,18 @@
                         <label for="SerialNum" class="form-label">Серийный номер</label>
                         <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.BS.SerialNum}}">
                     </div>
+                    <div class="col-4">
+                        <label class="form-label">Ср. мощность 24ч, Вт</label>
+                        <input type="text" class="form-control" value="{{printf "%.0f" .BS.PowerAvg24hW}}" readonly title="OneView enclosure или оценка по блейдам">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Пик 24ч, Вт</label>
+                        <input type="text" class="form-control" value="{{printf "%.0f" .BS.PowerPeak24hW}}" readonly>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Паспорт max, Вт</label>
+                        <input type="text" class="form-control" value="{{printf "%.0f" .BS.PowerRatedMaxW}}" readonly>
+                    </div>
                     <div class="col-3">
                         <label for="PowerState" class="form-label">Состояние питания</label>
                         <select id="PowerState" name="PowerState" class="form-select">

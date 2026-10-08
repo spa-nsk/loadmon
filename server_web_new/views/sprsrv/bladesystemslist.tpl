@@ -77,6 +77,8 @@
                 <th>Серийный №</th>
                 <th class="text-end">Слотов</th>
                 <th class="text-end">Занято</th>
+                <th class="text-end">Ср. 24ч, Вт</th>
+                <th class="text-end">Пик 24ч, Вт</th>
                 <th>Размещение</th>
             </tr>
         </thead>
@@ -95,6 +97,8 @@
                 <td>{{$bs.SerialNum}}</td>
                 <td class="text-end">{{$bs.Size}}</td>
                 <td class="text-end">{{$bs.Used}}</td>
+                <td class="text-end">{{printf "%.0f" $bs.PowerAvg24hW}}</td>
+                <td class="text-end">{{printf "%.0f" $bs.PowerPeak24hW}}</td>
                 <td>{{index $.BladeSystemsPlacement $bs.RackCabinetId}}</td>
                 <td id="bsRowMenu{{$bs.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/bladesystemsedit/{{$bs.Id}}" target="_blank">Редактировать</a>
@@ -103,7 +107,7 @@
             </tr>
             {{else}}
             <tr>
-                <td colspan="8" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
+                <td colspan="10" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
             </tr>
             {{end}}
         </tbody>

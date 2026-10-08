@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"loadmon/csvtools"
+	"loadmon/rackpower"
 	"loadmon/models"
 	"net/http"
 	"os"
@@ -29,6 +30,14 @@ type DatacenterSiteFilter struct {
 
 func defaultDatacenterSiteFilter() *DatacenterSiteFilter {
 	return &DatacenterSiteFilter{}
+}
+
+// DatacenterSiteRow — строка списка ЦОД с агрегированной мощностью (вариант C по шкафам).
+type DatacenterSiteRow struct {
+	models.DatacenterSite
+	PowerAvg24hW   float64
+	PowerPeak24hW  float64
+	PowerRatedMaxW float64
 }
 
 // SprDatacenterSite отображает список записей справочника ЦОД
@@ -163,7 +172,25 @@ func (this *MainController) SprDatacenterSite() {
 		return
 	}
 
-	this.Data["DatacenterSiteList"] = records
+	siteIds := make([]int64, 0, len(records))
+	for _, r := range records {
+		if r.Id > 0 {
+			siteIds = append(siteIds, r.Id)
+		}
+	}
+	powerBySite := rackpower.DatacenterSitePowerTotalsBatch(o, siteIds)
+	rows := make([]DatacenterSiteRow, 0, len(records))
+	for _, r := range records {
+		p := powerBySite[r.Id]
+		rows = append(rows, DatacenterSiteRow{
+			DatacenterSite: r,
+			PowerAvg24hW:   p.Avg24hW,
+			PowerPeak24hW:  p.Peak24hW,
+			PowerRatedMaxW: p.RatedMaxW,
+		})
+	}
+
+	this.Data["DatacenterSiteList"] = rows
 	this.Data["CanEdit"] = this.CanEditReference()
 	this.Data["DatacenterSiteCount"] = totalRecords
 	this.Data["Page"] = page

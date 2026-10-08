@@ -16,11 +16,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"loadmon/cmdb"
 	"loadmon/config"
+	models "loadmon/models"
 
+	"github.com/beego/beego/v2/client/orm"
 	oneview "github.com/spa-nsk/oneview2"
 )
 
@@ -31,6 +35,7 @@ func main() {
 	serverURI := flag.String("server-uri", "", "URI server-hardware для export + environmentalConfiguration")
 	serverName := flag.String("server", "", "имя server-hardware (поиск в списке)")
 	rawOnly := flag.Bool("raw", false, "только сырой JSON без summary")
+	diagBlade := flag.String("diag-blade", "", "имя корзины: сравнение enclosure power vs sum(bлейдов) (нужна БД loadmon)")
 	out := flag.String("out", "", "файл для вывода (пусто — stdout)")
 	flag.Parse()
 
@@ -103,6 +108,22 @@ func main() {
 			b, _ := json.MarshalIndent(enc, "", "  ")
 			lines = append(lines, string(b))
 		}
+	case *diagBlade != "":
+		config.DBInit()
+		o := orm.NewOrm()
+		name := bladeSystemNameFromProbe(*diagBlade)
+		bls := models.BladeSystems{Name: name}
+		if err := o.Read(&bls, "Name"); err != nil {
+			log.Fatalf("корзина %q не найдена в БД: %v", name, err)
+		}
+		id := resolveEnclosureID(ctx, c, *diagBlade)
+		enc, err := c.GetEnclosure(ctx, id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lines = append(lines, cmdb.BladeSystemPowerDiagnostics(o, enc, bls.Id))
+		lines = append(lines, fmt.Sprintf("DB BladeSystems Id=%d avg=%.0f peak=%.0f rated=%.0f",
+			bls.Id, bls.PowerAvg24hW, bls.PowerPeak24hW, bls.PowerRatedMaxW))
 	case *serverURI != "" || *serverName != "":
 		uri := *serverURI
 		if uri == "" {
@@ -178,6 +199,16 @@ func resolveEnclosureID(ctx context.Context, c *oneview.Client, ref string) stri
 	}
 	log.Fatalf("корзина %q не найдена", ref)
 	return ""
+}
+
+func bladeSystemNameFromProbe(name string) string {
+	parts := strings.Split(strings.TrimSpace(name), "-")
+	if len(parts) == 2 {
+		if num, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			return fmt.Sprintf("%s-%02d", strings.TrimSpace(parts[0]), num)
+		}
+	}
+	return strings.TrimSpace(name)
 }
 
 func findServerURI(ctx context.Context, c *oneview.Client, name string) string {
