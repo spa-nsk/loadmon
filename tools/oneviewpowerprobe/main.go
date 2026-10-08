@@ -165,6 +165,29 @@ func main() {
 		} else {
 			lines = append(lines, "(environmentalConfiguration пуст или не запрошен)")
 		}
+		// 2026-10-08: экспорт молча пропускает ответы 400/404/405/412 для
+		// environmentalConfiguration, поэтому причину пустого результата не
+		// видно - печатаем предупреждения экспорта и сырые ответы нескольких
+		// кандидатов-эндпоинтов мощности (статус + тело либо ошибка).
+		if len(exp.Warnings) > 0 {
+			lines = append(lines, "предупреждения экспорта:")
+			for _, w := range exp.Warnings {
+				lines = append(lines, "  - "+w)
+			}
+		}
+		hwURI := uri
+		if exp.Hardware != nil && exp.Hardware.URI != "" {
+			hwURI = exp.Hardware.URI
+		}
+		lines = append(lines, "--- прямые запросы (сервер "+hwURI+") ---")
+		for _, suffix := range []string{
+			"/environmentalConfiguration",
+			"/utilization",
+			"/utilization?fields=AveragePower,PeakPower,PowerCap&view=day",
+			"/utilization?fields=AveragePower,PeakPower,PowerCap&view=hour",
+		} {
+			lines = append(lines, probeGET(ctx, c, hwURI+suffix))
+		}
 	default:
 		flag.Usage()
 		log.Fatal("укажите -list-enclosures, -enclosure, -server-uri или -server")
@@ -232,4 +255,23 @@ func findServerURI(ctx context.Context, c *oneview.Client, name string) string {
 	}
 	log.Fatalf("server-hardware %q не найден", name)
 	return ""
+}
+
+// probeGET выполняет GET path и возвращает статус и тело (усечённое) либо
+// текст ошибки - для диагностики доступности эндпоинтов мощности.
+func probeGET(ctx context.Context, c *oneview.Client, path string) string {
+	resp, err := c.Do(ctx, "GET", path, nil)
+	status := 0
+	body := ""
+	if resp != nil {
+		status = resp.StatusCode
+		body = string(resp.Body)
+	}
+	if len(body) > 4000 {
+		body = body[:4000] + "...(усечено)"
+	}
+	if err != nil {
+		return fmt.Sprintf("GET %s -> HTTP %d, ошибка: %v\n%s", path, status, err, body)
+	}
+	return fmt.Sprintf("GET %s -> HTTP %d\n%s", path, status, body)
 }
