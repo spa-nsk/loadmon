@@ -23,6 +23,7 @@ import (
 	"loadmon/cmdb"
 	"loadmon/config"
 	models "loadmon/models"
+	"loadmon/utilities"
 
 	"github.com/beego/beego/v2/client/orm"
 	oneview "github.com/spa-nsk/oneview2"
@@ -59,11 +60,18 @@ func main() {
 		}
 	}
 
+	// Пароль - тем же способом, что в config.InitParams: фиктивное значение
+	// "password" в ConfigOV заменяется паролем из хранилища ключей
+	// (utilities.GetKeyData); остальные значения используются как есть.
+	// LOADMON_OV_PASSWORD - необязательное переопределение для отладки.
 	pwd := ovi.Password
 	if pwd == "password" {
-		pwd = os.Getenv("LOADMON_OV_PASSWORD")
+		pwd = utilities.GetKeyData("usr-nsk-dati-02@global.bcs")
 	}
-	cfg := oneview.NewEndpointConfig(ovi.Endpoint, ovi.Domain, ovi.Login, pwd, ovi.Version, 0)
+	if v := os.Getenv("LOADMON_OV_PASSWORD"); v != "" {
+		pwd = v
+	}
+	cfg := oneview.NewEndpointConfig(ovi.Endpoint, ovi.Domain, ovi.Login, pwd, ovi.Version, config.ConfigData.OneViewOperationTimeoutFor(&ovi))
 	c, err := oneview.New(cfg)
 	if err != nil {
 		log.Fatal(err)
