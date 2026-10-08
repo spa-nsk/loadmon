@@ -217,6 +217,10 @@ type Enclosure struct {
 	UIDState             string               `json:"uidState,omitempty"`
 	UUID                 string               `json:"uuid,omitempty"`
 	Version              string               `json:"version,omitempty"`
+	PowerAvg24Hrs        FlexPowerW           `json:"powerAvg24Hrs,omitempty"`
+	PowerPeak24Hrs       FlexPowerW           `json:"powerPeak24Hrs,omitempty"`
+	PowerCapacity24Hrs   FlexPowerW           `json:"powerCapacity24Hrs,omitempty"`
+	PowerLastUpdate      string               `json:"powerLastUpdate,omitempty"`
 }
 
 // EnclosureDeviceBay is one device bay on GET /rest/enclosures/{id}.

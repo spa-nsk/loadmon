@@ -1210,6 +1210,10 @@ type BladeSystems struct {
 	ServiceContract   string    `form:"ServiceContract"`                                                    //данные по сервисному контракту, уровень сервиса
 	Id_User           int64     `form:"Id_User"`                                                            //
 	Time_Mfy          time.Time `form:"Time_Mfy"`                                                           //
+	// Мощность (Вт) для расчёта шкафа/ЦОД: корзина учитывается целиком, блейды — детализация.
+	PowerAvg24hW   float64 `form:"PowerAvg24hW" csv:"Средняя мощность 24ч (Вт)" json:"PowerAvg24hW"`
+	PowerPeak24hW  float64 `form:"PowerPeak24hW" csv:"Пик мощности 24ч (Вт)" json:"PowerPeak24hW"`
+	PowerRatedMaxW float64 `form:"PowerRatedMaxW" csv:"Паспортная макс. мощность (Вт)" json:"PowerRatedMaxW"`
 }
 
 // TableName возвращает имя таблицы БД для модели BladeSystems (используется beego ORM).
@@ -1826,6 +1830,10 @@ type ServerHardware struct {
 	// Extra["location_room_text"] - см. itilliumimport/importrackservers.go,
 	// importbladeservers.go.
 	RackCabinetId int64 `orm:"null" form:"RackCabinetId" csv:"Ссылка на справочник шкафов" json:"RackCabinetId"`
+	// Мощность (Вт) с OneView environmentalConfiguration; в сумме шкафа блейды не дублируют корзину.
+	PowerAvg24hW   float64 `form:"PowerAvg24hW" csv:"Средняя мощность 24ч (Вт)" json:"PowerAvg24hW"`
+	PowerPeak24hW  float64 `form:"PowerPeak24hW" csv:"Пик мощности 24ч (Вт)" json:"PowerPeak24hW"`
+	PowerRatedMaxW float64 `form:"PowerRatedMaxW" csv:"Паспортная макс. мощность (Вт)" json:"PowerRatedMaxW"`
 }
 
 // Коды источника обновления записей ServerHardware/ServerSprRecords -
