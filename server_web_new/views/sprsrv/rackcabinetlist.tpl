@@ -68,6 +68,7 @@
                 <td class="text-end">{{printf "%.0f" $rc.PowerRatedMaxW}}</td>
                 <td id="rcRowMenu{{$rc.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/rackcabinetedit/{{$rc.Id}}" target="_blank">Редактировать</a>
+                    <a class="ctx-menu-item" href="/sprsrv/rackcabinetview/{{$rc.Id}}" target="_blank">Вид шкафа с оборудованием</a>
                 </td>
             </tr>
             {{else}}
