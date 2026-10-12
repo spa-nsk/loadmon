@@ -685,6 +685,9 @@
         var s = '<div>Занято юнитов: <b>' + usedU + '</b> из ' + DATA.uHeight + ' (' + Math.round(usedU * 100 / Math.max(1, DATA.uHeight)) + '%)</div>';
         s += '<div>Устройств на позициях: <b>' + items.length + '</b></div>';
         s += '<div><span class="rv-dot rv-dot-on"></span>включено: <b>' + on + '</b> &nbsp; <span class="rv-dot rv-dot-stby"></span>выключено: <b>' + off + '</b> &nbsp; <span class="rv-dot rv-dot-unk"></span>н/д: <b>' + unk + '</b></div>';
+        s += '<div class="mt-1">Потребляемая мощность шкафа: ' + (DATA.powerAvgW > 0 ? '<b>' + Math.round(DATA.powerAvgW) + ' Вт</b> (средняя 24ч)' : '<b>нет данных</b>') + '</div><div class="text-muted">Корзины учтены целиком, блейды отдельно не суммируются.</div>';
+        if (DATA.powerPeakW > 0) s += '<div>Пик за 24ч: <b>' + Math.round(DATA.powerPeakW) + ' Вт</b></div>';
+        if (DATA.powerRatedW > 0) s += '<div>Паспортная максимальная: <b>' + Math.round(DATA.powerRatedW) + ' Вт</b></div>';
         if (bl) s += '<div>Блейдов в корзинах: <b>' + bl + '</b> (включено ' + blOn + ')</div>';
         document.getElementById('rvSummary').innerHTML = s;
 

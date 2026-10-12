@@ -25,6 +25,9 @@ type RackCabinetFilter struct {
 	Name             string `form:"Name"`
 	AltName          string `form:"AltName"`
 	DatacenterSiteId string `form:"DatacenterSiteId"`
+	// ShowUnnamed == "1" - показывать и шкафы, у которых не заполнены оба
+	// наименования (Name и AltName); по умолчанию такие записи скрыты.
+	ShowUnnamed string `form:"ShowUnnamed"`
 }
 
 func defaultRackCabinetFilter() *RackCabinetFilter {
@@ -78,6 +81,9 @@ func (this *MainController) SprRackCabinet() {
 			this.Data[keyFilter] = filter
 			return
 		}
+		// чекбокс при снятой галочке в форме не передаётся вовсе, а ParseForm
+		// не сбрасывает поля, отсутствующие в запросе - обнуляем явно
+		filter.ShowUnnamed = this.GetString("ShowUnnamed")
 		delete(m, keyFilter)
 		m[keyFilter] = filter
 
@@ -98,6 +104,16 @@ func (this *MainController) SprRackCabinet() {
 
 	o := orm.NewOrm()
 	qs := o.QueryTable("cmdb_rack_cabinet")
+	if filter.ShowUnnamed != "1" {
+		// Пробелы заполнением не считаются - TRIM средствами ORM не
+		// выразить, поэтому id "пустых" шкафов берутся сырым запросом.
+		var emptyIds []int64
+		if _, err := o.Raw("SELECT id FROM cmdb_rack_cabinet WHERE (name IS NULL OR TRIM(name) = '') AND (alt_name IS NULL OR TRIM(alt_name) = '')").QueryRows(&emptyIds); err != nil {
+			flash.Notice("Не удалось определить шкафы без наименований: %v", err)
+		} else if len(emptyIds) > 0 {
+			qs = qs.Exclude("Id__in", emptyIds)
+		}
+	}
 	if filter.Name != "" {
 		qs = qs.Filter("Name__icontains", filter.Name)
 	}

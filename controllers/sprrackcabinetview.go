@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"loadmon/models"
+	"loadmon/rackpower"
 	"strconv"
 	"strings"
 
@@ -61,6 +62,11 @@ type rackViewData struct {
 	UHeight     int            `json:"uHeight"`
 	Items       []rackViewItem `json:"items"`
 	Unplaced    []rackViewItem `json:"unplaced"`
+	// Суммарная мощность шкафа, Вт: тот же расчёт, что и в списке шкафов
+	// (rackpower.RackCabinetPowerVariantC - rack-серверы + корзины целиком, блейды не дублируются).
+	PowerAvgW   float64 `json:"powerAvgW"`
+	PowerPeakW  float64 `json:"powerPeakW"`
+	PowerRatedW float64 `json:"powerRatedW"`
 }
 
 // rackGuessSizeU - высота сервера в юнитах по модели, если в справочнике
@@ -83,6 +89,24 @@ func rackGuessSizeU(model string) int {
 		}
 	}
 	return 2
+}
+
+// rackViewPowerRows добавляет строки потребляемой мощности (Вт); если данных
+// по мощности нет совсем - одну строку "нет данных".
+func rackViewPowerRows(rows []rackViewKV, avg, peak, rated float64) []rackViewKV {
+	if avg <= 0 && peak <= 0 && rated <= 0 {
+		return append(rows, rackViewKV{K: "Мощность", V: "нет данных"})
+	}
+	if avg > 0 {
+		rows = append(rows, rackViewKV{K: "Мощность, средняя 24ч", V: fmt.Sprintf("%.0f Вт", avg)})
+	}
+	if peak > 0 {
+		rows = append(rows, rackViewKV{K: "Мощность, пик 24ч", V: fmt.Sprintf("%.0f Вт", peak)})
+	}
+	if rated > 0 {
+		rows = append(rows, rackViewKV{K: "Мощность, паспорт", V: fmt.Sprintf("%.0f Вт", rated)})
+	}
+	return rows
 }
 
 func rackViewPower(state int) int {
@@ -264,6 +288,7 @@ func (this *MainController) SprRackCabinetView() {
 		if hw.MemoryMb > 0 {
 			rows = rackViewKVAdd(rows, "Память", fmt.Sprintf("%d ГБ", hw.MemoryMb/1024))
 		}
+		rows = rackViewPowerRows(rows, hw.PowerAvg24hW, hw.PowerPeak24hW, hw.PowerRatedMaxW)
 		rows = rackViewKVAdd(rows, "Состояние (health)", hw.Status)
 
 		serverSprId := hw.ServerId
@@ -320,6 +345,7 @@ func (this *MainController) SprRackCabinetView() {
 		rows = rackViewKVAdd(rows, "Номер продукта", ch.PartNum)
 		rows = rackViewKVAdd(rows, "Инвентарный номер", ch.InventoryNum)
 		rows = rackViewKVAdd(rows, "Слотов (занято)", fmt.Sprintf("%d (%d)", slots, len(bladesByChassis[ch.Id])))
+		rows = rackViewPowerRows(rows, ch.PowerAvg24hW, ch.PowerPeak24hW, ch.PowerRatedMaxW)
 		links := []rackViewLink{
 			{Title: "Серверы в корзине", URL: fmt.Sprintf("/sprsrv/bladesystemserverslist/%d", ch.Id)},
 			{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit/%d", ch.Id)},
@@ -327,6 +353,7 @@ func (this *MainController) SprRackCabinetView() {
 		blades := make([]rackViewBlade, 0, len(bladesByChassis[ch.Id]))
 		for _, b := range bladesByChassis[ch.Id] {
 			brows, blinks, bname := serverRowsLinks(b)
+			brows = rackViewKVAdd(brows, "Учёт в мощности шкафа", "не суммируется отдельно (учтена в мощности корзины)")
 			blades = append(blades, rackViewBlade{
 				Slot: b.BladeNum, Name: bname, Model: firstNonEmpty(b.Model, b.ShortModel),
 				Power: rackViewPower(b.PowerState), Rows: brows, Links: blinks,
@@ -415,6 +442,9 @@ func (this *MainController) SprRackCabinetView() {
 			Links: []rackViewLink{{Title: "Редактировать коммутатор", URL: fmt.Sprintf("/sprsrv/switchedit/%d", sw.Id)}},
 		})
 	}
+
+	pw := rackpower.RackCabinetPowerVariantC(o, id)
+	data.PowerAvgW, data.PowerPeakW, data.PowerRatedW = pw.Avg24hW, pw.Peak24hW, pw.RatedMaxW
 
 	b, jerr := json.Marshal(data)
 	if jerr != nil {

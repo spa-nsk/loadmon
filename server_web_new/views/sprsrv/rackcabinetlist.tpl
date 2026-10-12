@@ -34,6 +34,10 @@
         <div class="row mt-2">
             <div class="col-12 d-flex flex-wrap align-items-center gap-3">
                 <span class="text-muted small">Найдено записей: {{.RackCabinetCount}}</span>
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="ShowUnnamed" name="ShowUnnamed" value="1" {{if eq .RackCabinetFilter.ShowUnnamed "1"}}checked{{end}} onchange="document.getElementById('pageField').value=1; this.form.submit();">
+                    <label class="form-check-label small text-muted" for="ShowUnnamed">Показывать шкафы без наименований</label>
+                </div>
                 <div class="form-check form-switch ms-auto mb-0">
                     <input class="form-check-input" type="checkbox" id="rcFilterStickyToggle" onchange="rcToggleFilterSticky(this.checked)">
                     <label class="form-check-label small text-muted" for="rcFilterStickyToggle">Закреплять фильтр вверху экрана</label>
