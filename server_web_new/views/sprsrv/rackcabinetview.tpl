@@ -1,0 +1,719 @@
+<div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
+    <div>
+        <h2>Шкаф {{.CabinetName}}</h2>
+        <div class="text-muted">
+            {{if .SiteName}}<b>{{.SiteName}}</b> &middot; {{end}}высота {{.UHeight}}U &middot; оборудования: {{.ItemCount}}
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <div class="btn-group" role="group" aria-label="Масштаб">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="rvZoomOut" title="Уменьшить">&minus;</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="rvZoomReset" title="Масштаб по умолчанию">100%</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="rvZoomIn" title="Увеличить">+</button>
+        </div>
+        <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/rackcabinetedit/{{.Id}}" target="_blank">Редактировать шкаф</a>
+    </div>
+</div>
+
+{{if .flash.error}}
+<blockquote class="blockquote text-danger">{{.flash.error}}</blockquote>
+{{end}}
+{{if .flash.notice}}
+<blockquote class="blockquote">{{.flash.notice}}</blockquote>
+{{end}}
+
+<div class="rv-layout">
+    <aside class="rv-side">
+        <div class="rv-card">
+            <h6>Сводка</h6>
+            <div id="rvSummary" class="small"></div>
+        </div>
+        <div class="rv-card">
+            <h6>Состояние питания</h6>
+            <ul class="rv-legend small">
+                <li><span class="rv-dot rv-dot-on"></span> Включено (светодиод питания горит зелёным)</li>
+                <li><span class="rv-dot rv-dot-stby"></span> Выключено (дежурный режим, янтарный)</li>
+                <li><span class="rv-dot rv-dot-unk"></span> Состояние не определено</li>
+            </ul>
+            <div class="text-muted small">Наведите курсор на оборудование - появятся данные и ссылки. Клик закрепляет подсказку.</div>
+        </div>
+        <div class="rv-card" id="rvUnplacedCard" hidden>
+            <h6>Без позиции в шкафу</h6>
+            <div id="rvUnplaced" class="small"></div>
+        </div>
+    </aside>
+
+    <div class="rv-main">
+        <div class="rv-stage" id="rvStage">
+            <canvas id="rvBase"></canvas>
+            <canvas id="rvOver"></canvas>
+            <div id="rvTip" class="rv-tip" hidden></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .rv-layout { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
+    .rv-side { flex: 0 0 300px; max-width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
+    .rv-main { flex: 1 1 auto; min-width: 0; padding-bottom: 1rem; }
+    .rv-card {
+        background-color: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.6rem;
+        padding: 0.8rem 1rem;
+    }
+    .rv-card h6 { color: var(--bs-emphasis-color); font-weight: 600; margin-bottom: 0.5rem; }
+    .rv-legend { list-style: none; padding: 0; margin: 0 0 0.5rem 0; }
+    .rv-legend li { margin-bottom: 0.25rem; }
+    .rv-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; }
+    .rv-dot-on { background: #35e06a; box-shadow: 0 0 6px #35e06a; }
+    .rv-dot-stby { background: #ffab1a; box-shadow: 0 0 6px #ffab1a; }
+    .rv-dot-unk { background: #5b616b; }
+    .rv-stage { position: relative; display: inline-block; line-height: 0; }
+    .rv-stage canvas { display: block; }
+    #rvOver { position: absolute; left: 0; top: 0; pointer-events: none; }
+    #rvBase { cursor: default; }
+    .rv-tip {
+        position: absolute;
+        z-index: 20;
+        width: 340px;
+        max-width: 92vw;
+        line-height: 1.35;
+        font-size: 0.85rem;
+        color: var(--bs-body-color);
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.6rem;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        padding: 0.7rem 0.85rem;
+    }
+    .rv-tip.rv-pinned { border-color: #4dabf7; }
+    .rv-tip-title { font-weight: 700; font-size: 0.95rem; color: var(--bs-emphasis-color); padding-right: 1.4rem; word-break: break-word; }
+    .rv-tip-sub { color: var(--bs-secondary-color); margin-bottom: 0.35rem; }
+    .rv-tip-close { position: absolute; right: 0.45rem; top: 0.25rem; border: 0; background: transparent; color: var(--bs-secondary-color); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+    .rv-tip table { width: 100%; margin: 0.35rem 0; }
+    .rv-tip td { padding: 1px 0; vertical-align: top; }
+    .rv-tip td:first-child { color: var(--bs-secondary-color); white-space: nowrap; padding-right: 0.6rem; }
+    .rv-tip .rv-pw { font-weight: 600; }
+    .rv-tip .rv-links { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.4rem; border-top: 1px solid var(--bs-border-color); padding-top: 0.4rem; }
+    .rv-tip .rv-links a { text-decoration: none; }
+    .rv-tip .rv-links a:hover { text-decoration: underline; }
+    .rv-unpl-item { padding: 0.35rem 0; border-bottom: 1px solid var(--bs-border-color); }
+    .rv-unpl-item:last-child { border-bottom: 0; }
+    .rv-unpl-item a { margin-right: 0.6rem; white-space: nowrap; }
+</style>
+
+<script>
+(function () {
+    'use strict';
+
+    var DATA = {{.RackJSON}};
+    var base = document.getElementById('rvBase');
+    if (!DATA || !base) return;
+
+    var over = document.getElementById('rvOver');
+    var stage = document.getElementById('rvStage');
+    var tip = document.getElementById('rvTip');
+    var bctx = base.getContext('2d');
+    var octx = over.getContext('2d');
+    var TAU = Math.PI * 2;
+
+    var C_ON = '#35e06a', C_STBY = '#ffab1a', C_UID = '#3da5ff', C_ERR = '#ff453a';
+    var RATIO = 10.86;          // ширина 19" панели / высота 1U (482.6 / 44.45)
+    var GUT = 40, TOP = 38, BOT = 24;
+    var ZKEY = 'rackview.uh';
+    var UH = 40;
+    try {
+        var zs = parseInt(localStorage.getItem(ZKEY), 10);
+        if (zs >= 20 && zs <= 90) UH = zs;
+    } catch (e) { }
+
+    var g = { W: 0, H: 0, devW: 0, dpr: 1 };
+    var regions = [];
+    var hovered = null, shown = null, pinned = false;
+    var showTimer = null, hideTimer = null;
+
+    // ---------- примитивы ----------
+    function rr(c, x, y, w, h, r) {
+        r = Math.max(0, Math.min(r, w / 2, h / 2));
+        c.beginPath();
+        c.moveTo(x + r, y);
+        c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
+        c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r);
+        c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y);
+        c.closePath();
+    }
+    function vg(c, y, h, stops) {
+        var gr = c.createLinearGradient(0, y, 0, y + h);
+        for (var i = 0; i < stops.length; i++) gr.addColorStop(stops[i][0], stops[i][1]);
+        return gr;
+    }
+    function hg(c, x, w, stops) {
+        var gr = c.createLinearGradient(x, 0, x + w, 0);
+        for (var i = 0; i < stops.length; i++) gr.addColorStop(stops[i][0], stops[i][1]);
+        return gr;
+    }
+    function fillRR(c, x, y, w, h, r, fill) { rr(c, x, y, w, h, r); c.fillStyle = fill; c.fill(); }
+    function strokeRR(c, x, y, w, h, r, stroke, lw) { rr(c, x, y, w, h, r); c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); }
+    function led(c, cx, cy, r, color, on) {
+        if (on) {
+            c.save();
+            c.shadowColor = color; c.shadowBlur = r * 2.6;
+            c.fillStyle = color; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
+            c.restore();
+            c.fillStyle = 'rgba(255,255,255,0.65)';
+            c.beginPath(); c.arc(cx - r * 0.28, cy - r * 0.3, r * 0.34, 0, TAU); c.fill();
+        } else {
+            c.fillStyle = '#1e2126'; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
+            c.strokeStyle = 'rgba(0,0,0,0.65)'; c.lineWidth = Math.max(0.5, r * 0.25); c.stroke();
+        }
+    }
+    function txt(c, s, x, y, size, color, weight, align) {
+        c.font = (weight || '600') + ' ' + size + 'px "Segoe UI", Arial, sans-serif';
+        c.fillStyle = color; c.textAlign = align || 'left'; c.textBaseline = 'middle';
+        c.fillText(s, x, y);
+    }
+    function hash(n) { n = (Math.imul(n + 1, 2654435761) >>> 0); return (n % 1000) / 1000; }
+    function pwrColor(p) { return p === 1 ? C_ON : (p === 2 ? C_STBY : null); }
+
+    function powerButton(c, cx, cy, r, p) {
+        var col = pwrColor(p);
+        // кольцо индикации
+        c.lineWidth = Math.max(1.4, r * 0.34);
+        if (col) { c.save(); c.shadowColor = col; c.shadowBlur = r * 1.8; c.strokeStyle = col; c.beginPath(); c.arc(cx, cy, r * 1.22, 0, TAU); c.stroke(); c.restore(); }
+        else { c.strokeStyle = '#2b2f35'; c.beginPath(); c.arc(cx, cy, r * 1.22, 0, TAU); c.stroke(); }
+        var gr = c.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+        gr.addColorStop(0, '#f1f3f5'); gr.addColorStop(1, '#868c95');
+        c.fillStyle = gr; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
+        // символ питания
+        c.strokeStyle = '#2a2d32'; c.lineWidth = Math.max(1, r * 0.22); c.lineCap = 'round';
+        c.beginPath(); c.arc(cx, cy + r * 0.05, r * 0.5, -Math.PI * 0.35, Math.PI * 1.35 + Math.PI * 0.0, false); c.stroke();
+        c.beginPath(); c.moveTo(cx, cy - r * 0.62); c.lineTo(cx, cy - r * 0.05); c.stroke();
+        c.lineCap = 'butt';
+    }
+
+    function ventDots(c, x, y, w, h, on) {
+        var step = Math.max(4, UH * 0.13), r = Math.max(0.8, step * 0.2);
+        c.fillStyle = on ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)';
+        for (var yy = y + step / 2; yy < y + h; yy += step) {
+            var off = (Math.round((yy - y) / step) % 2) ? step / 2 : 0;
+            for (var xx = x + step / 2 + off; xx < x + w; xx += step) {
+                c.beginPath(); c.arc(xx, yy, r, 0, TAU); c.fill();
+            }
+        }
+    }
+
+    function earSlots(c, x, y, ew, n, rightSide) {
+        for (var k = 0; k < n; k++) {
+            var cy = y + (k + 0.5) * UH;
+            c.fillStyle = 'rgba(0,0,0,0.7)';
+            c.beginPath(); c.ellipse(x + ew / 2, cy, ew * 0.2, UH * 0.13, 0, 0, TAU); c.fill();
+            c.strokeStyle = 'rgba(255,255,255,0.12)'; c.lineWidth = 0.6; c.stroke();
+        }
+    }
+
+    // ---------- диски ----------
+    function driveFlat(c, x, y, w, h, on, idx, th) {
+        fillRR(c, x, y, w, h, 1.5, vg(c, y, h, [[0, '#4a4e55'], [1, '#202327']]));
+        strokeRR(c, x + 0.5, y + 0.5, w - 1, h - 1, 1.5, 'rgba(0,0,0,0.8)', 1);
+        // ручка-защёлка
+        fillRR(c, x + w * 0.08, y + h * 0.16, w * 0.84, h * 0.2, 1, '#14161a');
+        // прорези вентиляции
+        c.fillStyle = 'rgba(0,0,0,0.55)';
+        for (var i = 0; i < 5; i++) c.fillRect(x + w * 0.1 + i * (w * 0.8 / 5), y + h * 0.5, Math.max(1, w * 0.06), h * 0.28);
+        // светодиоды
+        led(c, x + w * 0.14, y + h * 0.86, Math.max(1.1, h * 0.07), on ? (hash(idx) > 0.45 ? '#ffffff' : '#2fd36a') : '#000', on);
+        led(c, x + w * 0.3, y + h * 0.86, Math.max(1.1, h * 0.07), th.bayLed || C_UID, false);
+    }
+    function driveVert(c, x, y, w, h, on, idx, th) {
+        fillRR(c, x, y, w, h, 1, hg(c, x, w, [[0, '#2a2d32'], [0.5, '#4c5057'], [1, '#222428']]));
+        strokeRR(c, x + 0.5, y + 0.5, w - 1, h - 1, 1, 'rgba(0,0,0,0.85)', 1);
+        // защёлка внизу
+        fillRR(c, x + w * 0.18, y + h * 0.7, w * 0.64, h * 0.2, 1, '#9096a0');
+        // решётка
+        c.fillStyle = 'rgba(0,0,0,0.5)';
+        for (var i = 0; i < 5; i++) c.fillRect(x + w * 0.2, y + h * (0.22 + i * 0.09), w * 0.6, Math.max(0.8, h * 0.03));
+        // светодиод активности/статуса сверху
+        led(c, x + w / 2, y + h * 0.1, Math.max(1, Math.min(w * 0.18, h * 0.04)), on ? (hash(idx) > 0.4 ? (th.bayLed || '#2fd36a') : '#2fd36a') : '#000', on);
+    }
+
+    // ---------- серверы ----------
+    var THEMES = {
+        hpe: { bezel: ['#383b41', '#1a1c20'], ear: ['#2c2f34', '#16181b'], cage: '#0e0f11', logo: 'hpe', cols1: 4, rows1: 2, bayLed: '#3de08a' },
+        dell: { bezel: ['#2e3034', '#16171a'], ear: ['#cfd3d9', '#8a9099'], cage: '#0c0d0f', logo: 'dell', cols1: 5, rows1: 2, bayLed: '#3da5ff' },
+        lenovo: { bezel: ['#222428', '#0f1012'], ear: ['#2b2d31', '#141518'], cage: '#08080a', logo: 'lenovo', cols1: 5, rows1: 2, bayLed: '#ff6a3d', accent: '#e2231a' },
+        generic: { bezel: ['#50545b', '#2d3035'], ear: ['#a3a9b1', '#6c7179'], cage: '#15161a', logo: '', cols1: 4, rows1: 2, bayLed: '#3de08a' }
+    };
+
+    function drawLogo(c, kind, x, y, h) {
+        var fs = Math.max(7, h * 0.4);
+        if (kind === 'hpe') {
+            var w = h * 1.7;
+            c.strokeStyle = '#01a982'; c.lineWidth = Math.max(1.4, h * 0.14);
+            c.strokeRect(x + c.lineWidth / 2, y + c.lineWidth / 2, w - c.lineWidth, h - c.lineWidth);
+            txt(c, 'hpe', x + w / 2, y + h / 2 + 0.5, fs * 0.9, '#f2f5f4', '700', 'center');
+        } else if (kind === 'dell') {
+            var r = h * 0.5;
+            c.strokeStyle = '#0076ce'; c.lineWidth = Math.max(1.4, h * 0.12);
+            c.beginPath(); c.arc(x + r, y + r, r - c.lineWidth / 2, 0, TAU); c.stroke();
+            txt(c, 'DELL', x + r, y + r + 0.5, fs * 0.62, '#e8f1fb', '800', 'center');
+        } else if (kind === 'lenovo') {
+            txt(c, 'Lenovo', x, y + h / 2, fs * 1.05, '#f4f4f4', '800', 'left');
+        }
+    }
+
+    function bayConfig(n, th) {
+        if (n <= 1) return { flat: true, cols: th.cols1, rows: th.rows1 };
+        if (n === 2) return { flat: false, cols: 24, rows: 1 };
+        return { flat: false, cols: 12, rows: 2 };
+    }
+
+    function drawServer(c, it, x, y, w, h, th) {
+        var n = Math.max(1, it.sizeU), p = it.power, on = (p === 1);
+        fillRR(c, x, y + 0.5, w, h - 1, 2, vg(c, y, h, [[0, th.bezel[0]], [1, th.bezel[1]]]));
+        c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(x + 2, y + 1, w - 4, 1);
+        if (th.accent) { c.fillStyle = th.accent; c.fillRect(x + w * 0.045, y + 1.5, w * 0.91, Math.max(1, UH * 0.03)); }
+        var ew = w * 0.042;
+        var earFill = vg(c, y, h, [[0, th.ear[0]], [1, th.ear[1]]]);
+        fillRR(c, x, y + 0.5, ew, h - 1, 2, earFill);
+        fillRR(c, x + w - ew, y + 0.5, ew, h - 1, 2, earFill);
+        earSlots(c, x, y, ew, n); earSlots(c, x + w - ew, y, ew, n);
+
+        // панель управления слева
+        var cx = x + w * 0.09;
+        var r = Math.max(3.2, UH * 0.15);
+        var pcy = y + h * (n === 1 ? 0.36 : 0.28);
+        powerButton(c, cx, pcy, r, p);
+        var ly = y + h * (n === 1 ? 0.78 : 0.56);
+        led(c, cx - r * 1.1, ly, Math.max(1.4, UH * 0.05), C_UID, false);
+        led(c, cx + r * 0.2, ly, Math.max(1.4, UH * 0.05), C_ON, on);
+        led(c, cx + r * 1.5, ly, Math.max(1.4, UH * 0.05), C_ERR, false);
+        if (n >= 2 && th.logo) drawLogo(c, th.logo, x + w * 0.052, y + h * 0.74, Math.min(UH * 0.5, h * 0.24));
+
+        // дисковая корзина
+        var cgx = x + w * 0.145, cgw = w * 0.655, cgy = y + h * 0.1, cgh = h * 0.8;
+        fillRR(c, cgx, cgy, cgw, cgh, 2, th.cage);
+        var cfg = bayConfig(n, th);
+        var cellW = cgw / cfg.cols, cellH = cgh / cfg.rows, idx = it.id * 7;
+        for (var rr_ = 0; rr_ < cfg.rows; rr_++) {
+            for (var cc = 0; cc < cfg.cols; cc++) {
+                var gap = cfg.flat ? 2 : 1;
+                var bx = cgx + cc * cellW + gap, by = cgy + rr_ * cellH + gap;
+                var bw = cellW - gap * 2, bh = cellH - gap * 2;
+                if (cfg.flat) driveFlat(c, bx, by, bw, bh, on, idx++, th); else driveVert(c, bx, by, bw, bh, on, idx++, th);
+            }
+        }
+
+        // правая часть: медиа-отсек, порты, вентиляция
+        var vx = x + w * 0.815, vw = w * 0.14;
+        if (n >= 2) {
+            fillRR(c, vx, y + h * 0.1, vw, h * 0.2, 1.5, '#0b0c0e');
+            c.fillStyle = '#2a2d32'; c.fillRect(vx + vw * 0.1, y + h * 0.18, vw * 0.8, Math.max(1, h * 0.03));
+            ventDots(c, vx, y + h * 0.36, vw, h * 0.54, on);
+        } else {
+            if (th.logo) drawLogo(c, th.logo, vx + vw * 0.08, y + h * 0.1, Math.min(UH * 0.26, h * 0.3));
+            ventDots(c, vx, y + h * 0.44, vw, h * 0.3, on);
+        }
+        // USB-порты
+        fillRR(c, vx + vw * 0.55, y + h * 0.9 - UH * 0.09, vw * 0.18, UH * 0.09, 1, '#0b0c0e');
+        fillRR(c, vx + vw * 0.8, y + h * 0.9 - UH * 0.09, vw * 0.18, UH * 0.09, 1, '#0b0c0e');
+        if (UH >= 30) txt(c, (it.model || '').replace(/^(HPE?|Dell|Lenovo)\s+/i, ''), x + w * 0.955, y + h - UH * 0.13, Math.max(7, UH * 0.2), 'rgba(230,233,238,0.55)', '500', 'right');
+    }
+
+    // ---------- блейд-корзины ----------
+    function drawBlade(c, bx, by, bw, bh, b, syn, slotNum) {
+        if (!b) {
+            fillRR(c, bx, by, bw, bh, 1.5, vg(c, by, bh, [[0, '#2a2c31'], [1, '#17181b']]));
+            c.fillStyle = 'rgba(0,0,0,0.55)';
+            for (var i = 1; i <= 3; i++) c.fillRect(bx + bw * i / 4 - 0.5, by + bh * 0.1, 1.2, bh * 0.8);
+            if (UH >= 30) txt(c, String(slotNum), bx + bw / 2, by + bh - UH * 0.16, Math.max(6, UH * 0.17), 'rgba(255,255,255,0.18)', '500', 'center');
+            return;
+        }
+        var p = b.power;
+        fillRR(c, bx, by, bw, bh, 1.5, vg(c, by, bh, [[0, syn ? '#2d3138' : '#34373c'], [1, '#17191c']]));
+        strokeRR(c, bx + 0.5, by + 0.5, bw - 1, bh - 1, 1.5, 'rgba(0,0,0,0.85)', 1);
+        if (syn) { c.fillStyle = '#00b5e2'; c.fillRect(bx + 1, by + 1, bw - 2, Math.max(1, bh * 0.03)); }
+        // защёлка снизу
+        fillRR(c, bx + bw * 0.08, by + bh * 0.84, bw * 0.84, bh * 0.1, 1, '#9096a0');
+        // два диска
+        fillRR(c, bx + bw * 0.14, by + bh * 0.14, bw * 0.72, bh * 0.17, 1, '#0e0f11');
+        fillRR(c, bx + bw * 0.14, by + bh * 0.36, bw * 0.72, bh * 0.17, 1, '#0e0f11');
+        led(c, bx + bw * 0.24, by + bh * 0.225, Math.max(0.9, bw * 0.03), '#2fd36a', p === 1);
+        led(c, bx + bw * 0.24, by + bh * 0.445, Math.max(0.9, bw * 0.03), '#2fd36a', p === 1);
+        // кнопка питания и UID
+        var r = Math.max(2.2, bw * 0.13);
+        powerButton(c, bx + bw / 2, by + bh * 0.68, r, p);
+        led(c, bx + bw * 0.2, by + bh * 0.68, Math.max(1, bw * 0.035), C_UID, false);
+    }
+
+    function drawChassis(c, it, x, y, w, h, regs) {
+        var syn = /synergy|sy12|12000/i.test((it.vendor + ' ' + it.model + ' ' + it.name));
+        var p = it.power, on = (p === 1);
+        var slots = it.slots > 0 ? it.slots : (syn ? 12 : 16);
+        var cols = Math.ceil(slots / 2), rows = 2;
+        fillRR(c, x, y + 0.5, w, h - 1, 2, vg(c, y, h, [[0, syn ? '#2a2d34' : '#3a3d42'], [1, '#17181b']]));
+        c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(x + 2, y + 1, w - 4, 1);
+        if (syn) { c.fillStyle = '#00b5e2'; c.fillRect(x + 3, y + 2, w - 6, Math.max(1, UH * 0.04)); }
+        var ew = w * 0.03;
+        var earFill = vg(c, y, h, [[0, '#4a4d53'], [1, '#202226']]);
+        fillRR(c, x, y + 0.5, ew, h - 1, 2, earFill);
+        fillRR(c, x + w - ew, y + 0.5, ew, h - 1, 2, earFill);
+        earSlots(c, x, y, ew, Math.max(1, Math.round(h / UH))); earSlots(c, x + w - ew, y, ew, Math.max(1, Math.round(h / UH)));
+
+        var ax = x + ew + w * 0.006, aw = w - 2 * ew - w * 0.012;
+        var ay = y + h * 0.045, ah = h * 0.66;
+        var sw = aw / cols, sh = ah / rows;
+        var bySlot = {};
+        for (var i = 0; i < it.blades.length; i++) bySlot[it.blades[i].slot] = it.blades[i];
+        for (var s = 1; s <= slots; s++) {
+            var col = (s - 1) % cols, row = Math.floor((s - 1) / cols);
+            var bx = ax + col * sw + 1, by = ay + row * sh + 1, bw = sw - 2, bh = sh - 2;
+            var b = bySlot[s];
+            drawBlade(c, bx, by, bw, bh, b, syn, s);
+            if (b) regs.push({ x: bx, y: by, w: bw, h: bh, it: it, blade: b });
+        }
+
+        // нижняя часть: блоки питания и дисплей Insight
+        var py = y + h * 0.745, ph = h * 0.21;
+        var psuW = aw * 0.125, gapx = aw * 0.012;
+        var dispW = aw * 0.16;
+        var total = psuW * 6 + dispW + gapx * 6;
+        var px = ax + (aw - total) / 2;
+        for (var k = 0; k < 7; k++) {
+            if (k === 3) {
+                fillRR(c, px, py, dispW, ph, 2, '#0b0c0e');
+                fillRR(c, px + dispW * 0.1, py + ph * 0.18, dispW * 0.8, ph * 0.5, 1.5, on ? '#0c3d57' : '#10151a');
+                if (on && UH >= 28) txt(c, it.name, px + dispW / 2, py + ph * 0.43, Math.max(6, UH * 0.19), '#8fd8ff', '600', 'center');
+                led(c, px + dispW * 0.3, py + ph * 0.82, Math.max(1.2, UH * 0.04), '#2fd36a', on);
+                led(c, px + dispW * 0.5, py + ph * 0.82, Math.max(1.2, UH * 0.04), C_UID, false);
+                led(c, px + dispW * 0.7, py + ph * 0.82, Math.max(1.2, UH * 0.04), C_ERR, false);
+                px += dispW + gapx;
+                continue;
+            }
+            fillRR(c, px, py, psuW, ph, 2, vg(c, py, ph, [[0, '#2f3237'], [1, '#17191c']]));
+            strokeRR(c, px + 0.5, py + 0.5, psuW - 1, ph - 1, 2, 'rgba(0,0,0,0.8)', 1);
+            c.fillStyle = 'rgba(0,0,0,0.55)';
+            for (var v = 0; v < 6; v++) c.fillRect(px + psuW * 0.12, py + ph * (0.14 + v * 0.1), psuW * 0.76, Math.max(1, ph * 0.04));
+            led(c, px + psuW * 0.5, py + ph * 0.86, Math.max(1.2, UH * 0.045), '#2fd36a', on);
+            px += psuW + gapx;
+        }
+        if (UH >= 26) txt(c, it.model, x + w * 0.5, y + h * 0.985 - UH * 0.04, Math.max(6, UH * 0.17), 'rgba(235,238,242,0.5)', '500', 'center');
+    }
+
+    // ---------- СХД ----------
+    var STORAGE = {
+        huawei: { chunk: 2, drives: 25, bezel: ['#3b3e44', '#18191d'], ear: ['#b2b6bd', '#70757d'], accent: '#c7000b', label: 'HUAWEI', sub: 'OceanStor', bayLed: '#3de08a' },
+        unity: { chunk: 2, drives: 25, bezel: ['#34373c', '#16171a'], ear: ['#c8ccd2', '#868c95'], accent: '#0076ce', label: 'DELL EMC', sub: 'UNITY', bayLed: '#3da5ff' },
+        vnx: { chunk: 3, drives: 15, bezel: ['#2c2e32', '#131416'], ear: ['#bfc3c9', '#7c828a'], accent: '#6b7280', label: 'EMC', sub: 'VNX', bayLed: '#3de08a' },
+        lenovo: { chunk: 2, drives: 24, bezel: ['#23252a', '#101113'], ear: ['#2c2e33', '#151619'], accent: '#e2231a', label: 'Lenovo', sub: 'ThinkSystem DE', bayLed: '#ff6a3d' },
+        generic: { chunk: 2, drives: 24, bezel: ['#4a4e55', '#2b2e33'], ear: ['#a3a9b1', '#6c7179'], accent: '#8892a0', label: '', sub: '', bayLed: '#3de08a' }
+    };
+
+    function drawStorageChunk(c, it, th, x, y, w, h, first, remainFrac) {
+        var p = it.power, on = (p === 1);
+        fillRR(c, x, y + 0.5, w, h - 1, 2, vg(c, y, h, [[0, th.bezel[0]], [1, th.bezel[1]]]));
+        c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(x + 2, y + 1, w - 4, 1);
+        c.fillStyle = th.accent; c.fillRect(x + w * 0.04, y + h - 2.5, w * 0.92, 1.5);
+        var ew = w * 0.04;
+        var earFill = vg(c, y, h, [[0, th.ear[0]], [1, th.ear[1]]]);
+        fillRR(c, x, y + 0.5, ew, h - 1, 2, earFill);
+        fillRR(c, x + w - ew, y + 0.5, ew, h - 1, 2, earFill);
+        var nU = Math.max(1, Math.round(h / UH));
+        earSlots(c, x, y, ew, nU); earSlots(c, x + w - ew, y, ew, nU);
+
+        // левая панель: логотип + индикаторы
+        var px = x + ew + w * 0.006, pw = w * 0.085;
+        if (th.label) {
+            txt(c, th.label, px + pw / 2, y + h * 0.2, Math.max(6, Math.min(UH * 0.2, pw * 0.2)), th.accent === '#c7000b' ? '#ff3b3b' : '#e9edf2', '800', 'center');
+            if (th.sub) txt(c, th.sub, px + pw / 2, y + h * 0.34, Math.max(5.5, Math.min(UH * 0.15, pw * 0.15)), 'rgba(230,233,238,0.7)', '500', 'center');
+        }
+        var lr = Math.max(1.4, UH * 0.05);
+        if (first) {
+            powerButton(c, px + pw * 0.5, y + h * 0.6, Math.max(3, UH * 0.13), p === 1 ? 1 : 0);
+            led(c, px + pw * 0.2, y + h * 0.86, lr, C_UID, false);
+            led(c, px + pw * 0.5, y + h * 0.86, lr, C_ON, on);
+            led(c, px + pw * 0.8, y + h * 0.86, lr, C_ERR, false);
+        } else {
+            led(c, px + pw * 0.5, y + h * 0.7, lr, C_ON, on);
+        }
+
+        // диски (вертикальные), для неполной последней полки - пропорционально
+        var dx = px + pw + w * 0.01, dw = w - 2 * ew - pw - w * 0.03;
+        var dy = y + h * 0.1, dh = h * 0.78;
+        fillRR(c, dx, dy, dw, dh, 2, '#0b0c0e');
+        var n = th.drives, sw = dw / n;
+        var cnt = Math.max(1, Math.round(n * (remainFrac || 1)));
+        for (var i = 0; i < n; i++) {
+            if (i >= cnt) {
+                c.fillStyle = '#17181b'; c.fillRect(dx + i * sw + 1, dy + 1, sw - 2, dh - 2);
+                continue;
+            }
+            driveVert(c, dx + i * sw + 0.8, dy + 1, sw - 1.6, dh - 2, on, it.id * 11 + i, th);
+        }
+    }
+
+    function drawStorage(c, it, x, y, w, h) {
+        var s = (it.vendor + ' ' + it.model + ' ' + it.name).toLowerCase();
+        var key = 'generic';
+        if (/huawei|oceanstor|dorado/.test(s)) key = 'huawei';
+        else if (/vnx/.test(s)) key = 'vnx';
+        else if (/unity|dell|emc/.test(s)) key = 'unity';
+        else if (/lenovo|thinksystem|\bde\d/.test(s)) key = 'lenovo';
+        var th = STORAGE[key];
+        var chunk = th.chunk, total = Math.max(1, it.sizeU);
+        var done = 0, first = true;
+        while (done < total) {
+            var u = Math.min(chunk, total - done);
+            // верхний блок в стойке рисуется первым: контроллерный блок - нижний (стартовый юнит)
+            done += u;
+            var cy = y + h - done * UH;      // от нижнего края вверх
+            drawStorageChunk(c, it, th, x, cy, w, u * UH, first, u / chunk);
+            first = false;
+        }
+    }
+
+    // ---------- шкаф ----------
+    function styleOf(it) {
+        var s = (it.vendor + ' ' + it.model + ' ' + it.name).toLowerCase();
+        if (/hpe|hp |hewlett|proliant|\bdl\d|\bml\d|\bbl\d/.test(s)) return THEMES.hpe;
+        if (/dell|poweredge|\br\d{3}/.test(s)) return THEMES.dell;
+        if (/lenovo|thinksystem|\bsr\d{3}/.test(s)) return THEMES.lenovo;
+        return THEMES.generic;
+    }
+
+    function yOf(startU, size) { return TOP + (DATA.uHeight - (startU + size - 1)) * UH; }
+
+    function layout() {
+        g.dpr = window.devicePixelRatio || 1;
+        g.devW = Math.round(UH * RATIO);
+        g.W = GUT * 2 + g.devW;
+        g.H = TOP + DATA.uHeight * UH + BOT;
+        [base, over].forEach(function (cv) {
+            cv.width = Math.round(g.W * g.dpr); cv.height = Math.round(g.H * g.dpr);
+            cv.style.width = g.W + 'px'; cv.style.height = g.H + 'px';
+        });
+    }
+
+    function drawCabinet(c) {
+        var W = g.W, H = g.H, dev = g.devW;
+        // наружная рама
+        fillRR(c, 0, 0, W, H, 8, hg(c, 0, W, [[0, '#14161a'], [0.5, '#23262c'], [1, '#14161a']]));
+        strokeRR(c, 0.5, 0.5, W - 1, H - 1, 8, '#3a3e46', 1);
+        // внутренний объём
+        fillRR(c, GUT - 7, TOP - 6, dev + 14, DATA.uHeight * UH + 12, 3, '#08090b');
+        // верхняя панель с названием
+        fillRR(c, GUT - 7, 6, dev + 14, TOP - 14, 3, vg(c, 6, TOP - 14, [[0, '#2b2e35'], [1, '#1a1c21']]));
+        txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : ''), W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, '#cfd5de', '700', 'center');
+        // рейки с отверстиями и номера юнитов
+        var railW = UH * 0.55, fs = Math.max(8, Math.round(UH * 0.28));
+        for (var u = 1; u <= DATA.uHeight; u++) {
+            var y = yOf(u, 1);
+            c.fillStyle = (u % 2) ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.0)';
+            c.fillRect(GUT, y, dev, UH);
+            [GUT, GUT + dev - railW].forEach(function (rx) {
+                c.fillStyle = vg(c, y, UH, [[0, '#7d838d'], [1, '#575c65']]);
+                c.fillRect(rx, y, railW, UH);
+                c.fillStyle = '#050607';
+                for (var k = 0; k < 3; k++) {
+                    var hy = y + UH * (k === 0 ? 0.17 : k === 1 ? 0.5 : 0.83);
+                    c.fillRect(rx + railW * 0.5 - UH * 0.06, hy - UH * 0.06, UH * 0.12, UH * 0.12);
+                }
+            });
+            c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(GUT, y, dev, 1);
+            if (UH >= 24 || u % 5 === 0 || u === 1) {
+                txt(c, String(u), GUT - 9, y + UH / 2 + 0.5, fs, '#8a919c', '500', 'right');
+                txt(c, String(u), GUT + dev + 9, y + UH / 2 + 0.5, fs, '#8a919c', '500', 'left');
+            }
+        }
+        // цоколь
+        fillRR(c, GUT - 7, TOP + DATA.uHeight * UH + 6, dev + 14, BOT - 12, 2, '#101216');
+    }
+
+    function drawAll() {
+        regions = [];
+        var c = bctx;
+        c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+        c.clearRect(0, 0, g.W, g.H);
+        drawCabinet(c);
+        DATA.items.forEach(function (it) {
+            var x = GUT, w = g.devW, y = yOf(it.startU, it.sizeU), h = it.sizeU * UH;
+            c.save();
+            c.beginPath(); c.rect(x, y, w, h); c.clip();
+            if (it.kind === 'chassis') drawChassis(c, it, x, y, w, h, regions);
+            else if (it.kind === 'storage') drawStorage(c, it, x, y, w, h);
+            else drawServer(c, it, x, y, w, h, styleOf(it));
+            c.restore();
+            regions.push({ x: x, y: y, w: w, h: h, it: it, blade: null });
+        });
+        // hit() берёт первое совпадение - области блейдов должны проверяться раньше общей области корзины
+        regions.sort(function (a, b) { return (a.blade ? 0 : 1) - (b.blade ? 0 : 1); });
+        drawOver();
+    }
+
+    // ---------- подсветка ----------
+    function drawOver() {
+        octx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+        octx.clearRect(0, 0, g.W, g.H);
+        var r = pinned ? shown : hovered;
+        if (!r) return;
+        octx.fillStyle = 'rgba(77,171,247,0.12)';
+        rr(octx, r.x, r.y, r.w, r.h, 3); octx.fill();
+        octx.save();
+        octx.strokeStyle = '#4dabf7'; octx.lineWidth = 2; octx.shadowColor = '#4dabf7'; octx.shadowBlur = 10;
+        rr(octx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, 3); octx.stroke();
+        octx.restore();
+    }
+
+    // ---------- подсказка ----------
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
+    function powerText(p) {
+        if (p === 1) return '<span class="rv-pw" style="color:' + C_ON + '">&#9679; Включен</span>';
+        if (p === 2) return '<span class="rv-pw" style="color:' + C_STBY + '">&#9679; Выключен</span>';
+        return '<span class="rv-pw" style="color:#8a919c">&#9679; Не определено</span>';
+    }
+    function kindText(it) { return { server: 'Сервер', chassis: 'Блейд-корзина', storage: 'СХД', 'switch': 'Коммутатор' }[it.kind] || ''; }
+
+    function tipHtml(r) {
+        var it = r.it, b = r.blade;
+        var name = b ? b.name : it.name;
+        var sub = b ? (b.model || 'Блейд-сервер') : ((it.vendor || '') + ' ' + (it.model || '')).trim();
+        var power = b ? b.power : it.power;
+        var rows = b ? b.rows : it.rows, links = b ? b.links : it.links;
+        var pos;
+        if (b) pos = 'Корзина «' + esc(it.name) + '», слот ' + b.slot;
+        else if (it.startU > 0) pos = 'U' + it.startU + (it.sizeU > 1 ? '–U' + (it.startU + it.sizeU - 1) : '') + ' (' + it.sizeU + 'U' + (it.sizeGuess ? ', высота предположительно' : '') + ')';
+        else pos = 'позиция не указана';
+        var h = '<button type="button" class="rv-tip-close" title="Закрыть">&times;</button>';
+        h += '<div class="rv-tip-title">' + esc(name) + '</div>';
+        h += '<div class="rv-tip-sub">' + esc(kindText(b ? { kind: 'server' } : it)) + (sub ? ' &middot; ' + esc(sub) : '') + '</div>';
+        h += '<table><tr><td>Питание</td><td>' + powerText(power) + '</td></tr>';
+        h += '<tr><td>Положение</td><td>' + pos + '</td></tr>';
+        (rows || []).forEach(function (kv) { h += '<tr><td>' + esc(kv.k) + '</td><td>' + esc(kv.v) + '</td></tr>'; });
+        h += '</table>';
+        if (links && links.length) {
+            h += '<div class="rv-links">';
+            links.forEach(function (l) { h += '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.title) + ' &rarr;</a>'; });
+            h += '</div>';
+        }
+        return h;
+    }
+
+    function placeTip(r) {
+        tip.hidden = false;
+        var sr = stage.getBoundingClientRect();
+        var tw = tip.offsetWidth, th = tip.offsetHeight;
+        var left;
+        if (window.innerWidth - sr.right >= tw + 12) left = g.W - 6;
+        else if (sr.left >= tw + 12) left = -tw + 6;
+        else left = Math.max(0, g.W - tw - 8);
+        var yc = r.y + r.h / 2 - th / 2;
+        var vp = sr.top + yc;
+        vp = Math.max(8, Math.min(vp, window.innerHeight - th - 8));
+        tip.style.left = left + 'px';
+        tip.style.top = (vp - sr.top) + 'px';
+    }
+
+    function showTip(r) {
+        shown = r;
+        tip.innerHTML = tipHtml(r);
+        tip.classList.toggle('rv-pinned', pinned);
+        placeTip(r);
+        drawOver();
+    }
+    function hideTip() {
+        if (pinned) return;
+        tip.hidden = true; shown = null;
+        drawOver();
+    }
+    function unpin() {
+        pinned = false; tip.classList.remove('rv-pinned');
+        tip.hidden = true; shown = null; drawOver();
+    }
+
+    function hit(px, py) {
+        for (var i = 0; i < regions.length; i++) {
+            var r = regions[i];
+            if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return r;
+        }
+        return null;
+    }
+
+    base.addEventListener('mousemove', function (e) {
+        var rc = base.getBoundingClientRect();
+        var r = hit(e.clientX - rc.left, e.clientY - rc.top);
+        base.style.cursor = r ? 'pointer' : 'default';
+        if (r === hovered) return;
+        hovered = r;
+        if (!pinned) drawOver();
+        if (pinned) return;
+        clearTimeout(showTimer); clearTimeout(hideTimer);
+        if (r) {
+            showTimer = setTimeout(function () { if (hovered === r) showTip(r); }, shown ? 160 : 90);
+        } else {
+            hideTimer = setTimeout(hideTip, 350);
+        }
+    });
+    base.addEventListener('mouseleave', function () {
+        hovered = null;
+        if (pinned) return;
+        drawOver();
+        clearTimeout(showTimer); clearTimeout(hideTimer);
+        hideTimer = setTimeout(hideTip, 350);
+    });
+    base.addEventListener('click', function (e) {
+        var rc = base.getBoundingClientRect();
+        var r = hit(e.clientX - rc.left, e.clientY - rc.top);
+        clearTimeout(showTimer); clearTimeout(hideTimer);
+        if (r) { pinned = true; showTip(r); } else { unpin(); }
+    });
+    tip.addEventListener('mouseenter', function () { clearTimeout(hideTimer); clearTimeout(showTimer); });
+    tip.addEventListener('mouseleave', function () { if (!pinned) { clearTimeout(hideTimer); hideTimer = setTimeout(hideTip, 350); } });
+    tip.addEventListener('click', function (e) { if (e.target && e.target.className === 'rv-tip-close') unpin(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') unpin(); });
+    document.addEventListener('click', function (e) { if (pinned && !stage.contains(e.target)) unpin(); });
+
+    // ---------- боковая панель ----------
+    function renderSide() {
+        var items = DATA.items, on = 0, off = 0, unk = 0, usedU = 0, bl = 0, blOn = 0;
+        function cnt(p) { if (p === 1) on++; else if (p === 2) off++; else unk++; }
+        items.forEach(function (it) {
+            usedU += it.sizeU;
+            if (it.kind === 'chassis') { (it.blades || []).forEach(function (b) { bl++; if (b.power === 1) blOn++; }); }
+            cnt(it.power);
+        });
+        var s = '<div>Занято юнитов: <b>' + usedU + '</b> из ' + DATA.uHeight + ' (' + Math.round(usedU * 100 / Math.max(1, DATA.uHeight)) + '%)</div>';
+        s += '<div>Устройств на позициях: <b>' + items.length + '</b></div>';
+        s += '<div><span class="rv-dot rv-dot-on"></span>включено: <b>' + on + '</b> &nbsp; <span class="rv-dot rv-dot-stby"></span>выключено: <b>' + off + '</b> &nbsp; <span class="rv-dot rv-dot-unk"></span>н/д: <b>' + unk + '</b></div>';
+        if (bl) s += '<div>Блейдов в корзинах: <b>' + bl + '</b> (включено ' + blOn + ')</div>';
+        document.getElementById('rvSummary').innerHTML = s;
+
+        if (DATA.unplaced && DATA.unplaced.length) {
+            document.getElementById('rvUnplacedCard').hidden = false;
+            var h = '';
+            DATA.unplaced.forEach(function (it) {
+                h += '<div class="rv-unpl-item"><div><b>' + esc(it.name) + '</b></div><div class="text-muted">' + esc(kindText(it)) + ((it.vendor || it.model) ? ' &middot; ' + esc((it.vendor + ' ' + it.model).trim()) : '') + '</div>';
+                h += '<div>' + powerText(it.power) + '</div><div>';
+                (it.links || []).forEach(function (l) { h += '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.title) + '</a>'; });
+                h += '</div></div>';
+            });
+            document.getElementById('rvUnplaced').innerHTML = h;
+        }
+    }
+
+    // ---------- масштаб ----------
+    function setZoom(v) {
+        UH = Math.max(20, Math.min(90, v));
+        try { localStorage.setItem(ZKEY, String(UH)); } catch (e) { }
+        unpin(); hovered = null;
+        layout(); drawAll();
+    }
+    document.getElementById('rvZoomIn').addEventListener('click', function () { setZoom(UH + 4); });
+    document.getElementById('rvZoomOut').addEventListener('click', function () { setZoom(UH - 4); });
+    document.getElementById('rvZoomReset').addEventListener('click', function () { setZoom(40); });
+
+    renderSide();
+    layout();
+    drawAll();
+})();
+</script>

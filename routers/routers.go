@@ -95,6 +95,7 @@ func init() {
 	// и с BladeSystems/ServerHardware (RackCabinetId на этих моделях).
 	beego.Router("/sprsrv/rackcabinetlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprRackCabinet")
 	beego.Router("/sprsrv/rackcabinetedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprRackCabinetEdit")
+	beego.Router("/sprsrv/rackcabinetview/:id([0-9]+)", &controllers.MainController{}, "get:SprRackCabinetView") // вид шкафа с установленным оборудованием на canvas (серверы, блейд-корзины, СХД)
 
 	// Справочник сетей (models.NetworkSprRecords) для серверов и других компонент инфраструктуры.
 	beego.Router("/sprsrv/networklist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetwork")
