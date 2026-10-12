@@ -1,0 +1,60 @@
+services:
+  # Свежий именованный том Docker создаётся владельцем root — postgres (не root в образе) не может
+  # писать archive_command в него без этого шага. Однократно отрабатывает и завершается
+  # (depends_on: service_completed_successfully ниже), не нужен вручную при каждом up.
+  wal-archive-init:
+    image: postgres:18
+    user: root
+    volumes:
+      - cmdb_wal_archive:/var/lib/postgresql/wal_archive
+    entrypoint: ["chown", "postgres:postgres", "/var/lib/postgresql/wal_archive"]
+    restart: "no"
+
+  postgres:
+    image: postgres:18
+    depends_on:
+      wal-archive-init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: cmdb
+      POSTGRES_PASSWORD: cmdb
+      POSTGRES_DB: cmdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - cmdb_pgdata:/var/lib/postgresql # PG 18+: единый mount, данные лежат в подкаталоге 18/docker
+      - cmdb_wal_archive:/var/lib/postgresql/wal_archive # E8.6: непрерывный WAL-архив, отдельный том от данных
+    # Непрерывное архивирование (E8.6, intent.md §10: RPO ≤ 15 мин, RTO ≤ 4 ч) — pg_basebackup
+    # берёт согласованную базовую копию (scripts/backup/pg_basebackup.sh), archive_command
+    # непрерывно копирует завершённые сегменты WAL; restore проигрывает WAL поверх базовой копии
+    # (scripts/backup/restore.sh) — RPO ограничен снизу частотой переключения сегмента WAL, не
+    # интервалом между базовыми копиями. В проде wal_archive — отдельное хранилище (не тот же диск,
+    # что данные, иначе отказ одного диска берёт и то, и другое) — здесь отдельный том Docker в
+    # пределах учебного/тестового стенда, см. docs/runbook.md.
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=3
+      - -c
+      - archive_timeout=300 # сегмент WAL архивируется не реже раза в 5 мин даже без нагрузки — иначе RPO зависел бы от интенсивности записи (intent.md §10: RPO ≤ 15 мин)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cmdb -d cmdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025" # web UI
+      - "1025:1025" # SMTP
+
+volumes:
+  cmdb_pgdata:
+  cmdb_wal_archive:

@@ -1,0 +1,432 @@
+openapi: 3.0.3
+info:
+  title: CMDB REST API
+  version: "1.0"
+  description: |
+    REST API конфигурационной базы данных (plan.md E7.3). Только этот слой считается стабильным
+    контрактом для интеграций — прямой доступ к БД не поддерживается.
+
+    Все записи проходят через ChangeContext с source=api (не manual): в журнале изменений
+    (`GET /cis/{id}/history`, UI «Журнал изменений») видно, что правку внесла интеграция, а не
+    человек за формой.
+
+    «Показать на дату» (E6.1): любой GET принимает `?asof=2026-01-15T00:00:00Z` — ответ будет
+    таким, каким он был на этот момент. С активным `?asof=` (или той же cookie `asof`, что у UI)
+    любой изменяющий запрос отклоняется 409 — прошлое доступно только на чтение.
+  contact:
+    name: CMDB
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+tags:
+  - name: cis
+    description: Конфигурационные единицы
+  - name: components
+    description: Компоненты КЕ (диски, DIMM, платы, БП…)
+  - name: relations
+    description: Связи между КЕ
+  - name: history
+    description: Журнал изменений
+  - name: ref
+    description: Справочники
+  - name: baselines
+    description: Именованные срезы (E6.2)
+
+paths:
+  /cis:
+    get:
+      tags: [cis]
+      summary: Список КЕ
+      parameters:
+        - {name: class, in: query, schema: {type: string}, description: "ref.ci_class.class_code"}
+        - {name: location, in: query, schema: {type: string}}
+        - {name: env, in: query, schema: {type: string}}
+        - {name: stage, in: query, schema: {type: string}, description: "стадия ЖЦ; по умолчанию — без Retired/Disposed"}
+        - {name: naming, in: query, schema: {type: string}, description: "compliant | legacy | noncompliant | exception"}
+        - {name: q, in: query, schema: {type: string}, description: "подстрока имени/серийного номера или точный IP"}
+        - {name: sort, in: query, schema: {type: string, default: name}}
+        - {name: dir, in: query, schema: {type: string, enum: [asc, desc]}}
+        - {name: page, in: query, schema: {type: integer, default: 1}}
+        - {name: per_page, in: query, schema: {type: integer, enum: [25, 50, 100, 200], default: 25}}
+        - $ref: '#/components/parameters/AsOf'
+      responses:
+        "200":
+          description: Страница КЕ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows: {type: array, items: {type: object}}
+                  total: {type: integer}
+                  page: {type: integer}
+                  per_page: {type: integer}
+                  pages: {type: integer}
+    post:
+      tags: [cis]
+      summary: Создать КЕ
+      description: Имя выделяется по активному профилю именования (номер — из seqalloc); требуются права ci.write на класс.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateCIRequest'}
+      responses:
+        "201":
+          description: Создана
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CreateCIResponse'}
+        "422":
+          description: Атрибуты класса не прошли проверку
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FieldErrors'}
+        default: {$ref: '#/components/responses/Error'}
+
+  /cis/{id}:
+    parameters: [{$ref: '#/components/parameters/CIID'}]
+    get:
+      tags: [cis]
+      summary: Карточка КЕ
+      parameters: [{$ref: '#/components/parameters/AsOf'}]
+      responses:
+        "200":
+          description: КЕ
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CIDetail'}
+        default: {$ref: '#/components/responses/Error'}
+    patch:
+      tags: [cis]
+      summary: Правка изменяемых атрибутов КЕ (оптимистическая блокировка)
+      description: |
+        Присутствие поля в JSON — команда изменить его (даже на null/""); отсутствующее поле не
+        трогается. Имя, класс и стадия ЖЦ не меняются здесь: имя — через переименование по
+        правилам naming (не реализовано в API v1), стадия — через `/cis/{id}/lifecycle`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateCIRequest'}
+      responses:
+        "200":
+          description: Сохранено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {row_version: {type: integer}, change_set_id: {type: integer}}
+        "409": {description: "row_version не совпал — запись изменена другим клиентом", content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+        default: {$ref: '#/components/responses/Error'}
+
+  /cis/{id}/lifecycle:
+    parameters: [{$ref: '#/components/parameters/CIID'}]
+    post:
+      tags: [cis]
+      summary: Смена стадии жизненного цикла
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_version, to_stage, reason]
+              properties:
+                expected_version: {type: integer}
+                to_stage: {type: string, description: "Planned | Ordered | In stock | Commissioning | Operational | Maintenance | Decommissioning | Retired | Disposed"}
+                status: {type: string}
+                reason: {type: string}
+      responses:
+        "200": {description: "Переход выполнен", content: {application/json: {schema: {type: object, properties: {change_set_id: {type: integer}}}}}}
+        "422": {description: "Переход не разрешён матрицей или не заполнены обязательные атрибуты", content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+        default: {$ref: '#/components/responses/Error'}
+
+  /cis/{id}/history:
+    parameters: [{$ref: '#/components/parameters/CIID'}]
+    get:
+      tags: [history]
+      summary: Журнал изменений КЕ (change set-ы, от новых к старым)
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, default: 50}}
+        - {$ref: '#/components/parameters/AsOf'}
+      responses:
+        "200":
+          description: Change set-ы
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  change_sets:
+                    type: array
+                    items: {$ref: '#/components/schemas/ChangeSet'}
+
+  /cis/{id}/components:
+    parameters: [{$ref: '#/components/parameters/CIID'}]
+    get:
+      tags: [components]
+      summary: Компоненты КЕ (деревом; снятые остаются со статусом replaced/removed)
+      parameters: [{$ref: '#/components/parameters/AsOf'}]
+      responses:
+        "200": {description: "Компоненты", content: {application/json: {schema: {type: object, properties: {components: {type: array, items: {type: object}}}}}}}
+    post:
+      tags: [components]
+      summary: Установить компонент
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddComponentRequest'}
+      responses:
+        "201": {description: "Установлен", content: {application/json: {schema: {type: object, properties: {id: {type: integer}, change_set_id: {type: integer}}}}}}
+        default: {$ref: '#/components/responses/Error'}
+
+  /cis/{id}/relations:
+    parameters: [{$ref: '#/components/parameters/CIID'}]
+    get:
+      tags: [relations]
+      summary: Связи КЕ в обе стороны (действующие сейчас)
+      responses:
+        "200": {description: "Связи", content: {application/json: {schema: {type: object, properties: {relations: {type: array, items: {$ref: '#/components/schemas/Relation'}}}}}}}
+    post:
+      tags: [relations]
+      summary: Создать связь (КЕ из адреса — источник)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rel_type, dst_ci_id]
+              properties:
+                rel_type: {type: string, description: "ref.rel_type.rel_code"}
+                dst_ci_id: {type: integer}
+                attrs: {type: object}
+                reason: {type: string}
+      responses:
+        "201": {description: "Создана", content: {application/json: {schema: {type: object, properties: {id: {type: integer}, change_set_id: {type: integer}}}}}}
+        "409": {description: "Такая связь уже действует в этот период", content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+        default: {$ref: '#/components/responses/Error'}
+
+  /relations/{id}/close:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: integer}
+    post:
+      tags: [relations]
+      summary: Закрыть связь (верхняя граница valid_period; запись не удаляется)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_version]
+              properties: {expected_version: {type: integer}, reason: {type: string}}
+      responses:
+        "200": {description: "Закрыта", content: {application/json: {schema: {type: object, properties: {change_set_id: {type: integer}}}}}}
+        default: {$ref: '#/components/responses/Error'}
+
+  /ref/{name}:
+    get:
+      tags: [ref]
+      summary: Справочник (для заполнения кодов при создании/правке КЕ)
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: {type: string, enum: [locations, environments, companies, component-types, rel-types, classes]}
+      responses:
+        "200":
+          description: Элементы справочника
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties: {value: {type: string}, label: {type: string}}
+
+  /baselines:
+    get:
+      tags: [baselines]
+      summary: Список именованных срезов
+      responses:
+        "200": {description: "Срезы", content: {application/json: {schema: {type: object, properties: {baselines: {type: array, items: {$ref: '#/components/schemas/Baseline'}}}}}}}
+
+  /baselines/{id}:
+    get:
+      tags: [baselines]
+      summary: Срез со счётом элементов по сущностям
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200":
+          description: Срез
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  baseline: {$ref: '#/components/schemas/Baseline'}
+                  counts: {type: object, additionalProperties: {type: integer}}
+        default: {$ref: '#/components/responses/Error'}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: "cmdb_pat_…"
+      description: |
+        Токен API сервисной учётной записи или личный (выдаётся в UI на странице «Токены API»,
+        показывается один раз в момент выпуска). Права — как у сессии, по ролям учётной записи.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: cmdb_session
+      description: Cookie сессии UI — тот же вход годится и для API (для отладки из браузера).
+
+  parameters:
+    CIID:
+      name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    AsOf:
+      name: asof
+      in: query
+      schema: {type: string, format: date-time}
+      description: "«Показать на дату» (E6.1): RFC3339, например 2026-01-15T00:00:00Z. Только для GET — с активным asof изменяющие запросы отклоняются 409."
+
+  responses:
+    Error:
+      description: Ошибка
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+
+  schemas:
+    Error:
+      type: object
+      properties: {error: {type: string}}
+    FieldErrors:
+      type: object
+      properties:
+        error: {type: string}
+        fields: {type: object, additionalProperties: {type: string}}
+    CreateCIRequest:
+      type: object
+      required: [class, location_code, reason]
+      properties:
+        class: {type: string, description: "ref.ci_class.class_code, например server, vm"}
+        location_code: {type: string, description: "полный код площадки с дефисом, например OVB-DC1"}
+        company_code: {type: string}
+        environment_code: {type: string}
+        serial_number: {type: string}
+        description: {type: string}
+        criticality: {type: string, enum: [low, medium, high, critical]}
+        attrs: {type: object, description: "атрибуты класса — колонки таблицы-расширения"}
+        reason: {type: string}
+    CreateCIResponse:
+      type: object
+      properties: {id: {type: integer}, name: {type: string}, change_set_id: {type: integer}}
+    UpdateCIRequest:
+      type: object
+      required: [expected_version, reason]
+      properties:
+        expected_version: {type: integer}
+        reason: {type: string}
+        description: {type: string, nullable: true}
+        criticality: {type: string, nullable: true}
+        environment_code: {type: string, nullable: true}
+        serial_number: {type: string, nullable: true}
+        asset_tag: {type: string, nullable: true}
+        rack_position: {type: string, nullable: true}
+        ownership: {type: string, nullable: true}
+        service_provider: {type: string, nullable: true}
+        kii_category: {type: string, nullable: true}
+        lifecycle_status: {type: string, nullable: true}
+        kii_object: {type: boolean, nullable: true}
+    CIDetail:
+      type: object
+      properties:
+        ci: {type: object, description: "колонки cmdb.ci (все значения строками — как в БД)"}
+        class_name: {type: string}
+        ext: {type: object, description: "атрибуты таблицы-расширения класса; пусто, если у класса нет расширения"}
+    AddComponentRequest:
+      type: object
+      required: [component_type, reason]
+      properties:
+        parent_component_id: {type: integer, nullable: true}
+        component_type: {type: string, description: "ref.component_type.type_code"}
+        slot: {type: string}
+        manufacturer: {type: string}
+        part_number: {type: string}
+        serial_number: {type: string}
+        firmware: {type: string}
+        capacity_value: {type: number, nullable: true}
+        capacity_unit: {type: string}
+        speed: {type: string}
+        reason: {type: string}
+    Relation:
+      type: object
+      properties:
+        id: {type: integer}
+        version: {type: integer}
+        rel_type: {type: string}
+        label: {type: string}
+        src_ci_id: {type: integer}
+        dst_ci_id: {type: integer}
+        peer_id: {type: integer}
+        peer_name: {type: string}
+        peer_class: {type: string}
+        outgoing: {type: boolean}
+        valid_from: {type: string}
+        valid_to: {type: string, description: "пусто — действует"}
+    Entry:
+      type: object
+      properties:
+        entity: {type: string}
+        op: {type: string, enum: [I, U, D]}
+        attr: {type: string}
+        old: {type: string}
+        new: {type: string}
+    ChangeSet:
+      type: object
+      properties:
+        id: {type: string}
+        at: {type: string}
+        source: {type: string, enum: [manual, import, api, system, migration]}
+        user_id: {type: string}
+        reason: {type: string}
+        change_request_ref: {type: string}
+        entries: {type: array, items: {$ref: '#/components/schemas/Entry'}}
+    Baseline:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        description: {type: string}
+        as_of: {type: string}
+        status: {type: string, enum: [draft, frozen, approved]}
+        checksum: {type: string}
+        scope_json: {type: string, description: "JSON: классы/площадка/компания/окружение/подстрока имени"}
+        item_count: {type: string}
+        created_at: {type: string}
+        created_by: {type: string}
+        frozen_at: {type: string}
+        frozen_by: {type: string}
+        approved_at: {type: string}
+        approved_by: {type: string}

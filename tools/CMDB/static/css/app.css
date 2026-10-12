@@ -1,0 +1,17 @@
+/* Стили приложения. Цвета — только через переменные Bootstrap (var(--bs-*)), чтобы работала тёмная тема. */
+.filter-bar { position: sticky; top: 0; z-index: 5; }
+.ci-table thead th { position: sticky; top: var(--ci-thead-top, 0); background: var(--bs-body-bg); z-index: 4; white-space: nowrap; }
+.ci-table thead th a { color: inherit; text-decoration: none; }
+.tree-cell { white-space: nowrap; }
+.row-muted { opacity: .55; }
+.diff-old { color: var(--bs-danger-text-emphasis); text-decoration: line-through; }
+.diff-new { color: var(--bs-success-text-emphasis); }
+.json-cell { max-width: 32rem; overflow-wrap: anywhere; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+.htmx-indicator { opacity: 0; transition: opacity .2s; }
+
+/* Режим «Показать на дату» (E6.1): правка запрещена сервером (internal/filters.AsOfReadOnly), здесь —
+   только скрытие элементов правки, чтобы не вводить в заблуждение. */
+.asof-readonly form[hx-post],
+.asof-readonly [data-bs-toggle="modal"],
+.asof-readonly .modal { display: none !important; }

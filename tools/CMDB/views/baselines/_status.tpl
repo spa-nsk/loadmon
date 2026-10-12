@@ -1,0 +1,1 @@
+{{if eq . "draft"}}<span class="badge text-bg-secondary">черновик</span>{{else if eq . "frozen"}}<span class="badge text-bg-info">заморожен</span>{{else if eq . "approved"}}<span class="badge text-bg-success">утверждён</span>{{else}}{{.}}{{end}}
