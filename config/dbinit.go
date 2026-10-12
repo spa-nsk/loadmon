@@ -103,6 +103,34 @@ func DBInit() {
 		log.Fatal("config.ConfigData.DriverName == \"\"")
 	}
 
+	// Пошаговое логирование запуска (2026-10-12): по жалобе "web подвисает
+	// при запуске после сообщения про режим авторизации" - всё, что идёт
+	// между этим сообщением и стартом HTTP-сервера, происходит здесь
+	// (подключение к БД, RunSyncdb и миграции с DDL-блокировками), и без
+	// логов не было видно, на каком шаге именно ожидание.
+	dbInitStep := func(name string, f func()) {
+		t0 := time.Now()
+		log.Printf("DBInit: %s - начало", name)
+		// "пульс" раз в 10 с: шаг долгий, но программа не зависла - видно,
+		// на каком именно шаге идёт работа
+		done := make(chan struct{})
+		go func() {
+			tk := time.NewTicker(10 * time.Second)
+			defer tk.Stop()
+			for {
+				select {
+				case <-done:
+					return
+				case <-tk.C:
+					log.Printf("DBInit: %s - всё ещё выполняется (%s)...", name, time.Since(t0).Round(time.Second))
+				}
+			}
+		}()
+		f()
+		close(done)
+		log.Printf("DBInit: %s - готово за %s", name, time.Since(t0).Round(time.Millisecond))
+	}
+
 	orm.ResetModelCache()
 	orm.DefaultTimeLoc = time.Local
 	orm.RegisterDriver("postgres", orm.DRPostgres)
@@ -110,7 +138,7 @@ func DBInit() {
 
 	alias, driver, dataSource := buildDataSource(ConfigData.DriverName, ConfigData.UserName, ConfigData.Password,
 		ConfigData.DBName, ConfigData.DBFile, ConfigData.HostName, ConfigData.Port, ConfigData.SSLmode)
-	orm.RegisterDataBase(alias, driver, dataSource)
+	dbInitStep("подключение к БД "+alias, func() { orm.RegisterDataBase(alias, driver, dataSource) })
 
 	// вторая база данных (default-add): для sqlite3 используем отдельный файл рядом с основным,
 	// для остальных драйверов поведение сохранено прежним (отдельный postgres-сервер)
@@ -124,7 +152,7 @@ func DBInit() {
 			}
 			dbFileAdd = base + "-add" + ext
 		}
-		orm.RegisterDataBase("default-add", "sqlite3", sqliteDataSource(dbFileAdd))
+		dbInitStep("подключение к БД default-add", func() { orm.RegisterDataBase("default-add", "sqlite3", sqliteDataSource(dbFileAdd)) })
 
 		// sqlite поддерживает только ОДНОГО писателя одновременно (даже в
 		// режиме WAL) - пул из нескольких открытых на запись соединений не
@@ -141,7 +169,7 @@ func DBInit() {
 		orm.SetMaxIdleConns("default-add", 1)
 	} else {
 		dataSourceAdd := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", "work", utilities.GetKeyData("work"), "loadmonv3", "172.18.112.125", 5432, "disable")
-		orm.RegisterDataBase("default-add", "postgres", dataSourceAdd)
+		dbInitStep("подключение к БД default-add (postgres)", func() { orm.RegisterDataBase("default-add", "postgres", dataSourceAdd) })
 	}
 
 	orm.Debug = ConfigData.ORMdebug
@@ -251,13 +279,29 @@ func DBInit() {
 	// INDEX упадёт на уже существующих дублях шкафов с одинаковым Name
 	// на разных площадках (баг импорта СХД/блейд-корзин/rack-серверов,
 	// искавших шкаф только по Name, без учёта DatacenterSiteId).
-	dedupeDuplicateRackCabinets()
+	// Преобразования базы (RunSyncdb, миграции, триггеры) выполняет ТОЛЬКО
+	// metrics_grpc (WorkMode=api) - web-интерфейс и утилиты (WorkMode=web)
+	// лишь регистрируют модели и работают с уже подготовленной базой, не
+	// задерживая старт на DDL-операциях (2026-10-12, по жалобе "web
+	// долго стартует, делая непонятно что"). Принудительный запуск из
+	// любого режима - переменная окружения LOADMON_DB_MIGRATE=1 (например,
+	// для tools/seeddata на пустой базе).
+	if ConfigData.WorkMode != "api" && os.Getenv("LOADMON_DB_MIGRATE") != "1" {
+		log.Printf("DBInit: WorkMode=%q - синхронизация схемы и миграции БД выполняет metrics_grpc (WorkMode=api), здесь пропущены", ConfigData.WorkMode)
+		return
+	}
 
-	err := orm.RunSyncdb("default", false, false)
-	logSyncdbErr("default", err)
+	dbInitStep("дедупликация шкафов", dedupeDuplicateRackCabinets)
 
-	err = orm.RunSyncdb("default-add", false, false)
-	logSyncdbErr("default-add", err)
+	var err error
+	dbInitStep("RunSyncdb default", func() {
+		err = orm.RunSyncdb("default", false, false)
+		logSyncdbErr("default", err)
+	})
+	dbInitStep("RunSyncdb default-add", func() {
+		err = orm.RunSyncdb("default-add", false, false)
+		logSyncdbErr("default-add", err)
+	})
 
 	// Одноразовый перенос старых данных размещения СХД (RackCabinetId/
 	// StartUnitPos/EndUnitPos/SizeUnit) из уже "осиротевших" колонок
@@ -265,7 +309,7 @@ func DBInit() {
 	// комментарий в models_add.go и migrateStorageSystemsPlacement ниже.
 	// Вызывается ПОСЛЕ RunSyncdb, т.к. таблица storage_system_placement
 	// должна уже существовать.
-	migrateStorageSystemsPlacement()
+	dbInitStep("перенос размещения СХД", migrateStorageSystemsPlacement)
 
 	// Перенос уникальности server_metric/server_metric_record с (HostId, ...)
 	// на (Source, HostId, ...) на уже существующих базах - см.
@@ -276,16 +320,16 @@ func DBInit() {
 		addDriver = "sqlite3"
 	}
 	aliasDrivers := map[string]string{alias: driver, "default-add": addDriver}
-	migrateServerMetricSourceUnique(aliasDrivers)
+	dbInitStep("уникальность server_metric", func() { migrateServerMetricSourceUnique(aliasDrivers) })
 
 	// Записи server_spr_records со Stat=666 ("к уничтожению") не должны
 	// меняться никаким кодом - защита триггером БД, см.
 	// config/dbinit_serverspr_destroy.go.
-	ensureServerSprDestroyTrigger(aliasDrivers)
+	dbInitStep("триггер server_spr_records (блокировка таблицы)", func() { ensureServerSprDestroyTrigger(aliasDrivers) })
 
 	// Одноразовые миграции данных (таблица loadmon_migration), см.
 	// config/dbinit_migrations.go. Справочник серверов живёт в "default".
-	runDataMigrations(alias)
+	dbInitStep("одноразовые миграции данных", func() { runDataMigrations(alias) })
 
 	/*
 		name := "default"

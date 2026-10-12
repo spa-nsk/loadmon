@@ -74,7 +74,7 @@ func migrateUniquePostgres(o orm.Ormer, m uniqueMigration) error {
 	if cnt == 0 {
 		return nil // старого ограничения нет - свежая база или уже мигрировано
 	}
-	log.Printf("migrateServerMetricSourceUnique: %s - замена UNIQUE (%s) на (%s)", m.table, strings.Join(m.oldCols, ", "), strings.Join(m.newCols, ", "))
+	log.Printf("migrateServerMetricSourceUnique: %s - замена UNIQUE (%s) на (%s): перестройка индекса, ОДНОРАЗОВО, может занять минуты на больших таблицах", m.table, strings.Join(m.oldCols, ", "), strings.Join(m.newCols, ", "))
 	return o.DoTx(func(_ context.Context, tx orm.TxOrmer) error {
 		if _, err := tx.Raw(fmt.Sprintf(`ALTER TABLE "%s" DROP CONSTRAINT IF EXISTS "%s"`, m.table, oldName)).Exec(); err != nil {
 			return err
@@ -124,7 +124,9 @@ func migrateUniqueSQLite(o orm.Ormer, m uniqueMigration) error {
 		return fmt.Errorf("чтение индексов: %w", err)
 	}
 
-	log.Printf("migrateServerMetricSourceUnique: %s - пересоздание таблицы для UNIQUE (%s) (на больших объёмах может занять время)", m.table, strings.Join(m.newCols, ", "))
+	var rowCnt int64
+	_ = o.Raw("SELECT count(*) FROM `" + m.table + "`").QueryRow(&rowCnt)
+	log.Printf("migrateServerMetricSourceUnique: %s - пересоздание таблицы для UNIQUE (%s): копирование %d строк одной транзакцией, это ОДНОРАЗОВО, но может занять минуты - не прерывайте запуск", m.table, strings.Join(m.newCols, ", "), rowCnt)
 	return o.DoTx(func(_ context.Context, tx orm.TxOrmer) error {
 		stmts := []string{
 			"DROP TABLE IF EXISTS `" + tmp + "`",
