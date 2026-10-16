@@ -84,6 +84,7 @@
                 <td class="text-end">{{printf "%.0f" $dc.PowerPeak24hW}}</td>
                 <td class="text-end">{{printf "%.0f" $dc.PowerRatedMaxW}}</td>
                 <td id="dcRowMenu{{$dc.Id}}" class="d-none">
+                    <a class="ctx-menu-item" href="/sprsrv/datacentersiteview/{{$dc.Id}}" target="_blank">Просмотр оборудования ЦОД</a>
                     <a class="ctx-menu-item" href="/sprsrv/datacentersiteedit/{{$dc.Id}}" target="_blank">Редактировать</a>
                 </td>
             </tr>

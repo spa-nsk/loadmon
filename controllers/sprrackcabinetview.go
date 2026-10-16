@@ -149,6 +149,7 @@ func (this *MainController) SprRackCabinetView() {
 	RegisterRequest(this, LogTypeViewReference) // просмотр шкафа с оборудованием
 
 	this.activeContent("sprsrv/rackcabinetview")
+	this.Data["Embed"] = this.GetString("embed") == "1" // показ во фрейме просмотра ЦОД: без боковой панели
 
 	this.Data["Id"] = idStr
 	this.Data["CabinetName"] = ""
