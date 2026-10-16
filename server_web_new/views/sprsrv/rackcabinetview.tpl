@@ -1,3 +1,4 @@
+{{if .Embed}}<style>.sidebar-panel{display:none !important}</style>{{end}}
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
         <h2>Шкаф {{.CabinetName}}</h2>
