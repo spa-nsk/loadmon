@@ -298,6 +298,11 @@ func (this *MainController) SprRackCabinetView() {
 		if serverSprId > 0 {
 			links = append(links, rackViewLink{Title: "Общие данные по серверу", URL: fmt.Sprintf("/sprsrv/updatebase/all/%d", serverSprId)})
 		}
+		if serverSprId > 0 {
+			links = append(links,
+				rackViewLink{Title: "Мощность за 3 суток", URL: fmt.Sprintf("/sprsrv/powerrecent/server/%d", serverSprId)},
+				rackViewLink{Title: "Мощность за период", URL: fmt.Sprintf("/sprsrv/powerview/server/%d", serverSprId)})
+		}
 		links = append(links, rackViewLink{Title: "Карточка оборудования", URL: fmt.Sprintf("/sprsrv/hwconfedit/%d", hw.Id)})
 		if sn := strings.TrimSpace(hw.SerialNum); sn != "" {
 			links = append(links, rackViewLink{Title: "Данные OneView", URL: "/sprsrv/srvhwviewbysn/" + sn})
@@ -348,6 +353,7 @@ func (this *MainController) SprRackCabinetView() {
 		rows = rackViewPowerRows(rows, ch.PowerAvg24hW, ch.PowerPeak24hW, ch.PowerRatedMaxW)
 		links := []rackViewLink{
 			{Title: "Серверы в корзине", URL: fmt.Sprintf("/sprsrv/bladesystemserverslist/%d", ch.Id)},
+			{Title: "Мощность корзины за период (суточные, OneView)", URL: fmt.Sprintf("/sprsrv/powerview/blade/%d", ch.Id)},
 			{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit/%d", ch.Id)},
 		}
 		blades := make([]rackViewBlade, 0, len(bladesByChassis[ch.Id]))
@@ -377,6 +383,7 @@ func (this *MainController) SprRackCabinetView() {
 		for _, p := range placements {
 			stIds = append(stIds, p.StorageSystemsId)
 		}
+		stShare := rackpower.PlacementShare(o, stIds)
 		stByID := map[int64]models.StorageSystems{}
 		var stRows []models.StorageSystems
 		if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", stIds).All(&stRows); err == nil {
@@ -412,10 +419,18 @@ func (this *MainController) SprRackCabinetView() {
 				rows = rackViewKVAdd(rows, "Ёмкость RAW", fmt.Sprintf("%.1f", st.TotalSizeRAW))
 				rows = rackViewKVAdd(rows, "Занято", fmt.Sprintf("%.1f %%", st.UsedPercent))
 			}
+			rows = rackViewPowerRows(rows, st.PowerAvg24hW, st.PowerPeak24hW, 0)
+			if share := stShare(p); share < 0.999 && (st.PowerAvg24hW > 0 || st.PowerPeak24hW > 0) {
+				// СХД в нескольких шкафах: в итог этого шкафа идёт только доля
+				rows = append(rows, rackViewKV{K: "Доля в этом шкафу", V: fmt.Sprintf("%.0f %%: %.0f Вт (средняя), %.0f Вт (пик)",
+					share*100, st.PowerAvg24hW*share, st.PowerPeak24hW*share)})
+			}
 			links := []rackViewLink{
 				{Title: "Конфигурация СХД (полки, диски, пулы)", URL: fmt.Sprintf("/sprsrv/storagesystemconfigview/%d", st.Id)},
 				{Title: "Метрики СХД за период", URL: fmt.Sprintf("/sprsrv/storagesystemmetricsview/%d", st.Id)},
 				{Title: "Метрики СХД за 3 суток", URL: fmt.Sprintf("/sprsrv/storagesystemmetricsrecent/%d", st.Id)},
+				{Title: "Мощность СХД за 3 суток", URL: fmt.Sprintf("/sprsrv/powerrecent/storage/%d", st.Id)},
+				{Title: "Мощность СХД за период", URL: fmt.Sprintf("/sprsrv/powerview/storage/%d", st.Id)},
 				{Title: "Редактировать СХД", URL: fmt.Sprintf("/sprsrv/storagesystemsedit/%d", st.Id)},
 			}
 			add(rackViewItem{

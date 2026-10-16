@@ -45,6 +45,25 @@ func (m *StoragePowerRecord) TableUnique() [][]string {
 	return [][]string{{"StorageSystemsId", "Date"}}
 }
 
+// BladePowerRecord - суточная запись мощности блейд-корзины. У корзины данные
+// есть только по корзине в целом (OneView: среднее и пик за 24 часа,
+// BladeSystems.PowerAvg24hW/PowerPeak24hW), поминутных замеров нет, поэтому
+// история - только эти суточные снимки (пакет rackpower).
+type BladePowerRecord struct {
+	Id            int64     `form:"Id" orm:"auto;pk;column(id)"`
+	BladeSystemId int64     `form:"BladeSystemId" orm:"column(blade_system_id);index"`
+	Date          time.Time `form:"Date" orm:"column(date);type(date);index"`
+	AvgW          float64   `form:"AvgW" orm:"column(avg_w);digits(12);decimals(3)"`
+	PeakW         float64   `form:"PeakW" orm:"column(peak_w);digits(12);decimals(3)"`
+	Time_Mfy      time.Time `form:"Time_Mfy" orm:"column(time_mfy)"`
+}
+
+func (m *BladePowerRecord) TableName() string   { return "blade_power_record" }
+func (m *BladePowerRecord) TableEngine() string { return "INNODB" }
+func (m *BladePowerRecord) TableUnique() [][]string {
+	return [][]string{{"BladeSystemId", "Date"}}
+}
+
 // RackPowerRecord - суточная мощность шкафа: серверы + блейд-корзины +
 // СХД (пакет rackpower, вариант C), на момент формирования записи.
 type RackPowerRecord struct {
