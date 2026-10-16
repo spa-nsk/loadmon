@@ -1,7 +1,7 @@
 {{if .Embed}}<style>
     .sidebar-panel { display: none !important; }
     /* показ во фрейме ЦОД: только отрисованный шкаф; без позиции - снизу */
-    .hero-text { display: none; }
+    .hero-text { display: none !important; }
     .rv-layout { flex-direction: column; flex-wrap: nowrap; gap: 0.5rem; }
     .rv-main { order: 1; width: 100%; }
     .rv-side { order: 2; flex: 0 0 auto; width: 100%; }
