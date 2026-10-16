@@ -264,9 +264,13 @@ func DBInit() {
 	orm.RegisterModel(new(models.ZabbixKey))
 	orm.RegisterModel(new(models.ServerMetric))
 	orm.RegisterModel(new(models.ServerMetricRecord))
-	orm.RegisterModel(new(models.ServerPowerMetric)) // поминутная мощность серверов (пакет zabbixpower), хранится 3 суток
-	orm.RegisterModel(new(models.ServerPowerRecord)) // суточная агрегация мощности
-	orm.RegisterModel(new(models.ScomHost)) // справочник компьютеров Microsoft SCOM (пакет scommetrics), см. kontext/13-scom-metrics.md
+	orm.RegisterModel(new(models.ServerPowerMetric))  // поминутная мощность серверов (пакет zabbixpower), хранится 3 суток
+	orm.RegisterModel(new(models.ServerPowerRecord))  // суточная агрегация мощности
+	orm.RegisterModel(new(models.StoragePowerMetric)) // поминутная мощность СХД (пакет storagepower), хранится 3 суток
+	orm.RegisterModel(new(models.StoragePowerRecord)) // суточная агрегация мощности СХД
+	orm.RegisterModel(new(models.RackPowerRecord))    // суточная мощность шкафа (пакет rackpower)
+	orm.RegisterModel(new(models.SitePowerRecord))    // суточная мощность ЦОД/площадки (пакет rackpower)
+	orm.RegisterModel(new(models.ScomHost))           // справочник компьютеров Microsoft SCOM (пакет scommetrics), см. kontext/13-scom-metrics.md
 	orm.RegisterModel(new(models.StorageEnclosure))
 	orm.RegisterModel(new(models.StorageDisk))
 	orm.RegisterModel(new(models.StoragePool))

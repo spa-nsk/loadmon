@@ -575,17 +575,17 @@ func (u *VcenterSprRecords) TableIndex() [][]string {
 
 // VMSprRecord описывает запись/справочник БД loadmon, соответствующую сущности VMSprRecord.
 type VMSprRecord struct {
-	Id                   int64   `form:"Id"`
-	ServerId             int64   `form:"ServerId"` //новое поле. добавить запись ссылки на справочник серверов
-	Vcenter              string  `form:"Vcenter"`
-	Datacenter           string  `form:"Datacenter"`
-	Cluster              string  `form:"Cluster"`
-	ClusterId            string  `form:"ClusterId"`   //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
-	Production           int     `form:"Production"`  //среда 0-не заполнено 1-продуктовая с бизнес приложениями 2-тестовая
-	WorkStation          bool    `form:"WorkStation"` //признак рабочей станции windows
-	TypeWork             int     `form:"TypeWork"`    ////0 - не указано 1 - продуктовая среда 2 - внутренний тест 3 - внешний тест
-	Vm_Name              string  `form:"Vm_Name"`
-	Vm_HostName          string  `form:"Vm_HostName"` //имя ГОСТЕВОЙ ОС (из VMware Tools) - НЕ путать с Vm_EsxHost ниже
+	Id          int64  `form:"Id"`
+	ServerId    int64  `form:"ServerId"` //новое поле. добавить запись ссылки на справочник серверов
+	Vcenter     string `form:"Vcenter"`
+	Datacenter  string `form:"Datacenter"`
+	Cluster     string `form:"Cluster"`
+	ClusterId   string `form:"ClusterId"`   //ClusterId = s-msk-vc-01.global.bcs:domain-c2638
+	Production  int    `form:"Production"`  //среда 0-не заполнено 1-продуктовая с бизнес приложениями 2-тестовая
+	WorkStation bool   `form:"WorkStation"` //признак рабочей станции windows
+	TypeWork    int    `form:"TypeWork"`    ////0 - не указано 1 - продуктовая среда 2 - внутренний тест 3 - внешний тест
+	Vm_Name     string `form:"Vm_Name"`
+	Vm_HostName string `form:"Vm_HostName"` //имя ГОСТЕВОЙ ОС (из VMware Tools) - НЕ путать с Vm_EsxHost ниже
 	// Vm_EsxHost - имя РЕАЛЬНОГО физического хоста ESXi, на котором запущена
 	// VM (2026-09-15, по факту найденной пользователем ошибки - см.
 	// комментарий у EsxHost в protocol/vm.proto: Vm_HostName выше долгое
@@ -1284,20 +1284,22 @@ type StorageSystems struct {
 	TagName   string `form:"TagName"`                  //список мнемонических имён встречающихся для этой СХД в именах LUN
 	TypeWork  int    `form:"TypeWork" json:"TypeWork"` //0 - не указано 1 - продуктовая среда 2- тестовая 3 - бэкап
 	//0 - не указано 1 - продуктовая среда 2- внутренний тест 3 - внешний тест
-	Vendor        string    `form:"Vendor"`                //производитель
-	Model         string    `form:"Model"`                 //модель
-	PartNum       string    `form:"PartNum"`               //код продукта у вендора
-	Status        int       `form:"Status"`                //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
-	Size          int       `form:"Size"`                  //максимальное количество дисков
-	Used          int       `form:"Used"`                  //общее количество установленных дисков
-	IpAddress     string    `form:"IpAddress"`             //IP apec
-	IpAddressNext string    `form:"IpAddressNext"`         //IP apec 2
-	TotalSizeRAW  float64   `form:"TotalSizeRAW"`          //размер дисков СХД (сырой)
-	UsedPercent   float64   `form:"UsedPercent"`           //использовано в %
-	WWNMask       string    `form:"WWNMask"`               //WWN маска дисков
-	Firmware      string    `form:"Firmware"`              //версия прошивки
-	SerialNum     string    `form:"SerialNum"`             //серийный номер
-	Power         int       `form:"Power"`                 //0 выключен 1 включен
+	Vendor        string    `form:"Vendor"`                                                           //производитель
+	Model         string    `form:"Model"`                                                            //модель
+	PartNum       string    `form:"PartNum"`                                                          //код продукта у вендора
+	Status        int       `form:"Status"`                                                           //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
+	Size          int       `form:"Size"`                                                             //максимальное количество дисков
+	Used          int       `form:"Used"`                                                             //общее количество установленных дисков
+	IpAddress     string    `form:"IpAddress"`                                                        //IP apec
+	IpAddressNext string    `form:"IpAddressNext"`                                                    //IP apec 2
+	TotalSizeRAW  float64   `form:"TotalSizeRAW"`                                                     //размер дисков СХД (сырой)
+	UsedPercent   float64   `form:"UsedPercent"`                                                      //использовано в %
+	WWNMask       string    `form:"WWNMask"`                                                          //WWN маска дисков
+	Firmware      string    `form:"Firmware"`                                                         //версия прошивки
+	SerialNum     string    `form:"SerialNum"`                                                        //серийный номер
+	Power         int       `form:"Power"`                                                            //0 выключен 1 включен
+	PowerAvg24hW  float64   `form:"PowerAvg24hW" csv:"Средняя мощность 24ч (Вт)" json:"PowerAvg24hW"` // потребляемая мощность: первый замер, затем суточные итоги (пакет storagepower)
+	PowerPeak24hW float64   `form:"PowerPeak24hW" csv:"Пик мощности 24ч (Вт)" json:"PowerPeak24hW"`
 	ApiType       int       `form:"ApiType"`               //тип API 0 не указано 1 - VNX CLI, 2 -Unity Rest 3 - Dorado rest  4- OceanStor 5- Lenovo Rest
 	Ad            bool      `form:"Ad"`                    //в AD
 	Ldaps         bool      `form:"Ldaps"`                 //Ldaps
@@ -2317,12 +2319,12 @@ func (u *SwitchNetworkLink) TableIndex() [][]string {
 // при каждом запуске синхронизации - никакой формы редактирования для неё
 // нет и не планируется, только read-only список /sprsrv/ipaddresslist.
 type IPAddressSprRecords struct {
-	Id          int64  `form:"Id" orm:"auto" csv:"%"`
-	IPAddress   string `form:"IPAddress" csv:"IP-адрес"`
-	MacAddress  string `orm:"null" form:"MacAddress" csv:"MAC-адрес"` // пусто, если у записи-источника количество IP и MAC в списках не совпало - однозначно сопоставить нельзя (см. комментарий SyncNetworkAndIPDirectories)
-	NetworkId   int64  `orm:"null" form:"NetworkId" csv:"Сеть (ссылка)"` // FK на NetworkSprRecords.Id, 0 - если сеть не определена/не сопоставлена по позиции
-	ServerSprId int64  `form:"ServerSprId" csv:"Сервер (ссылка)"`        // FK на ServerSprRecords.Id - источник записи
-	ServerName  string `form:"ServerName" csv:"Имя сервера"`             // денормализовано для отображения списка без join
+	Id          int64     `form:"Id" orm:"auto" csv:"%"`
+	IPAddress   string    `form:"IPAddress" csv:"IP-адрес"`
+	MacAddress  string    `orm:"null" form:"MacAddress" csv:"MAC-адрес"`     // пусто, если у записи-источника количество IP и MAC в списках не совпало - однозначно сопоставить нельзя (см. комментарий SyncNetworkAndIPDirectories)
+	NetworkId   int64     `orm:"null" form:"NetworkId" csv:"Сеть (ссылка)"`  // FK на NetworkSprRecords.Id, 0 - если сеть не определена/не сопоставлена по позиции
+	ServerSprId int64     `form:"ServerSprId" csv:"Сервер (ссылка)"`         // FK на ServerSprRecords.Id - источник записи
+	ServerName  string    `form:"ServerName" csv:"Имя сервера"`              // денормализовано для отображения списка без join
 	Time_Mfy    time.Time `orm:"null" form:"Time_Mfy" csv:"Дата обновления"` // время последней автосинхронизации, см. SyncNetworkAndIPDirectories
 }
 
