@@ -15,7 +15,14 @@
 
 <div class="dv-layout">
     <div class="dv-left">
-        <div class="dv-sel" id="dvSel">Наведите курсор на шкаф</div>
+        <div class="dv-sel d-flex align-items-center justify-content-between gap-2">
+            <div id="dvSel" class="dv-sel-text">Наведите курсор на шкаф</div>
+            <div class="btn-group flex-shrink-0" role="group" aria-label="Масштаб шкафа">
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="dvZoomOut" title="Уменьшить шкаф">&minus;</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="dvZoomReset" title="Масштаб по умолчанию" style="min-width:3.6rem">100%</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="dvZoomIn" title="Увеличить шкаф">+</button>
+            </div>
+        </div>
         <div class="dv-stage" id="dvStage">
             <canvas id="dvCanvas"></canvas>
             <div id="dvTip" class="dv-tip" hidden></div>
@@ -31,6 +38,7 @@
     @media (max-width: 1100px) { .dv-layout { grid-template-columns: 1fr; height: auto; } .dv-left { height: 60vh; } .dv-frame { height: 80vh; } }
     .dv-left { display: flex; flex-direction: column; gap: 0.4rem; }
     .dv-left, .dv-right { min-height: 0; }
+    .dv-sel-text { min-width: 0; }
     .dv-sel { flex: 0 0 auto; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--bs-border-color); background: var(--bs-tertiary-bg); font-size: 0.9rem; }
     .dv-sel .dv-sep { color: var(--bs-secondary-color); margin: 0 0.35rem; }
     .dv-stage { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: #17144f; }
@@ -197,13 +205,22 @@
         ctx.fillRect(75, 8, 10, 284);
         ctx.restore();
 
-        // --- верх: вентиляторная панель и кабельные вводы ---
+        // --- верх: вентиляторная панель и надпись у лицевой кромки (в проекции) ---
         ctx.save();
         faceTransform(P(a0, b0, H), (a1 - a0) * s, (a1 - a0) * s / 2, -(b1 - b0) * s, (b1 - b0) * s / 2, 100, 130);
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(12, 14, 76, 28);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(12, 8, 76, 24);
         ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        for (var k = 0; k < 6; k++) ctx.fillRect(16 + k * 12, 18, 7, 20);
-        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(12, 70, 34, 40); ctx.fillRect(54, 70, 34, 40);
+        for (var k = 0; k < 6; k++) ctx.fillRect(16 + k * 12, 11, 7, 18);
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(12, 40, 34, 28); ctx.fillRect(54, 40, 34, 28);
+        // название шкафа - как будто написано на крышке перед лицевой панелью
+        var fsz = 26;
+        ctx.font = '800 ' + fsz + 'px "Segoe UI", Arial, sans-serif';
+        var tw = ctx.measureText(r.name).width;
+        if (tw > 88) { fsz = Math.max(9, Math.floor(fsz * 88 / tw)); ctx.font = '800 ' + fsz + 'px "Segoe UI", Arial, sans-serif'; }
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(r.name, 51.5, 102.5);
+        ctx.fillStyle = isSel ? '#7df0ff' : (isHov ? '#ffffff' : '#d9dcea');
+        ctx.fillText(r.name, 50, 101);
         ctx.restore();
 
         // кромки
@@ -227,17 +244,6 @@
         var sil = [P(a0, b1, 0), P(a1, b1, 0), P(a1, b0, 0), P(a1, b0, H), P(a0, b0, H), P(a0, b1, H)];
         polys.push({ r: r, pts: sil.map(function (p) { return [p[0] + G.ox, p[1] + G.oy]; }) });
 
-        // подпись под шкафом
-        if (s > 24) {
-            var bp = P((a0 + a1) / 2, b1 + 0.02, 0);
-            var fs = Math.max(9, Math.min(13, s * 0.17));
-            ctx.font = '600 ' + fs + 'px "Segoe UI", Arial, sans-serif';
-            var tw = ctx.measureText(r.name).width + 10;
-            ctx.fillStyle = isSel ? 'rgba(40,150,190,0.9)' : 'rgba(10,9,40,0.72)';
-            ctx.fillRect(bp[0] - tw / 2, bp[1] + 2, tw, fs + 5);
-            ctx.fillStyle = '#e8eaff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(r.name, bp[0], bp[1] + 4 + (fs + 3) / 2);
-        }
     }
 
     function render() {
@@ -324,6 +330,20 @@
         var rect = canvas.getBoundingClientRect();
         var r = pick(e.clientX - rect.left, e.clientY - rect.top);
         if (r) selectRack(r);
+    });
+
+    // масштаб шкафа в правой части: кнопки управляют фреймом, индикатор берёт значение у него
+    function zoomCmd(cmd) {
+        var f = document.getElementById('dvFrame');
+        if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'rvZoom', cmd: cmd }, location.origin);
+    }
+    document.getElementById('dvZoomIn').addEventListener('click', function () { zoomCmd('in'); });
+    document.getElementById('dvZoomOut').addEventListener('click', function () { zoomCmd('out'); });
+    document.getElementById('dvZoomReset').addEventListener('click', function () { zoomCmd('reset'); });
+    window.addEventListener('message', function (e) {
+        if (e.origin !== location.origin) return;
+        var m = e.data || {};
+        if (m.type === 'rvZoomState') document.getElementById('dvZoomReset').textContent = m.pct + '%';
     });
 
     function resize() { layout(); render(); }
