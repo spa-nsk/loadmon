@@ -1,4 +1,14 @@
-{{if .Embed}}<style>.sidebar-panel{display:none !important}</style>{{end}}
+{{if .Embed}}<style>
+    .sidebar-panel { display: none !important; }
+    /* показ во фрейме ЦОД: только отрисованный шкаф; без позиции - снизу */
+    .hero-text > div:first-child { display: none; }
+    .hero-text { margin-bottom: 0.4rem !important; justify-content: flex-end; }
+    .hero-text .btn-outline-primary { display: none; }
+    .rv-layout { flex-direction: column; flex-wrap: nowrap; gap: 0.5rem; }
+    .rv-main { order: 1; width: 100%; }
+    .rv-side { order: 2; flex: 0 0 auto; width: 100%; }
+    .rv-side > .rv-card:not(#rvUnplacedCard) { display: none; }
+</style>{{end}}
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
         <h2>Шкаф {{.CabinetName}}</h2>
@@ -707,8 +717,10 @@
     }
 
     // ---------- масштаб ----------
+    function zoomLabel() { document.getElementById('rvZoomReset').textContent = Math.round(UH * 100 / 40) + '%'; }
     function setZoom(v) {
         UH = Math.max(20, Math.min(90, v));
+        zoomLabel();
         try { localStorage.setItem(ZKEY, String(UH)); } catch (e) { }
         unpin(); hovered = null;
         layout(); drawAll();
@@ -718,6 +730,7 @@
     document.getElementById('rvZoomReset').addEventListener('click', function () { setZoom(40); });
 
     renderSide();
+    zoomLabel();
     layout();
     drawAll();
 })();
