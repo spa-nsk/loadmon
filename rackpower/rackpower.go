@@ -59,6 +59,13 @@ func RackCabinetPowerTotalsBatch(o orm.Ormer, rackCabinetIds []int64) map[int64]
 			out[b.RackCabinetId] = p
 		}
 	}
+
+	for _, sp := range storagePlacementPower(o, orm.NewCondition().And("RackCabinetId__in", ids)) {
+		p := out[sp.rackId]
+		p.Avg24hW += sp.avg
+		p.Peak24hW += sp.peak
+		out[sp.rackId] = p
+	}
 	return out
 }
 
@@ -99,6 +106,14 @@ func DatacenterSitePowerTotalsBatch(o orm.Ormer, siteIds []int64) map[int64]onev
 		s.Peak24hW += p.Peak24hW
 		s.RatedMaxW += p.RatedMaxW
 		out[siteId] = s
+	}
+
+	// СХД, у которых известна площадка, но не шкаф.
+	for _, sp := range storagePlacementPower(o, orm.NewCondition().And("RackCabinetId", 0).And("DatacenterSiteId__in", siteIds)) {
+		s := out[sp.siteId]
+		s.Avg24hW += sp.avg
+		s.Peak24hW += sp.peak
+		out[sp.siteId] = s
 	}
 	return out
 }

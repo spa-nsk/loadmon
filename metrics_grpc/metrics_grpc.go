@@ -17,8 +17,10 @@ import (
 	"loadmon/grpcclient"
 	"loadmon/grpcserver"
 	"loadmon/itsystem"
-	"loadmon/scommetrics"
+	"loadmon/rackpower"
 	_ "loadmon/routers"
+	"loadmon/scommetrics"
+	"loadmon/storagepower"
 	"loadmon/vspheremetrics"
 	"loadmon/zabbix"
 	"loadmon/zabbixmetrics"
@@ -164,6 +166,17 @@ func main() {
 		defer stop()
 		zabbixpower.RunAll(ctx)
 	}()
+	// То же для СХД (Unity, Huawei) и суточные итоги шкафов/ЦОД (00:10).
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		storagepower.RunAll(ctx)
+	}()
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		rackpower.RunDaily(ctx)
+	}()
 
 	// Суточная агрегация метрик СХД и серверов (storage_metric_record,
 	// server_metric_record): догон за 3 дня при старте, ежечасно за сегодня,
@@ -255,8 +268,8 @@ func main() {
 
 	cmdb.ClearOldMetric()
 	cmdb.ClearOldStorageMetric()
-	cmdb.ClearOldStorageEventLog()  // журнал событий СХД - ретеншен 3 суток, см. cmdb/storageeventlog.go
-	cmdb.ClearOldHardwareEventLog()  // журнал изменений конфигурации серверов/корзин - ретеншен 30 суток, см. cmdb/hardwareeventlog.go
+	cmdb.ClearOldStorageEventLog()       // журнал событий СХД - ретеншен 3 суток, см. cmdb/storageeventlog.go
+	cmdb.ClearOldHardwareEventLog()      // журнал изменений конфигурации серверов/корзин - ретеншен 30 суток, см. cmdb/hardwareeventlog.go
 	auditlog.ClearOldServerSprEventLog() // журнал ручных изменений карточек серверов - ретеншен 180 суток, см. cmdb/serversprchangelog.go
 	zabbix.Get10MinutesHistory()
 	go cmdb.SyncNetworkAndIPDirectories() // первый запуск - сразу при старте, далее - по tickerNetworkIP раз в 24ч (см. ниже)
@@ -326,9 +339,9 @@ func main() {
 					// (см. cmdb/savemetric_orchestration.go) - раньше он ещё раз
 					// вызывался и тут, т.е. дважды подряд на каждый цикл (не баг,
 					// вторая итерация ничего не находит, но лишняя работа/шум в логе)
-					cmdb.ClearOldMetric()            // и из базы (включая storage_metric)
-					cmdb.ClearOldStorageEventLog()   // и журнала событий СХД (ретеншен 3 суток)
-					cmdb.ClearOldHardwareEventLog()  // и журнала изменений конфигурации (ретеншен 30 суток)
+					cmdb.ClearOldMetric()                // и из базы (включая storage_metric)
+					cmdb.ClearOldStorageEventLog()       // и журнала событий СХД (ретеншен 3 суток)
+					cmdb.ClearOldHardwareEventLog()      // и журнала изменений конфигурации (ретеншен 30 суток)
 					auditlog.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
 				}()
 
@@ -340,9 +353,9 @@ func main() {
 					// (см. cmdb/savemetric_orchestration.go) - раньше он ещё раз
 					// вызывался и тут, т.е. дважды подряд на каждый цикл (не баг,
 					// вторая итерация ничего не находит, но лишняя работа/шум в логе)
-					cmdb.ClearOldMetric()            // и из базы (включая storage_metric)
-					cmdb.ClearOldStorageEventLog()   // и журнала событий СХД (ретеншен 3 суток)
-					cmdb.ClearOldHardwareEventLog()  // и журнала изменений конфигурации (ретеншен 30 суток)
+					cmdb.ClearOldMetric()                // и из базы (включая storage_metric)
+					cmdb.ClearOldStorageEventLog()       // и журнала событий СХД (ретеншен 3 суток)
+					cmdb.ClearOldHardwareEventLog()      // и журнала изменений конфигурации (ретеншен 30 суток)
 					auditlog.ClearOldServerSprEventLog() // и журнала изменений карточек серверов (ретеншен 180 суток)
 				}()
 
