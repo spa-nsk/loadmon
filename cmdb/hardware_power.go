@@ -35,10 +35,13 @@ func ApplyServerHardwarePowerFromOneView(h *models.ServerHardware, p oneview.Pow
 		h.PowerAvg24hW = 0
 		h.PowerPeak24hW = 0
 	} else {
-		if p.Avg24hW >= 0 {
+		// Нулевые значения не пишем: OneView отдаёт мощность только для
+		// корзин, а по серверам даёт 0 - это затёрло бы данные Zabbix
+		// (пакет zabbixpower).
+		if p.Avg24hW > 0 {
 			h.PowerAvg24hW = p.Avg24hW
 		}
-		if p.Peak24hW >= 0 {
+		if p.Peak24hW > 0 {
 			h.PowerPeak24hW = p.Peak24hW
 		}
 	}
