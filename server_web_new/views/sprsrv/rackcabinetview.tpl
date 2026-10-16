@@ -1,9 +1,7 @@
 {{if .Embed}}<style>
     .sidebar-panel { display: none !important; }
     /* показ во фрейме ЦОД: только отрисованный шкаф; без позиции - снизу */
-    .hero-text > div:first-child { display: none; }
-    .hero-text { margin-bottom: 0.4rem !important; justify-content: flex-end; }
-    .hero-text .btn-outline-primary { display: none; }
+    .hero-text { display: none; }
     .rv-layout { flex-direction: column; flex-wrap: nowrap; gap: 0.5rem; }
     .rv-main { order: 1; width: 100%; }
     .rv-side { order: 2; flex: 0 0 auto; width: 100%; }
@@ -134,10 +132,21 @@
     var GUT = 40, TOP = 38, BOT = 24;
     var ZKEY = 'rackview.uh';
     var UH = 40;
-    try {
-        var zs = parseInt(localStorage.getItem(ZKEY), 10);
-        if (zs >= 20 && zs <= 90) UH = zs;
-    } catch (e) { }
+    var EMBED = {{if .Embed}}true{{else}}false{{end}};
+    var fitUH = 40, userZoomed = false;
+    // подбор масштаба: шкаф по высоте равен области просмотра (во фрейме ЦОД)
+    function calcFit() {
+        var avail = window.innerHeight - 20 - TOP - BOT;
+        return Math.max(12, Math.min(90, Math.floor(avail / Math.max(1, DATA.uHeight))));
+    }
+    if (EMBED) {
+        fitUH = calcFit(); UH = fitUH;
+    } else {
+        try {
+            var zs = parseInt(localStorage.getItem(ZKEY), 10);
+            if (zs >= 20 && zs <= 90) UH = zs;
+        } catch (e) { }
+    }
 
     var g = { W: 0, H: 0, devW: 0, dpr: 1 };
     var regions = [];
@@ -717,11 +726,29 @@
     }
 
     // ---------- масштаб ----------
-    function zoomLabel() { document.getElementById('rvZoomReset').textContent = Math.round(UH * 100 / 40) + '%'; }
+    function zoomLabel() {
+        var pct = Math.round(UH * 100 / (EMBED ? fitUH : 40));
+        document.getElementById('rvZoomReset').textContent = pct + '%';
+        // во фрейме просмотра ЦОД индикатор масштаба показывает родительская страница
+        if (window.parent !== window) { try { window.parent.postMessage({ type: 'rvZoomState', pct: pct }, location.origin); } catch (e) { } }
+    }
+    window.addEventListener('message', function (e) {
+        if (e.origin !== location.origin) return;
+        var m = e.data || {};
+        if (m.type !== 'rvZoom') return;
+        if (m.cmd === 'in') { userZoomed = true; setZoom(UH + 4); } else if (m.cmd === 'out') { userZoomed = true; setZoom(UH - 4); } else if (m.cmd === 'reset') { userZoomed = false; if (EMBED) fitUH = calcFit(); setZoom(EMBED ? fitUH : 40); }
+    });
+    if (EMBED) {
+        window.addEventListener('resize', function () {
+            if (userZoomed) return;
+            var f = calcFit();
+            if (f !== UH) { fitUH = f; setZoom(f); }
+        });
+    }
     function setZoom(v) {
-        UH = Math.max(20, Math.min(90, v));
+        UH = Math.max(EMBED ? 8 : 20, Math.min(90, v));
         zoomLabel();
-        try { localStorage.setItem(ZKEY, String(UH)); } catch (e) { }
+        if (!EMBED) { try { localStorage.setItem(ZKEY, String(UH)); } catch (e) { } }
         unpin(); hovered = null;
         layout(); drawAll();
     }
