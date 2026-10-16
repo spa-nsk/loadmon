@@ -15,16 +15,13 @@
 
 <div class="dv-layout">
     <div class="dv-left">
+        <div class="dv-sel" id="dvSel">Наведите курсор на шкаф</div>
         <div class="dv-stage" id="dvStage">
             <canvas id="dvCanvas"></canvas>
             <div id="dvTip" class="dv-tip" hidden></div>
         </div>
     </div>
     <div class="dv-right">
-        <div class="dv-right-head d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <div><b id="dvRackTitle">Выберите шкаф</b></div>
-            <a id="dvRackOpen" class="small" href="#" target="_blank" rel="noopener" hidden>Открыть просмотр шкафа</a>
-        </div>
         <iframe id="dvFrame" class="dv-frame" title="Шкаф" src="about:blank"></iframe>
     </div>
 </div>
@@ -32,8 +29,11 @@
 <style>
     .dv-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0.75rem; height: calc(100vh - 170px); min-height: 520px; }
     @media (max-width: 1100px) { .dv-layout { grid-template-columns: 1fr; height: auto; } .dv-left { height: 60vh; } .dv-frame { height: 80vh; } }
+    .dv-left { display: flex; flex-direction: column; gap: 0.4rem; }
     .dv-left, .dv-right { min-height: 0; }
-    .dv-stage { position: relative; width: 100%; height: 100%; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: #17144f; }
+    .dv-sel { flex: 0 0 auto; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--bs-border-color); background: var(--bs-tertiary-bg); font-size: 0.9rem; }
+    .dv-sel .dv-sep { color: var(--bs-secondary-color); margin: 0 0.35rem; }
+    .dv-stage { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: #17144f; }
     #dvCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     .dv-right { display: flex; flex-direction: column; border: 1px solid var(--bs-border-color); border-radius: 0.6rem; background: var(--bs-body-bg); overflow: hidden; }
     .dv-right-head { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--bs-border-color); }
@@ -293,10 +293,14 @@
         if (selTimer) { clearTimeout(selTimer); selTimer = null; }
         if (selected === r && document.getElementById('dvFrame').getAttribute('src') !== 'about:blank') return;
         selected = r;
-        document.getElementById('dvRackTitle').textContent = 'Шкаф ' + r.name;
-        var open = document.getElementById('dvRackOpen');
-        open.href = '/sprsrv/rackcabinetview/' + r.id;
-        open.hidden = false;
+        var sel = document.getElementById('dvSel');
+        var t = '<b>' + esc(r.name) + '</b><span class="dv-sep">&middot;</span>' + r.uHeight + 'U'
+            + '<span class="dv-sep">&middot;</span>серверов ' + r.servers + (r.blades ? '+' + r.blades + ' бл.' : '')
+            + '<span class="dv-sep">&middot;</span>корзин ' + r.chassis
+            + '<span class="dv-sep">&middot;</span>СХД ' + r.storages
+            + '<span class="dv-sep">&middot;</span>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b>' + (r.powerPeakW > 0 ? ' (пик ' + kw(r.powerPeakW) + ')' : '') : 'мощность н/д')
+            + '<span class="dv-sep">&middot;</span><a href="/sprsrv/rackcabinetview/' + r.id + '" target="_blank" rel="noopener">открыть</a>';
+        sel.innerHTML = t;
         document.getElementById('dvFrame').src = '/sprsrv/rackcabinetview/' + r.id + '?embed=1';
         render();
     }
@@ -314,7 +318,6 @@
             render();
         }
         canvas.style.cursor = r ? 'pointer' : 'default';
-        if (r) showTip(r, x, y); else tip.hidden = true;
     });
     canvas.addEventListener('mouseleave', function () { hovered = null; if (selTimer) { clearTimeout(selTimer); selTimer = null; } tip.hidden = true; render(); });
     canvas.addEventListener('click', function (e) {
