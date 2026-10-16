@@ -40,23 +40,7 @@ func storagePlacementPower(o orm.Ormer, cond *orm.Condition) []storageShare {
 		power[systems[i].Id] = &systems[i]
 	}
 
-	// вес размещений считаем по ВСЕМ размещениям СХД, а не только выбранным
-	var all []models.StorageSystemPlacement
-	if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId__in", sysIds).All(&all); err != nil {
-		return nil
-	}
-	total := map[int64]float64{}
-	count := map[int64]float64{}
-	for _, p := range all {
-		total[p.StorageSystemsId] += float64(p.SizeUnit)
-		count[p.StorageSystemsId]++
-	}
-	weight := func(p models.StorageSystemPlacement) float64 {
-		if total[p.StorageSystemsId] > 0 {
-			return float64(p.SizeUnit) / total[p.StorageSystemsId]
-		}
-		return 1 / count[p.StorageSystemsId]
-	}
+	weight := PlacementShare(o, sysIds)
 
 	out := make([]storageShare, 0, len(selected))
 	for _, p := range selected {
@@ -73,4 +57,29 @@ func storagePlacementPower(o orm.Ormer, cond *orm.Condition) []storageShare {
 		})
 	}
 	return out
+}
+
+// PlacementShare возвращает функцию доли мощности СХД, приходящейся на
+// размещение: SizeUnit размещения / сумма SizeUnit всех размещений СХД
+// (если юниты не заполнены - поровну). Доля считается по ВСЕМ размещениям
+// СХД, а не только переданным.
+func PlacementShare(o orm.Ormer, sysIds []int64) func(models.StorageSystemPlacement) float64 {
+	total := map[int64]float64{}
+	count := map[int64]float64{}
+	var all []models.StorageSystemPlacement
+	if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("StorageSystemsId__in", sysIds).All(&all); err == nil {
+		for _, p := range all {
+			total[p.StorageSystemsId] += float64(p.SizeUnit)
+			count[p.StorageSystemsId]++
+		}
+	}
+	return func(p models.StorageSystemPlacement) float64 {
+		if total[p.StorageSystemsId] > 0 {
+			return float64(p.SizeUnit) / total[p.StorageSystemsId]
+		}
+		if c := count[p.StorageSystemsId]; c > 0 {
+			return 1 / c
+		}
+		return 1
+	}
 }

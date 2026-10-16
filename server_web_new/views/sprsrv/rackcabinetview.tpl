@@ -688,6 +688,7 @@
         s += '<div class="mt-1">Потребляемая мощность шкафа: ' + (DATA.powerAvgW > 0 ? '<b>' + Math.round(DATA.powerAvgW) + ' Вт</b> (средняя 24ч)' : '<b>нет данных</b>') + '</div><div class="text-muted">Корзины учтены целиком, блейды отдельно не суммируются.</div>';
         if (DATA.powerPeakW > 0) s += '<div>Пик за 24ч: <b>' + Math.round(DATA.powerPeakW) + ' Вт</b></div>';
         if (DATA.powerRatedW > 0) s += '<div>Паспортная максимальная: <b>' + Math.round(DATA.powerRatedW) + ' Вт</b></div>';
+        s += '<div class="mt-1">Мощность шкафа (расчётный график): <a href="/sprsrv/powerrecent/rack/' + DATA.cabinetId + '" target="_blank" rel="noopener">за 3 суток</a> &middot; <a href="/sprsrv/powerview/rack/' + DATA.cabinetId + '" target="_blank" rel="noopener">за период</a></div>';
         if (bl) s += '<div>Блейдов в корзинах: <b>' + bl + '</b> (включено ' + blOn + ')</div>';
         document.getElementById('rvSummary').innerHTML = s;
 

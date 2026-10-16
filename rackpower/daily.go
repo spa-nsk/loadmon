@@ -78,6 +78,38 @@ func SaveDaily(day time.Time) {
 	log.Printf("rackpower: daily %s: racks %d, sites %d", day.Format("2006-01-02"), nr, ns)
 }
 
+// SaveBladeSnapshot пишет (идемпотентно) на дату day снимок мощности всех
+// блейд-корзин: BladeSystems.PowerAvg24hW/PowerPeak24hW (OneView, среднее и
+// пик за 24 часа). Поминутных данных по корзинам нет, это единственная
+// история для графиков корзины.
+func SaveBladeSnapshot(day time.Time) {
+	day = time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, day.Location())
+	o := orm.NewOrm()
+	var list []models.BladeSystems
+	if _, err := o.QueryTable(new(models.BladeSystems)).All(&list, "Id", "PowerAvg24hW", "PowerPeak24hW"); err != nil {
+		log.Printf("rackpower: read blade systems: %v", err)
+		return
+	}
+	now := time.Now().Local()
+	n := 0
+	for _, b := range list {
+		if b.PowerAvg24hW <= 0 && b.PowerPeak24hW <= 0 {
+			continue
+		}
+		rec := models.BladePowerRecord{BladeSystemId: b.Id, Date: day}
+		if err := o.Read(&rec, "BladeSystemId", "Date"); err != nil {
+			rec = models.BladePowerRecord{BladeSystemId: b.Id, Date: day}
+		}
+		rec.AvgW, rec.PeakW, rec.Time_Mfy = b.PowerAvg24hW, b.PowerPeak24hW, now
+		if err := upsert(o, &rec, rec.Id); err != nil {
+			log.Printf("rackpower: save blade=%d: %v", b.Id, err)
+			continue
+		}
+		n++
+	}
+	log.Printf("rackpower: blade snapshot %s: %d", day.Format("2006-01-02"), n)
+}
+
 func upsert(o orm.Ormer, rec interface{}, id int64) error {
 	if id > 0 {
 		_, err := o.Update(rec)
@@ -87,9 +119,22 @@ func upsert(o orm.Ormer, rec interface{}, id int64) error {
 	return err
 }
 
-// RunDaily каждый день в 00:10 (после ночной агрегации серверов и СХД в
-// 00:00:05) записывает суточные итоги шкафов и площадок за прошедшие сутки.
+// RunDaily: снимки мощности корзин - при старте и раз в час (значения
+// OneView обновляются при инвентаризации), а каждый день в 00:10 (после
+// ночной агрегации серверов и СХД в 00:00:05) - итоги шкафов и площадок и
+// финальный снимок корзин за прошедшие сутки.
 func RunDaily(ctx context.Context) {
+	safe := func(f func()) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("rackpower: daily panic: %v", r)
+			}
+		}()
+		f()
+	}
+	safe(func() { SaveBladeSnapshot(time.Now().Local()) })
+	hourly := time.NewTicker(time.Hour)
+	defer hourly.Stop()
 	for {
 		now := time.Now().Local()
 		next := time.Date(now.Year(), now.Month(), now.Day(), 0, 10, 0, 0, now.Location())
@@ -99,15 +144,14 @@ func RunDaily(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case <-hourly.C:
+			safe(func() { SaveBladeSnapshot(time.Now().Local()) })
 		case <-time.After(next.Sub(now)):
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf("rackpower: daily panic: %v", r)
-					}
-				}()
-				SaveDaily(time.Now().Local().AddDate(0, 0, -1))
-			}()
+			safe(func() {
+				y := time.Now().Local().AddDate(0, 0, -1)
+				SaveBladeSnapshot(y)
+				SaveDaily(y)
+			})
 		}
 	}
 }
