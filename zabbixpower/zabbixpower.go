@@ -31,6 +31,26 @@ var (
 	Timeout = 60 * time.Second
 )
 
+// Source — один сервер Zabbix. У разных серверов свои hostid/itemid, поэтому
+// связка с ServerSprRecords идёт только по имени хоста.
+type Source struct {
+	Name     string // для логов
+	Endpoint string
+	Token    string
+	GroupID  int
+}
+
+// Sources — серверы Zabbix, с которых собирается мощность. Пусто — один
+// источник из Endpoint/Token/HostGroupID.
+var Sources []Source
+
+func sources() []Source {
+	if len(Sources) > 0 {
+		return Sources
+	}
+	return []Source{{Name: "locator", Endpoint: Endpoint, Token: Token, GroupID: HostGroupID}}
+}
+
 // ServerPower — значение потребляемой мощности одного сервера.
 type ServerPower struct {
 	HostID   string
@@ -67,19 +87,19 @@ type zItem struct {
 	} `json:"hosts"`
 }
 
-func call(ctx context.Context, method string, params, dest interface{}) error {
+func call(ctx context.Context, src Source, method string, params, dest interface{}) error {
 	body, err := json.Marshal(map[string]interface{}{
 		"jsonrpc": "2.0", "method": method, "params": params, "id": 1,
 	})
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, Endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, src.Endpoint, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+Token)
+	req.Header.Set("Authorization", "Bearer "+src.Token)
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: InsecureSkipVerify}
@@ -110,12 +130,17 @@ func call(ctx context.Context, method string, params, dest interface{}) error {
 }
 
 // GetServerPower возвращает последние значения "Present Power Reading"
-// по всем включённым серверам группы HostGroupID.
+// по всем включённым серверам группы HostGroupID (источник по умолчанию).
 func GetServerPower(ctx context.Context) ([]ServerPower, error) {
+	return GetServerPowerFrom(ctx, Source{Name: "locator", Endpoint: Endpoint, Token: Token, GroupID: HostGroupID})
+}
+
+// GetServerPowerFrom — то же для произвольного сервера Zabbix.
+func GetServerPowerFrom(ctx context.Context, src Source) ([]ServerPower, error) {
 	var items []zItem
-	err := call(ctx, "item.get", map[string]interface{}{
+	err := call(ctx, src, "item.get", map[string]interface{}{
 		"output":      []string{"itemid", "name", "key_", "units", "lastvalue", "lastclock"},
-		"groupids":    []string{strconv.Itoa(HostGroupID)},
+		"groupids":    []string{strconv.Itoa(src.GroupID)},
 		"selectHosts": []string{"hostid", "host", "name"},
 		"search":      map[string]interface{}{"name": ItemName},
 		"filter":      map[string]interface{}{"status": 0},

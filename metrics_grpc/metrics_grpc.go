@@ -22,6 +22,7 @@ import (
 	"loadmon/vspheremetrics"
 	"loadmon/zabbix"
 	"loadmon/zabbixmetrics"
+	"loadmon/zabbixpower"
 
 	"log"
 	"os"
@@ -154,6 +155,14 @@ func main() {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		scommetrics.RunAll(ctx)
+	}()
+
+	// Поминутная мощность серверов ("Present Power Reading" из Zabbix, пакет
+	// zabbixpower): хранение 3 суток, суточная агрегация в 00:00.
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		zabbixpower.RunAll(ctx)
 	}()
 
 	// Суточная агрегация метрик СХД и серверов (storage_metric_record,
