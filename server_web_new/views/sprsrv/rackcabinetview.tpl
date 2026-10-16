@@ -2,9 +2,10 @@
     .sidebar-panel { display: none !important; }
     /* показ во фрейме ЦОД: только отрисованный шкаф; без позиции - снизу */
     .hero-text { display: none !important; }
-    .rv-layout { flex-direction: column; flex-wrap: nowrap; gap: 0.5rem; }
-    .rv-main { order: 1; width: 100%; }
-    .rv-side { order: 2; flex: 0 0 auto; width: 100%; }
+    /* блок "без позиции" - справа от шкафа, если помещается без прокрутки, иначе под ним */
+    .rv-layout { flex-direction: row; flex-wrap: wrap; gap: 0.75rem; align-items: flex-start; }
+    .rv-main { order: 1; flex: 0 0 auto; width: auto; padding-bottom: 0; }
+    .rv-side { order: 2; flex: 1 1 240px; min-width: 0; max-width: 100%; }
     .rv-side > .rv-card:not(#rvUnplacedCard) { display: none; }
 </style>{{end}}
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
@@ -109,7 +110,7 @@
     .rv-tip .rv-links a:hover { text-decoration: underline; }
     .rv-unpl-item { padding: 0.35rem 0; border-bottom: 1px solid var(--bs-border-color); }
     .rv-unpl-item:last-child { border-bottom: 0; }
-    .rv-unpl-item a { margin-right: 0.6rem; white-space: nowrap; }
+    .rv-unpl-item a { display: block; margin: 0.1rem 0 0 0; white-space: normal; overflow-wrap: anywhere; }
 </style>
 
 <script>
@@ -134,6 +135,7 @@
     var UH = 40;
     var EMBED = {{if .Embed}}true{{else}}false{{end}};
     var fitUH = 40, userZoomed = false;
+    if (EMBED) TOP = 16; // во фрейме ЦОД заголовок шкафа не рисуется - верхнюю панель сжимаем
     // подбор масштаба: шкаф по высоте равен области просмотра (во фрейме ЦОД)
     function calcFit() {
         var avail = window.innerHeight - 20 - TOP - BOT;
@@ -524,7 +526,7 @@
         fillRR(c, GUT - 7, TOP - 6, dev + 14, DATA.uHeight * UH + 12, 3, '#08090b');
         // верхняя панель с названием
         fillRR(c, GUT - 7, 6, dev + 14, TOP - 14, 3, vg(c, 6, TOP - 14, [[0, '#2b2e35'], [1, '#1a1c21']]));
-        txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : ''), W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, '#cfd5de', '700', 'center');
+        if (!EMBED) txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : ''), W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, '#cfd5de', '700', 'center');
         // рейки с отверстиями и номера юнитов
         var railW = UH * 0.55, fs = Math.max(8, Math.round(UH * 0.28));
         for (var u = 1; u <= DATA.uHeight; u++) {
