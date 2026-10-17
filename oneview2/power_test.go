@@ -3,6 +3,7 @@ package oneview
 import (
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 func TestFlexPowerW_stringWithComma(t *testing.T) {
@@ -19,7 +20,8 @@ func TestEnclosurePowerWatts(t *testing.T) {
 	raw := `{
 		"powerAvg24Hrs": "1200,",
 		"powerPeak24Hrs": 2400,
-		"powerCapacity24Hrs": "4854,"
+		"powerCapacity24Hrs": "4854,",
+		"powerLastUpdate": "` + time.Now().UTC().Add(-time.Hour).Format("2006-01-02T15:04:05.000Z") + `"
 	}`
 	var enc Enclosure
 	if err := json.Unmarshal([]byte(raw), &enc); err != nil {

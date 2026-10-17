@@ -43,9 +43,14 @@ func SyncBladeSystemsFromOneView(ov *oneview.Infrastructure) {
 	if ov == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
+	// Фаза 1: собрать корзины со ВСЕХ точек подключения вместе с мощностью,
+	// доступной на каждой (локальный /utilization с refresh или поля объекта GD).
+	// Фаза 2: объединить по корзине и записать один раз - приоритет источников
+	// не зависит от порядка опроса endpoint (раньше побеждал последний).
+	var cands []encCandidate
 	for _, cfg := range ov.EndpointList() {
 		func() {
 			defer func() {
@@ -53,38 +58,117 @@ func SyncBladeSystemsFromOneView(ov *oneview.Infrastructure) {
 					log_BladeSystemsPanic(cfg.Endpoint, r)
 				}
 			}()
-			syncBladeSystemsFromEndpoint(ctx, cfg)
+			cands = append(cands, collectEnclosuresFromEndpoint(ctx, cfg)...)
 		}()
 	}
+	syncEnclosureCandidates(cands)
 }
 
 func log_BladeSystemsPanic(endpoint string, r any) {
 	fmt.Println("SyncBladeSystemsFromOneView: ПАНИКА при опросе", endpoint, ":", r)
 }
 
-func syncBladeSystemsFromEndpoint(ctx context.Context, cfg oneview.Config) {
+// encCandidate - корзина, полученная с одной точки подключения, и мощность,
+// которую удалось получить на ней.
+type encCandidate struct {
+	Endpoint string
+	GD       bool // Global Dashboard (агрегатор): мощность - только поля объекта
+	Enc      oneview.Enclosure
+	Power    oneview.PowerWatts
+}
+
+func collectEnclosuresFromEndpoint(ctx context.Context, cfg oneview.Config) []encCandidate {
 	c, err := oneview.New(cfg)
 	if err != nil {
 		fmt.Println("SyncBladeSystemsFromOneView: ошибка подключения к", cfg.Endpoint, err)
-		return
+		return nil
 	}
 	if err := c.Login(ctx); err != nil {
 		fmt.Println("SyncBladeSystemsFromOneView: ошибка авторизации на", cfg.Endpoint, err)
-		return
+		return nil
 	}
 	defer c.Logout(ctx)
 
 	col, err := c.ListEnclosures(ctx, oneview.ListOptions{Count: -1})
 	if err != nil || col == nil {
 		fmt.Println("SyncBladeSystemsFromOneView: ошибка чтения /rest/enclosures на", cfg.Endpoint, err)
+		return nil
+	}
+
+	gd := c.IsGlobalDashboard()
+	out := make([]encCandidate, 0, len(col.Members))
+	for i := range col.Members {
+		enc := col.Members[i]
+		// Локальный appliance: /utilization (+refresh, calibratedMaxPower);
+		// GD: только свежие поля объекта. Пустой результат = данных нет.
+		p := c.EnclosurePower(ctx, &enc)
+		out = append(out, encCandidate{Endpoint: cfg.Endpoint, GD: gd, Enc: enc, Power: p})
+	}
+	return out
+}
+
+// encKey - ключ объединения корзины между точками подключения: серийный номер,
+// при его отсутствии нормализованное имя.
+func encKey(enc *oneview.Enclosure) string {
+	if sn := strings.ToUpper(strings.TrimSpace(enc.SerialNumber)); sn != "" {
+		return "SN:" + sn
+	}
+	return "NAME:" + strings.ToUpper(bladeSystemNameFromEnclosure(strings.TrimSpace(enc.Name)))
+}
+
+// syncEnclosureCandidates объединяет корзины по ключу и записывает каждую один раз.
+// Описание корзины (модель, отсеки, компоненты) берётся с локального appliance,
+// если корзина видна и на нём, иначе из Global Dashboard. Мощность - по
+// приоритету oneview.MergeEnclosurePower (измерение > свежие поля GD),
+// а при отсутствии измерения - оценка по блейдам (ApplyBladeSystemPowerVariantC).
+func syncEnclosureCandidates(cands []encCandidate) {
+	if len(cands) == 0 {
 		return
+	}
+	order := make([]string, 0, len(cands))
+	groups := make(map[string][]encCandidate, len(cands))
+	for _, cd := range cands {
+		if strings.TrimSpace(cd.Enc.Name) == "" {
+			continue
+		}
+		k := encKey(&cd.Enc)
+		if _, ok := groups[k]; !ok {
+			order = append(order, k)
+		}
+		groups[k] = append(groups[k], cd)
 	}
 
 	o := orm.NewOrm()
-	for i := range col.Members {
-		enc := col.Members[i]
-		syncOneEnclosure(o, &enc)
+	for _, k := range order {
+		inv, power := pickEnclosureSources(groups[k])
+		enc := inv.Enc
+		fmt.Println("SyncBladeSystemsFromOneView:", enc.Name, "("+enc.SerialNumber+")", "описание:", inv.Endpoint,
+			"| мощность: источник="+fmt.Sprintf("%q", power.Source),
+			"avg="+FormatPowerW(power.Avg24hW), "peak="+FormatPowerW(power.Peak24hW),
+			"номинал="+FormatPowerW(power.RatedMaxW)+" ("+power.RatedSource+")")
+		syncOneEnclosure(o, &enc, power)
 	}
+}
+
+// pickEnclosureSources выбирает для одной корзины (кандидаты со всех endpoint):
+// источник описания (предпочтительно локальный appliance, не Global Dashboard) и
+// итоговую мощность по приоритету oneview.MergeEnclosurePower: измерение
+// /utilization > свежие поля объекта GD; номинал calibratedMaxPower >
+// powerCapacity24Hrs. Результат без измерения (Source == "") означает, что
+// в БД нужно использовать оценку по блейдам (ApplyBladeSystemPowerVariantC).
+func pickEnclosureSources(g []encCandidate) (inv encCandidate, power oneview.PowerWatts) {
+	if len(g) == 0 {
+		return encCandidate{}, oneview.PowerWatts{}
+	}
+	inv = g[0]
+	powers := make([]oneview.PowerWatts, 0, len(g))
+	for _, cd := range g {
+		if inv.GD && !cd.GD {
+			inv = cd
+		}
+		powers = append(powers, cd.Power)
+	}
+	return inv, oneview.MergeEnclosurePower(powers...)
 }
 
 // bladeSystemNameFromEnclosure нормализует имя корзины ("c7000-1" ->
@@ -103,7 +187,9 @@ func bladeSystemNameFromEnclosure(name string) string {
 	return name
 }
 
-func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure) {
+// syncOneEnclosure записывает одну корзину; power - итог объединения источников
+// мощности (может быть пустым: тогда используется оценка по блейдам).
+func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure, power oneview.PowerWatts) {
 	if enc == nil || strings.TrimSpace(enc.Name) == "" {
 		return
 	}
@@ -140,7 +226,7 @@ func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure) {
 		bls.Anotation = enc.SerialNumber + " Данные добавлены из HP OneView"
 	}
 
-	ApplyBladeSystemPowerFromOneView(o, &bls, enc)
+	ApplyBladeSystemPowerVariantC(o, &bls, power)
 
 	if found {
 		logHardwareFieldChange(o, "BladeSystem", 0, prev.Id, bls.SerialNum, "PowerAvg24hW", FormatPowerW(prev.PowerAvg24hW), FormatPowerW(bls.PowerAvg24hW))

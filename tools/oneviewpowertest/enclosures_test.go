@@ -50,6 +50,10 @@ type encResult struct {
 	EnvReq        string
 	EnvCalibrated float64
 	EnvPSU        int
+
+	// Новый алгоритм (oneview2.Client.EnclosurePower): что даст ЭТОТ endpoint.
+	// Итог по корзине между endpoint - oneview.MergeEnclosurePower (см. сводку).
+	NewPower oneview.PowerWatts
 }
 
 // allEnclosures накапливает результаты по всем appliance (для сводки).
@@ -109,7 +113,9 @@ func probeEnclosuresFull(ctx context.Context, c *oneview.Client, endpoint, api s
 		idURI := lastSegment(r.URI)
 		for _, hw := range servers {
 			loc := lastSegment(hw.LocationURI)
-			if loc == "" || (loc != r.SN && loc != idURI) {
+			// локальные: locationUri="09"+SN (= id шасси); GD/Synergy: префикс+SN
+			// ("797740CZJ852028H"), поэтому сравниваем и по суффиксу.
+			if loc == "" || (loc != r.SN && loc != idURI && !strings.HasSuffix(loc, r.SN)) {
 				continue
 			}
 			r.Blades++
@@ -126,6 +132,15 @@ func probeEnclosuresFull(ctx context.Context, c *oneview.Client, endpoint, api s
 
 		if r.URI != "" {
 			encUtilization(ctx, c, &r)
+			// сухой прогон алгоритма сбора (cmdb.SyncBladeSystemsFromOneView)
+			if encJSON, err := json.Marshal(m); err == nil {
+				var enc oneview.Enclosure
+				if json.Unmarshal(encJSON, &enc) == nil {
+					r.NewPower = c.EnclosurePower(ctx, &enc)
+					say("    алгоритм сбора: источник=%q avg=%.0f peak=%.0f номинал=%.0f (%s)",
+						r.NewPower.Source, r.NewPower.Avg24hW, r.NewPower.Peak24hW, r.NewPower.RatedMaxW, r.NewPower.RatedSource)
+				}
+			}
 			encEnvironmental(ctx, c, &r)
 		}
 		allEnclosures = append(allEnclosures, r)
@@ -371,6 +386,39 @@ func printEnclosureSummary() {
 				cut(r.Endpoint, 48), r.API, r.ObjAvg, r.ObjPeak, r.ObjCap, r.ObjLastUpdate, r.UtilClass, r.AvgLast, r.AvgMean, r.PeakMax)
 		}
 	}
+
+	// итог нового алгоритма: что будет записано в BladeSystems по каждой корзине
+	say("")
+	say("---- ИТОГ алгоритма сбора (приоритет: локальный /utilization > свежие поля GD > оценка по блейдам) ----")
+	say("%-24s %-14s | %-12s %6s %6s %7s %-11s | было в GD: avg  обновлено", "корзина", "SN", "источник", "avg", "peak", "номинал", "номинал из")
+	var snOrder []string
+	for sn := range bySN {
+		snOrder = append(snOrder, sn)
+	}
+	sort.Strings(snOrder)
+	srcCount := map[string]int{}
+	for _, sn := range snOrder {
+		var ps []oneview.PowerWatts
+		name, gdAvg, gdUpd := "", 0.0, ""
+		for _, r := range bySN[sn] {
+			ps = append(ps, r.NewPower)
+			if name == "" || r.API != "300" {
+				name = r.Name
+			}
+			if r.API == "300" {
+				gdAvg, gdUpd = r.ObjAvg, r.ObjLastUpdate
+			}
+		}
+		m := oneview.MergeEnclosurePower(ps...)
+		src := m.Source
+		if src == "" {
+			src = "оценка по блейдам"
+		}
+		srcCount[src]++
+		say("%-24s %-14s | %-12s %6.0f %6.0f %7.0f %-11s | %12.0f  %s",
+			cut(name, 24), cut(sn, 14), src, m.Avg24hW, m.Peak24hW, m.RatedMaxW, m.RatedSource, gdAvg, gdUpd)
+	}
+	say("    по источникам: %v", srcCount)
 
 	// корзины, которые видны ТОЛЬКО через GD (локального источника нет)
 	say("")

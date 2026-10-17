@@ -50,17 +50,27 @@ func ApplyServerHardwarePowerFromOneView(h *models.ServerHardware, p oneview.Pow
 	}
 }
 
-// ApplyBladeSystemPowerVariantC — primary measured (enclosure REST или ChassisPower с export);
-// fallback: sum(включённых блейдов)+overhead.
+// ApplyBladeSystemPowerVariantC проставляет мощность корзины по приоритету источников:
+//
+//  1. измерение (measured.HasMeasured(): /utilization локального appliance или
+//     свежие поля объекта шасси из Global Dashboard - см. oneview.MergeEnclosurePower);
+//  2. оценка по сумме включённых блейдов + служебная нагрузка шасси - если
+//     измерения нет (в т.ч. когда поля GD устарели и были отброшены).
+//
+// Номинал (PowerRatedMaxW): measured.RatedMaxW (calibratedMaxPower, при его
+// отсутствии powerCapacity24Hrs) приоритетнее суммы блейдов из оценки.
+// Если ни измерения, ни оценки нет, Avg/Peak обнуляются - устаревшие числа
+// в справочнике не остаются.
 func ApplyBladeSystemPowerVariantC(o orm.QueryExecutor, bls *models.BladeSystems, measured oneview.PowerWatts) {
 	if bls == nil {
 		return
 	}
-	var applied oneview.PowerWatts
-	if measured.HasMeasured() || measured.RatedMaxW > 0 {
-		applied = measured
-	} else {
+	applied := measured
+	if !measured.HasMeasured() {
 		applied = estimateBladeSystemPowerFromDB(o, bls.Id)
+		if measured.RatedMaxW > 0 {
+			applied.RatedMaxW = measured.RatedMaxW
+		}
 	}
 	bls.PowerAvg24hW = applied.Avg24hW
 	bls.PowerPeak24hW = applied.Peak24hW
@@ -69,7 +79,9 @@ func ApplyBladeSystemPowerVariantC(o orm.QueryExecutor, bls *models.BladeSystems
 	}
 }
 
-// ApplyBladeSystemPowerFromOneView — GET /rest/enclosures/{id}.
+// ApplyBladeSystemPowerFromOneView — GET /rest/enclosures/{id}: только свежие поля
+// объекта шасси (oneview.EnclosurePowerWatts отбрасывает устаревшие); сбор по
+// всем источникам с приоритетом - см. SyncBladeSystemsFromOneView.
 func ApplyBladeSystemPowerFromOneView(o orm.QueryExecutor, bls *models.BladeSystems, enc *oneview.Enclosure) {
 	ApplyBladeSystemPowerVariantC(o, bls, oneview.EnclosurePowerWatts(enc))
 }
