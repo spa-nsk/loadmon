@@ -3,7 +3,7 @@
         <h2>Оборудование ЦОД {{.SiteName}}</h2>
         <div class="text-muted" id="dvSummary">Шкафов: {{.RackCount}}</div>
     </div>
-    <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/datacentersitelist">К справочнику площадок</a>
+    <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/datacentersitelist/0">К справочнику площадок</a>
 </div>
 
 {{if .flash.error}}
