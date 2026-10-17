@@ -93,6 +93,10 @@ var (
 	checkEnvConfig     = true // GET {srv}/environmentalConfiguration
 	checkPowerSupplies = true // GET {srv}/powerSupplies
 	checkEnclosure     = true // GET {enclosure}/utilization (+ environmentalConfiguration)
+	// probeEnclosureList - на каждом appliance независимо от серверов:
+	// GET /rest/enclosures и /utilization первого шасси (есть ли шасси на
+	// этой версии API вообще, в справочнике 8800 разделов шасси нет).
+	probeEnclosureList = true
 
 	// ---- вывод ----
 
@@ -185,7 +189,10 @@ func TestOneViewPower(t *testing.T) {
 		}
 	}
 	if len(all) == 0 {
-		t.Fatal("ни одного сервера не проверено (проверьте фильтры onlyPoweredOn/serverNameContains/maxServersPerEndpoint)")
+		// Пустая выборка - не ошибка кода: причины напечатаны выше
+		// (разбивка server-hardware по моделям/шасси/питанию).
+		t.Logf("ни одного сервера не проверено: фильтры (onlyPoweredOn=%v onlyBlades=%v serverNameContains=%q) ничего не выбрали",
+			onlyPoweredOn, onlyBlades, serverNameContains)
 	}
 }
 
@@ -260,6 +267,11 @@ func probeEndpoint(ctx context.Context, ovi config.OvEndpoint) ([]serverResult, 
 		return nil, fmt.Errorf("список server-hardware: %w", err)
 	}
 	say("server-hardware: получено %d, к проверке после фильтров: %d", len(servers.all), len(servers.selected))
+
+	describeServers(servers)
+	if probeEnclosureList {
+		probeEnclosures(ctx, c)
+	}
 
 	var results []serverResult
 	encCache := map[string]string{} // locationUri -> класс результата шасси (чтобы не дёргать повторно)
@@ -336,6 +348,84 @@ func listServers(ctx context.Context, c *oneview.Client) (*serverList, error) {
 		}
 	}
 	return out, nil
+}
+
+// describeServers печатает разбивку всех server-hardware appliance (а не
+// только отфильтрованных): по моделям, питанию и принадлежности к шасси.
+func describeServers(s *serverList) {
+	byModel := map[string]int{}
+	byPower := map[string]int{}
+	inEnclosure, rack := 0, 0
+	licensed := map[string]int{}
+	for _, hw := range s.all {
+		byModel[hw.Model]++
+		byPower[hw.PowerState]++
+		if hw.LocationURI != "" {
+			inEnclosure++
+		} else {
+			rack++
+		}
+		licensed[fmt.Sprintf("intent=%q iLO=%q", hw.LicensingIntent, hw.MpLicenseType)]++
+	}
+	say("разбивка: в шасси (locationUri задан)=%d, стоечные=%d; питание: %s", inEnclosure, rack, countsLine(byPower))
+	say("модели: %s", countsLine(byModel))
+	say("лицензии: %s", countsLine(licensed))
+}
+
+func countsLine(m map[string]int) string {
+	type kv struct {
+		k string
+		v int
+	}
+	var l []kv
+	for k, v := range m {
+		l = append(l, kv{k, v})
+	}
+	sort.Slice(l, func(i, j int) bool {
+		if l[i].v != l[j].v {
+			return l[i].v > l[j].v
+		}
+		return l[i].k < l[j].k
+	})
+	parts := make([]string, 0, len(l))
+	for _, e := range l {
+		parts = append(parts, fmt.Sprintf("%q x%d", e.k, e.v))
+	}
+	return strings.Join(parts, "; ")
+}
+
+// probeEnclosures проверяет, существует ли ресурс шасси на данном appliance.
+func probeEnclosures(ctx context.Context, c *oneview.Client) {
+	status, body, err := doGET(ctx, c, "/rest/enclosures?start=0&count=5")
+	say("шасси: GET /rest/enclosures?count=5 -> HTTP %d %s", status, errText(err))
+	if status != 200 {
+		if status == 404 {
+			say("шасси: ресурс /rest/enclosures на этом appliance отсутствует")
+		}
+		return
+	}
+	raw(body)
+	var col struct {
+		Total   int `json:"total"`
+		Members []struct {
+			Name string `json:"name"`
+			URI  string `json:"uri"`
+		} `json:"members"`
+	}
+	if json.Unmarshal(body, &col) != nil {
+		return
+	}
+	say("шасси: всего %d", col.Total)
+	if len(col.Members) == 0 {
+		return
+	}
+	m := col.Members[0]
+	path := m.URI + "/utilization?fields=AveragePower&fields=PeakPower&fields=RatedCapacity&view=hour"
+	st, b, e := doGET(ctx, c, path)
+	say("шасси %q: GET %s -> HTTP %d %s", m.Name, path, st, errText(e))
+	if st == 200 {
+		raw(b)
+	}
 }
 
 // ---------------------------------------------------------------------------
