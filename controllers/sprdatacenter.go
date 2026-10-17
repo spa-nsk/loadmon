@@ -261,6 +261,8 @@ func (this *MainController) SprDatacenterSiteEdit() {
 		// приём, что и для прочих bool-полей проекта, отправляемых через
 		// <input type="checkbox">.
 		rec.IsDatacenter = this.GetString("IsDatacenter") != ""
+		rec.Address = strings.TrimSpace(this.GetString("Address"))
+		rec.Floor = strings.TrimSpace(this.GetString("Floor"))
 		rec.Width, _ = strconv.ParseInt(this.GetString("Width"), 10, 64)
 		rec.Height, _ = strconv.ParseInt(this.GetString("Height"), 10, 64)
 		rec.Annotation = this.GetString("Annotation")

@@ -47,6 +47,14 @@
                     <label for="CodeJira" class="form-label">Код Jira</label>
                     <input name="CodeJira" id="CodeJira" class="form-control" type="text" placeholder="оставить без изменений" />
                 </div>
+                <div class="col-sm-6 col-md-4">
+                    <label for="Address" class="form-label">Адрес</label>
+                    <input name="Address" id="Address" class="form-control" type="text" placeholder="оставить без изменений" />
+                </div>
+                <div class="col-sm-6 col-md-2">
+                    <label for="Floor" class="form-label">Этаж</label>
+                    <input name="Floor" id="Floor" class="form-control" type="text" placeholder="без изменений" />
+                </div>
                 <div class="col-12">
                     <label for="Annotation" class="form-label">Описание</label>
                     <textarea name="Annotation" id="Annotation" class="form-control" rows="3" placeholder="оставить без изменений"></textarea>
