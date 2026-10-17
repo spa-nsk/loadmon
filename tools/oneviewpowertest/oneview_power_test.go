@@ -96,6 +96,8 @@ var (
 
 	// ---- вывод ----
 
+	printHeadSamples = 4 // сколько самых свежих сэмплов каждой метрики печатать (0 - не печатать)
+
 	printRawJSON = false // печатать сырые ответы (обрезаются rawMaxChars)
 	rawMaxChars  = 2000
 	// reportCSV - файл CSV со всеми результатами (";"); пусто - не писать.
@@ -131,9 +133,11 @@ type serverResult struct {
 
 // metricStat - сводка по одному metricName из UtilizationData.
 type metricStat struct {
-	Samples, NonNull int
-	Last, Avg, Max   float64 // Last - самый свежий не-null (сэмплы идут от новых к старым)
-	Capacity         string
+	Samples, NonNull, Zeros int
+	Last, Avg, Max          float64 // Last - самый свежий не-null (сэмплы идут от новых к старым)
+	LastNonZero             float64 // самый свежий ненулевой сэмпл
+	Head                    string  // первые сэмплы "время=значение" (самые свежие)
+	Capacity                string
 }
 
 func TestOneViewPower(t *testing.T) {
@@ -404,21 +408,32 @@ func checkUtilization(ctx context.Context, c *oneview.Client, r *serverResult, f
 	for _, m := range u.MetricList {
 		st := metricStat{Samples: len(m.MetricSamples), Capacity: strings.TrimSpace(string(m.MetricCapacity))}
 		var sum float64
-		haveLast := false
+		haveLast, haveNZ := false, false
+		var head []string
 		for _, s := range m.MetricSamples {
 			v, ok := sampleValue(s)
+			if len(head) < printHeadSamples {
+				head = append(head, sampleLabel(s, v, ok))
+			}
 			if !ok {
 				continue
 			}
 			st.NonNull++
 			sum += v
+			if v == 0 {
+				st.Zeros++
+			}
 			if !haveLast {
 				st.Last, haveLast = v, true
+			}
+			if !haveNZ && v != 0 {
+				st.LastNonZero, haveNZ = v, true
 			}
 			if v > st.Max {
 				st.Max = v
 			}
 		}
+		st.Head = strings.Join(head, " ")
 		if st.NonNull > 0 {
 			st.Avg = round1(sum / float64(st.NonNull))
 			haveAny = true
@@ -427,8 +442,11 @@ func checkUtilization(ctx context.Context, c *oneview.Client, r *serverResult, f
 			}
 		}
 		r.Metrics[m.MetricName] = st
-		say("    %-20s сэмплов=%-4d не-null=%-4d last=%-8.1f avg=%-8.1f max=%-8.1f capacity=%s",
-			m.MetricName, st.Samples, st.NonNull, st.Last, st.Avg, st.Max, st.Capacity)
+		say("    %-20s сэмплов=%-4d не-null=%-4d нулей=%-4d last=%-7.1f lastНенулевой=%-7.1f avg=%-7.1f max=%-7.1f capacity=%s",
+			m.MetricName, st.Samples, st.NonNull, st.Zeros, st.Last, st.LastNonZero, st.Avg, st.Max, st.Capacity)
+		if st.Head != "" {
+			say("        свежие сэмплы: %s", st.Head)
+		}
 	}
 	switch {
 	case len(u.MetricList) == 0:
@@ -440,8 +458,8 @@ func checkUtilization(ctx context.Context, c *oneview.Client, r *serverResult, f
 	default:
 		r.UtilClass = "OK"
 	}
-	say("    -> HTTP 200, класс=%s, resolution=%s мс, newest=%s, isFresh=%s",
-		r.UtilClass, u.Resolution.String(), u.NewestSampleTime, boolPtr(u.IsFresh))
+	say("    -> HTTP 200, класс=%s, resolution=%s мс, newest=%s (%s), isFresh=%s",
+		r.UtilClass, u.Resolution.String(), u.NewestSampleTime, sampleAge(u.NewestSampleTime), boolPtr(u.IsFresh))
 }
 
 // probeAllMetrics - /utilization без fields: реальный набор метрик сервера.
@@ -464,6 +482,32 @@ func probeAllMetrics(ctx context.Context, c *oneview.Client, uri string) {
 		}
 		say("    [все метрики] metricName: %s", strings.Join(names, ", "))
 	}
+}
+
+// sampleLabel - "UTC-время=значение" для вывода свежих сэмплов.
+func sampleLabel(raw json.RawMessage, v float64, ok bool) string {
+	var arr []json.RawMessage
+	if json.Unmarshal(raw, &arr) != nil || len(arr) < 1 {
+		return "?"
+	}
+	var ms int64
+	if json.Unmarshal(arr[0], &ms) != nil {
+		return "?"
+	}
+	ts := time.UnixMilli(ms).UTC().Format("01-02 15:04")
+	if !ok {
+		return ts + "=null"
+	}
+	return fmt.Sprintf("%s=%.0f", ts, v)
+}
+
+// sampleAge - насколько newestSampleTime отстаёт от текущего момента.
+func sampleAge(newest string) string {
+	ts, err := time.Parse("2006-01-02T15:04:05.000Z", newest)
+	if err != nil {
+		return "возраст ?"
+	}
+	return "отстаёт на " + time.Since(ts).Round(time.Minute).String()
 }
 
 // sampleValue разбирает один сэмпл "[ms, value]"; null/нечисло -> ok=false.
@@ -647,11 +691,11 @@ func printSummary(all []serverResult) {
 	}
 
 	say("")
-	say("Сервер | /utilization | AvgPower(last/avg/max) | PeakPower(max) | PSU сумма Вт | calibratedMax | шасси")
+	say("Сервер | /utilization | AvgPower(lastНенулевой/avg/max) | PeakPower(max) | PSU сумма Вт | calibratedMax | шасси")
 	for _, r := range all {
 		ap, pp := r.Metrics["AveragePower"], r.Metrics["PeakPower"]
 		say("  %-28s | %-10s | %6.0f/%6.0f/%6.0f | %6.0f | %6.0f | %6.0f | %s",
-			cut(r.Name, 28), r.UtilClass, ap.Last, ap.Avg, ap.Max, pp.Max, r.PSUSumW, r.CalibratedMaxW, r.EnclosureClass)
+			cut(r.Name, 28), r.UtilClass, ap.LastNonZero, ap.Avg, ap.Max, pp.Max, r.PSUSumW, r.CalibratedMaxW, r.EnclosureClass)
 	}
 }
 
