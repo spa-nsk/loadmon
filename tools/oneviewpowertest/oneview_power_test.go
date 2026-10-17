@@ -111,6 +111,17 @@ var (
 	// GET /rest/enclosures и /utilization первого шасси (есть ли шасси на
 	// этой версии API вообще, в справочнике 8800 разделов шасси нет).
 	probeEnclosureList = true
+	// checkEnclosuresAll - ПОЛНАЯ проверка шасси на каждом appliance (включая
+	// Global Dashboard): ВСЕ шасси, поля мощности в объекте, /utilization,
+	// environmentalConfiguration, привязка блейдов, сводка и сравнение
+	// источников GD/локальный (enclosures_test.go). Заменяет probeEnclosureList.
+	checkEnclosuresAll = true
+	// enclosureMax - сколько шасси проверять на appliance (0 - все).
+	enclosureMax = 0
+	// enclosureRefresh - для /utilization шасси сначала refresh=true (+ задача).
+	enclosureRefresh = true
+	// enclosureCSV - CSV по шасси (";"); пусто - не писать.
+	enclosureCSV = ""
 
 	// ---- вывод ----
 
@@ -215,6 +226,14 @@ func TestOneViewPower(t *testing.T) {
 	}
 
 	printSummary(all)
+	printEnclosureSummary()
+	if enclosureCSV != "" && len(allEnclosures) > 0 {
+		if err := writeEnclosureCSV(enclosureCSV); err != nil {
+			t.Errorf("запись CSV шасси %s: %v", enclosureCSV, err)
+		} else {
+			say("CSV шасси записан: %s", enclosureCSV)
+		}
+	}
 	if reportCSV != "" {
 		if err := writeCSV(reportCSV, all); err != nil {
 			t.Errorf("запись CSV %s: %v", reportCSV, err)
@@ -303,7 +322,9 @@ func probeEndpoint(ctx context.Context, ovi config.OvEndpoint) ([]serverResult, 
 	say("server-hardware: получено %d, к проверке после фильтров: %d", len(servers.all), len(servers.selected))
 
 	describeServers(servers)
-	if probeEnclosureList {
+	if checkEnclosuresAll {
+		probeEnclosuresFull(ctx, c, ovi.Endpoint, apiLabel, servers.all)
+	} else if probeEnclosureList {
 		probeEnclosures(ctx, c)
 	}
 
@@ -450,8 +471,8 @@ func countsLine(m map[string]int) string {
 
 // probeEnclosures проверяет, существует ли ресурс шасси на данном appliance.
 func probeEnclosures(ctx context.Context, c *oneview.Client) {
-	status, body, err := doGET(ctx, c, "/rest/enclosures?start=0&count=5")
-	say("шасси: GET /rest/enclosures?count=5 -> HTTP %d %s", status, errText(err))
+	status, body, err := doGET(ctx, c, "/rest/enclosures?start=0&count=200")
+	say("шасси: GET /rest/enclosures?count=200 -> HTTP %d %s", status, errText(err))
 	if status != 200 {
 		if status == 404 {
 			say("шасси: ресурс /rest/enclosures на этом appliance отсутствует")
@@ -470,6 +491,7 @@ func probeEnclosures(ctx context.Context, c *oneview.Client) {
 		return
 	}
 	say("шасси: всего %d", col.Total)
+	enclosurePowerFields(body)
 	if len(col.Members) == 0 {
 		return
 	}
@@ -480,6 +502,53 @@ func probeEnclosures(ctx context.Context, c *oneview.Client) {
 	if st == 200 {
 		raw(b)
 	}
+}
+
+// enclosurePowerFields показывает, приходят ли в самом объекте шасси поля
+// powerAvg24Hrs/powerPeak24Hrs/powerCapacity24Hrs (их читает
+// oneview2.EnclosurePowerWatts; в справочнике 3800 они не описаны, в swagger
+// Global Dashboard - есть): сколько шасси с ненулевыми значениями.
+func enclosurePowerFields(body []byte) {
+	var col struct {
+		Members []map[string]json.RawMessage `json:"members"`
+	}
+	if json.Unmarshal(body, &col) != nil {
+		return
+	}
+	withAvg, withPeak, withCap := 0, 0, 0
+	for i, m := range col.Members {
+		a := flexWatts(m["powerAvg24Hrs"])
+		p := flexWatts(m["powerPeak24Hrs"])
+		c := flexWatts(m["powerCapacity24Hrs"])
+		if a > 0 {
+			withAvg++
+		}
+		if p > 0 {
+			withPeak++
+		}
+		if c > 0 {
+			withCap++
+		}
+		if i < 8 {
+			var name, typ string
+			_ = json.Unmarshal(m["name"], &name)
+			_ = json.Unmarshal(m["enclosureType"], &typ)
+			say("    шасси %-22q type=%-12q powerAvg24Hrs=%s powerPeak24Hrs=%s powerCapacity24Hrs=%s",
+				name, typ, unquote(m["powerAvg24Hrs"]), unquote(m["powerPeak24Hrs"]), unquote(m["powerCapacity24Hrs"]))
+		}
+	}
+	say("шасси: поля в объекте шасси - из %d: powerAvg24Hrs>0: %d, powerPeak24Hrs>0: %d, powerCapacity24Hrs>0: %d",
+		len(col.Members), withAvg, withPeak, withCap)
+}
+
+// flexWatts - число из JSON-числа или строки вида "698," (как FlexPowerW).
+func flexWatts(raw json.RawMessage) float64 {
+	s := strings.Trim(strings.TrimSpace(unquote(raw)), ",")
+	if s == "" || s == "null" {
+		return 0
+	}
+	v, _ := toFloat(s)
+	return v
 }
 
 // ---------------------------------------------------------------------------
