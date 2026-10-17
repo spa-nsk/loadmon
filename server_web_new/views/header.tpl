@@ -461,6 +461,10 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник Площадок/ЦОД</a>
             </li>
             <li>
+              <a href="/sprsrv/datacentersitemap"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Карта Площадок/ЦОД</a>
+            </li>
+            <li>
               <a href="/sprsrv/rackcabinetlist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник шкафов</a>
             </li>
