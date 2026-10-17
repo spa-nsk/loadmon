@@ -72,9 +72,16 @@ var (
 
 	maxServersPerEndpoint = 5  // 0 - все серверы appliance
 	serverNameContains    = "" // подстрока имени server-hardware ("" - любые)
-	onlyPoweredOn         = true
-	onlyBlades            = false // true - только серверы с locationUri (в шасси)
-	pageSize              = 100   // размер страницы списка server-hardware
+	// modelContains - подстроки поля Model (без учёта регистра), достаточно
+	// совпадения с любой: []string{"Gen9", "Gen8"}, []string{"DL385"}.
+	// Пусто - любые модели.
+	modelContains = []string{}
+	// noILOLicenseOnly - true: только серверы без лицензии iLO (mpLicenseType
+	// пустой) - проверка, что у них пустой /utilization.
+	noILOLicenseOnly = false
+	onlyPoweredOn    = true
+	onlyBlades       = false // true - только серверы с locationUri (в шасси)
+	pageSize         = 100   // размер страницы списка server-hardware
 
 	// ---- параметры запроса /utilization ----
 
@@ -162,6 +169,24 @@ func TestOneViewPower(t *testing.T) {
 	if _, err := config.ConfigData.LoadConfigData(); err != nil {
 		t.Fatalf("чтение конфигурации %s: %v", cfgFile, err)
 	}
+
+	httpKey := config.ConfigData.HttpKey
+	httpsKey := config.ConfigData.HttpsKey
+	httpEnv := os.Getenv(httpKey)
+	defer os.Setenv(httpKey, httpEnv)
+
+	httpsEnv := os.Getenv(httpsKey)
+	defer os.Setenv(httpsKey, httpsEnv)
+
+	os.Unsetenv(httpKey)
+	os.Unsetenv(httpsKey)
+
+	s1 := os.Getenv(httpKey)
+	s2 := os.Getenv(httpKey)
+
+	_ = s1
+	_ = s2
+
 	endpoints := selectEndpoints(config.ConfigData.ConfigOV)
 	if len(endpoints) == 0 {
 		t.Fatalf("в %s нет подходящих ConfigOV (onlyEndpoints=%v onlyAPIVersions=%v)", cfgFile, onlyEndpoints, onlyAPIVersions)
@@ -191,8 +216,8 @@ func TestOneViewPower(t *testing.T) {
 	if len(all) == 0 {
 		// Пустая выборка - не ошибка кода: причины напечатаны выше
 		// (разбивка server-hardware по моделям/шасси/питанию).
-		t.Logf("ни одного сервера не проверено: фильтры (onlyPoweredOn=%v onlyBlades=%v serverNameContains=%q) ничего не выбрали",
-			onlyPoweredOn, onlyBlades, serverNameContains)
+		t.Logf("ни одного сервера не проверено: фильтры (onlyPoweredOn=%v onlyBlades=%v serverNameContains=%q modelContains=%v noILOLicenseOnly=%v) ничего не выбрали",
+			onlyPoweredOn, onlyBlades, serverNameContains, modelContains, noILOLicenseOnly)
 	}
 }
 
@@ -336,6 +361,12 @@ func listServers(ctx context.Context, c *oneview.Client) (*serverList, error) {
 		if serverNameContains != "" && !strings.Contains(strings.ToLower(hw.Name), strings.ToLower(serverNameContains)) {
 			continue
 		}
+		if len(modelContains) > 0 && !containsAny(hw.Model, modelContains) {
+			continue
+		}
+		if noILOLicenseOnly && strings.TrimSpace(hw.MpLicenseType) != "" {
+			continue
+		}
 		if onlyPoweredOn && !strings.EqualFold(hw.PowerState, "On") {
 			continue
 		}
@@ -370,6 +401,17 @@ func describeServers(s *serverList) {
 	say("разбивка: в шасси (locationUri задан)=%d, стоечные=%d; питание: %s", inEnclosure, rack, countsLine(byPower))
 	say("модели: %s", countsLine(byModel))
 	say("лицензии: %s", countsLine(licensed))
+}
+
+// containsAny - s содержит любую из подстрок subs (без учёта регистра).
+func containsAny(s string, subs []string) bool {
+	ls := strings.ToLower(s)
+	for _, sub := range subs {
+		if sub != "" && strings.Contains(ls, strings.ToLower(sub)) {
+			return true
+		}
+	}
+	return false
 }
 
 func countsLine(m map[string]int) string {
