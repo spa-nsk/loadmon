@@ -35,6 +35,7 @@
                 {{if .CanEdit}}
                 <button type="submit" name="SetBaseBTN" value="Редактировать выделенные" title="Внести общие данные для площадок, выделенных в списке" class="btn btn-outline-warning rounded-pill px-3">Редактировать выделенные</button>
                 {{end}}
+                <a href="/sprsrv/datacentersitemap" target="_blank" title="Визуализация всех площадок по городам, адресам и этажам" class="btn btn-outline-primary rounded-pill px-3">Карта</a>
                 <a href="/sprsrv/datacentersiteedit/0" title="Добавить новую площадку/ЦОД" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
