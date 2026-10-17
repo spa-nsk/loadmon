@@ -613,6 +613,13 @@ func checkUtilization(ctx context.Context, c *oneview.Client, r *serverResult, f
 	default:
 		r.UtilClass = "OK"
 	}
+	// Метрики есть, но данных за окно нет, а newestSampleTime старше окна:
+	// лицензия в порядке, но appliance давно не получал историю с iLO.
+	if (r.UtilClass == "NO_SAMPLES" || r.UtilClass == "ZEROS") && newestMs >= 0 &&
+		time.Since(time.UnixMilli(newestMs)) > time.Duration(windowHours)*time.Hour {
+		r.UtilClass = "STALE"
+		r.Note = "история устарела: newestSampleTime=" + u.NewestSampleTime
+	}
 	say("    -> HTTP 200, класс=%s, resolution=%s мс, newest=%s (%s), isFresh=%s",
 		r.UtilClass, u.Resolution.String(), u.NewestSampleTime, sampleAge(u.NewestSampleTime), boolPtr(u.IsFresh))
 }
@@ -870,7 +877,7 @@ func printSummary(all []serverResult) {
 		}
 		return keys[i].cls < keys[j].cls
 	})
-	say("/utilization по appliance (OK=есть ненулевые данные, ZEROS=нули, NO_SAMPLES=пусто, NOT_FOUND=404):")
+	say("/utilization по appliance (OK=есть ненулевые данные, ZEROS=нули, NO_SAMPLES=пусто, NOT_FOUND=404, STALE=история старше окна):")
 	for _, k := range keys {
 		say("  %-45s API %-5s %-11s %d", k.ep, k.api, k.cls, byClass[k])
 	}
