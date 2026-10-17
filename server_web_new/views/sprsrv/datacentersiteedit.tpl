@@ -26,6 +26,14 @@
                 <label for="AltName" class="form-label">Альтернативное наименование</label>
                 <input type="text" id="AltName" name="AltName" class="form-control" value="{{.DC.AltName}}">
             </div>
+            <div class="col-9">
+                <label for="Address" class="form-label">Адрес</label>
+                <input type="text" id="Address" name="Address" class="form-control" value="{{.DC.Address}}">
+            </div>
+            <div class="col-3">
+                <label for="Floor" class="form-label">Этаж</label>
+                <input type="text" id="Floor" name="Floor" class="form-control" value="{{.DC.Floor}}">
+            </div>
             <div class="col-12">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="IsDatacenter" name="IsDatacenter" value="1" {{if .DC.IsDatacenter}}checked{{end}}>

@@ -2161,6 +2161,11 @@ type DatacenterSite struct {
 	// редактирования - импорт из Итиллиум это поле не трогает (там нет
 	// прямого признака ЦОД/склад в исходных данных).
 	IsDatacenter bool      `orm:"default(true)" form:"IsDatacenter" csv:"Признак ЦОД"`
+	// Address/Floor - адрес и этаж площадки (2026-10-17). Заполняются вручную
+	// или разовым скриптом sql/datacenter_site_address_floor.sql (адрес - из
+	// Name, этаж - из Annotation между "этаж:" и "комната").
+	Address      string    `orm:"null;size(512)" form:"Address" csv:"Адрес"`
+	Floor        string    `orm:"null;size(64)" form:"Floor" csv:"Этаж"`
 	Width        int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Datacenter.Width
 	Height       int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Datacenter.Height
 	Annotation   string    `orm:"null" form:"Annotation" csv:"Описание"`               //

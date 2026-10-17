@@ -57,6 +57,8 @@
                 <th>Наименование</th>
                 <th>Альт. наименование</th>
                 <th class="text-center">ЦОД</th>
+                <th>Адрес</th>
+                <th class="text-center">Этаж</th>
                 <th>Код Jira</th>
                 <th>Описание</th>
                 <th class="text-end" title="Сумма по шкафам площадки">Ср. 24ч, Вт</th>
@@ -78,6 +80,8 @@
                     <span class="badge bg-secondary" title="Не ЦОД - площадка размещения без активного оборудования (склад, комната и т.п.)">площадка</span>
                     {{end}}
                 </td>
+                <td>{{$dc.Address}}</td>
+                <td class="text-center">{{$dc.Floor}}</td>
                 <td>{{$dc.CodeJira}}</td>
                 <td>{{$dc.Annotation}}</td>
                 <td class="text-end">{{printf "%.0f" $dc.PowerAvg24hW}}</td>
@@ -90,7 +94,7 @@
             </tr>
             {{else}}
             <tr>
-                <td colspan="10" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
+                <td colspan="12" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
             </tr>
             {{end}}
         </tbody>
