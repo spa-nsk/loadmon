@@ -15,21 +15,21 @@ import (
 )
 
 // siteMapSite - площадка/ЦОД (одна "комната" на этаже здания) на карте.
+// На карте показываются только площадки с признаком ЦОД.
 type siteMapSite struct {
-	Id          int64   `json:"id"`
-	Name        string  `json:"name"`
-	Room        string  `json:"room"` // текст выноски: комната из описания ("комната: ..."), иначе наименование
-	Floor       int     `json:"floor"`
-	IsDC        bool    `json:"isDc"`
-	Racks       int     `json:"racks"`
-	Servers     int     `json:"servers"`
-	Blades      int     `json:"blades"`
-	Chassis     int     `json:"chassis"`
-	Storages    int     `json:"storages"`
-	Switches    int     `json:"switches"`
-	PowerAvgW   float64 `json:"powerAvgW"`
-	PowerPeakW  float64 `json:"powerPeakW"`
-	PowerRatedW float64 `json:"powerRatedW"`
+	Id          int64         `json:"id"`
+	Name        string        `json:"name"`
+	Room        string        `json:"room"` // текст выноски: комната из описания ("комната: ..."), иначе наименование
+	Floor       int           `json:"floor"`
+	Racks       []*dcViewRack `json:"racks"`
+	Servers     int           `json:"servers"`
+	Blades      int           `json:"blades"`
+	Chassis     int           `json:"chassis"`
+	Storages    int           `json:"storages"`
+	Switches    int           `json:"switches"`
+	PowerAvgW   float64       `json:"powerAvgW"`
+	PowerPeakW  float64       `json:"powerPeakW"`
+	PowerRatedW float64       `json:"powerRatedW"`
 }
 
 type siteMapFloor struct {
@@ -137,12 +137,15 @@ func (this *MainController) SprDatacenterSiteMap() {
 	items := make([]*siteMapSite, 0, len(sites))
 	addrOf := make(map[int64]string, len(sites))
 	for _, s := range sites {
+		if !s.IsDatacenter {
+			continue
+		}
 		room := siteMapRoom(s.Annotation)
 		addr := siteMapAddress(s, room)
 		if room == "" {
 			room = strings.TrimSpace(s.Name)
 		}
-		it := &siteMapSite{Id: s.Id, Name: s.Name, Room: room, Floor: siteMapFloorNum(s.Floor), IsDC: s.IsDatacenter}
+		it := &siteMapSite{Id: s.Id, Name: s.Name, Room: room, Floor: siteMapFloorNum(s.Floor), Racks: []*dcViewRack{}}
 		items = append(items, it)
 		bySite[s.Id] = it
 		addrOf[s.Id] = addr
@@ -151,13 +154,28 @@ func (this *MainController) SprDatacenterSiteMap() {
 
 	// шкафы
 	rackSite := map[int64]int64{}
+	rackBy := map[int64]*dcViewRack{}
+	rackIds := []int64{}
 	var racks []models.RackCabinet
-	if _, err := o.QueryTable(new(models.RackCabinet)).Limit(-1).All(&racks, "Id", "DatacenterSiteId"); err == nil {
+	if _, err := o.QueryTable(new(models.RackCabinet)).OrderBy("Name").Limit(-1).All(&racks); err == nil {
 		for _, r := range racks {
-			rackSite[r.Id] = r.DatacenterSiteId
-			if s := bySite[r.DatacenterSiteId]; s != nil {
-				s.Racks++
+			s := bySite[r.DatacenterSiteId]
+			if s == nil {
+				continue
 			}
+			u := int(r.UHeight)
+			if u <= 0 {
+				u = 42
+			}
+			rk := &dcViewRack{Id: r.Id, Name: r.Name, UHeight: u}
+			s.Racks = append(s.Racks, rk)
+			rackSite[r.Id] = r.DatacenterSiteId
+			rackBy[r.Id] = rk
+			rackIds = append(rackIds, r.Id)
+		}
+		for _, s := range items {
+			rs := s.Racks
+			sort.SliceStable(rs, func(i, j int) bool { return naturalLess(rs[i].Name, rs[j].Name) })
 		}
 	}
 
@@ -169,48 +187,66 @@ func (this *MainController) SprDatacenterSiteMap() {
 			if h.FormFactor == 2 && h.BladeSystemId > 0 {
 				continue
 			}
-			if s := bySite[rackSite[h.RackCabinetId]]; s != nil {
-				s.Servers++
+			if r := rackBy[h.RackCabinetId]; r != nil {
+				r.Servers++
 			}
 		}
 	}
 	// корзины и блейды
-	chassisSite := map[int64]int64{}
+	chassisRack := map[int64]int64{}
 	var chassis []models.BladeSystems
 	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId__gt", 0).Exclude("Active", 2).
 		Limit(-1).All(&chassis, "Id", "RackCabinetId"); err == nil {
 		for _, c := range chassis {
-			sid := rackSite[c.RackCabinetId]
-			chassisSite[c.Id] = sid
-			if s := bySite[sid]; s != nil {
-				s.Chassis++
+			chassisRack[c.Id] = c.RackCabinetId
+			if r := rackBy[c.RackCabinetId]; r != nil {
+				r.Chassis++
 			}
 		}
 		var blades []models.ServerHardware
 		if _, err := o.QueryTable(new(models.ServerHardware)).Filter("BladeSystemId__gt", 0).Exclude("Active", 2).
 			Limit(-1).All(&blades, "Id", "BladeSystemId"); err == nil {
 			for _, b := range blades {
-				if s := bySite[chassisSite[b.BladeSystemId]]; s != nil {
-					s.Blades++
+				if r := rackBy[chassisRack[b.BladeSystemId]]; r != nil {
+					r.Blades++
 				}
 			}
 		}
 	}
-	// СХД: различные системы с размещением на площадке
+	// СХД: на шкаф - различные системы; на площадку - различные системы площадки
 	var pl []models.StorageSystemPlacement
 	if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("RackCabinetId__gt", 0).
 		Limit(-1).All(&pl, "RackCabinetId", "StorageSystemsId"); err == nil {
-		seen := map[[2]int64]bool{}
+		seenR := map[[2]int64]bool{}
+		seenS := map[[2]int64]bool{}
 		for _, p := range pl {
-			sid := rackSite[p.RackCabinetId]
-			k := [2]int64{sid, p.StorageSystemsId}
-			if seen[k] {
+			r := rackBy[p.RackCabinetId]
+			if r == nil {
 				continue
 			}
-			seen[k] = true
-			if s := bySite[sid]; s != nil {
-				s.Storages++
+			if k := [2]int64{p.RackCabinetId, p.StorageSystemsId}; !seenR[k] {
+				seenR[k] = true
+				r.Storages++
 			}
+			sid := rackSite[p.RackCabinetId]
+			if k := [2]int64{sid, p.StorageSystemsId}; !seenS[k] {
+				seenS[k] = true
+				bySite[sid].Storages++
+			}
+		}
+	}
+	// мощность по шкафам
+	for rid, p := range rackpower.RackCabinetPowerTotalsBatch(o, rackIds) {
+		if r := rackBy[rid]; r != nil {
+			r.PowerAvgW, r.PowerPeakW, r.PowerRated = p.Avg24hW, p.Peak24hW, p.RatedMaxW
+		}
+	}
+	// итоги площадки
+	for _, s := range items {
+		for _, r := range s.Racks {
+			s.Servers += r.Servers
+			s.Blades += r.Blades
+			s.Chassis += r.Chassis
 		}
 	}
 	// коммутаторы
@@ -226,7 +262,7 @@ func (this *MainController) SprDatacenterSiteMap() {
 			}
 		}
 	}
-	// мощность
+	// мощность площадки
 	for sid, p := range rackpower.DatacenterSitePowerTotalsBatch(o, siteIds) {
 		if s := bySite[sid]; s != nil {
 			s.PowerAvgW, s.PowerPeakW, s.PowerRatedW = p.Avg24hW, p.Peak24hW, p.RatedMaxW
