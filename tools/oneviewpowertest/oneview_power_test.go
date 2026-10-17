@@ -90,6 +90,13 @@ var (
 	utilView = "hour"
 	// utilFields - метрики через запятую; "" - без fields (все поддерживаемые).
 	utilFields = "AveragePower,PeakPower,PowerCap,CpuUtilization,AmbientTemperature"
+	// utilRefresh - после обычного запроса сделать запрос с refresh=true
+	// (appliance ставит задачу "получить свежие данные с iLO"), дождаться
+	// задачи refreshTaskUri и повторить запрос: покажет, сдвинется ли
+	// newestSampleTime (в прогонах он отставал на 2-13 часов).
+	utilRefresh = false
+	// refreshWait - сколько ждать выполнения задачи refresh.
+	refreshWait = 90 * time.Second
 	// probeAllMetricsOnce - для первого проверяемого сервера каждого appliance
 	// дополнительно запросить /utilization БЕЗ fields и показать реальный набор
 	// metricName.
@@ -147,6 +154,8 @@ type metricStat struct {
 	Samples, NonNull, Zeros int
 	Last, Avg, Max          float64 // Last - самый свежий не-null (сэмплы идут от новых к старым)
 	LastNonZero             float64 // самый свежий ненулевой сэмпл
+	LastReal                float64 // значение на newestSampleTime (последний РЕАЛЬНЫЙ сэмпл)
+	StaleTail               int     // сколько сэмплов позже newestSampleTime (appliance добивает хвост повтором/нулями)
 	Head                    string  // первые сэмплы "время=значение" (самые свежие)
 	Capacity                string
 }
@@ -314,6 +323,9 @@ func probeEndpoint(ctx context.Context, ovi config.OvEndpoint) ([]serverResult, 
 			hw.Model, hw.Generation, hw.PowerState, hw.LicensingIntent, hw.MpLicenseType, hw.MpModel, hw.MpState)
 
 		checkUtilization(ctx, c, &r, utilFields)
+		if utilRefresh {
+			refreshAndRecheck(ctx, c, &r)
+		}
 		if first && probeAllMetricsOnce {
 			probeAllMetrics(ctx, c, hw.URI)
 		}
@@ -536,14 +548,25 @@ func checkUtilization(ctx context.Context, c *oneview.Client, r *serverResult, f
 		return
 	}
 	r.Metrics = map[string]metricStat{}
+	var newestMs int64 = -1
+	if ts, err := time.Parse("2006-01-02T15:04:05.000Z", u.NewestSampleTime); err == nil {
+		newestMs = ts.UnixMilli()
+	}
 	haveAny, nonZero := false, false
 	for _, m := range u.MetricList {
 		st := metricStat{Samples: len(m.MetricSamples), Capacity: strings.TrimSpace(string(m.MetricCapacity))}
 		var sum float64
-		haveLast, haveNZ := false, false
+		haveLast, haveNZ, haveReal := false, false, false
 		var head []string
 		for _, s := range m.MetricSamples {
 			v, ok := sampleValue(s)
+			if ms, okT := sampleMillis(s); okT && newestMs >= 0 {
+				if ms > newestMs {
+					st.StaleTail++
+				} else if !haveReal && ok {
+					st.LastReal, haveReal = v, true
+				}
+			}
 			if len(head) < printHeadSamples {
 				head = append(head, sampleLabel(s, v, ok))
 			}
@@ -574,8 +597,8 @@ func checkUtilization(ctx context.Context, c *oneview.Client, r *serverResult, f
 			}
 		}
 		r.Metrics[m.MetricName] = st
-		say("    %-20s сэмплов=%-4d не-null=%-4d нулей=%-4d last=%-7.1f lastНенулевой=%-7.1f avg=%-7.1f max=%-7.1f capacity=%s",
-			m.MetricName, st.Samples, st.NonNull, st.Zeros, st.Last, st.LastNonZero, st.Avg, st.Max, st.Capacity)
+		say("    %-20s сэмплов=%-4d не-null=%-4d нулей=%-4d last=%-7.1f lastReal=%-7.1f avg=%-7.1f max=%-7.1f хвост(после newest)=%-3d capacity=%s",
+			m.MetricName, st.Samples, st.NonNull, st.Zeros, st.Last, st.LastReal, st.Avg, st.Max, st.StaleTail, st.Capacity)
 		if st.Head != "" {
 			say("        свежие сэмплы: %s", st.Head)
 		}
@@ -592,6 +615,50 @@ func checkUtilization(ctx context.Context, c *oneview.Client, r *serverResult, f
 	}
 	say("    -> HTTP 200, класс=%s, resolution=%s мс, newest=%s (%s), isFresh=%s",
 		r.UtilClass, u.Resolution.String(), u.NewestSampleTime, sampleAge(u.NewestSampleTime), boolPtr(u.IsFresh))
+}
+
+// refreshAndRecheck: GET /utilization?refresh=true -> ждём refreshTaskUri ->
+// повторный запрос, сравниваем newestSampleTime до и после.
+func refreshAndRecheck(ctx context.Context, c *oneview.Client, r *serverResult) {
+	path := utilizationURL(r.URI, "AveragePower") + "&refresh=true"
+	status, body, err := doGET(ctx, c, path)
+	say("    [refresh] GET %s -> HTTP %d %s", path, status, errText(err))
+	if status != 200 {
+		return
+	}
+	var u struct {
+		NewestSampleTime string  `json:"newestSampleTime"`
+		RefreshTaskURI   *string `json:"refreshTaskUri"`
+	}
+	if json.Unmarshal(body, &u) != nil {
+		return
+	}
+	before := u.NewestSampleTime
+	if u.RefreshTaskURI == nil || *u.RefreshTaskURI == "" {
+		say("    [refresh] refreshTaskUri=null: задача не поставлена (данные считаются свежими или обновление не требуется); newest=%s", before)
+		return
+	}
+	say("    [refresh] задача %s, ждём до %s", *u.RefreshTaskURI, refreshWait)
+	wctx, cancel := context.WithTimeout(ctx, refreshWait)
+	defer cancel()
+	task, err := c.WaitTask(wctx, *u.RefreshTaskURI)
+	if err != nil {
+		say("    [refresh] ожидание задачи: %v", err)
+	} else {
+		say("    [refresh] задача завершена: state=%s", task.TaskState)
+	}
+	status, body, err = doGET(ctx, c, utilizationURL(r.URI, "AveragePower"))
+	if status != 200 {
+		say("    [refresh] повторный запрос -> HTTP %d %s", status, errText(err))
+		return
+	}
+	var u2 struct {
+		NewestSampleTime string `json:"newestSampleTime"`
+	}
+	if json.Unmarshal(body, &u2) == nil {
+		say("    [refresh] newestSampleTime: было %s (%s) -> стало %s (%s)",
+			before, sampleAge(before), u2.NewestSampleTime, sampleAge(u2.NewestSampleTime))
+	}
 }
 
 // probeAllMetrics - /utilization без fields: реальный набор метрик сервера.
@@ -614,6 +681,19 @@ func probeAllMetrics(ctx context.Context, c *oneview.Client, uri string) {
 		}
 		say("    [все метрики] metricName: %s", strings.Join(names, ", "))
 	}
+}
+
+// sampleMillis - время сэмпла "[ms, value]" в мс с 1970.
+func sampleMillis(raw json.RawMessage) (int64, bool) {
+	var arr []json.RawMessage
+	if json.Unmarshal(raw, &arr) != nil || len(arr) < 1 {
+		return 0, false
+	}
+	var ms int64
+	if json.Unmarshal(arr[0], &ms) != nil {
+		return 0, false
+	}
+	return ms, true
 }
 
 // sampleLabel - "UTC-время=значение" для вывода свежих сэмплов.
@@ -823,11 +903,11 @@ func printSummary(all []serverResult) {
 	}
 
 	say("")
-	say("Сервер | /utilization | AvgPower(lastНенулевой/avg/max) | PeakPower(max) | PSU сумма Вт | calibratedMax | шасси")
+	say("Сервер | /utilization | AvgPower(lastReal/avg/max) | PeakPower(max) | PSU сумма Вт | calibratedMax | шасси")
 	for _, r := range all {
 		ap, pp := r.Metrics["AveragePower"], r.Metrics["PeakPower"]
 		say("  %-28s | %-10s | %6.0f/%6.0f/%6.0f | %6.0f | %6.0f | %6.0f | %s",
-			cut(r.Name, 28), r.UtilClass, ap.LastNonZero, ap.Avg, ap.Max, pp.Max, r.PSUSumW, r.CalibratedMaxW, r.EnclosureClass)
+			cut(r.Name, 28), r.UtilClass, ap.LastReal, ap.Avg, ap.Max, pp.Max, r.PSUSumW, r.CalibratedMaxW, r.EnclosureClass)
 	}
 }
 
