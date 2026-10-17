@@ -89,6 +89,15 @@ func probeEnclosuresFull(ctx context.Context, c *oneview.Client, endpoint, api s
 	}
 	say("шасси: всего %d, к проверке %d (enclosureMax=%d)", total, len(members), enclosureMax)
 
+	// типизированный список - тот же путь, которым cmdb получает корзины
+	typed := map[string]oneview.Enclosure{}
+	typedCol, typedErr := c.ListEnclosures(ctx, oneview.ListOptions{Count: -1})
+	if typedErr == nil && typedCol != nil {
+		for _, e := range typedCol.Members {
+			typed[e.URI] = e
+		}
+	}
+
 	for i, m := range members {
 		if enclosureMax > 0 && i >= enclosureMax {
 			break
@@ -132,14 +141,14 @@ func probeEnclosuresFull(ctx context.Context, c *oneview.Client, endpoint, api s
 
 		if r.URI != "" {
 			encUtilization(ctx, c, &r)
-			// сухой прогон алгоритма сбора (cmdb.SyncBladeSystemsFromOneView)
-			if encJSON, err := json.Marshal(m); err == nil {
-				var enc oneview.Enclosure
-				if json.Unmarshal(encJSON, &enc) == nil {
-					r.NewPower = c.EnclosurePower(ctx, &enc)
-					say("    алгоритм сбора: источник=%q avg=%.0f peak=%.0f номинал=%.0f (%s)",
-						r.NewPower.Source, r.NewPower.Avg24hW, r.NewPower.Peak24hW, r.NewPower.RatedMaxW, r.NewPower.RatedSource)
-				}
+			// сухой прогон алгоритма сбора (cmdb.SyncBladeSystemsFromOneView):
+			// корзина берётся из ListEnclosures (толерантный разбор типов), как в cmdb
+			if enc, ok := typed[r.URI]; ok {
+				r.NewPower = c.EnclosurePower(ctx, &enc)
+				say("    алгоритм сбора: источник=%q avg=%.0f peak=%.0f номинал=%.0f (%s)",
+					r.NewPower.Source, r.NewPower.Avg24hW, r.NewPower.Peak24hW, r.NewPower.RatedMaxW, r.NewPower.RatedSource)
+			} else {
+				say("    алгоритм сбора: корзина %s не найдена в типизированном списке ListEnclosures (%v)", r.URI, typedErr)
 			}
 			encEnvironmental(ctx, c, &r)
 		}
