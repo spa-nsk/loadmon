@@ -38,6 +38,7 @@ type DatacenterSiteRow struct {
 	PowerAvg24hW   float64
 	PowerPeak24hW  float64
 	PowerRatedMaxW float64
+	LocalityName   string // название населённого пункта по LocalityCode (справочник cmdb_locality)
 }
 
 // SprDatacenterSite отображает список записей справочника ЦОД
@@ -179,6 +180,7 @@ func (this *MainController) SprDatacenterSite() {
 		}
 	}
 	powerBySite := rackpower.DatacenterSitePowerTotalsBatch(o, siteIds)
+	localityNames := localityNamesByCode(o, records)
 	rows := make([]DatacenterSiteRow, 0, len(records))
 	for _, r := range records {
 		p := powerBySite[r.Id]
@@ -187,6 +189,7 @@ func (this *MainController) SprDatacenterSite() {
 			PowerAvg24hW:   p.Avg24hW,
 			PowerPeak24hW:  p.Peak24hW,
 			PowerRatedMaxW: p.RatedMaxW,
+			LocalityName:   localityNames[r.LocalityCode],
 		})
 	}
 
@@ -263,6 +266,7 @@ func (this *MainController) SprDatacenterSiteEdit() {
 		rec.IsDatacenter = this.GetString("IsDatacenter") != ""
 		rec.Address = strings.TrimSpace(this.GetString("Address"))
 		rec.Floor = strings.TrimSpace(this.GetString("Floor"))
+		rec.Room = strings.TrimSpace(this.GetString("Room"))
 		rec.LocalityCode = strings.TrimSpace(this.GetString("LocalityCode"))
 		rec.Width, _ = strconv.ParseInt(this.GetString("Width"), 10, 64)
 		rec.Height, _ = strconv.ParseInt(this.GetString("Height"), 10, 64)
@@ -300,6 +304,30 @@ func (this *MainController) SprDatacenterSiteEdit() {
 	}
 
 	this.Data["DC"] = rec
+	this.Data["LocalityName"] = localityNamesByCode(o, []models.DatacenterSite{rec})[rec.LocalityCode]
+}
+
+// localityNamesByCode возвращает "тип наименование (регион)" населённых пунктов по кодам ОКТМО из
+// DatacenterSite.LocalityCode (пустая карта, если таблица справочника недоступна).
+func localityNamesByCode(o orm.Ormer, sites []models.DatacenterSite) map[string]string {
+	res := map[string]string{}
+	codes := make([]string, 0, len(sites))
+	for _, s := range sites {
+		if s.LocalityCode != "" {
+			codes = append(codes, s.LocalityCode)
+		}
+	}
+	if len(codes) == 0 {
+		return res
+	}
+	var locs []models.Locality
+	if _, err := o.QueryTable("cmdb_locality").Filter("Oktmo__in", codes).All(&locs); err != nil {
+		return res
+	}
+	for _, l := range locs {
+		res[l.Oktmo] = l.FullName + " (" + l.RegionName + ")"
+	}
+	return res
 }
 
 // exportDatacenterSiteXLSX формирует и отдаёт клиенту XLSX-файл с записями

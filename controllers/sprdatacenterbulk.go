@@ -72,8 +72,9 @@ func (this *MainController) SprDatacenterSiteUpdateSelected() {
 
 	address := strings.TrimSpace(this.GetString("Address"))
 	floor := strings.TrimSpace(this.GetString("Floor"))
+	room := strings.TrimSpace(this.GetString("Room"))
 
-	if (isDatacenter == "" || isDatacenter == "0") && codeJira == "" && annotation == "" && address == "" && floor == "" {
+	if (isDatacenter == "" || isDatacenter == "0") && codeJira == "" && annotation == "" && address == "" && floor == "" && room == "" {
 		flash.Error("Не заполнено ни одно поле - нечего применять к выбранным площадкам")
 		flash.Store(&this.Controller)
 		return
@@ -110,6 +111,9 @@ func (this *MainController) SprDatacenterSiteUpdateSelected() {
 		}
 		if floor != "" {
 			rec.Floor = floor
+		}
+		if room != "" {
+			rec.Room = room
 		}
 		rec.Id_User = currentUserId
 		rec.Time_Mfy = now

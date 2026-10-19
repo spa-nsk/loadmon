@@ -166,6 +166,10 @@ func init() {
 	beego.Router("/admin/importbladeservers/status", &controllers.MainController{}, "get:AdminImportBladeServersStatus")   // JSON-опрос прогресса импорта блейд-серверов (параметр job=<имя файла>) - для градуированного индикатора на /admin/importbladeservers, см. controllers/adminimportbladeservers.go
 	beego.Router("/admin/importstorages", &controllers.MainController{}, "get,post:AdminImportStorageSystems")            // форма загрузки xlsx-выгрузки Итиллиум по СХД в ./import и асинхронный запуск itilliumimport.StartImportItiliumStorage(name) - доступ только Priv==3, см. controllers/adminimportstorages.go
 	beego.Router("/admin/importstorages/status", &controllers.MainController{}, "get:AdminImportStorageSystemsStatus")    // JSON-опрос прогресса импорта СХД (параметр job=<имя файла>) - для градуированного индикатора на /admin/importstorages, см. controllers/adminimportstorages.go
+	beego.Router("/admin/importlocalities", &controllers.MainController{}, "get,post:AdminImportLocalities")                // форма загрузки csv справочника населённых пунктов (ОКТМО Росстата) в ./import и асинхронная перезагрузка cmdb_locality через locality.Start(...) - доступ только Priv==3, см. controllers/adminimportlocalities.go
+	beego.Router("/admin/importlocalities/status", &controllers.MainController{}, "get:AdminImportLocalitiesStatus")        // JSON-опрос прогресса загрузки справочника населённых пунктов (параметр job=<имя файла>)
+	beego.Router("/admin/localities", &controllers.MainController{}, "get,post:AdminLocalities")                              // справочник населённых пунктов (models.Locality): список с фильтром, только Priv==3, см. controllers/adminlocalities.go
+	beego.Router("/admin/localityedit/:id([0-9]+)", &controllers.MainController{}, "get,post:AdminLocalityEdit")             // просмотр/редактирование/удаление записи справочника населённых пунктов (Id=0 - добавление)
 	beego.Router("/api/:json", &controllers.MainController{}, "get,post:RequestAPI")
 	beego.Router("/debug/pprof/", &controllers.MainController{}, "get,post:Prof")
 	beego.Router("/debug/pprof/cmdline", &controllers.MainController{}, "get,post:ProfCmdline")

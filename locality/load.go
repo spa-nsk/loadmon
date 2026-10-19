@@ -108,6 +108,11 @@ var federalCities = map[string]string{
 // (в одной транзакции). Связь с площадками идёт по коду ОКТМО, не по Id, поэтому
 // пересоздание строк безопасно. Возвращает число загруженных записей.
 func Load(path string) (int, error) {
+	return load(path, nil)
+}
+
+// load - реализация Load с необязательным (nil) индикатором прогресса.
+func load(path string, job *Job) (int, error) {
 	list, err := Parse(path)
 	if err != nil {
 		return 0, fmt.Errorf("разбор %s: %w", path, err)
@@ -115,7 +120,11 @@ func Load(path string) (int, error) {
 	if len(list) == 0 {
 		return 0, fmt.Errorf("в %s нет населённых пунктов", path)
 	}
+	job.set(len(list), 0)
 	o := orm.NewOrm()
+	if err := ensureTable(o); err != nil {
+		return 0, fmt.Errorf("создание таблицы cmdb_locality: %w", err)
+	}
 	tx, err := o.Begin()
 	if err != nil {
 		return 0, err
@@ -133,9 +142,46 @@ func Load(path string) (int, error) {
 			tx.Rollback()
 			return 0, fmt.Errorf("вставка пачки %d: %w", i, err)
 		}
+		job.set(-1, end)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 	return len(list), nil
+}
+
+// ensureTable создаёт таблицу cmdb_locality, если её нет (в режиме
+// WorkMode=web схему БД синхронизирует metrics_grpc, поэтому утилита делает
+// это сама). Сначала DDL для PostgreSQL, при ошибке - для SQLite.
+func ensureTable(o orm.Ormer) error {
+	pg := []string{
+		`CREATE TABLE IF NOT EXISTS cmdb_locality (
+			id BIGSERIAL PRIMARY KEY, oktmo VARCHAR(11) NOT NULL UNIQUE,
+			region_code VARCHAR(2) NOT NULL, region_name VARCHAR(255) NOT NULL,
+			municipality VARCHAR(500), type_short VARCHAR(16),
+			name VARCHAR(500) NOT NULL, full_name VARCHAR(500) NOT NULL)`,
+		`CREATE INDEX IF NOT EXISTS cmdb_locality_region_code ON cmdb_locality (region_code)`,
+		`CREATE INDEX IF NOT EXISTS cmdb_locality_name ON cmdb_locality (name)`,
+	}
+	lite := []string{
+		`CREATE TABLE IF NOT EXISTS cmdb_locality (
+			id INTEGER PRIMARY KEY AUTOINCREMENT, oktmo VARCHAR(11) NOT NULL UNIQUE,
+			region_code VARCHAR(2) NOT NULL, region_name VARCHAR(255) NOT NULL,
+			municipality VARCHAR(500), type_short VARCHAR(16),
+			name VARCHAR(500) NOT NULL, full_name VARCHAR(500) NOT NULL)`,
+		`CREATE INDEX IF NOT EXISTS cmdb_locality_region_code ON cmdb_locality (region_code)`,
+		`CREATE INDEX IF NOT EXISTS cmdb_locality_name ON cmdb_locality (name)`,
+	}
+	run := func(stmts []string) error {
+		for _, s := range stmts {
+			if _, err := o.Raw(s).Exec(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := run(pg); err != nil {
+		return run(lite)
+	}
+	return nil
 }

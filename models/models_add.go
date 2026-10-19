@@ -2166,6 +2166,7 @@ type DatacenterSite struct {
 	// Name, этаж - из Annotation между "этаж:" и "комната").
 	Address string `orm:"null;size(512)" form:"Address" csv:"Адрес"`
 	Floor   string `orm:"null;size(64)" form:"Floor" csv:"Этаж"`
+	Room    string `orm:"null;size(255)" form:"Room" csv:"Комната"` // комната (помещение) площадки (2026-10-19)
 	// LocalityCode - код населённого пункта в справочнике Locality (ОКТМО,
 	// 11 знаков, Locality.Oktmo) (2026-10-19). Связь по коду, а не по Id:
 	// справочник перезагружается целиком (см. locality.Load).
