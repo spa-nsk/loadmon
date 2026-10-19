@@ -24,6 +24,7 @@ CREATE INDEX IF NOT EXISTS cmdb_locality_name ON cmdb_locality (name);
 
 ALTER TABLE cmdb_datacenter_site ADD COLUMN IF NOT EXISTS locality_code VARCHAR(11);
 CREATE INDEX IF NOT EXISTS cmdb_datacenter_site_locality_code ON cmdb_datacenter_site (locality_code);
+ALTER TABLE cmdb_datacenter_site ADD COLUMN IF NOT EXISTS room VARCHAR(255);
 
 -- Контроль: площадки с кодом, которого нет в справочнике
 -- SELECT s.id, s.name, s.locality_code FROM cmdb_datacenter_site s

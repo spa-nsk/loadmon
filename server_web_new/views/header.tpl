@@ -540,6 +540,11 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Виртуальная
                 инфраструктура</a>
             </li>
+            <li>
+              <a href="/admin/localities"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник
+                населённых пунктов</a>
+            </li>
             <li class="mb-1">
               <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
                 data-bs-toggle="collapse" data-bs-target="#viewexport-collapse" aria-expanded="false">
@@ -578,6 +583,10 @@
                   <li>
                     <a href="/admin/importstorages"
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт СХД из Итилиум</a>
+                  </li>
+                  <li>
+                    <a href="/admin/importlocalities"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт справочника населённых пунктов</a>
                   </li>
                 </ul>
               </div>

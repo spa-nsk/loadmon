@@ -26,17 +26,22 @@
                 <label for="AltName" class="form-label">Альтернативное наименование</label>
                 <input type="text" id="AltName" name="AltName" class="form-control" value="{{.DC.AltName}}">
             </div>
-            <div class="col-9">
+            <div class="col-12 col-md-4">
+                <label for="LocalityCode" class="form-label">Населённый пункт (код ОКТМО)</label>
+                <input type="text" id="LocalityCode" name="LocalityCode" class="form-control" maxlength="11" value="{{.DC.LocalityCode}}">
+                <div class="form-text">{{if .LocalityName}}{{.LocalityName}}{{else if .DC.LocalityCode}}Код не найден в справочнике населённых пунктов{{else}}Код из справочника населённых пунктов (Администрирование){{end}}</div>
+            </div>
+            <div class="col-12 col-md-8">
                 <label for="Address" class="form-label">Адрес</label>
                 <input type="text" id="Address" name="Address" class="form-control" value="{{.DC.Address}}">
             </div>
-            <div class="col-3">
+            <div class="col-6 col-md-3">
                 <label for="Floor" class="form-label">Этаж</label>
                 <input type="text" id="Floor" name="Floor" class="form-control" value="{{.DC.Floor}}">
             </div>
-            <div class="col-4">
-                <label for="LocalityCode" class="form-label">Код населённого пункта (ОКТМО)</label>
-                <input type="text" id="LocalityCode" name="LocalityCode" class="form-control" maxlength="11" value="{{.DC.LocalityCode}}">
+            <div class="col-6 col-md-9">
+                <label for="Room" class="form-label">Комната</label>
+                <input type="text" id="Room" name="Room" class="form-control" value="{{.DC.Room}}">
             </div>
             <div class="col-12">
                 <div class="form-check form-switch">

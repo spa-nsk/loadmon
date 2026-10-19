@@ -55,6 +55,10 @@
                     <label for="Floor" class="form-label">Этаж</label>
                     <input name="Floor" id="Floor" class="form-control" type="text" placeholder="без изменений" />
                 </div>
+                <div class="col-sm-6 col-md-3">
+                    <label for="Room" class="form-label">Комната</label>
+                    <input name="Room" id="Room" class="form-control" type="text" placeholder="без изменений" />
+                </div>
                 <div class="col-12">
                     <label for="Annotation" class="form-label">Описание</label>
                     <textarea name="Annotation" id="Annotation" class="form-control" rows="3" placeholder="оставить без изменений"></textarea>
