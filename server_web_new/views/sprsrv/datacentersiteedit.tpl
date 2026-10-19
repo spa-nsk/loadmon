@@ -34,6 +34,10 @@
                 <label for="Floor" class="form-label">Этаж</label>
                 <input type="text" id="Floor" name="Floor" class="form-control" value="{{.DC.Floor}}">
             </div>
+            <div class="col-4">
+                <label for="LocalityCode" class="form-label">Код населённого пункта (ОКТМО)</label>
+                <input type="text" id="LocalityCode" name="LocalityCode" class="form-control" maxlength="11" value="{{.DC.LocalityCode}}">
+            </div>
             <div class="col-12">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="IsDatacenter" name="IsDatacenter" value="1" {{if .DC.IsDatacenter}}checked{{end}}>

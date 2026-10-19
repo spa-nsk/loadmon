@@ -236,6 +236,7 @@ func DBInit() {
 	// регистрировались и не синхронизировались) - см. CHANGELOG.md.
 
 	orm.RegisterModel(new(models.DatacenterSite))
+	orm.RegisterModel(new(models.Locality))
 	orm.RegisterModel(new(models.RackCabinet))
 	orm.RegisterModel(new(models.NetworkSprRecords))
 	orm.RegisterModel(new(models.SwitchSprRecords))

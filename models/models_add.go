@@ -2160,12 +2160,16 @@ type DatacenterSite struct {
 	// площадка для списанного и т.п.). Проставляется вручную в форме
 	// редактирования - импорт из Итиллиум это поле не трогает (там нет
 	// прямого признака ЦОД/склад в исходных данных).
-	IsDatacenter bool      `orm:"default(true)" form:"IsDatacenter" csv:"Признак ЦОД"`
+	IsDatacenter bool `orm:"default(true)" form:"IsDatacenter" csv:"Признак ЦОД"`
 	// Address/Floor - адрес и этаж площадки (2026-10-17). Заполняются вручную
 	// или разовым скриптом sql/datacenter_site_address_floor.sql (адрес - из
 	// Name, этаж - из Annotation между "этаж:" и "комната").
-	Address      string    `orm:"null;size(512)" form:"Address" csv:"Адрес"`
-	Floor        string    `orm:"null;size(64)" form:"Floor" csv:"Этаж"`
+	Address string `orm:"null;size(512)" form:"Address" csv:"Адрес"`
+	Floor   string `orm:"null;size(64)" form:"Floor" csv:"Этаж"`
+	// LocalityCode - код населённого пункта в справочнике Locality (ОКТМО,
+	// 11 знаков, Locality.Oktmo) (2026-10-19). Связь по коду, а не по Id:
+	// справочник перезагружается целиком (см. locality.Load).
+	LocalityCode string    `orm:"null;size(11);index" form:"LocalityCode" csv:"Код населённого пункта"`
 	Width        int64     `orm:"null" form:"Width" csv:"Ширина"`                      //по аналогии с oneview2.Datacenter.Width
 	Height       int64     `orm:"null" form:"Height" csv:"Высота"`                     //по аналогии с oneview2.Datacenter.Height
 	Annotation   string    `orm:"null" form:"Annotation" csv:"Описание"`               //
@@ -2185,6 +2189,27 @@ func (u *DatacenterSite) TableIndex() [][]string {
 		[]string{"Id"},
 		[]string{"Name"},
 	}
+}
+
+// Locality - справочник населённых пунктов России (2026-10-19). Источник -
+// открытые данные Росстата, ОКТМО, раздел 2 "Населённые пункты" (файл
+// itilliumimport/parsing/oktmo_data_*.csv). Наполняется загрузчиком
+// locality.Load (команда tools/localityload), вручную не редактируется.
+// На него ссылается DatacenterSite.LocalityCode.
+type Locality struct {
+	Id           int64  `orm:"auto" csv:"id"`
+	Oktmo        string `orm:"unique;size(11)" csv:"Код ОКТМО"`                //TER+KOD1+KOD2+KOD3, 11 цифр
+	RegionCode   string `orm:"size(2);index" csv:"Код региона"`                //первые 2 знака ОКТМО
+	RegionName   string `orm:"size(255)" csv:"Субъект РФ"`                     //например "Новосибирской области"
+	Municipality string `orm:"null;size(500)" csv:"Муниципальное образование"` //муниципальное образование верхнего уровня
+	TypeShort    string `orm:"null;size(16)" csv:"Тип"`                        //г, п, с, д, пгт, ст-ца ...
+	Name         string `orm:"size(500);index" csv:"Наименование"`             //без типа, например "Новосибирск"
+	FullName     string `orm:"size(500)" csv:"Полное наименование"`            //как в ОКТМО, например "г Новосибирск"
+}
+
+// TableName возвращает имя таблицы БД для модели Locality (используется beego ORM).
+func (a *Locality) TableName() string {
+	return "cmdb_locality"
 }
 
 // RackCabinet - справочник шкафов ("Шкаф") в составе ЦОД (DatacenterSite), по
