@@ -263,6 +263,7 @@ func (this *MainController) SprDatacenterSiteEdit() {
 		rec.IsDatacenter = this.GetString("IsDatacenter") != ""
 		rec.Address = strings.TrimSpace(this.GetString("Address"))
 		rec.Floor = strings.TrimSpace(this.GetString("Floor"))
+		rec.LocalityCode = strings.TrimSpace(this.GetString("LocalityCode"))
 		rec.Width, _ = strconv.ParseInt(this.GetString("Width"), 10, 64)
 		rec.Height, _ = strconv.ParseInt(this.GetString("Height"), 10, 64)
 		rec.Annotation = this.GetString("Annotation")
