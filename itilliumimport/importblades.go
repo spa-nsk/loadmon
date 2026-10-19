@@ -2,6 +2,7 @@ package itilliumimport
 
 import (
 	"loadmon/grpcclient"
+	"loadmon/locality"
 	"loadmon/models"
 	"log"
 	"strings"
@@ -84,6 +85,7 @@ func runImportItiliumBlade(name string, job *ImportProgress) {
 	job.setFileRows(len(results))
 
 	o := orm.NewOrm()
+	rs := locality.NewResolver() // справочник населённых пунктов (cmdb_locality)
 
 	for _, r := range results {
 		job.tickProcessed()
@@ -114,24 +116,20 @@ func runImportItiliumBlade(name string, job *ImportProgress) {
 			continue
 		}
 
-		datacenterRoom := r.Extra["datacenter_room"]
 		rackId := int64(0)
+		cabinetCode := "" // чистое наименование шкафа (размещение или "Местоположение")
 		if !flNotWorking {
 			// --- ЦОД (models.DatacenterSite) --------------------------------
-			datacenter := models.DatacenterSite{
-				Name:       datacenterRoom + " " + r.Extra["location_room_code"],
-				Annotation: "ЦОД по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-				Id_User:    9999,
-				Time_Mfy:   time.Now().Local(),
+			// Площадка определяется разбором "Местоположение"
+			// (locality.ParseLocation): населённый пункт -> LocalityCode,
+			// описание -> AltName, улица+дом -> Address.
+			site, errSite := resolveSite(trn, rs, r.Extra["location_raw"], 9999)
+			if errSite != nil {
+				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка резолва площадки:", errSite)
+				trn.Rollback()
+				continue
 			}
-			if err := trn.Read(&datacenter, "Name"); err != nil {
-				if _, err := trn.Insert(&datacenter); err != nil {
-					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка вставки datacenter:", err)
-					trn.Rollback()
-					continue
-				}
-			}
-			datacenterId := datacenter.Id
+			datacenterId := site.Id
 
 			// --- Шкаф (models.RackCabinet) - резолвится ПАРОЙ (Name,
 			// DatacenterSiteId), см. resolveRackCabinet: одинаковое имя
@@ -145,31 +143,34 @@ func runImportItiliumBlade(name string, job *ImportProgress) {
 			// resolvecabinet.go:splitColocationCabinetName (та же логика,
 			// что раньше была исправлена только для импорта СХД, см.
 			// storageplacement.go).
-			rawRackNum := strings.TrimSpace(r.Extra["rack_num"])
-			colocationDc, cabinetCode := splitColocationCabinetName(rawRackNum)
-			rackSiteId := datacenterId
-			rackAnnotation := "Шкаф по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
-			if colocationDc != "" {
-				var errSite error
-				rackSiteId, errSite = resolveDatacenterSiteByName(trn, colocationDc)
-				if errSite != nil {
-					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка резолва colocation ЦОД", colocationDc, ":", errSite)
+			//
+			// ИЗМЕНЕНО (2026-10-19): часть до "/" - АЛЬТЕРНАТИВНОЕ
+			// наименование шкафа (RackCabinet.AltName), в Name шкафа - чистый
+			// код. Если "Размещение в шкафу/стойке" пусто, шкаф и юниты
+			// берутся из "Местоположение" (Шкаф X | Unit N[-M]).
+			var cabinetAlt string
+			var locPos *locality.Position
+			cabinetCode, cabinetAlt, locPos = cabinetFromPlacement(r.Extra["rack_num"], site.Loc)
+			if cabinetCode != "" {
+				var errRack error
+				rackId, errRack = resolveRackCabinet(trn, cabinetCode, cabinetAlt, datacenterId,
+					"Шкаф по данным импорта из Итиллиум, площадка: "+site.Name)
+				if errRack != nil {
+					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка резолва rack:", errRack)
 					trn.Rollback()
 					continue
 				}
-				rackAnnotation = "Шкаф на colocation-площадке \"" + colocationDc + "\" (по данным импорта СХД/блейд-корзин из Итиллиум)"
-			}
-			var errRack error
-			rackId, errRack = resolveRackCabinet(trn, cabinetCode, rackSiteId, rackAnnotation)
-			if errRack != nil {
-				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка резолва rack:", errRack)
-				trn.Rollback()
-				continue
+				if locPos != nil && r.Bs.StartUnitPos == 0 {
+					r.Bs.StartUnitPos, r.Bs.EndUnitPos = locPos.Start, locPos.End
+					if r.Bs.EndUnitPos >= r.Bs.StartUnitPos {
+						r.Bs.SizeUnit = r.Bs.EndUnitPos - r.Bs.StartUnitPos + 1
+					}
+				}
 			}
 		}
 		r.Bs.RackCabinetId = rackId
 
-		rackNum := strings.TrimSpace(r.Extra["rack_num"])
+		rackNum := cabinetCode
 		r.Bs.Anotation = strings.TrimSpace(r.Extra["datacenter_room"])
 		if rackNum == "" || r.Bs.RackCabinetId == 0 || flNotWorking {
 			// Размещение в шкафу не указано в выгрузке - корзина считается

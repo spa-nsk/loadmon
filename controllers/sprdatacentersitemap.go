@@ -136,12 +136,25 @@ func (this *MainController) SprDatacenterSiteMap() {
 	bySite := make(map[int64]*siteMapSite, len(sites))
 	items := make([]*siteMapSite, 0, len(sites))
 	addrOf := make(map[int64]string, len(sites))
+	cityOf := make(map[int64]string, len(sites)) // город по LocalityCode (справочник населённых пунктов)
+	cityNames := localityCityNames(o, sites)
 	for _, s := range sites {
 		if !s.IsDatacenter {
 			continue
 		}
 		room := siteMapRoom(s.Annotation)
 		addr := siteMapAddress(s, room)
+		if city, ok := cityNames[s.LocalityCode]; ok {
+			// новая схема: город - из справочника, адрес - улица и дом
+			cityOf[s.Id] = city
+			addr = strings.TrimSpace(s.Address)
+			if addr == "" {
+				addr = "Без адреса"
+			}
+		}
+		if r := strings.TrimSpace(s.Room); r != "" {
+			room = r
+		}
 		if room == "" {
 			room = strings.TrimSpace(s.Name)
 		}
@@ -273,7 +286,10 @@ func (this *MainController) SprDatacenterSiteMap() {
 	cityB := map[string]map[string]map[int][]siteMapSite{}
 	for _, it := range items {
 		addr := addrOf[it.Id]
-		city := siteMapCityOf(addr)
+		city, ok := cityOf[it.Id]
+		if !ok {
+			city = siteMapCityOf(addr)
+		}
 		if cityB[city] == nil {
 			cityB[city] = map[string]map[int][]siteMapSite{}
 		}
@@ -314,4 +330,29 @@ func (this *MainController) SprDatacenterSiteMap() {
 	}
 	this.Data["MapJSON"] = template.JS(b)
 	this.Data["SiteCount"] = len(items)
+}
+
+// localityCityNames возвращает названия населённых пунктов (без типа) по кодам
+// ОКТМО из DatacenterSite.LocalityCode.
+func localityCityNames(o orm.Ormer, sites []models.DatacenterSite) map[string]string {
+	res := map[string]string{}
+	seen := map[string]bool{}
+	codes := make([]string, 0)
+	for _, s := range sites {
+		if s.LocalityCode != "" && !seen[s.LocalityCode] {
+			seen[s.LocalityCode] = true
+			codes = append(codes, s.LocalityCode)
+		}
+	}
+	if len(codes) == 0 {
+		return res
+	}
+	var locs []models.Locality
+	if _, err := o.QueryTable("cmdb_locality").Filter("Oktmo__in", codes).All(&locs); err != nil {
+		return res
+	}
+	for _, l := range locs {
+		res[l.Oktmo] = l.Name
+	}
+	return res
 }

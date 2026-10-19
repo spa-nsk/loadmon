@@ -1,6 +1,7 @@
 package itilliumimport
 
 import (
+	"loadmon/locality"
 	"loadmon/models"
 	"log"
 	"strings"
@@ -98,6 +99,7 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 	job.setFileRows(len(results))
 
 	o := orm.NewOrm()
+	rs := locality.NewResolver() // справочник населённых пунктов (cmdb_locality)
 
 	for _, r := range results {
 		job.tickProcessed()
@@ -126,28 +128,22 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 			continue
 		}
 
-		datacenterRoom := r.Extra["datacenter_room"]
 		// ownSiteId - ЦОД, резолвленный по колонке "Местоположение"
 		// (location_split) - используется как площадка ПО УМОЛЧАНИЮ для
 		// сегментов размещения без собственного имени ЦОД перед "/" (см.
 		// storagePlacementSegment.DatacenterSiteName и разбор ниже).
 		ownSiteId := int64(0)
+		ownSiteName := ""
 		if !flNotWorking {
 			// --- ЦОД (models.DatacenterSite) по "Местоположение" ------------
-			datacenter := models.DatacenterSite{
-				Name:       datacenterRoom + " " + r.Extra["location_room_code"],
-				Annotation: "ЦОД по адресу: " + datacenterRoom + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-				Id_User:    9999,
-				Time_Mfy:   time.Now().Local(),
+			site, errSite := resolveSite(trn, rs, r.Extra["location_raw"], 9999)
+			if errSite != nil {
+				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва площадки:", errSite)
+				trn.Rollback()
+				continue
 			}
-			if err := trn.Read(&datacenter, "Name"); err != nil {
-				if _, err := trn.Insert(&datacenter); err != nil {
-					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка вставки datacenter:", err)
-					trn.Rollback()
-					continue
-				}
-			}
-			ownSiteId = datacenter.Id
+			ownSiteId = site.Id
+			ownSiteName = site.Name
 		}
 
 		// --- Размещение (models.StorageSystemPlacement) - ОДИН или
@@ -166,27 +162,15 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 		if !flNotWorking {
 			segments := parseStoragePlacementSegments(r.Extra["rack_placement_raw"])
 			for _, seg := range segments {
+				// ИЗМЕНЕНО (2026-10-19): имя перед "/" - АЛЬТЕРНАТИВНОЕ наименование
+				// шкафа (RackCabinet.AltName), а не другая площадка; шкаф всегда
+				// на площадке строки, в Name - чистый код шкафа.
 				siteId := ownSiteId
-				if seg.DatacenterSiteName != "" {
-					// Colocation-сегмент со своим именем ЦОД перед "/" -
-					// резолвится ОТДЕЛЬНО от "Местоположение" (см.
-					// resolveDatacenterSiteByName и комментарий у
-					// storagePlacementSegment.DatacenterSiteName - имя может
-					// текстуально отличаться от ЦОД в "Местоположение" для
-					// той же строки, это не ошибка данных, а два разных
-					// идентификатора одной площадки).
-					var errSite error
-					siteId, errSite = resolveDatacenterSiteByName(trn, seg.DatacenterSiteName)
-					if errSite != nil {
-						log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва ЦОД для сегмента размещения", seg.DatacenterSiteName, ":", errSite)
-						continue
-					}
-				}
 				if siteId <= 0 {
 					continue
 				}
-				rackId, errRack := resolveRackCabinet(trn, seg.CabinetCode, siteId,
-					"Шкаф по данным импорта СХД из Итиллиум (колонка \"Размещение в шкафу/стойке\")")
+				rackId, errRack := resolveRackCabinet(trn, seg.CabinetCode, seg.DatacenterSiteName, siteId,
+					"Шкаф по данным импорта СХД из Итиллиум, площадка: "+ownSiteName)
 				if errRack != nil {
 					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва rack для сегмента", seg.CabinetCode, ":", errRack)
 					continue
@@ -298,8 +282,8 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 			// site-only записи.
 			usedCabinet := false
 			if cabinetCode, startU, endU, ok := parseLocationEmbeddedPlacement(r.Extra["location_tail"]); ok {
-				rackId, errRack := resolveRackCabinet(trn, cabinetCode, ownSiteId,
-					"Шкаф по данным импорта СХД из Итиллиум (колонка \"Местоположение\")")
+				rackId, errRack := resolveRackCabinet(trn, cabinetCode, "", ownSiteId,
+					"Шкаф по данным импорта СХД из Итиллиум (колонка \"Местоположение\"), площадка: "+ownSiteName)
 				if errRack != nil {
 					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва rack из Местоположение", cabinetCode, ":", errRack)
 				} else if rackId > 0 {
