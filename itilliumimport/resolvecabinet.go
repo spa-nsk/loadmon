@@ -65,7 +65,12 @@ func splitColocationCabinetName(raw string) (dcName, cabinetCode string) {
 // только при создании новой записи (на существующей не перетирается, чтобы
 // не затирать ручные правки - тот же принцип "приоритета ручных правок",
 // что и у остальных импортов в проекте).
-func resolveRackCabinet(trn orm.TxOrmer, name string, datacenterSiteId int64, annotation string) (int64, error) {
+//
+// altName - альтернативное наименование шкафа (часть "альт / шкаф" поля
+// "Размещение в шкафу/стойке"): name всегда "чистое" наименование шкафа без
+// альтернативного. На новый шкаф altName записывается сразу, у существующего
+// проставляется, только если у него AltName ещё пуст.
+func resolveRackCabinet(trn orm.TxOrmer, name, altName string, datacenterSiteId int64, annotation string) (int64, error) {
 	rack := models.RackCabinet{
 		Name:             name,
 		DatacenterSiteId: datacenterSiteId,
@@ -76,7 +81,14 @@ func resolveRackCabinet(trn orm.TxOrmer, name string, datacenterSiteId int64, an
 		One(&rack)
 	if err == nil {
 		// Шкаф с такой парой (Name, DatacenterSiteId) уже существует -
-		// используем его Id как есть, ничего не перезаписываем.
+		// используем его Id как есть, не перезаписывая ручные правки
+		// (кроме пустого альтернативного наименования).
+		if altName = strings.TrimSpace(altName); altName != "" && strings.TrimSpace(rack.AltName) == "" {
+			rack.AltName = altName
+			if _, err := trn.Update(&rack, "AltName"); err != nil {
+				return 0, err
+			}
+		}
 		return rack.Id, nil
 	}
 
@@ -86,6 +98,7 @@ func resolveRackCabinet(trn orm.TxOrmer, name string, datacenterSiteId int64, an
 	// создаётся отдельная запись под конкретную площадку.
 	rack = models.RackCabinet{
 		Name:             name,
+		AltName:          strings.TrimSpace(altName),
 		DatacenterSiteId: datacenterSiteId,
 		Annotation:       annotation,
 		Id_User:          9999,

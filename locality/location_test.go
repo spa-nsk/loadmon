@@ -1,4 +1,4 @@
-package main
+package locality
 
 import "testing"
 
@@ -7,7 +7,7 @@ func isCity(s string) bool { return s == "Саяногорск" || s == "Ека�
 func TestParseLocation(t *testing.T) {
 	l := ParseLocation("Саяногорск, ЦОД РТК, Менделеева 1 | Colocation | Зал 205 | Шкаф 2.4.2 | Unit 13", isCity)
 	if l.Locality != "Саяногорск" || l.Street != "Менделеева" || l.House != "1" || l.Description != "ЦОД РТК" ||
-		l.Cabinet != "2.4.2" || l.Pos == nil || l.Pos.Start != 13 || l.Pos.End != 13 || l.Room != "Colocation | Зал 205" {
+		l.Cabinet != "2.4.2" || l.Pos == nil || l.Pos.Start != 13 || l.Pos.End != 13 || l.Room != "Colocation, Зал 205" {
 		t.Fatalf("%+v", l)
 	}
 	l = ParseLocation("Сеть (Д), Екатеринбург, ул. Максима Горького, д.1 | 1 | Серверная", isCity)

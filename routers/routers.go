@@ -88,6 +88,7 @@ func init() {
 
 	// Справочник ЦОД (models.DatacenterSite) - по аналогии с Datacenter из oneview2, с альтернативным наименованием.
 	beego.Router("/sprsrv/datacentersitelist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprDatacenterSite")
+	beego.Router("/sprsrv/localitysearch", &controllers.MainController{}, "get:SprLocalitySearch") // JSON-подсказка населённых пунктов по названию для карточки площадки/ЦОД, см. controllers/sprlocalitysearch.go
 	beego.Router("/sprsrv/datacentersiteedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprDatacenterSiteEdit")
 	beego.Router("/sprsrv/datacentersiteupdateselected/:selected", &controllers.MainController{}, "get,post:SprDatacenterSiteUpdateSelected") // групповое редактирование выбранных площадок/ЦОД (IsDatacenter/CodeJira/Annotation), см. controllers/sprdatacenterbulk.go
 

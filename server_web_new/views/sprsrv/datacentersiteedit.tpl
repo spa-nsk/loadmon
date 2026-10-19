@@ -26,10 +26,16 @@
                 <label for="AltName" class="form-label">Альтернативное наименование</label>
                 <input type="text" id="AltName" name="AltName" class="form-control" value="{{.DC.AltName}}">
             </div>
+            <div class="col-12 col-md-8 position-relative">
+                <label for="LocalitySearch" class="form-label">Населённый пункт</label>
+                <input type="text" id="LocalitySearch" class="form-control" autocomplete="off"
+                       placeholder="начните вводить название, например: Новосиб" value="{{.LocalityName}}">
+                <div id="LocalityList" class="list-group position-absolute w-100 shadow d-none" style="z-index: 1050; max-height: 320px; overflow-y: auto;"></div>
+                <div class="form-text" id="LocalityHint">{{if and .DC.LocalityCode (not .LocalityName)}}Код не найден в справочнике населённых пунктов{{else}}Выберите из списка - код подставится справа{{end}}</div>
+            </div>
             <div class="col-12 col-md-4">
-                <label for="LocalityCode" class="form-label">Населённый пункт (код ОКТМО)</label>
+                <label for="LocalityCode" class="form-label">Код ОКТМО</label>
                 <input type="text" id="LocalityCode" name="LocalityCode" class="form-control" maxlength="11" value="{{.DC.LocalityCode}}">
-                <div class="form-text">{{if .LocalityName}}{{.LocalityName}}{{else if .DC.LocalityCode}}Код не найден в справочнике населённых пунктов{{else}}Код из справочника населённых пунктов (Администрирование){{end}}</div>
             </div>
             <div class="col-12 col-md-8">
                 <label for="Address" class="form-label">Адрес</label>
@@ -75,3 +81,63 @@
     </div>
 </form>
 {{end}}
+
+<script>
+    // Выбор населённого пункта: поиск по названию по мере набора
+    // (/sprsrv/localitysearch), по выбору в поле "Код ОКТМО" подставляется код.
+    (function () {
+        var search = document.getElementById('LocalitySearch');
+        var list = document.getElementById('LocalityList');
+        var code = document.getElementById('LocalityCode');
+        var hint = document.getElementById('LocalityHint');
+        if (!search || !list || !code) return;
+
+        var timer = null, seq = 0;
+
+        function hide() { list.classList.add('d-none'); list.innerHTML = ''; }
+
+        function pick(item) {
+            code.value = item.oktmo;
+            search.value = item.label;
+            hint.textContent = 'Выбран код ' + item.oktmo;
+            hide();
+        }
+
+        function render(items) {
+            list.innerHTML = '';
+            if (!items.length) {
+                var empty = document.createElement('div');
+                empty.className = 'list-group-item text-muted small';
+                empty.textContent = 'Ничего не найдено';
+                list.appendChild(empty);
+            }
+            items.forEach(function (it) {
+                var a = document.createElement('button');
+                a.type = 'button';
+                a.className = 'list-group-item list-group-item-action small';
+                a.textContent = it.label + '  [' + it.oktmo + ']';
+                a.addEventListener('mousedown', function (e) { e.preventDefault(); pick(it); });
+                list.appendChild(a);
+            });
+            list.classList.remove('d-none');
+        }
+
+        function query() {
+            var q = search.value.trim();
+            if (q.length < 2) { hide(); return; }
+            var my = ++seq;
+            fetch('/sprsrv/localitysearch?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (items) { if (my === seq) render(items); })
+                .catch(function () { hide(); });
+        }
+
+        search.addEventListener('input', function () {
+            if (search.value.trim() === '') { code.value = ''; hint.textContent = 'Населённый пункт не выбран'; }
+            clearTimeout(timer);
+            timer = setTimeout(query, 200);
+        });
+        search.addEventListener('blur', function () { setTimeout(hide, 150); });
+        search.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+    })();
+</script>

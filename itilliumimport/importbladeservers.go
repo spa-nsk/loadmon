@@ -1,6 +1,7 @@
 package itilliumimport
 
 import (
+	"loadmon/locality"
 	"loadmon/models"
 	"log"
 	"strings"
@@ -106,6 +107,7 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 	job.setFileRows(len(results))
 
 	o := orm.NewOrm()
+	rs := locality.NewResolver() // справочник населённых пунктов (cmdb_locality)
 
 	for _, r := range results {
 		job.tickProcessed()
@@ -126,27 +128,21 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 
 		// --- ЦОД (models.DatacenterSite) - стандартный разбор "Местоположение",
 		// как у ImportItiliumServer ("аналогично обычным серверам") -------
-		datacenter := models.DatacenterSite{
-			Name:       r.Extra["location_room_text"] + " " + r.Extra["location_room_code"],
-			Annotation: "ЦОД по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-			Id_User:    models.UserSourceManual,
-			Time_Mfy:   time.Now().Local(),
+		site, errSite := resolveSite(trn, rs, r.Extra["location_raw"], models.UserSourceManual)
+		if errSite != nil {
+			log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка резолва площадки:", errSite)
+			trn.Rollback()
+			continue
 		}
-		if err := trn.Read(&datacenter, "Name"); err != nil {
-			if _, err := trn.Insert(&datacenter); err != nil {
-				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки datacenter:", err)
-				trn.Rollback()
-				continue
-			}
-		}
-		datacenterId := datacenter.Id
+		datacenterId := site.Id
 
 		// --- Шкаф (models.RackCabinet) - см. выше, extra["rack_num"] в этой
 		// выгрузке обычно пуст (нет колонки "Размещение в шкафу/стойке"),
 		// поэтому find-or-create по пустому имени намеренно пропускается
 		// (иначе завели бы мусорную запись RackCabinet с пустым Name) -
 		// реальная привязка к шкафу приходит ниже, через блейд-корзину.
-		if strings.TrimSpace(r.Extra["rack_num"]) != "" {
+		cabinetCode, cabinetAlt, _ := cabinetFromPlacement(r.Extra["rack_num"], site.Loc)
+		if cabinetCode != "" {
 			// Резолвится ПАРОЙ (Name, DatacenterSiteId), см.
 			// resolveRackCabinet: одинаковое имя шкафа допустимо на разных
 			// площадках.
@@ -156,20 +152,10 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			// шкафу/стойке" может указывать colocation-площадку ПЕРЕД "/",
 			// отличную от "Местоположение" строки - см.
 			// resolvecabinet.go:splitColocationCabinetName.
-			colocationDc, cabinetCode := splitColocationCabinetName(r.Extra["rack_num"])
-			rackSiteId := datacenterId
-			rackAnnotation := "Шкаф по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
-			if colocationDc != "" {
-				var errSite error
-				rackSiteId, errSite = resolveDatacenterSiteByName(trn, colocationDc)
-				if errSite != nil {
-					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка резолва colocation ЦОД", colocationDc, ":", errSite)
-					trn.Rollback()
-					continue
-				}
-				rackAnnotation = "Шкаф на colocation-площадке \"" + colocationDc + "\" (по данным импорта из Итиллиум)"
-			}
-			rackId, errRack := resolveRackCabinet(trn, cabinetCode, rackSiteId, rackAnnotation)
+			// Часть до "/" - альтернативное наименование шкафа (AltName), в
+			// Name - чистый код; без "Размещение" шкаф берётся из "Местоположение".
+			rackId, errRack := resolveRackCabinet(trn, cabinetCode, cabinetAlt, datacenterId,
+				"Шкаф по данным импорта из Итиллиум, площадка: "+site.Name)
 			if errRack != nil {
 				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка резолва rack:", errRack)
 				trn.Rollback()

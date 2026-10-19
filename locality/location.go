@@ -1,4 +1,4 @@
-package main
+package locality
 
 import (
 	"regexp"
@@ -18,6 +18,18 @@ type Location struct {
 	Cabinet     string // шкаф из "Местоположения" (опционально)
 	Pos         *Position
 	Service     bool // служебная отметка (например "! Покинуло ФГ ..."), разбору не подлежит
+}
+
+// Address - адрес площадки: улица и дом через запятую.
+func (l *Location) Address() string {
+	switch {
+	case l.Street != "" && l.House != "":
+		return l.Street + ", " + l.House
+	case l.Street != "":
+		return l.Street
+	default:
+		return l.House
+	}
 }
 
 // Position - положение в шкафу (юниты START..END).
@@ -44,12 +56,13 @@ type Placement struct {
 }
 
 var (
-	reRange     = regexp.MustCompile(`^(\d+)\s*(?:-\s*(\d+))?$`)
-	reUnit      = regexp.MustCompile(`(?i)^unit\s*(\d+)\s*(?:-\s*(\d+))?$`)
-	reCabinet   = regexp.MustCompile(`(?i)^шкаф\s+(.+)$`)
-	reFloor     = regexp.MustCompile(`^-?\d+(\.\s*\S.*)?$`)
-	reHouseTail = regexp.MustCompile(`^(.*?\S)\s+(\d[\d/\-]*[а-яa-zА-ЯA-Z]?(?:\s.*)?)$`)
-	reHouseHead = regexp.MustCompile(`^(?i:д\.?\s*)?\d`)
+	reRange       = regexp.MustCompile(`^(\d+)\s*(?:-\s*(\d+))?$`)
+	reUnit        = regexp.MustCompile(`(?i)^unit\s*(\d+)\s*(?:-\s*(\d+))?$`)
+	reCabinet     = regexp.MustCompile(`(?i)^шкаф\s+(.+)$`)
+	reFloor       = regexp.MustCompile(`^-?\d+(\.\s*\S.*)?$`)
+	reHouseTail   = regexp.MustCompile(`^(.*?\S)\s+(\d[\d/\-]*[а-яa-zА-ЯA-Z]?(?:\s.*)?)$`)
+	reParenPrefix = regexp.MustCompile(`^\(([^)]*)\)\s*(.+)$`)
+	reHouseHead   = regexp.MustCompile(`^(?i:д\.?\s*)?\d`)
 )
 
 func parseRange(a, b string) *Position {
@@ -159,9 +172,18 @@ func ParseLocation(s string, isLocality func(string) bool) *Location {
 				desc = append(desc, rest[:n-1]...)
 				loc.Street, loc.House = m[1], m[2]
 			} else {
-				desc = append(desc, rest...)
+				// нет номера дома - последний токен считаем улицей/названием
+				// здания (например "БЦ (на Советской)"), остальные - описание
+				desc = append(desc, rest[:n-1]...)
+				loc.Street = rest[n-1]
 			}
 		}
+	}
+	// "(ЦОД DSP) Шарикоподшипниковская улица" - текст в скобках перед улицей
+	// относится к описанию
+	if m := reParenPrefix.FindStringSubmatch(loc.Street); m != nil {
+		desc = append(desc, m[1])
+		loc.Street = m[2]
 	}
 	loc.Description = strings.Join(desc, ", ")
 
@@ -182,6 +204,6 @@ func ParseLocation(s string, isLocality func(string) bool) *Location {
 			}
 		}
 	}
-	loc.Room = strings.Join(room, " | ")
+	loc.Room = strings.Join(room, ", ")
 	return loc
 }

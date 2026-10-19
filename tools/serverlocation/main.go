@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strings"
 
+	"loadmon/locality"
+
 	"github.com/xuri/excelize/v2"
 )
 
@@ -34,13 +36,13 @@ type Record struct {
 	ID        string
 	Status    string
 	Host      string
-	Loc       *Location
-	Place     *Placement
-	Match     *Match
+	Loc       *locality.Location
+	Place     *locality.Placement
+	Match     *locality.Match
 	CabSource string // название поля, из которого взят шкаф
 	Cabinet   string
 	AltName   string
-	Pos       *Position
+	Pos       *locality.Position
 	Notes     []string
 }
 
@@ -85,8 +87,8 @@ func main() {
 		return ""
 	}
 
-	cache := map[string]*Match{}
-	find := func(name string) *Match {
+	cache := map[string]*locality.Match{}
+	find := func(name string) *locality.Match {
 		if m, ok := cache[name]; ok {
 			return m
 		}
@@ -105,8 +107,8 @@ func main() {
 		if locRaw == "" && plRaw == "" {
 			continue
 		}
-		rec.Loc = ParseLocation(locRaw, isLocality)
-		rec.Place = ParsePlacement(plRaw)
+		rec.Loc = locality.ParseLocation(locRaw, isLocality)
+		rec.Place = locality.ParsePlacement(plRaw)
 		analyze(rec, find)
 		recs = append(recs, rec)
 	}
@@ -134,7 +136,7 @@ func main() {
 
 // analyze определяет населённый пункт и итоговый шкаф/позицию (приоритет у
 // поля "Размещение в шкафу/стойке", запасной вариант - "Местоположение").
-func analyze(rec *Record, find func(string) *Match) {
+func analyze(rec *Record, find func(string) *locality.Match) {
 	loc := rec.Loc
 	if loc.Service {
 		rec.Notes = append(rec.Notes, "служебная отметка, разбору не подлежит")
@@ -198,7 +200,7 @@ func localityText(rec *Record) string {
 	return s
 }
 
-func posText(p *Position) string {
+func posText(p *locality.Position) string {
 	if p == nil {
 		return "—"
 	}

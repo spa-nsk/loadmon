@@ -309,6 +309,7 @@ func compositeLocationSplit(res *Result, row map[string]string, c CompositeMappi
 	if prefix == "" {
 		prefix = "location"
 	}
+	res.Extra[prefix+"_raw"] = val // сырое "Местоположение" - разбирается locality.ParseLocation при резолве площадки
 	if len(parts) > 1 && parts[1] != "" {
 		res.Extra[prefix+"_zone_code"] = parts[1]
 	}

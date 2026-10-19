@@ -1,6 +1,7 @@
 package itilliumimport
 
 import (
+	"loadmon/locality"
 	"loadmon/models"
 	"log"
 	"strings"
@@ -92,6 +93,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 	job.setFileRows(len(results))
 
 	o := orm.NewOrm()
+	rs := locality.NewResolver() // справочник населённых пунктов (cmdb_locality)
 
 	for _, r := range results {
 		job.tickProcessed()
@@ -108,20 +110,15 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		}
 
 		// --- ЦОД (models.DatacenterSite) --------------------------------
-		datacenter := models.DatacenterSite{
-			Name:       r.Extra["location_room_text"] + " " + r.Extra["location_room_code"],
-			Annotation: "ЦОД по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"],
-			Id_User:    models.UserSourceManual,
-			Time_Mfy:   time.Now().Local(),
+		// Площадка определяется разбором "Местоположение" (locality.ParseLocation):
+		// населённый пункт -> LocalityCode, описание -> AltName, улица+дом -> Address.
+		site, errSite := resolveSite(trn, rs, r.Extra["location_raw"], models.UserSourceManual)
+		if errSite != nil {
+			log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка резолва площадки:", errSite)
+			trn.Rollback()
+			continue
 		}
-		if err := trn.Read(&datacenter, "Name"); err != nil {
-			if _, err := trn.Insert(&datacenter); err != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка вставки datacenter:", err)
-				trn.Rollback()
-				continue
-			}
-		}
-		datacenterId := datacenter.Id
+		datacenterId := site.Id
 
 		// --- Шкаф (models.RackCabinet) - резолвится ПАРОЙ (Name,
 		// DatacenterSiteId), см. resolveRackCabinet: одинаковое имя шкафа
@@ -132,26 +129,30 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		// "Размещение в шкафу/стойке" может указывать colocation-площадку
 		// ПЕРЕД "/", отличную от "Местоположение" строки - см.
 		// resolvecabinet.go:splitColocationCabinetName.
-		colocationDc, cabinetCode := splitColocationCabinetName(r.Extra["rack_num"])
-		rackSiteId := datacenterId
-		rackAnnotation := "Шкаф по адресу: " + r.Extra["location_room_text"] + " этаж:" + r.Extra["location_zone_code"] + " комната: " + r.Extra["location_room_code"]
-		if colocationDc != "" {
-			var errSite error
-			rackSiteId, errSite = resolveDatacenterSiteByName(trn, colocationDc)
-			if errSite != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка резолва colocation ЦОД", colocationDc, ":", errSite)
+		//
+		// ИЗМЕНЕНО (2026-10-19): часть до "/" - АЛЬТЕРНАТИВНОЕ наименование
+		// шкафа (RackCabinet.AltName), а не другая площадка; в Name шкафа
+		// пишется чистый код. Если "Размещение в шкафу/стойке" пусто, шкаф и
+		// юниты берутся из "Местоположение" (Шкаф X | Unit N[-M]).
+		cabinetCode, cabinetAlt, locPos := cabinetFromPlacement(r.Extra["rack_num"], site.Loc)
+		if cabinetCode != "" {
+			rackAnnotation := "Шкаф по данным импорта из Итиллиум, площадка: " + site.Name
+			rackId, errRack := resolveRackCabinet(trn, cabinetCode, cabinetAlt, datacenterId, rackAnnotation)
+			if errRack != nil {
+				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка резолва rack:", errRack)
 				trn.Rollback()
 				continue
 			}
-			rackAnnotation = "Шкаф на colocation-площадке \"" + colocationDc + "\" (по данным импорта из Итиллиум)"
+			r.Hw.RackCabinetId = rackId
+			if locPos != nil && r.Hw.StartUnitPos == 0 {
+				r.Hw.StartUnitPos = locPos.Start
+				if sz := locPos.End - locPos.Start + 1; sz > 0 {
+					r.Hw.SizeUnit = sz
+				} else {
+					r.Hw.SizeUnit = 1
+				}
+			}
 		}
-		rackId, errRack := resolveRackCabinet(trn, cabinetCode, rackSiteId, rackAnnotation)
-		if errRack != nil {
-			log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка резолва rack:", errRack)
-			trn.Rollback()
-			continue
-		}
-		r.Hw.RackCabinetId = rackId
 
 		// --- Статус/питание ----------------------------------------------
 		if r.Hw.SerialNum != "" { //если серийный номер отсутствует делаем симуляцию в виде технического номера, чтобы не потерять запись в справочнике серверов
@@ -217,7 +218,10 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// (сейчас обновляются только явно перечисленные 4 колонки).
 			r.Hw.Id = hw.Id
 			hw.FormFactor = 1                                     //rack-сервер
-			hw.RackCabinetId = r.Hw.RackCabinetId                 //обновляем в любом случае, так как мастер система по размещению оборудования в стойках - итиллиум, и если там поменяли стойку, то нужно обновить и у нас
+			if r.Hw.RackCabinetId != 0 {                          //шкаф в выгрузке не указан - существующую привязку не сбрасываем
+				hw.RackCabinetId = r.Hw.RackCabinetId
+			}
+			//обновляем при наличии шкафа, так как мастер система по размещению оборудования в стойках - итиллиум, и если там поменяли стойку, то нужно обновить и у нас
 			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
 				hw.Active = r.Hw.Active

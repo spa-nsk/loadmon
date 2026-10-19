@@ -339,6 +339,16 @@ func buildHWInfraData() (HWInfraData, error) {
 			dc.Name = site.Name
 			dc.AltName = site.AltName
 			dc.Address = site.Annotation
+			if site.Address != "" { // новая схема: адрес, этаж и комната в отдельных полях
+				parts := []string{site.Address}
+				if site.Floor != "" {
+					parts = append(parts, "этаж "+site.Floor)
+				}
+				if site.Room != "" {
+					parts = append(parts, site.Room)
+				}
+				dc.Address = strings.Join(parts, ", ")
+			}
 		} else {
 			dc.Name = "Без привязки к ЦОД"
 		}
