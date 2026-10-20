@@ -69,7 +69,7 @@
     var FW = 0.60, FD = 0.80;                      // размер шкафа в клетках
     var cam = { k: 1, tx: 0, ty: 0 };
     var G = { w: 0, h: 0, dpr: 1 };
-    var hovSite = null, hovRack = null, selSite = null, selRack = null;
+    var hovSite = null, hovRack = null, selSite = null, selRack = null, hovCity = null;
     var hits = [];                                 // [{site, rack, pts}] в координатах мира, порядок = порядок рисования
     var overlay = [];                              // выноски/подписи - рисуются последним проходом поверх всего
     var allSites = [];
@@ -119,12 +119,20 @@
             return { b: b, A: A, B: B, n: n, FH: FH,
                      w: (A + B + PAD_L) * U, h: (1.9 + (n - 1) * FH + (A + B) / 2 + 1.8) * U };
         });
-        var sh = shelf(bl, 40 * U, 2.4 * U);
-        return { c: c, blds: bl, w: Math.max(sh.w, 6 * U), h: sh.h + 1.8 * U };
+        // один город - одна горизонтальная строка: здания (адреса) слева направо, общая линия основания
+        var x = 0, rowH = 0;
+        bl.forEach(function (b) { b.x = x; x += b.w + 2.4 * U; rowH = Math.max(rowH, b.h); });
+        bl.forEach(function (b) { b.y = rowH - b.h; });
+        return { c: c, blds: bl, w: Math.max(x - 2.4 * U, 6 * U), h: rowH + 0.6 * U };
     });
-    var cl = shelf(cities, Math.max(Math.max.apply(null, cities.map(function (c) { return c.w; })),
-                                   cities.reduce(function (s, c) { return s + c.w; }, 0) / 2), 3.5 * U);
-    var WORLD = { w: cl.w, h: cl.h };
+    var WORLD = { w: 0, h: 0 };
+    (function () {
+        var y = 0;
+        cities.forEach(function (ct) { ct.x = 0; ct.y = y; y += ct.h + 1.2 * U; WORLD.w = Math.max(WORLD.w, ct.w); });
+        WORLD.h = Math.max(1, y - 1.2 * U);
+    })();
+    var LW = 180;                                  // ширина левого списка городов (в пикселях экрана)
+    var cityBoxes = [];
     document.getElementById('smSummary').innerHTML = 'Городов: <b>' + cities.length + '</b> &middot; зданий: <b>' + bldCnt + '</b> &middot; ЦОД: <b>' + siteCnt + '</b> &middot; шкафов: <b>' + rackCnt + '</b>';
 
     // изометрия: a - вправо-вниз, b - влево-вниз, z - вверх (в клетках)
@@ -310,6 +318,51 @@
         ctx.restore();
     }
 
+    // ---- левый список городов: колонка в экранных координатах, плашка на высоту строки города ----
+    function drawCityList() {
+        cityBoxes = [];
+        ctx.save();
+        ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
+        ctx.fillStyle = 'rgba(14,13,48,0.92)';
+        ctx.fillRect(0, 0, LW, G.h);
+        ctx.strokeStyle = 'rgba(120,130,255,0.5)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(LW + 0.5, 0); ctx.lineTo(LW + 0.5, G.h); ctx.stroke();
+        cities.forEach(function (ct) {
+            var top = cam.ty + (ct.y - 0.3 * U) * cam.k, bot = cam.ty + (ct.y + ct.h + 0.6 * U) * cam.k;
+            if (bot < 0 || top > G.h) return;
+            var t0 = Math.max(top, 0), b0 = Math.min(bot, G.h);
+            cityBoxes.push({ ct: ct, y0: t0, y1: b0 });
+            var isCur = hovCity === ct;
+            ctx.fillStyle = isCur ? 'rgba(70,80,200,0.55)' : 'rgba(40,40,120,0.45)';
+            ctx.fillRect(6, t0 + 3, LW - 12, Math.max(10, b0 - t0 - 6));
+            ctx.strokeStyle = isCur ? '#58e6ff' : 'rgba(110,200,255,0.45)';
+            ctx.strokeRect(6.5, t0 + 3.5, LW - 13, Math.max(10, b0 - t0 - 6) - 1);
+            var cy = (t0 + b0) / 2;
+            var sc = 0; ct.blds.forEach(function (b) { b.b.floors.forEach(function (f) { sc += f.sites.length; }); });
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            var fs = 17, nm = ct.c.name;
+            ctx.font = '800 ' + fs + 'px ' + FONT;
+            while (nm.length > 3 && ctx.measureText(nm).width > LW - 28) nm = nm.slice(0, -2) + '…';
+            ctx.fillStyle = '#ffffff'; ctx.fillText(nm, 14, cy - 8);
+            ctx.font = '600 12px ' + FONT; ctx.fillStyle = '#a9aef0';
+            ctx.fillText('зданий ' + ct.blds.length + ' · ЦОД ' + sc, 14, cy + 11);
+        });
+        ctx.restore();
+    }
+    function cityAt(mx, my) {
+        if (mx > LW) return null;
+        for (var i = 0; i < cityBoxes.length; i++) if (my >= cityBoxes[i].y0 && my <= cityBoxes[i].y1) return cityBoxes[i].ct;
+        return null;
+    }
+    function fitCity(ct) {                          // показать строку города целиком
+        var m = 30, availW = G.w - LW - 2 * m, availH = G.h - 2 * m;
+        var k = Math.min(availW / ct.w, availH / (ct.h + 0.6 * U));
+        cam.k = Math.max(0.05, Math.min(1.5, k));
+        cam.tx = LW + m; cam.ty = m - (ct.y - 0.3 * U) * cam.k;
+        if ((ct.h + 0.6 * U) * cam.k < availH) cam.ty += (availH - (ct.h + 0.6 * U) * cam.k) / 2;
+        redraw();
+    }
+
     // ---- сцена ----
     function render() {
         ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
@@ -319,29 +372,23 @@
         ctx.translate(cam.tx, cam.ty); ctx.scale(cam.k, cam.k);
         var vx0 = -cam.tx / cam.k, vy0 = -cam.ty / cam.k, vx1 = vx0 + G.w / cam.k, vy1 = vy0 + G.h / cam.k;
         hits = []; overlay = [];
-        var titles = [];
+        // подложка строк городов (чередование) - на всю видимую ширину
+        cities.forEach(function (ct, i) {
+            if (ct.y > vy1 || ct.y + ct.h + 1.2 * U < vy0) return;
+            ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.12)';
+            ctx.fillRect(vx0, ct.y - 0.3 * U, vx1 - vx0, ct.h + 0.9 * U);
+        });
         cities.forEach(function (ct) {
             if (ct.x > vx1 || ct.x + ct.w < vx0 || ct.y > vy1 || ct.y + ct.h < vy0) return;
-            titles.push(ct);
             ct.blds.forEach(function (bl) {
-                var bx = ct.x + bl.x, by = ct.y + 1.8 * U + bl.y;
+                var bx = ct.x + bl.x, by = ct.y + bl.y;
                 if (bx > vx1 || bx + bl.w < vx0 || by > vy1 || by + bl.h < vy0) return;
                 drawBuilding(bx, by, bl);
             });
         });
-        titles.forEach(function (ct) {
-            ctx.strokeStyle = 'rgba(110,200,255,0.4)'; ctx.lineWidth = lw(1.5);
-            ctx.beginPath(); ctx.moveTo(ct.x, ct.y + 1.25 * U); ctx.lineTo(ct.x + ct.w, ct.y + 1.25 * U); ctx.stroke();
-            ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-            ctx.font = '800 34px ' + FONT;
-            ctx.fillStyle = '#ffffff'; ctx.fillText(ct.c.name, ct.x, ct.y + 1.0 * U);
-            var nm = ctx.measureText(ct.c.name).width;
-            var sc = 0; ct.blds.forEach(function (b) { b.b.floors.forEach(function (f) { sc += f.sites.length; }); });
-            ctx.font = '600 16px ' + FONT; ctx.fillStyle = '#8f94d8';
-            ctx.fillText('зданий: ' + ct.blds.length + ' · ЦОД: ' + sc, ct.x + nm + 16, ct.y + 1.0 * U);
-        });
         overlay.forEach(function (c) { if (c.site) drawCallout(c); else drawOverlayText(c); });
         ctx.restore();
+        drawCityList();
         pctBtn.textContent = Math.round(cam.k * 100) + '%';
     }
     var raf = 0;
@@ -362,10 +409,10 @@
 
     // ---- камера ----
     function fit() {
-        var m = 40;
-        var k = Math.min((G.w - 2 * m) / WORLD.w, (G.h - 2 * m) / WORLD.h);
+        var m = 40, availW = G.w - LW - 2 * m;
+        var k = Math.min(availW / WORLD.w, (G.h - 2 * m) / WORLD.h);
         cam.k = Math.max(0.05, Math.min(1.2, k));
-        cam.tx = (G.w - WORLD.w * cam.k) / 2;
+        cam.tx = LW + m + Math.max(0, (availW - WORLD.w * cam.k) / 2);
         cam.ty = m;
         if (WORLD.h * cam.k + 2 * m < G.h) cam.ty = (G.h - WORLD.h * cam.k) / 2;
     }
@@ -468,7 +515,10 @@
         if (d.moved) return;
         var rect = canvas.getBoundingClientRect();
         if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
-        var h = pick(e.clientX - rect.left, e.clientY - rect.top);
+        var cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+        var cc = cityAt(cx, cy);
+        if (cc) { fitCity(cc); return; }
+        var h = pick(cx, cy);
         if (!h) select(null, null);
         else if (h.rack) select(h.site, h.rack === selRack ? null : h.rack);
         else select(h.site === selSite && !selRack ? null : h.site, null);
@@ -477,12 +527,14 @@
         if (drag && drag.moved) return;
         var rect = canvas.getBoundingClientRect();
         var x = e.clientX - rect.left, y = e.clientY - rect.top;
-        var h = pick(x, y);
+        var hc = cityAt(x, y);
+        if (hc !== hovCity) { hovCity = hc; canvas.style.cursor = hc ? 'pointer' : ''; redraw(); }
+        var h = hc ? null : pick(x, y);
         var ns = h ? h.site : null, nr = h ? h.rack : null;
         if (ns !== hovSite || nr !== hovRack) { hovSite = ns; hovRack = nr; redraw(); }
         if (h) showTip(h, x, y); else tip.hidden = true;
     });
-    canvas.addEventListener('mouseleave', function () { hovSite = null; hovRack = null; tip.hidden = true; redraw(); });
+    canvas.addEventListener('mouseleave', function () { hovCity = null; hovSite = null; hovRack = null; tip.hidden = true; redraw(); });
     canvas.addEventListener('wheel', function (e) {
         e.preventDefault();
         var rect = canvas.getBoundingClientRect();
