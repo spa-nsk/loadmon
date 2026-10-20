@@ -23,3 +23,10 @@ func TestAnonymize(t *testing.T) {
 	t.Log(anonOrg(`ООО «Ромашка»; Рога и копыта`), anonSZ("сз 88888"), anonFIO("Петров Пётр Петрович; Сидоров А.В."))
 	t.Log(replaceNames(`Договор с АО "Газпром" подписал Сидоров Сидор Сидорович`, &n))
 }
+
+func TestPhrases(t *testing.T) {
+	got := replacePhrases("ЦОД Ростелеком, цод, Мегафон")
+	if got != "БЦ Шаражка, бц, Домофон" {
+		t.Error(got)
+	}
+}
