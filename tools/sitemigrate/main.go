@@ -13,7 +13,7 @@ package main
 import (
 	"flag"
 	"log"
-
+	"os"
 	"loadmon/config"
 	"loadmon/itilliumimport"
 
@@ -29,6 +29,27 @@ func main() {
 	if _, err := config.ConfigData.LoadConfigData(); err != nil {
 		log.Fatalf("sitemigrate: конфигурация: %v", err)
 	}
+	if err := config.ConfigData.InitParams(); err != nil {
+		log.Printf("InitParams: %v", err)
+	}
+
+	httpKey := config.ConfigData.HttpKey
+	httpsKey := config.ConfigData.HttpsKey
+	httpEnv := os.Getenv(httpKey)
+	defer os.Setenv(httpKey, httpEnv)
+
+	httpsEnv := os.Getenv(httpsKey)
+	defer os.Setenv(httpsKey, httpsEnv)
+
+	os.Unsetenv(httpKey)
+	os.Unsetenv(httpsKey)
+
+	s1 := os.Getenv(httpKey)
+	s2 := os.Getenv(httpKey)
+
+	_ = s1
+	_ = s2
+
 	config.DBInit()
 	if _, err := orm.GetDB("default"); err != nil {
 		log.Fatalf("sitemigrate: нет подключения к БД (%v) - проверьте пользователя/пароль в conf/app2.json", err)

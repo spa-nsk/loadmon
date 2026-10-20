@@ -52,7 +52,8 @@ func siteFields(loc *locality.Location, rs *locality.Resolver) (name, altName, a
 // resolveSite ищет или заводит models.DatacenterSite по сырому значению поля
 // "Местоположение" (rawLocation): населённый пункт определяется по справочнику
 // models.Locality (код ОКТМО -> LocalityCode), описание -> AltName, улица и дом
-// -> Address, а также Floor и Room. Ключ поиска - пара (Name, AltName); уже
+// -> Address, а также Floor и Room. Ключ поиска - пара (Name, AltName), затем
+// структурный ключ (LocalityCode, Address, Floor, Room, AltName); уже
 // существующая запись не перезаписывается (приоритет ручных правок), лишь
 // проставляется пустой LocalityCode. Пустое rawLocation -> площадка 0 (не задана).
 func resolveSite(trn orm.TxOrmer, rs *locality.Resolver, rawLocation string, userId int64) (siteResult, error) {
@@ -83,6 +84,22 @@ func resolveSite(trn orm.TxOrmer, rs *locality.Resolver, rawLocation string, use
 				}
 			}
 			return siteResult{Id: s.Id, Name: s.Name, Loc: loc}, nil
+		}
+	}
+
+	// Структурный ключ: та же площадка могла быть переименована вручную (Name
+	// отличается) - ищем по (код населённого пункта, адрес, этаж, комната,
+	// альтернативное наименование), чтобы повторный импорт не плодил дубли.
+	if code != "" {
+		var byKey []models.DatacenterSite
+		if _, err := trn.QueryTable(new(models.DatacenterSite)).Filter("LocalityCode", code).All(&byKey); err != nil {
+			return siteResult{}, err
+		}
+		for _, s := range byKey {
+			if strings.TrimSpace(s.Address) == address && strings.TrimSpace(s.Floor) == loc.Floor &&
+				strings.TrimSpace(s.Room) == loc.Room && strings.TrimSpace(s.AltName) == altName {
+				return siteResult{Id: s.Id, Name: s.Name, Loc: loc}, nil
+			}
 		}
 	}
 
