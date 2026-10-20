@@ -1,0 +1,170 @@
+# Конфигурация связки колонок выгрузки Итиллиум по СХД (пример
+# "СХД_templ.xlsx", лист "export") с полями models.StorageSystems. По
+# структуре и правилам - полный аналог rack_blade.yaml (образец для
+# блейд-корзин), см. подробные комментарии там про transform/composites -
+# здесь не дублируются. Реализация конвертации - itilliumimport/convertstorage.go
+# (ConvertRowStorage/setTargetStorage/applyCompositeStorage), импорт -
+# itilliumimport/importstorages.go (ImportItiliumStorage).
+#
+# ⚠️ РЕАЛЬНЫЙ файл, который читает ImportItiliumStorage, лежит в каталоге,
+# заданном ключом "yaml" в app.conf (см. server_web_new/conf/app.conf, по
+# умолчанию "./conf/yaml"), под именем "rack_storage.yaml" (см.
+# mappingConfigFileNameStorage в importstorages.go) - положите этот файл туда
+# же (или отредактируйте копию непосредственно в conf/yaml, если она уже там
+# лежит - этот файл в server_web_new/conf/yaml является одновременно и
+# образцом, и реальной конфигурацией, т.к. "yaml" в app.conf указывает именно
+# на server_web_new/conf/yaml).
+#
+# 2026-09-08, по запросу пользователя "Добавь в меню Импорт пункт «Импорт СХД
+# из Итилиум» и реализуй импорт по аналогии с блэйд корзинами. Поиск СХД для
+# обновления делать по серийному номеру. Важно обновлять поля InventoryNum,
+# InventoryNumBuh, TechnicalNumberIT, размещение в шкафу с указанием
+# начального и последнего и размер в юнитах. Поле "Статус" копируй в начало
+# Anotation." - колонки сверены с реальным примером "СХД_templ.xlsx" (15
+# колонок, лист "export").
+#
+# ⚠️ В отличие от блейд-корзин (поиск существующей записи по Name) и
+# rack-серверов (поиск по SerialNum, при пустом - по TechnicalNumberIT),
+# импорт СХД ищет существующую запись СТРОГО по SerialNum (models.
+# StorageSystems.SerialNum, колонка "S/N" ниже) - серийный номер у СХД в
+# выгрузке Итиллиум заполняется значительно надёжнее, чем у серверов/корзин
+# (это ключевой физический идентификатор дискового массива), см.
+# importstorages.go:runImportItiliumStorage. Строки без S/N пропускаются.
+#
+# ⚠️ Колонка "Статус" НЕ мапится напрямую в StorageSystems.Status (числовое
+# перечисление 0-6 с другим набором значений, см. models_add.go) - текстовое
+# значение колонки ("Списан", "В работе (эксплуатации)" и т.п.) копируется в
+# extra.status и подставляется importstorages.go в НАЧАЛО StorageSystems.
+# Anotation (по прямому запросу пользователя выше) - перекладывать его в
+# Status можно было бы только по словарю соответствий текст->код, которого
+# Итиллиум не даёт в готовом виде, поэтому решение оставлено как есть -
+# текстовый статус виден в Anotation, а числовой Status правится вручную при
+# необходимости.
+
+source_sheet: export
+
+fields:
+  - header: "Тех. номер IT"
+    target: StorageSystems.TechnicalNumberIT
+    transform: trim
+
+  - header: "Статус"
+    target: extra.status
+    transform: trim
+
+  - header: "Бух.инв.№"
+    target: StorageSystems.InventoryNumBuh
+    transform: trim
+
+  - header: "Стар.инв.№"
+    target: StorageSystems.InventoryNum
+    transform: trim
+
+  # "Описание (название)" - мнемоническое имя СХД в примере (VNX52-01,
+  # U300-02, D6V6-02 и т.п.) - в отличие от блейд-корзин это НЕ ключ поиска
+  # (там ищем по SerialNum, см. предупреждение выше), просто удобное
+  # отображаемое имя.
+  - header: "Описание (название)"
+    target: StorageSystems.ShortName
+    transform: trim
+
+  # "Юр.Лицо" - как и в остальных выгрузках, в схеме это не свободный текст
+  # (нет отдельного поля под юрлицо у StorageSystems) - падает в extra на
+  # ручную сверку.
+  - header: "Юр.Лицо"
+    target: extra.legal_entity
+    transform: trim
+
+  - header: "Марка/модель(Норматив)"
+    target: StorageSystems.Model
+    transform: trim
+
+  # Ключевое поле для поиска существующей записи (см. предупреждение выше).
+  - header: "S/N"
+    target: StorageSystems.SerialNum
+    transform: trim
+
+  - header: "Поставщик"
+    target: StorageSystems.Counterparty
+    transform: trim
+
+  - header: "Документы"
+    target: StorageSystems.ContractDoc
+    transform: trim
+
+  - header: "Автор"
+    target: StorageSystems.Owner
+    transform: trim
+
+  - header: "Дата ремонта"
+    target: extra.repair_date
+    transform: trim
+
+  # "СЗ" - в примере встречается нерегулярно ("сз 88888" и т.п.), назначение
+  # колонки в самой выгрузке не документировано - сохраняется в extra на
+  # случай ручной сверки, ни в одно поле схемы не мапится.
+  - header: "СЗ"
+    target: extra.sz
+    transform: trim
+
+# Составные преобразования - реализация для СХД в itilliumimport/convertstorage.go
+# (applyCompositeStorage) - форматы значений в примере "СХД_templ.xlsx"
+# совпадают с блейд-корзинами/серверами ("Город, ЦОД | код | код (код)" и
+# "шкаф | старт-конец"), составные функции переиспользуются по тому же
+# принципу.
+composites:
+  # "Местоположение": "Мухосранск, КЦ (на Ильича) | 6 | 6.1 (624)" - при
+  # несоответствии формату (например, "! Покинуло по причине списания,
+  # продажи, утери") вся строка целиком уходит в extra.datacenter_room без
+  # разбора на зону/комнату - как и у остальных выгрузок, это ожидаемо и
+  # требует ручной проверки.
+  - name: location_split
+    sources: ["Местоположение"]
+    targets: ["extra.datacenter_room"]
+    params:
+      separator: "|"
+      extra_prefix: "location"
+
+  # "Размещение в шкафу/стойке": "3.1-A-08 | 25-36" - шкаф | диапазон юнитов.
+  # В части строк примера колонка пуста (composite тогда ничего не
+  # заполняет).
+  #
+  # ИЗМЕНЕНО (2026-09-09): размещение СХД больше не поле самой StorageSystems,
+  # а отдельная таблица связи models.StorageSystemPlacement (см. её
+  # комментарий в models_add.go) - поэтому targets ниже указывают в extra.*
+  # (не в StorageSystems.*, там таких полей больше нет).
+  #
+  # ⚠️ УСТАРЕЛО (2026-09-10, по запросу пользователя "в импорте СХД, если
+  # несколько шкафов то загрузка некорректна... не рассматривается поле
+  # Размещение в шкафу/стойке"): этот composite разбирает РОВНО ОДНО
+  # размещение (SplitN по первому "|") и не умеет несколько шкафов через
+  # запятую в одной ячейке ("шкаф1 | старт1-конец1, шкаф2 | старт2-конец2") -
+  # extra.rack_num/extra.start_unit_pos/extra.end_unit_pos, которые он пишет,
+  # БОЛЬШЕ НЕ ЧИТАЮТСЯ importstorages.go. Реальный разбор (в т.ч.
+  # множественных шкафов и colocation-сегментов с собственным именем ЦОД
+  # перед "/") теперь делает itilliumimport/storageplacement.go:
+  # parseStoragePlacementSegments напрямую по СЫРОЙ строке из composite
+  # concat_extra (extra.rack_placement_raw) ниже. Этот composite оставлен в
+  # конфиге НЕВРЕДНЫМ (просто не используется) - можно удалить при следующей
+  # генеральной уборке конфига, если он больше нигде не понадобится.
+  - name: rack_unit_split
+    sources: ["Размещение в шкафу/стойке"]
+    targets:
+      - "extra.rack_num"
+      - "extra.start_unit_pos"
+      - "extra.end_unit_pos"
+    params:
+      separator: "|"
+
+  # Сырое (нетронутое) значение той же колонки "Размещение в шкафу/стойке" -
+  # используется importstorages.go как признак "размещение в шкафу указано"
+  # (аналогично extra.datacenter_room у BladeSystems.Anotation, см.
+  # rack_blade.yaml) и попадает в StorageSystems.Anotation ПОСЛЕ текстового
+  # статуса (extra.status выше) - реализовано отдельным полем ниже, а не
+  # напрямую через rack_unit_split, чтобы Anotation получал сырую строку
+  # целиком, а не только её первую часть (шкаф).
+  - name: concat_extra
+    sources: ["Размещение в шкафу/стойке"]
+    targets: ["extra.rack_placement_raw"]
+    params:
+      separator: "; "

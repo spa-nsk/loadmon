@@ -1,0 +1,167 @@
+# Конфигурация связки колонок реальной выгрузки Итиллиум по блейд-серверам
+# (пример "Блейды_templ.xlsx", лист "export") с полями
+# models.ServerSprRecords / models.ServerHardware - ТЕ ЖЕ целевые структуры,
+# что и у обычных rack-серверов (см. itilliumimport/mapping.yaml), поэтому
+# читается и конвертируется тем же кодом (LoadMapping/ConvertRow/
+# ConvertFile) - отдельный Go-код не потребовался, только свой mapping.yaml
+# и свой composite "blade_ref_split" (см. convert.go) для колонки "Корзина".
+#
+# ⚠️ РЕАЛЬНЫЙ файл, который читает ImportItiliumBladeServer, лежит в
+# каталоге, заданном ключом "yaml" в app.conf (см.
+# server_web_new/conf/app.conf, по умолчанию "./conf/yaml"), под именем
+# "rack_blade_server.yaml" (см. mappingConfigFileNameBladeServer в
+# importbladeservers.go). Этот файл в пакете - просто образец/документация,
+# правьте "<yaml-каталог>/rack_blade_server.yaml".
+#
+# Колонки сверены с реальным примером "Блейды_templ.xlsx" (18 колонок, лист
+# "export") - состав заметно уже, чем у rack-серверов (см. mapping.yaml):
+# нет "Модель от производителя"/"Владелец"/памяти/CPU/HDD/RAID/IPMI/сети/ОС
+# и т.п. - зато есть две колонки, которых нет у rack-серверов: "Корзина"
+# (ссылка на блейд-шасси) и "Bay Number" (номер слота в шасси).
+#
+# ⚠️ ВАЖНАЯ ОСОБЕННОСТЬ: колонка "Корзина" содержит текст вида
+# "(IT-0000003911) C7000-15" - тех.номер шасси в скобках (для справки) и имя
+# шасси после скобок ("C7000-15" - та же мнемоника, что и
+# models.BladeSystems.Name, см. rack_blade.yaml). Разбирается composite'ом
+# blade_ref_split (см. convert.go) в extra.blade_ref_name/
+# extra.blade_ref_tech_number - именно extra.blade_ref_name читает
+# importbladeservers.go:ImportItiliumBladeServer, чтобы найти
+# models.BladeSystems по имени и проставить ServerHardware.BladeSystemId +
+# унаследовать ServerHardware.RackCabinetId от шасси (см. подробный
+# комментарий в importbladeservers.go про порядок обработки места
+# установки: сначала стандартный разбор "Местоположение" в
+# DatacenterSite/RackCabinet, как у rack-серверов, ЗАТЕМ, если шасси из
+# "Корзина" найдено - его RackCabinetId имеет приоритет).
+#
+# "Bay Number" (номер слота в шасси) маппится напрямую в
+# ServerHardware.BladeNum - обычное числовое поле, отдельного composite не
+# требует (в отличие от "Корзина").
+
+source_sheet: export
+
+fields:
+  - header: "Тех. номер IT"
+    target: ServerHardware.TechnicalNumberIT
+    transform: trim
+
+  - header: "Бух.инв.№"
+    target: ServerHardware.InventoryNumBuh
+    transform: numeric_to_string
+
+  - header: "Стар.инв.№"
+    target: ServerHardware.InventoryNum
+    transform: trim
+
+  - header: "Описание (комментарий / примечание)"
+    target: ServerSprRecords.Details
+    transform: trim
+
+  # "Марка/модель(Норматив)" - как и у блейд-корзин (rack_blade.yaml), в
+  # этой выгрузке нет отдельной "Модель от производителя", поэтому маппится
+  # напрямую в ServerHardware.Model, а не в extra (в отличие от
+  # rack_server.yaml, где обе колонки есть и "Норматив" уходит в extra).
+  - header: "Марка/модель(Норматив)"
+    target: ServerHardware.Model
+    transform: trim
+
+  - header: "S/N"
+    target: ServerHardware.SerialNum
+    transform: trim
+
+  # "Имя" (не "Имя (hostname)", как у rack-серверов - другое название
+  # колонки в этой выгрузке) - дублируется в Name и NameFQDN, как и у
+  # rack-серверов (отдельного FQDN тут тоже нет).
+  - header: "Имя"
+    target: ServerSprRecords.Name
+    transform: trim
+
+  - header: "Имя"
+    target: ServerSprRecords.NameFQDN
+    transform: trim
+
+  - header: "ip"
+    target: ServerSprRecords.IPAddress
+    transform: trim
+
+  - header: "Роль"
+    target: ServerSprRecords.Role
+    transform: trim
+
+  # "Bay Number" - номер слота в блейд-корзине, см. предупреждение выше.
+  - header: "Bay Number"
+    target: ServerHardware.BladeNum
+    transform: numeric_to_string
+
+  - header: "Автор"
+    target: extra.author_name
+    transform: trim
+
+  - header: "Дата ремонта"
+    target: extra.repair_date
+    transform: trim
+
+  # "- n/a -" (частое значение) уже нормализуется в пустую строку через
+  # naValues (см. convert.go).
+  - header: "Поставщик"
+    target: ServerHardware.Counterparty
+    transform: trim
+
+  - header: "Документы"
+    target: ServerHardware.ContractDoc
+    transform: trim
+
+  - header: "Юр.Лицо"
+    target: extra.legal_entity
+    transform: trim
+
+# Составные преобразования - см. подробное описание в itilliumimport/mapping.yaml
+# (образец для rack-серверов) для location_split/enum_multi, и
+# convert.go:compositeBladeRefSplit для blade_ref_split (специфичен для
+# импорта блейд-серверов).
+composites:
+  # "Местоположение": тот же формат, что и у rack-серверов/блейд-корзин -
+  # "Город, ЦОД | код | код (код)". В этой выгрузке НЕТ колонки "Размещение
+  # в шкафу/стойке" (в отличие от rack-серверов) - значит
+  # ServerHardware.StartUnitPos/SizeUnit не заполняются напрямую из этой
+  # строки; связка со шкафом идёт через найденную по "Корзина" блейд-
+  # корзину (см. importbladeservers.go) - RackCabinet этой корзины имеет
+  # приоритет, если он найден.
+  - name: location_split
+    sources: ["Местоположение"]
+    targets: ["extra.location_room_text"]
+    params:
+      separator: "|"
+      extra_prefix: "location"
+
+  # "Статус" -> (ServerSprRecords.Active, ServerSprRecords.Stat,
+  # ServerHardware.Active) - тот же словарь, что и в mapping.yaml
+  # (rack-серверы), плюс "Зарезервировано" (встречается в этой выгрузке, но
+  # не было в примере rack-серверов) - трактуется как "в наличии, не
+  # выведено из эксплуатации" (Active=1/Stat=1/HwActive=1), ПРОВЕРЬТЕ по
+  # смыслу перед боевым использованием - см. Extra.status_raw для
+  # необработанных значений, если встретится что-то ещё не описанное здесь.
+  - name: enum_multi
+    sources: ["Статус"]
+    targets:
+      - "ServerSprRecords.Active"
+      - "ServerSprRecords.Stat"
+      - "ServerHardware.Active"
+    params:
+      enum: status
+
+  # "Корзина": "(IT-0000003911) C7000-15" -> extra.blade_ref_tech_number /
+  # extra.blade_ref_name (см. convert.go:compositeBladeRefSplit и
+  # предупреждение в начале этого файла).
+  - name: blade_ref_split
+    sources: ["Корзина"]
+    params:
+      extra_prefix: "blade_ref"
+
+enums:
+  status:
+    "В работе (эксплуатации)": "1|1|1"
+    "Выведен": "2|1|2"
+    "Списан": "2|2|2"
+    "Свободно": "1|1|1"
+    "На складе": "1|1|1"
+    "Зарезервировано": "1|1|1"
