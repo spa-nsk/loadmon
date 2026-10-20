@@ -2213,6 +2213,12 @@ func (a *Locality) TableName() string {
 	return "cmdb_locality"
 }
 
+// RackCabinetOutsideName - наименование служебной записи шкафа для
+// оборудования, размещённого на площадке (адрес известен) без шкафа - склады,
+// небольшие филиалы и т.п. Одна такая запись на площадку, заводится импортом
+// из Итиллиум (itilliumimport.resolveOutsideCabinet).
+const RackCabinetOutsideName = "(размещение вне шкафа)"
+
 // RackCabinet - справочник шкафов ("Шкаф") в составе ЦОД (DatacenterSite), по
 // аналогии с oneview2.Rack (см. oneview2/models.go). Наполняется вручную
 // через UI (/sprsrv/rackcabinetlist(edit)) или импортом из Итиллиум (см.

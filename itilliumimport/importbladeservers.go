@@ -162,6 +162,17 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 				continue
 			}
 			r.Hw.RackCabinetId = rackId
+		} else if datacenterId > 0 && !site.Loc.Service {
+			// Адрес указан, шкафа нет - служебный "шкаф" площадки
+			// "(размещение вне шкафа)" (если у корзины есть свой шкаф - он
+			// переопределит значение ниже)
+			outsideId, errOut := resolveOutsideCabinet(trn, datacenterId)
+			if errOut != nil {
+				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка резолва размещения вне шкафа:", errOut)
+				trn.Rollback()
+				continue
+			}
+			r.Hw.RackCabinetId = outsideId
 		}
 
 		// --- Привязка к блейд-корзине (models.BladeSystems) - ДОПОЛНИТЕЛЬНО

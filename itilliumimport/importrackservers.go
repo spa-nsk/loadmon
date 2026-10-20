@@ -152,6 +152,17 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 					r.Hw.SizeUnit = 1
 				}
 			}
+		} else if datacenterId > 0 && !site.Loc.Service {
+			// Адрес указан, шкафа нет (склад, небольшой филиал) - служебный
+			// "шкаф" площадки "(размещение вне шкафа)"; позиции нет.
+			outsideId, errOut := resolveOutsideCabinet(trn, datacenterId)
+			if errOut != nil {
+				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка резолва размещения вне шкафа:", errOut)
+				trn.Rollback()
+				continue
+			}
+			r.Hw.RackCabinetId = outsideId
+			r.Hw.StartUnitPos, r.Hw.SizeUnit = 0, 0
 		}
 
 		// --- Статус/питание ----------------------------------------------
@@ -218,24 +229,23 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// (сейчас обновляются только явно перечисленные 4 колонки).
 			r.Hw.Id = hw.Id
 			hw.FormFactor = 1                                     //rack-сервер
-			if r.Hw.RackCabinetId != 0 {                          //шкаф в выгрузке не указан - существующую привязку не сбрасываем
-				hw.RackCabinetId = r.Hw.RackCabinetId
-			}
-			//обновляем при наличии шкафа, так как мастер система по размещению оборудования в стойках - итиллиум, и если там поменяли стойку, то нужно обновить и у нас
+			// Расположение (шкаф, начальный юнит, размер) обновляется БЕЗУСЛОВНО при
+			// каждом импорте: мастер-система размещения - Итиллиум (из "Размещение в
+			// шкафу/стойке" или "Местоположение"); если в выгрузке шкаф/позиция не
+			// указаны - они сбрасываются.
+			hw.RackCabinetId = r.Hw.RackCabinetId
+			hw.StartUnitPos = r.Hw.StartUnitPos
+			hw.SizeUnit = r.Hw.SizeUnit
+			hwCols := []string{"RackCabinetId", "StartUnitPos", "SizeUnit"}
 			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
 				hw.Active = r.Hw.Active
-				if _, err := trn.Update(&hw, "RackCabinetId", "PowerState", "Active"); err != nil {
-					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw:", err)
-					trn.Rollback()
-					continue
-				}
-			} else {
-				if _, err := trn.Update(&hw, "RackCabinetId"); err != nil {
-					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw:", err)
-					trn.Rollback()
-					continue
-				}
+				hwCols = append(hwCols, "PowerState", "Active")
+			}
+			if _, err := trn.Update(&hw, hwCols...); err != nil {
+				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка обновления hw:", err)
+				trn.Rollback()
+				continue
 			}
 		}
 
