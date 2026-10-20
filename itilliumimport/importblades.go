@@ -166,6 +166,17 @@ func runImportItiliumBlade(name string, job *ImportProgress) {
 						r.Bs.SizeUnit = r.Bs.EndUnitPos - r.Bs.StartUnitPos + 1
 					}
 				}
+			} else if datacenterId > 0 && !site.Loc.Service {
+				// Адрес указан, шкафа нет - служебный "шкаф" площадки
+				// "(размещение вне шкафа)"
+				var errOut error
+				rackId, errOut = resolveOutsideCabinet(trn, datacenterId)
+				if errOut != nil {
+					log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка резолва размещения вне шкафа:", errOut)
+					trn.Rollback()
+					continue
+				}
+				r.Bs.StartUnitPos, r.Bs.EndUnitPos, r.Bs.SizeUnit = 0, 0, 0
 			}
 		}
 		r.Bs.RackCabinetId = rackId

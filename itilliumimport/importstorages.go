@@ -259,6 +259,17 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 		// шкафу/стойке" оставалась вовсе без площадки в списке/карточке -
 		// раньше связать с площадкой без шкафа было нечем).
 		placementErr := false
+		if !flNotWorking {
+			// Расположение СХД обновляется полностью при каждом импорте (мастер-
+			// система - Итиллиум): прежние размещения заменяются разобранными ниже,
+			// шкафы, которых нет в выгрузке, отвязываются.
+			if _, err := trn.QueryTable(new(models.StorageSystemPlacement)).
+				Filter("StorageSystemsId", st.Id).Delete(); err != nil {
+				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка очистки прежних размещений (StorageSystemsId=", st.Id, "):", err)
+				trn.Rollback()
+				continue
+			}
+		}
 		for _, p := range placements {
 			if p.rackId <= 0 {
 				continue
@@ -308,8 +319,14 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 				}
 			}
 			if !placementErr && !usedCabinet {
-				if err := upsertStorageSystemPlacementSiteOnly(trn, st.Id, ownSiteId); err != nil {
-					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения площадки без шкафа (StorageSystemsId=", st.Id, ", DatacenterSiteId=", ownSiteId, "):", err)
+				// Адрес указан, шкафа нет - размещение в служебном "шкафу"
+				// площадки "(размещение вне шкафа)" (раньше - запись без шкафа)
+				outsideId, errOut := resolveOutsideCabinet(trn, ownSiteId)
+				if errOut != nil {
+					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва размещения вне шкафа (площадка", ownSiteId, "):", errOut)
+					placementErr = true
+				} else if err := upsertStorageSystemPlacement(trn, st.Id, outsideId, 0, 0); err != nil {
+					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка сохранения размещения вне шкафа (StorageSystemsId=", st.Id, ", DatacenterSiteId=", ownSiteId, "):", err)
 					placementErr = true
 				}
 			}

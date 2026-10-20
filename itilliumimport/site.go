@@ -77,7 +77,7 @@ func resolveSite(trn orm.TxOrmer, rs *locality.Resolver, rawLocation string, use
 	}
 	for _, s := range found {
 		if strings.TrimSpace(s.AltName) == altName {
-			if code != "" && s.LocalityCode == "" {
+			if code != "" && s.LocalityCode != code {
 				s.LocalityCode = code
 				if _, err := trn.Update(&s, "LocalityCode"); err != nil {
 					return siteResult{}, err
