@@ -1,0 +1,154 @@
+# Конфигурация связки колонок реальной выгрузки Итиллиум по блейд-корзинам
+# (пример "Корзины блейдов_templ.xlsx", лист "export") с полями
+# models.BladeSystems. По структуре и правилам - полный аналог
+# itilliumimport/mapping.yaml (образец для rack-серверов), см. его
+# подробные комментарии про transform/composites/enums - здесь не
+# дублируются.
+#
+# ⚠️ РЕАЛЬНЫЙ файл, который читает ImportItiliumBlade, лежит в каталоге,
+# заданном ключом "yaml" в app.conf (см. server_web_new/conf/app.conf, по
+# умолчанию "./conf/yaml"), под именем "rack_blade.yaml" (см.
+# mappingConfigFileNameBlade в importblades.go). Этот файл в пакете - просто
+# образец/документация, правьте "<yaml-каталог>/rack_blade.yaml".
+#
+# Колонки ниже сверены с реальным примером "Корзины блейдов_templ.xlsx"
+# (14 колонок, лист "export") - в отличие от первой версии этого файла
+# (написанной по аналогии с серверной выгрузкой ДО того, как появился
+# реальный пример), состав колонок у блейд-корзин заметно уже, чем у
+# серверов (нет "Модель от производителя"/"Продукт"/"IPMI"/памяти/CPU и
+# т.п. - в выгрузке Итиллиум по шасси просто нет этих атрибутов).
+#
+# ⚠️ ВАЖНАЯ ОСОБЕННОСТЬ (отличие от серверной выгрузки): в примере колонка
+# "Стар.инв.№" содержит НЕ старый инвентарный номер, а короткое
+# мнемоническое имя шасси вида "C7000-01", "C7000-03", "ENC-21", "M1-01" -
+# именно это и есть устойчивый идентификатор, по которому
+# importblades.go:ImportItiliumBlade ищет существующую запись BladeSystems
+# (см. target: BladeSystems.Name ниже, а не BladeSystems.InventoryNum, как
+# можно было бы предположить по названию колонки). Колонка "Описание" в
+# примере обычно дублирует то же значение (иногда с небольшими отличиями в
+# регистре/префиксе, см. "mt-c7000-02"/"mf-c7000-02" в примере) - раньше
+# уходило в отдельное свободнотекстовое поле BladeSystems.Description,
+# которого больше нет (см. extra.description ниже) - НЕ используется для
+# поиска.
+
+source_sheet: export
+
+fields:
+  # "Тех. номер IT" - в отличие от ServerHardware, у BladeSystems нет
+  # отдельного поля под технический номер IT - уходит в extra на случай,
+  # если понадобится сверка.
+  - header: "Тех. номер IT"
+    target: BladeSystems.TechnicalNumberIT
+    transform: trim
+
+  - header: "Бух.инв.№"
+    target: BladeSystems.InventoryNumBuh
+    transform: trim
+
+  # ⚠️ См. предупреждение выше - это ИМЯ шасси (C7000-01 и т.п.), а не
+  # старый инвентарный номер. Ключевое поле для поиска существующей записи.
+  - header: "Стар.инв.№"
+    target: BladeSystems.Name
+    transform: trim
+
+  # ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился свободнотекстового
+  # поля Description - значение сохраняется в extra на случай ручной сверки.
+  - header: "Описание"
+    target: extra.description
+    transform: trim
+
+  # "Марка/модель(Норматив)" в примере почти всегда пусто - но, в отличие от
+  # серверной выгрузки (там есть отдельная "Модель от производителя"), это
+  # единственная колонка с моделью у блейд-корзин, поэтому маппится напрямую
+  # в BladeSystems.Model, а не в extra.
+  - header: "Марка/модель(Норматив)"
+    target: BladeSystems.Model
+    transform: trim
+
+  - header: "S/N"
+    target: BladeSystems.SerialNum
+    transform: trim
+
+  - header: "Автор"
+    target: BladeSystems.Owner
+    transform: trim
+
+  - header: "Дата ремонта"
+    target: extra.repair_date
+    transform: trim
+
+  # "- n/a -" (частое значение этой колонки в примере) уже нормализуется в
+  # пустую строку через naValues (см. convert.go) - в этом случае
+  # BladeSystems.Counterparty останется пустым, что корректно.
+  - header: "Поставщик"
+    target: BladeSystems.Counterparty
+    transform: trim
+
+  - header: "Документы"
+    target: BladeSystems.ContractDoc
+    transform: trim
+
+  # "Юр.Лицо" - как и у серверов, в схеме это FK, а не свободный текст,
+  # поэтому падает в extra на ручную сверку (см. mapping.yaml, комментарий
+  # к этой же колонке).
+  - header: "Юр.Лицо"
+    target: extra.legal_entity
+    transform: trim
+
+  # "Bay count" - количество слотов в шасси (16 для C7000, 12 для некоторых
+  # ENC и т.п.) - в примере иногда пусто.
+  - header: "Bay count"
+    target: BladeSystems.Size
+    transform: numeric_to_string
+
+  # ДОБАВЛЕНО (2026-09-08, по запросу пользователя): сырое (нетронутое)
+  # значение той же колонки, что разбирает composite rack_unit_split ниже -
+  # используется importblades.go как признак "размещение в шкафу указано" и
+  # копируется как есть в BladeSystems.Anotation (у BladeSystems больше нет
+  # отдельного текстового поля под эту колонку целиком, см. RackNum выше).
+  - header: "Размещение в шкафу/стойке"
+    target: BladeSystems.Anotation
+    transform: trim
+
+# Составные преобразования - см. подробное описание в itilliumimport/mapping.yaml
+# (серверный образец), реализация функций для блейд-корзин - в
+# itilliumimport/convertblade.go (applyCompositeBlade). Форматы значений в
+# примере "Корзины блейдов_templ.xlsx" совпадают с серверной выгрузкой
+# ("Город, ЦОД | код | код (код)" и "шкаф | старт-конец") - составные
+# функции переиспользуются без изменений.
+composites:
+  # "Местоположение": "Урюпинск, КЦ (на Ленина) | 3 | 3.1 (316)" - см.
+  # mapping.yaml. В части строк примера колонка не соответствует формату
+  # (например, "! Покинуло ФГ по причине списания, продажи, утери") - в этом
+  # случае вся строка целиком попадёт в BladeSystems.DatacenterRoom, доп.
+  # части в extra не заполнятся - это ожидаемо, требует ручной проверки
+  # (см. Result.Warnings это не подсвечивает, т.к. формально не ошибка).
+  # ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстового
+  # DatacenterRoom (расположение теперь описывается только FK RackCabinetId,
+  # который выгрузка Итиллиум текстом не заполняет) - значение уходит в
+  # extra на случай ручной сверки/привязки к справочнику шкафов.
+  - name: location_split
+    sources: ["Местоположение"]
+    targets: ["extra.datacenter_room"]
+    params:
+      separator: "|"
+      extra_prefix: "location"
+
+  # "Размещение в шкафу/стойке": "3.1-A-03 | 13-22" - шасси C7000 занимает
+  # 10 юнитов (13-22, 1-10 и т.п. в примере) - в части строк колонка пуста
+  # (composite тогда просто ничего не заполняет, без предупреждения).
+  # ИЗМЕНЕНО (2026-09-08): models.BladeSystems лишился текстового RackNum -
+  # номер стойки уходит в extra (та же причина, что и у DatacenterRoom
+  # выше), StartUnitPos/EndUnitPos остались настоящими полями схемы.
+  # ИЗМЕНЕНО (2026-09-08, повторно, по запросу пользователя): третий target -
+  # EndUnitPos (конечная позиция), а не вычисленный SizeUnit - SizeUnit
+  # больше не показывается в форме и вычисляется по StartUnitPos/EndUnitPos
+  # перед сохранением (см. itilliumimport/importblades.go).
+  - name: rack_unit_split
+    sources: ["Размещение в шкафу/стойке"]
+    targets:
+      - "extra.rack_num"
+      - "BladeSystems.StartUnitPos"
+      - "BladeSystems.EndUnitPos"
+    params:
+      separator: "|"
