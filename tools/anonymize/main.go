@@ -551,6 +551,36 @@ func rewriteLocWords(s string) string {
 	return strings.Join(words, " ")
 }
 
+// ---------------------------------------------------------------- замена фраз
+
+var phrases = []struct {
+	re *regexp.Regexp
+	to string
+}{
+	{regexp.MustCompile(`(?i)цод`), "бц"},
+	{regexp.MustCompile(`(?i)ростелеком`), "шаражка"},
+	{regexp.MustCompile(`(?i)мегафон`), "домофон"},
+}
+
+// replacePhrases заменяет фиксированные фразы без учёта регистра, сохраняя
+// регистр (ЦОД -> БЦ, Цод -> Бц, цод -> бц).
+func replacePhrases(s string) string {
+	for _, p := range phrases {
+		s = p.re.ReplaceAllStringFunc(s, func(m string) string {
+			r := []rune(m)
+			to := []rune(p.to)
+			switch {
+			case strings.ToUpper(m) == m:
+				return strings.ToUpper(p.to)
+			case unicode.IsUpper(r[0]):
+				to[0] = unicode.ToUpper(to[0])
+			}
+			return string(to)
+		})
+	}
+	return s
+}
+
 // ---------------------------------------------------------------- обработка файла
 
 type stats struct{ byKind map[string]int }
@@ -675,6 +705,7 @@ func processFile(in, out string, reportOnly bool) error {
 					if k != kSerial && k != kSZ {
 						s = replaceNames(s, &nn)
 						total["ФИО/орг. в тексте"] += nn
+						s = replacePhrases(s)
 					}
 					if s != raw {
 						newVal, changed = s, true
