@@ -26,6 +26,9 @@ type DatacenterSiteFilter struct {
 	Name     string `form:"Name"`
 	AltName  string `form:"AltName"`
 	CodeJira string `form:"CodeJira"` // 2026-10-02: фильтр по коду Jira (вхождение, без учёта регистра)
+	// LocalityCode - код ОКТМО населённого пункта из справочника cmdb_locality
+	// (выбирается подсказкой, как в карточке площадки); точное совпадение.
+	LocalityCode string `form:"LocalityCode"`
 }
 
 func defaultDatacenterSiteFilter() *DatacenterSiteFilter {
@@ -129,6 +132,11 @@ func (this *MainController) SprDatacenterSite() {
 	if filter.CodeJira != "" {
 		qs = qs.Filter("CodeJira__icontains", filter.CodeJira)
 	}
+	filter.LocalityCode = strings.TrimSpace(filter.LocalityCode)
+	if filter.LocalityCode != "" {
+		qs = qs.Filter("LocalityCode", filter.LocalityCode)
+		this.Data["FilterLocalityName"] = localityNamesByCode(o, []models.DatacenterSite{{LocalityCode: filter.LocalityCode}})[filter.LocalityCode]
+	}
 
 	totalRecords, err := qs.Count()
 	if err != nil {
@@ -151,13 +159,14 @@ func (this *MainController) SprDatacenterSite() {
 	// controllers/sprbladesystems.go:SprBladeSystems.
 	records := make([]models.DatacenterSite, 0, pageSize)
 	if exportCSV || exportXLSX {
-		if _, err := qs.OrderBy("Name").All(&records); err != nil {
+		if _, err := qs.OrderBy("-IsDatacenter", "Name").All(&records); err != nil {
 			flash.Error("Ошибка выборки данных: %v", err)
 			flash.Store(&this.Controller)
 			return
 		}
 	} else {
-		if _, err := qs.OrderBy("Name").Limit(pageSize, offset).All(&records); err != nil {
+		// ЦОД (IsDatacenter) - вверху списка для быстрого доступа.
+		if _, err := qs.OrderBy("-IsDatacenter", "Name").Limit(pageSize, offset).All(&records); err != nil {
 			flash.Error("Ошибка выборки данных: %v", err)
 			flash.Store(&this.Controller)
 			return
