@@ -4,11 +4,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
-	"loadmon/models"
 
-	"github.com/beego/beego/v2/client/orm"
 )
 
 // storagePlacementSegment - одно размещение СХД в конкретном шкафу, разобранное
@@ -38,14 +35,11 @@ import (
 // extra.rack_num/start_unit_pos/end_unit_pos просто больше нигде не
 // читаются), убирать необязательно.
 type storagePlacementSegment struct {
-	// DatacenterSiteName - имя ЦОД ПЕРЕД "/" в сегменте (например "ЦОД
-	// Невателеком", "ЦОД M1") - заполняется ТОЛЬКО для colocation-площадок,
-	// где оно СВОЕ (может текстуально отличаться от имени ЦОД в колонке
-	// "Местоположение" той же строки - подтверждено анализом примера, см.
-	// CHANGELOG запись про анализ СХД_темпл2.xlsx). Пусто для собственных
-	// площадок - там используется ЦОД, уже резолвленный для всей строки по
-	// "Местоположение" (location_split).
-	DatacenterSiteName string
+	// AltName - альтернативное наименование ЦОД/шкафа перед "/" в сегменте
+	// (например "ЦОД M1" в "ЦОД M1 / R15-5"). Это НЕ отдельная площадка:
+	// шкаф всегда принадлежит площадке строки (колонка "Местоположение"),
+	// AltName сохраняется в RackCabinet.AltName (см. resolveRackCabinet).
+	AltName string
 	// CabinetCode - код/имя шкафа (например "3.1-A-08", "R15-5", "2.4.8").
 	CabinetCode string
 	StartUnitPos int
@@ -124,7 +118,7 @@ func parseStoragePlacementSegments(raw string) []storagePlacementSegment {
 			continue
 		}
 		merged[k] = &storagePlacementSegment{
-			DatacenterSiteName: dcName,
+			AltName: dcName,
 			CabinetCode:        cabinetCode,
 			StartUnitPos:       start,
 			EndUnitPos:         end,
@@ -187,60 +181,4 @@ func parseLocationEmbeddedPlacement(tail string) (cabinetCode string, startUnit,
 		return "", 0, 0, false
 	}
 	return cabinetCode, startUnit, endUnit, true
-}
-
-// resolveDatacenterSiteByName ищет/заводит models.DatacenterSite СТРОГО по
-// имени name (без склейки с этажом/комнатой, в отличие от
-// runImportItiliumStorage, где Name площадки для "Местоположение" строится
-// как datacenterRoom+" "+location_room_code) - используется ТОЛЬКО для
-// colocation-сегментов "Размещение в шкафу/стойке" (ЦОД_имя перед "/"), где
-// имя ЦОД - это уже готовый, самостоятельный идентификатор площадки (имя
-// в реестре шкафов), а не текст адресной строки, который нужно было бы
-// парсить дальше. См. комментарий у storagePlacementSegment.DatacenterSiteName.
-//
-// ИЗМЕНЕНО (2026-09-11, по запросу пользователя: после загрузки справочника
-// rack-серверов по ЦОД "М1" появились ДВЕ отдельные записи площадки -
-// "Москва, (ЦОД М1) Варшавское шоссе, 125" (заведена стандартным разбором
-// "Местоположение" - см. location_split) и "ЦОД М1" (заведена ЭТОЙ функцией
-// по короткому имени перед "/" в "Размещение в шкафу/стойке")): в реальных
-// данных выгрузки Итиллиум адресная строка "Местоположение" colocation-
-// площадок обычно содержит короткое имя ЦОД В СКОБКАХ ("(ЦОД М1)") - прежде
-// чем заводить НОВУЮ запись по короткому имени, теперь сначала ищем среди
-// УЖЕ существующих площадок такую, чьё Name содержит "(<короткое_имя>)" - и
-// переиспользуем её Id, вместо того чтобы плодить дубль одной и той же
-// физической площадки под двумя разными именами. Это эвристика по
-// наблюдаемому в реальных данных формату, а не гарантированное правило -
-// если совпадения нет, поведение как раньше (заводится отдельная запись по
-// короткому имени).
-func resolveDatacenterSiteByName(trn orm.TxOrmer, name string) (int64, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return 0, nil
-	}
-	site := models.DatacenterSite{Name: name}
-	if err := trn.Read(&site, "Name"); err == nil {
-		return site.Id, nil
-	}
-
-	// Эвристика: площадка с адресной строкой, содержащей "(<name>)" -
-	// вероятно та же самая физическая площадка, заведённая по адресу из
-	// "Местоположение" другой строки файла.
-	var byAddress []models.DatacenterSite
-	if _, err := trn.QueryTable(new(models.DatacenterSite)).
-		Filter("Name__icontains", "("+name+")").
-		Limit(1).
-		All(&byAddress); err == nil && len(byAddress) > 0 {
-		return byAddress[0].Id, nil
-	}
-
-	site = models.DatacenterSite{
-		Name:       name,
-		Annotation: "Заведено автоматически импортом СХД из Итиллиум по имени ЦОД в колонке \"Размещение в шкафу/стойке\"",
-		Id_User:    9999,
-		Time_Mfy:   time.Now().Local(),
-	}
-	if _, err := trn.Insert(&site); err != nil {
-		return 0, err
-	}
-	return site.Id, nil
 }
