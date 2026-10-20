@@ -130,8 +130,8 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 
 		// ownSiteId - ЦОД, резолвленный по колонке "Местоположение"
 		// (location_split) - используется как площадка ПО УМОЛЧАНИЮ для
-		// сегментов размещения без собственного имени ЦОД перед "/" (см.
-		// storagePlacementSegment.DatacenterSiteName и разбор ниже).
+		// всех сегментов размещения: имя перед "/" - лишь альтернативное
+		// наименование шкафа (см. storagePlacementSegment.AltName).
 		ownSiteId := int64(0)
 		ownSiteName := ""
 		if !flNotWorking {
@@ -169,7 +169,7 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 				if siteId <= 0 {
 					continue
 				}
-				rackId, errRack := resolveRackCabinet(trn, seg.CabinetCode, seg.DatacenterSiteName, siteId,
+				rackId, errRack := resolveRackCabinet(trn, seg.CabinetCode, seg.AltName, siteId,
 					"Шкаф по данным импорта СХД из Итиллиум, площадка: "+ownSiteName)
 				if errRack != nil {
 					log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка резолва rack для сегмента", seg.CabinetCode, ":", errRack)

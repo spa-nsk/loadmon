@@ -188,6 +188,11 @@ func compositeRackUnitSplitStorage(res *ResultStorage, row map[string]string, c 
 	if sep == "" {
 		sep = "|"
 	}
+	// В ячейке может быть несколько шкафов через запятую ("шкаф1 | 9-22,
+	// шкаф2 | 24-40"): все сегменты разбирает parseStoragePlacementSegments
+	// (storageplacement.go), здесь - только первый, чтобы остаток после "|"
+	// не принимался за диапазон юнитов и не сыпал предупреждениями.
+	val = strings.SplitN(val, ",", 2)[0]
 	parts := strings.SplitN(val, sep, 2)
 	rackNum := strings.TrimSpace(parts[0])
 
