@@ -261,6 +261,17 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// питания и сверка не трогают записи, которых нет в HP OneView/VMware.
 			r.Spr.SourceUpdateType = models.SourceUpdateManual
 
+			// Запись справочника серверов без имени бесполезна (в списках
+			// "стёртое имя"): при пустом "Имя (hostname)" берём технический
+			// номер ИТ, затем серийный номер.
+			if strings.TrimSpace(r.Spr.Name) == "" {
+				fallback := strings.TrimSpace(r.Hw.TechnicalNumberIT)
+				if fallback == "" {
+					fallback = strings.TrimSpace(r.Hw.SerialNum)
+				}
+				r.Spr.Name = fallback
+				log.Println("itilliumimport:", name, "- пустое имя сервера, использован", fallback)
+			}
 			sprId, err := trn.Insert(&r.Spr)
 			if err != nil {
 				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка вставки sprsrv:", err)
