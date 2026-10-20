@@ -164,6 +164,8 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Hw.RackCabinetId = outsideId
 			r.Hw.StartUnitPos, r.Hw.SizeUnit = 0, 0
 		}
+		log.Printf("itilliumimport: ImportItiliumServer(%s) %s: площадка=%d (%s) шкаф=%q (id=%d) юнит=%d размер=%d",
+			name, r.Hw.TechnicalNumberIT, datacenterId, site.Name, cabinetCode, r.Hw.RackCabinetId, r.Hw.StartUnitPos, r.Hw.SizeUnit)
 
 		// --- Статус/питание ----------------------------------------------
 		if r.Hw.SerialNum != "" { //если серийный номер отсутствует делаем симуляцию в виде технического номера, чтобы не потерять запись в справочнике серверов
