@@ -211,7 +211,7 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			r.Spr.Stat = 1
 			r.Spr.Active = 1
 			r.Hw.Active = 1
-			r.Spr.ActivatorUser = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.ActivatorUser = models.UserSourceManual      //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
 		} else {
 			r.Spr.PowerState = 2
@@ -228,8 +228,8 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 		hw = models.ServerHardware{SerialNum: r.Hw.SerialNum}
 		hwFound := trn.Read(&hw, "SerialNum") == nil
 		if !hwFound {
-			r.Hw.FormFactor = 2                  // блейд (1-rack, 2-blade, см. ServerHardware.FormFactor)
-			r.Hw.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Hw.FormFactor = 2                        // блейд (1-rack, 2-blade, см. ServerHardware.FormFactor)
+			r.Hw.TimeCreate = time.Now().Local()       //фиксируем времяя создания и автора
 			r.Hw.CreatorUser = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Hw.Time_Mfy = time.Now().Local()
 			r.Hw.Id_User = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
@@ -247,26 +247,49 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			// см. тот же принцип приоритета ручных правок, что и в
 			// ImportItiliumServer.
 			r.Hw.Id = hw.Id
-			hw.RackCabinetId = r.Hw.RackCabinetId
-			hw.BladeSystemId = r.Hw.BladeSystemId
-			hw.BladeNum = r.Hw.BladeNum
+			// Блейд привязан к корзине в БД (например, из OneView), а в выгрузке
+			// корзина не нашлась: связь с корзиной и шкаф корзины не трогаем -
+			// иначе блейд "выпадает" из корзины и попадает в список "без позиции"
+			// (шкаф здесь взят из "Местоположение"/"вне шкафа").
+			keepChassis := r.Hw.BladeSystemId == 0 && hw.BladeSystemId > 0
+			cols := []string{"FormFactor", "ItiliumStatus"}
+			if keepChassis {
+				// Работающий блейд находится там же, где его корзина: шкаф берётся
+				// по корзине из БД, а не из "Местоположение" строки выгрузки.
+				bs := models.BladeSystems{Id: hw.BladeSystemId}
+				if trn.Read(&bs) == nil && bs.RackCabinetId != 0 && bs.RackCabinetId != hw.RackCabinetId {
+					hw.RackCabinetId = bs.RackCabinetId
+					cols = append(cols, "RackCabinetId")
+				}
+			} else {
+				hw.RackCabinetId = r.Hw.RackCabinetId
+				cols = append(cols, "RackCabinetId")
+				if r.Hw.BladeSystemId > 0 {
+					hw.BladeSystemId = r.Hw.BladeSystemId
+					hw.BladeNum = r.Hw.BladeNum
+					cols = append(cols, "BladeSystemId", "BladeNum")
+				}
+			}
 			hw.FormFactor = r.Hw.FormFactor
+			hw.ItiliumStatus = r.Hw.ItiliumStatus // реальный статус по Итиллиум - обновляется всегда
 
 			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
 				hw.Active = r.Hw.Active
-				if _, err := trn.Update(&hw, "RackCabinetId", "BladeSystemId", "BladeNum", "FormFactor", "PowerState", "SourceUpdateType", "Active"); err != nil {
-					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw:", err)
-					trn.Rollback()
-					continue
-				}
-			} else {
-				if _, err := trn.Update(&hw, "RackCabinetId"); err != nil {
-					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw:", err)
-					trn.Rollback()
-					continue
-				}
+				cols = append(cols, "PowerState", "SourceUpdateType", "Active")
 			}
+			if _, err := trn.Update(&hw, cols...); err != nil {
+				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка обновления hw:", err)
+				trn.Rollback()
+				continue
+			}
+			r.Hw.BladeSystemId = hw.BladeSystemId
+		}
+
+		// Включенный блейд-сервер может находиться только в корзине; отдельно
+		// допустимы лишь списанные и находящиеся на складе.
+		if r.Hw.BladeSystemId == 0 && r.Hw.Active == 1 {
+			log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - включенный блейд-сервер без корзины (серийный номер", r.Hw.SerialNum, ", корзина в выгрузке:", r.Extra["blade_ref_name"], ") - проверьте имя корзины в справочнике блейд-корзин")
 		}
 
 		// --- ServerSprRecords -----------------------------------------------
@@ -279,27 +302,23 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			sprFound = trn.Read(&sprsrv) == nil && !models.IsServerSprDestroyed(&sprsrv) // запись Stat=666 считается отсутствующей
 		}
 		if !sprFound {
-			r.Spr.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Spr.TimeCreate = time.Now().Local()       //фиксируем времяя создания и автора
 			r.Spr.CreatorUser = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.Time_Mfy = time.Now().Local()
 			r.Spr.Id_User = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.SourceUpdateType = models.SourceUpdateManual
 			// Запись справочника серверов без имени бесполезна (в списках
-			// "стёртое имя"): при пустом "Имя (hostname)" берём технический
-			// номер ИТ, затем серийный номер.
-			if strings.TrimSpace(r.Spr.Name) == "" {
-				fallback := strings.TrimSpace(r.Hw.TechnicalNumberIT)
-				if fallback == "" {
-					fallback = strings.TrimSpace(r.Hw.SerialNum)
+			// "стёртое имя"): не вставляем такие записи, иначе в списках серверов будут путые имена серверов
+			//
+			sprId := int64(0)
+			if strings.TrimSpace(r.Spr.Name) != "" {
+
+				sprId, err = trn.Insert(&r.Spr)
+				if err != nil {
+					log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки sprsrv:", err)
+					trn.Rollback()
+					continue
 				}
-				r.Spr.Name = fallback
-				log.Println("itilliumimport:", name, "- пустое имя сервера, использован", fallback)
-			}
-			sprId, err := trn.Insert(&r.Spr)
-			if err != nil {
-				log.Println("itilliumimport: ImportItiliumBladeServer(", name, ") - ошибка вставки sprsrv:", err)
-				trn.Rollback()
-				continue
 			}
 			r.Spr.Id = sprId
 			if !hwFound { //если hwFound == false, то r.Hw.Id уже содержит Id вставленной записи, иначе hw.Id содержит Id существующей записи

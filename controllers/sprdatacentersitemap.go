@@ -197,7 +197,14 @@ func (this *MainController) SprDatacenterSiteMap() {
 	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId__gt", 0).Exclude("Active", 2).
 		Limit(-1).All(&hws, "Id", "RackCabinetId", "FormFactor", "BladeSystemId"); err == nil {
 		for _, h := range hws {
-			if h.FormFactor == 2 && h.BladeSystemId > 0 {
+			if h.FormFactor == 2 {
+				if h.BladeSystemId > 0 {
+					continue // блейды в корзинах считаются через корзину
+				}
+				// блейд без корзины - считается блейдом, а не rack-сервером
+				if r := rackBy[h.RackCabinetId]; r != nil {
+					r.Blades++
+				}
 				continue
 			}
 			if r := rackBy[h.RackCabinetId]; r != nil {

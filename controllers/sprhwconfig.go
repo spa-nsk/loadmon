@@ -731,6 +731,11 @@ func (this *MainController) SprHwConfigEdit() {
 		rec.StartUnitPos, _ = strconv.Atoi(this.GetString("StartUnitPos"))
 		rec.SizeUnit, _ = strconv.Atoi(this.GetString("SizeUnit"))
 		rec.RackCabinetId, _ = strconv.ParseInt(this.GetString("RackCabinetId"), 10, 64)
+		// Блейд в корзине размещается по корзине: шкаф из формы игнорируется,
+		// если у корзины шкаф указан (см. bladeChassisRack).
+		if rackId, _ := bladeChassisRack(o, rec); rackId != 0 {
+			rec.RackCabinetId = rackId
+		}
 
 		rec.InventoryNum = this.GetString("InventoryNum")
 		rec.InventoryNumBuh = this.GetString("InventoryNumBuh")
@@ -790,10 +795,30 @@ func (this *MainController) SprHwConfigEdit() {
 	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)
 	this.Data["RackCabinets"] = racks
 
+	// Шкаф блейда в корзине задаётся корзиной - в форме поле только для чтения.
+	if rackId, chassisName := bladeChassisRack(o, rec); rackId != 0 {
+		rec.RackCabinetId = rackId
+		this.Data["RackLockedByChassis"] = chassisName
+	}
+
 	this.Data["HW"] = rec
 	this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
+}
+
+// bladeChassisRack возвращает шкаф и имя корзины для блейд-сервера
+// (FormFactor=2) с корзиной, у которой указан шкаф; иначе (0, "") - шкаф
+// такого сервера можно задавать вручную.
+func bladeChassisRack(o orm.Ormer, hw models.ServerHardware) (int64, string) {
+	if hw.FormFactor != 2 || hw.BladeSystemId <= 0 {
+		return 0, ""
+	}
+	var bs models.BladeSystems
+	if err := o.QueryTable(new(models.BladeSystems)).Filter("Id", hw.BladeSystemId).One(&bs, "Id", "Name", "RackCabinetId"); err != nil || bs.RackCabinetId == 0 {
+		return 0, ""
+	}
+	return bs.RackCabinetId, bs.Name
 }
 
 // parseHWConfigIds разбирает список идентификаторов вида "1,2,3" (значение

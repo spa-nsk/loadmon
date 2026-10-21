@@ -181,7 +181,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Spr.Stat = 1
 			r.Spr.Active = 1
 			r.Hw.Active = 1
-			r.Spr.ActivatorUser = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.ActivatorUser = models.UserSourceManual      //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
 		} else {
 			r.Spr.PowerState = 2
@@ -203,11 +203,11 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// иначе автосгенерированный Id не запишется обратно (см.
 			// beego/v2/client/orm/orm.go:InsertWithCtx - Insert требует
 			// указатель, чтобы установить Id через reflect после вставки).
-			r.Hw.FormFactor = 1                  //rack-сервер
-			r.Hw.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Hw.FormFactor = 1                        //rack-сервер
+			r.Hw.TimeCreate = time.Now().Local()       //фиксируем времяя создания и автора
 			r.Hw.CreatorUser = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Hw.Time_Mfy = time.Now().Local()
-			r.Hw.Id_User = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
+			r.Hw.Id_User = models.UserSourceManual            //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Hw.SourceUpdateType = models.SourceUpdateManual //вставлен из итилиум, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
 
 			hwId, err := trn.Insert(&r.Hw)
@@ -230,7 +230,7 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			// перечислите их здесь и передайте именами в trn.Update
 			// (сейчас обновляются только явно перечисленные 4 колонки).
 			r.Hw.Id = hw.Id
-			hw.FormFactor = 1                                     //rack-сервер
+			hw.FormFactor = 1 //rack-сервер
 			// Расположение (шкаф, начальный юнит, размер) обновляется БЕЗУСЛОВНО при
 			// каждом импорте: мастер-система размещения - Итиллиум (из "Размещение в
 			// шкафу/стойке" или "Местоположение"); если в выгрузке шкаф/позиция не
@@ -238,7 +238,8 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			hw.RackCabinetId = r.Hw.RackCabinetId
 			hw.StartUnitPos = r.Hw.StartUnitPos
 			hw.SizeUnit = r.Hw.SizeUnit
-			hwCols := []string{"RackCabinetId", "StartUnitPos", "SizeUnit"}
+			hw.ItiliumStatus = r.Hw.ItiliumStatus // реальный статус по Итиллиум - обновляется всегда
+			hwCols := []string{"RackCabinetId", "StartUnitPos", "SizeUnit", "ItiliumStatus"}
 			if hw.SourceUpdateType == models.SourceUpdateManual { //если источник обновления - ручной импорт, то обновляем состояние питания и активность
 				hw.PowerState = r.Hw.PowerState
 				hw.Active = r.Hw.Active
@@ -262,10 +263,10 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 		}
 		if !sprFound {
 			//новый сервер не обнаруженный системами сбора метрик и HP One View, значит его источник - ручной импорт (см. cmdb/updatehwsprhp.go)
-			r.Spr.TimeCreate = time.Now().Local() //фиксируем времяя создания и автора
+			r.Spr.TimeCreate = time.Now().Local()       //фиксируем времяя создания и автора
 			r.Spr.CreatorUser = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.Time_Mfy = time.Now().Local()
-			r.Spr.Id_User = models.UserSourceManual //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
+			r.Spr.Id_User = models.UserSourceManual    //вставка из итиллиум - пользователь models.UserSourceManual=9999 (см. cmdb/updatehwsprhp.go)
 			r.Spr.TimeActiveState = time.Now().Local() //фиксируем времяя активации и автора
 			// Источник - ручной импорт ВСЕГДА для новой записи (и для статуса
 			// "не активен" тоже, как у блейд-серверов в importbladeservers.go):
@@ -274,21 +275,17 @@ func runImportItiliumServer(name string, job *ImportProgress) {
 			r.Spr.SourceUpdateType = models.SourceUpdateManual
 
 			// Запись справочника серверов без имени бесполезна (в списках
-			// "стёртое имя"): при пустом "Имя (hostname)" берём технический
-			// номер ИТ, затем серийный номер.
-			if strings.TrimSpace(r.Spr.Name) == "" {
-				fallback := strings.TrimSpace(r.Hw.TechnicalNumberIT)
-				if fallback == "" {
-					fallback = strings.TrimSpace(r.Hw.SerialNum)
+			// "стёртое имя"): при пустом "Имя (hostname)"
+			//
+			sprId := int64(0)
+			if strings.TrimSpace(r.Spr.Name) != "" {
+
+				sprId, err = trn.Insert(&r.Spr)
+				if err != nil {
+					log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка вставки sprsrv:", err)
+					trn.Rollback()
+					continue
 				}
-				r.Spr.Name = fallback
-				log.Println("itilliumimport:", name, "- пустое имя сервера, использован", fallback)
-			}
-			sprId, err := trn.Insert(&r.Spr)
-			if err != nil {
-				log.Println("itilliumimport: ImportItiliumServer(", name, ") - ошибка вставки sprsrv:", err)
-				trn.Rollback()
-				continue
 			}
 			r.Spr.Id = sprId
 			// Обратная связь ServerHardware.ServerId -> новую запись
