@@ -1033,7 +1033,13 @@ func ImportHWSprRecord(o orm.QueryExecutor, h *models.ServerHardware, srv *onevi
 			// StartUnitPos (юнит), см. models_add.go. Переносим их на сервер
 			// той же логикой "если у сервера не указано - берём из данных
 			// корзины".
-			if h.RackCabinetId == 0 {
+			// Блейд физически находится в шкафу своей корзины: шкаф корзины
+			// имеет приоритет (иначе блейд с RackCabinetId из другого
+			// источника, например "вне шкафа" из Итиллиум, расходится с
+			// корзиной), шкаф сервера используется, только если у корзины его нет.
+			if bls.RackCabinetId != 0 {
+				h.RackCabinetId = bls.RackCabinetId
+			} else if h.RackCabinetId == 0 {
 				h.RackCabinetId = bls.RackCabinetId
 			}
 			h.StartUnitPos = bls.StartUnitPos

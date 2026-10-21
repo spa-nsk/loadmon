@@ -136,7 +136,7 @@
                          name), сохраняется только RackCabinetId. -->
                     <div class="col-6">
                         <label for="hwEditDatacenterSiteId" class="form-label">Площадка/ЦОД</label>
-                        <select id="hwEditDatacenterSiteId" class="form-select">
+                        <select id="hwEditDatacenterSiteId" class="form-select"{{if .RackLockedByChassis}} disabled{{end}}>
                             <option value="0">-</option>
                             {{range $dc := .DatacenterSites}}
                             <option value="{{$dc.Id}}">{{$dc.Name}}{{if not $dc.IsDatacenter}} (не ЦОД){{end}}</option>
@@ -145,12 +145,13 @@
                     </div>
                     <div class="col-6">
                         <label for="RackCabinetId" class="form-label">Шкаф</label>
-                        <select id="RackCabinetId" name="RackCabinetId" class="form-select">
+                        <select id="RackCabinetId" name="RackCabinetId" class="form-select"{{if .RackLockedByChassis}} disabled{{end}}>
                             <option value="0">-</option>
                             {{range $rc := .RackCabinets}}
                             <option value="{{$rc.Id}}" data-dc="{{$rc.DatacenterSiteId}}" {{if eq $.HW.RackCabinetId $rc.Id}}selected{{end}}>{{$rc.Name}}</option>
                             {{end}}
                         </select>
+                        {{if .RackLockedByChassis}}<div class="form-text">Шкаф задаётся блейд-корзиной {{.RackLockedByChassis}} и здесь не редактируется.</div>{{end}}
                     </div>
                     <div class="col-6">
                         <label for="StartUnitPos" class="form-label">Юнит начала</label>

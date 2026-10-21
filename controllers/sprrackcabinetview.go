@@ -233,10 +233,33 @@ func (this *MainController) SprRackCabinetView() {
 		Filter("RackCabinetId", id).Exclude("Active", 2).OrderBy("StartUnitPos").All(&hwRows); err != nil {
 		flash.Notice("Серверы не загружены: %v", err)
 	}
+	chassisInRack := make(map[int64]bool, len(chassisRows))
+	for _, ch := range chassisRows {
+		chassisInRack[ch.Id] = true
+	}
+	// Блейд, который нельзя показать внутри корзины этого шкафа (нет корзины
+	// или корзина в другом шкафу/выведена), не пропадает, а попадает в список
+	// "без позиции" с пометкой - включенный блейд вне корзины это ошибка данных.
+	bladeNote := map[int64]string{}
 	rackServers := make([]models.ServerHardware, 0, len(hwRows))
 	for _, hw := range hwRows {
-		if hw.FormFactor == 2 && hw.BladeSystemId > 0 {
-			continue // блейды рисуются внутри корзины
+		if hw.FormFactor == 2 {
+			if hw.BladeSystemId > 0 && chassisInRack[hw.BladeSystemId] {
+				continue // блейды рисуются внутри корзины
+			}
+			if hw.BladeSystemId > 0 && hw.Active == 1 {
+				// работающий блейд размещается по корзине (его собственный
+				// RackCabinetId не важен): в этом шкафу его нет, он виден в шкафу корзины
+				continue
+			}
+			if hw.BladeSystemId > 0 {
+				bladeNote[hw.Id] = "блейд-сервер: корзина (Id " + strconv.FormatInt(hw.BladeSystemId, 10) + ") не в этом шкафу или выведена из эксплуатации"
+			} else {
+				bladeNote[hw.Id] = "блейд-сервер без блейд-корзины"
+			}
+			if hw.Active == 1 {
+				bladeNote[hw.Id] += " - ОШИБКА: включенный блейд должен находиться в корзине"
+			}
 		}
 		rackServers = append(rackServers, hw)
 	}
@@ -316,6 +339,9 @@ func (this *MainController) SprRackCabinetView() {
 
 	for _, hw := range rackServers {
 		rows, links, name := serverRowsLinks(hw)
+		if note := bladeNote[hw.Id]; note != "" {
+			rows = append([]rackViewKV{{K: "Внимание", V: note}}, rows...)
+		}
 		sizeU := hw.SizeUnit
 		guess := false
 		if sizeU <= 0 && hw.StartUnitPos > 0 {

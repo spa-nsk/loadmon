@@ -1758,6 +1758,11 @@ type ServerHardware struct {
 	Id                int64     `form:"Id" csv:"%" json:"Id"`
 	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"`                                       // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
 	Active            int       `form:"Active" csv:"Статус" json:"Active"`                                                          // 0 не указано 1 активен 2 выведен из эксплуатации
+	// ItiliumStatus - реальный статус сервера по данным Итилиум (rack и blade):
+	// 0 - не указано, 1 - в работе, 2 - выведен, 3 - списан, 4 - свободно,
+	// 5 - на складе, 6 - зарезервирован. Задел на будущее: заполняется при
+	// загрузке из Итилиум, на Active (статус эксплуатации в CMDB) не влияет.
+	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
 	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса" json:"TimeActiveState"`             // время изменения статуса активности введения в эксплуатацию
 	ActivatorUser     int64     `orm:"null" form:"ActivatorUser" csv:"Автор ввода в эксплуатацию" json:"ActivatorUser"`             // автор записи
 	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" csv:"Дата выведения из эксплуатации" json:"TimeDeActiveState"` // время выведения из эксплуатации
