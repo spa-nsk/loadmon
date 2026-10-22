@@ -40,7 +40,7 @@ func ImportItiliumTapeLibrary(name string) {
 //   - Адрес: площадка и шкаф берутся из "Местоположение" (resolveSite +
 //     cabinetFromPlacement), начальный юнит - из "Unit N" того же поля, размер в
 //     юнитах - из колонки units. Нет шкафа - служебный шкаф "вне шкафа" площадки.
-//   - "Имя ПК" сопоставляется со справочником серверов (findServerByPcName).
+//   - "Имя ПК" сопоставляется со справочником серверов (FindServerByPcName).
 //   - Из существующей записи обновляются только поля, приносимые импортом
 //     (статус, размещение, сервер, номера, ip); остальное - приоритет ручных правок.
 func runImportItiliumTapeLibrary(name string, job *ImportProgress) {
@@ -117,7 +117,7 @@ func runImportItiliumTapeLibrary(name string, job *ImportProgress) {
 		}
 
 		// --- Сервер подключения по "Имя ПК" --------------------------------
-		serverId, err := findServerByPcName(trn, r.Tl.PcName)
+		serverId, err := FindServerByPcName(trn, r.Tl.PcName)
 		if err != nil {
 			log.Println("itilliumimport: ImportItiliumTapeLibrary(", name, ") - ошибка поиска сервера по имени", r.Tl.PcName, ":", err)
 			trn.Rollback()
@@ -178,11 +178,13 @@ func runImportItiliumTapeLibrary(name string, job *ImportProgress) {
 	}
 }
 
-// findServerByPcName ищет сервер в справочнике ServerSprRecords по "Имя ПК":
+// FindServerByPcName ищет сервер в справочнике ServerSprRecords по "Имя ПК":
 // сначала точное совпадение с Name или NameFQDN (без учёта регистра), затем по
 // короткому имени (до первой точки). Записи Stat=666 пропускаются, при
 // нескольких кандидатах предпочитается активный (Active=1). Не найден -> 0.
-func findServerByPcName(trn orm.TxOrmer, pcName string) (int64, error) {
+func FindServerByPcName(trn interface {
+	QueryTable(ptrStructOrTableName interface{}) orm.QuerySeter
+}, pcName string) (int64, error) {
 	pcName = strings.TrimSpace(pcName)
 	if pcName == "" {
 		return 0, nil
