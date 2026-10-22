@@ -305,9 +305,13 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 	}
 	var sws []models.SwitchSprRecords
 	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId", rackId).
-		Limit(-1).All(&sws, "Id", "Vendor", "Model"); err == nil {
+		Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&sws, "Id", "Vendor", "Model", "SizeUnit"); err == nil {
 		for _, w := range sws {
-			items = append(items, dcShelfItem{Kind: "switch", Vendor: w.Vendor + " " + w.Model, U: 1})
+			u := w.SizeUnit
+			if u <= 0 {
+				u = 1
+			}
+			items = append(items, dcShelfItem{Kind: "switch", Vendor: w.Vendor + " " + w.Model, U: u})
 		}
 	}
 	return items

@@ -481,8 +481,12 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник IP-адресов</a>
             </li>
             <li>
-              <a href="/sprsrv/switchlist/0"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник коммутаторов</a>
+              <a href="/sprsrv/networkequipmentlist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник сетевого оборудования</a>
+            </li>
+            <li>
+              <a href="/sprsrv/networkequipmenttypelist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Типы сетевого оборудования</a>
             </li>
             <li>
               <a href="/sprsrv/clustersprlist/0"
@@ -591,6 +595,10 @@
                   <li>
                     <a href="/admin/importtapelibraries"
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт ленточных библиотек</a>
+                  </li>
+                  <li>
+                    <a href="/admin/importnetworkequipment"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт сетевого оборудования</a>
                   </li>
                   <li>
                     <a href="/admin/importlocalities"

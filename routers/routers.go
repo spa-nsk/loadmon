@@ -109,9 +109,16 @@ func init() {
 	// read-only, без формы редактирования (2026-09-16).
 	beego.Router("/sprsrv/ipaddresslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprIPAddress")
 
-	// Справочник сетевых коммутаторов (models.SwitchSprRecords) со связями с сетями (models.SwitchNetworkLink).
-	beego.Router("/sprsrv/switchlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSwitch")
-	beego.Router("/sprsrv/switchedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSwitchEdit")
+	// Справочник сетевого оборудования (бывший справочник коммутаторов, models.SwitchSprRecords) со связями с сетями (models.SwitchNetworkLink) и справочник типов оборудования (models.NetworkEquipmentType).
+	beego.Router("/sprsrv/networkequipmentlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEquipment")
+	beego.Router("/sprsrv/networkequipmentedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEquipmentEdit")
+	beego.Router("/sprsrv/networkequipmenttypelist/:id([0-9]+)", &controllers.MainController{}, "get:SprNetworkEquipmentTypes")
+	beego.Router("/sprsrv/networkequipmenttypeedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEquipmentTypeEdit")
+	// старые адреса справочника коммутаторов - перенаправление на справочник сетевого оборудования
+	beego.Router("/sprsrv/switchlist/:id([0-9]+)", &controllers.MainController{}, "get:RedirectSwitchList")
+	beego.Router("/sprsrv/switchedit/:id([0-9]+)", &controllers.MainController{}, "get:RedirectSwitchEdit")
+	beego.Router("/admin/importnetworkequipment", &controllers.MainController{}, "get,post:AdminImportNetworkEquipment")          // импорт сетевого оборудования из Итиллиум, см. controllers/adminimportnetworkequipment.go
+	beego.Router("/admin/importnetworkequipment/status", &controllers.MainController{}, "get:AdminImportNetworkEquipmentStatus") // JSON-опрос прогресса этого импорта
 	beego.Router("/sprsrv/bladesystemserverslist/:id([0-9]+)", &controllers.MainController{}, "get:SprBladeSystemServersList") // read-only список models.ServerHardware, установленных в ОДНОЙ блейд-корзине (BladeSystemId), с фиксацией позиции (BladeNum)
 	beego.Router("/sprsrv/storagesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystems")     // список записей models.StorageSystems (справочник СХД) с фильтром, пагинацией и экспортом в CSV/XLSX
 	beego.Router("/sprsrv/storagesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemsEdit") // просмотр/редактирование/добавление одной записи models.StorageSystems по Id (Id=0 - новая запись)

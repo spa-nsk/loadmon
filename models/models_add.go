@@ -1755,9 +1755,9 @@ type ServerHardwareView struct {
 
 // ServerHardware описывает запись/справочник БД loadmon, соответствующую сущности ServerHardware.
 type ServerHardware struct {
-	Id                int64     `form:"Id" csv:"%" json:"Id"`
-	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"`                                       // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
-	Active            int       `form:"Active" csv:"Статус" json:"Active"`                                                          // 0 не указано 1 активен 2 выведен из эксплуатации
+	Id         int64 `form:"Id" csv:"%" json:"Id"`
+	PowerState int   `form:"PowerState" csv:"Состояние питания" json:"PowerState"` // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
+	Active     int   `form:"Active" csv:"Статус" json:"Active"`                    // 0 не указано 1 активен 2 выведен из эксплуатации
 	// ItiliumStatus - реальный статус сервера по данным Итилиум (rack и blade):
 	// 0 - не указано, 1 - в работе, 2 - выведен, 3 - списан, 4 - свободно,
 	// 5 - на складе, 6 - зарезервирован. Задел на будущее: заполняется при
@@ -2298,7 +2298,7 @@ func (u *NetworkSprRecords) TableIndex() [][]string {
 // одиночный FK).
 type SwitchSprRecords struct {
 	Id               int64     `form:"Id" orm:"auto" csv:"%"`                              //
-	Name             string    `form:"Name" csv:"Наименование"`                            //
+	Name             string    `form:"Name" csv:"Наименование"`                            // имя (hostname)
 	Vendor           string    `orm:"null" form:"Vendor" csv:"Производитель"`              //
 	Model            string    `orm:"null" form:"Model" csv:"Модель"`                      //
 	SerialNum        string    `orm:"null" form:"SerialNum" csv:"Серийный номер"`          //
@@ -2308,6 +2308,30 @@ type SwitchSprRecords struct {
 	Annotation       string    `orm:"null" form:"Annotation" csv:"Описание"`               //
 	Id_User          int64     `orm:"null" form:"Id_User" csv:"Автор последних изменений"` //
 	Time_Mfy         time.Time `orm:"null" form:"Time_Mfy" csv:"Дата изменения"`           //
+
+	// Расширение до справочника СЕТЕВОГО ОБОРУДОВАНИЯ (коммутаторы, маршрутизаторы,
+	// точки доступа и т.д.; импорт из Итиллиум - itilliumimport/importnetworkequipment.go,
+	// конфигурация update/network_equipment.yaml). Таблица и имя типа оставлены
+	// прежними (switch_spr_records), чтобы не потерять уже заведённые записи;
+	// имена новых полей совпадают с ServerHardware.
+	TypeId            int64     `orm:"null;default(0)" form:"TypeId" csv:"Тип оборудования (ссылка)"`   // FK на NetworkEquipmentType.Id
+	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум"`            // 0 не указано, 1 в работе, 2 выведен, 3 списан, 4 свободно, 5 на складе, 6 зарезервирован, 7 в ремонте, 8 в пути, 9 черновик
+	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса"`        //
+	MacAddress        string    `orm:"null" form:"MacAddress" csv:"MAC адрес"`                          //
+	StartUnitPos      int       `orm:"default(0)" form:"StartUnitPos" csv:"Номер юнита"`                //
+	SizeUnit          int       `orm:"default(0)" form:"SizeUnit" csv:"Количество юнитов"`              //
+	InventoryNum      string    `orm:"null" form:"InventoryNum" csv:"Инвентарный номер"`                //
+	InventoryNumBuh   string    `orm:"null" form:"InventoryNumBuh" csv:"Бухгалтерский номер"`           //
+	TechnicalNumberIT string    `orm:"null" form:"TechnicalNumberIT" csv:"Технический номер"`           // ключ поиска при импорте
+	Owner             string    `orm:"null" form:"Owner" csv:"Автор / ответственный"`                   //
+	Counterparty      string    `orm:"null" form:"Counterparty" csv:"Поставщик"`                        //
+	ContractDoc       string    `orm:"null" form:"ContractDoc" csv:"Документы закупки"`                 //
+	DateContractDoc   time.Time `orm:"null" form:"DateContractDoc" csv:"Дата документа закупки"`        //
+	NetworkRole       string    `orm:"null" form:"NetworkRole" csv:"Принадлежность к прибору"`          // "Прин. к прибору": Core / Access / ...
+	ReplacementModel  string    `orm:"null" form:"ReplacementModel" csv:"Модель предполагаемой замены"` //
+	Cost              float64   `orm:"default(0)" form:"Cost" csv:"Стоимость"`                          //
+	CostDiscount      float64   `orm:"default(0)" form:"CostDiscount" csv:"Стоимость со скидкой"`       //
+	SourceUpdateType  int       `orm:"default(0)" form:"SourceUpdateType" csv:"Источник обновления"`    // как ServerHardware.SourceUpdateType
 }
 
 // TableName возвращает имя таблицы БД для модели SwitchSprRecords (используется beego ORM).

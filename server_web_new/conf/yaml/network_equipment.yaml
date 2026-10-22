@@ -1,0 +1,141 @@
+# Конфигурация связки колонок выгрузки Итиллиум по сетевому оборудованию
+# (файл-образец "Сетевое оборудование_clear.xlsx", лист "export") с полями
+# справочника сетевого оборудования (models.SwitchSprRecords, бывший справочник
+# коммутаторов) и справочника типов (models.NetworkEquipmentType). Имена полей
+# совпадают с ServerHardware. Реализация: itilliumimport/convertnetwork.go,
+# импорт - itilliumimport/importnetworkequipment.go.
+#
+# Положить в каталог, указанный в app.conf (ключ yaml), под именем
+# network_equipment.yaml.
+#
+# Поиск существующей записи: по "Тех. номер IT", затем по s/n.
+# Имя записи (Name): "Имя (hostname)", если пусто - "Описание", затем тех. номер.
+# "Тип оборудования" -> справочник типов: тип заводится автоматически по имени.
+#
+# Адрес - как при загрузке серверов: площадка/шкаф/юнит из "Местоположение"
+# (... | Шкаф X | Unit N), либо шкаф и диапазон юнитов из "Размещение в
+# шкафу/стойке" ("[альт. наименование /] шкаф | старт-конец", при нескольких
+# шкафах через запятую берётся первый). Размер в юнитах - из диапазона.
+# Колонки "Юр.Лицо", "СЗ", "Пользователь", "Дата ремонта" не хранятся.
+
+source_sheet: export
+
+fields:
+  - header: "Тех. номер IT"
+    target: SwitchSprRecords.TechnicalNumberIT
+    transform: trim
+
+  - header: "Дата изм. ст."
+    target: SwitchSprRecords.TimeActiveState
+    transform: date_ru
+
+  - header: "Бух.инв.№"
+    target: SwitchSprRecords.InventoryNumBuh
+    transform: numeric_to_string
+
+  - header: "Стар.инв.№"
+    target: SwitchSprRecords.InventoryNum
+    transform: trim
+
+  - header: "Описание (комментарий / примечание)"
+    target: SwitchSprRecords.Annotation
+    transform: trim
+
+  - header: "s/n"
+    target: SwitchSprRecords.SerialNum
+    transform: trim
+
+  - header: "Автор"
+    target: SwitchSprRecords.Owner
+    transform: trim
+
+  - header: "Поставщик"
+    target: SwitchSprRecords.Counterparty
+    transform: trim
+
+  - header: "Документы"
+    target: SwitchSprRecords.ContractDoc
+    transform: trim
+
+  - header: "Дата док.закупки"
+    target: SwitchSprRecords.DateContractDoc
+    transform: date_ru
+
+  # Справочник типов: имя типа, сопоставление с NetworkEquipmentType - в Go-коде.
+  - header: "Тип оборудования"
+    target: extra.type_name
+    transform: trim
+
+  - header: "Марка/модель(Норматив)"
+    target: SwitchSprRecords.Model
+    transform: trim
+
+  - header: "Имя (hostname)"
+    target: SwitchSprRecords.Name
+    transform: trim
+
+  - header: "MAC адрес"
+    target: SwitchSprRecords.MacAddress
+    transform: trim
+
+  - header: "ip"
+    target: SwitchSprRecords.ManagementIp
+    transform: trim
+
+  - header: "Прин. к прибору"
+    target: SwitchSprRecords.NetworkRole
+    transform: trim
+
+  - header: "Модель предполагаемой замены"
+    target: SwitchSprRecords.ReplacementModel
+    transform: trim
+
+  - header: "Стоимость"
+    target: SwitchSprRecords.Cost
+    transform: money
+
+  - header: "Стоимость со скидкой"
+    target: SwitchSprRecords.CostDiscount
+    transform: money
+
+composites:
+  # Сырое "Местоположение" -> extra.location_raw (адрес, шкаф и Unit).
+  - name: location_split
+    sources: ["Местоположение"]
+    targets: ["extra.location_room_text"]
+    params:
+      separator: "|"
+      extra_prefix: "location"
+
+  # "Размещение в шкафу/стойке": "[БЦ / ]6.1-A-05 | 20-20" -> extra.rack_num
+  # ("альт / шкаф"), StartUnitPos, SizeUnit.
+  - name: rack_unit_split
+    sources: ["Размещение в шкафу/стойке"]
+    targets:
+      - "extra.rack_num"
+      - "SwitchSprRecords.StartUnitPos"
+      - "SwitchSprRecords.SizeUnit"
+    params:
+      separator: "|"
+
+  # Статус Итиллиум -> ItiliumStatus.
+  - name: enum_multi
+    sources: ["Статус"]
+    targets:
+      - "SwitchSprRecords.ItiliumStatus"
+    params:
+      enum: status
+
+# ItiliumStatus: 0 не указано, 1 в работе, 2 выведен, 3 списан, 4 свободно,
+# 5 на складе, 6 зарезервирован, 7 в ремонте, 8 в пути, 9 черновик.
+enums:
+  status:
+    "В работе (эксплуатации)": "1"
+    "Выведен": "2"
+    "Списан": "3"
+    "Свободно": "4"
+    "На складе": "5"
+    "Зарезервировано": "6"
+    "В ремонте": "7"
+    "В пути": "8"
+    "Черновик": "9"
