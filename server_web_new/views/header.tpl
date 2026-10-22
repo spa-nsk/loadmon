@@ -449,6 +449,10 @@
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник СХД</a>
             </li>
             <li>
+              <a href="/sprsrv/tapelibrarieslist/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Ленточные библиотеки</a>
+            </li>
+            <li>
               <a href="/sprsrv/storagevolumeslist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник томов</a>
             </li>
