@@ -21,6 +21,8 @@ type dcViewRack struct {
 	Blades     int     `json:"blades"`   // блейды в корзинах шкафа
 	Chassis    int     `json:"chassis"`  // блейд-корзины
 	Storages   int     `json:"storages"` // СХД (с размещением в этом шкафу)
+	Tapes      int     `json:"tapes"`    // ленточные библиотеки
+	Network    int     `json:"network"`  // сетевое оборудование (коммутаторы, маршрутизаторы, ...)
 	PowerAvgW  float64 `json:"powerAvgW"`
 	PowerPeakW float64 `json:"powerPeakW"`
 	PowerRated float64 `json:"powerRatedW"`
@@ -193,6 +195,26 @@ func (this *MainController) SprDatacenterSiteView() {
 		}
 	}
 
+	// ленточные библиотеки и сетевое оборудование (выведенное/списанное не считаем)
+	var tapes []models.TapeLibrary
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId__in", ids).Exclude("ItiliumStatus__in", 2, 3).
+		Limit(-1).All(&tapes, "Id", "RackCabinetId"); err == nil {
+		for _, t := range tapes {
+			if r := byId[t.RackCabinetId]; r != nil {
+				r.Tapes++
+			}
+		}
+	}
+	var nets []models.SwitchSprRecords
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId__in", ids).Exclude("ItiliumStatus__in", 2, 3).
+		Limit(-1).All(&nets, "Id", "RackCabinetId"); err == nil {
+		for _, n := range nets {
+			if r := byId[n.RackCabinetId]; r != nil {
+				r.Network++
+			}
+		}
+	}
+
 	// мощность - тот же расчёт, что в списках и просмотре шкафа
 	for rid, p := range rackpower.RackCabinetPowerTotalsBatch(o, ids) {
 		if r := byId[rid]; r != nil {
@@ -210,7 +232,7 @@ func (this *MainController) SprDatacenterSiteView() {
 		}
 		r.Shelf = true
 		r.Items = shelfItems(o, r.Id)
-		u := r.Servers*2 + r.Chassis*7 + r.Storages*2
+		u := r.Servers*2 + r.Chassis*7 + r.Storages*2 + r.Tapes*6 + r.Network
 		r.ShelfUnits = (u + 34) / 35 // 5 полок * ~7U
 		if r.ShelfUnits < 1 {
 			r.ShelfUnits = 1
@@ -305,13 +327,20 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 	}
 	var sws []models.SwitchSprRecords
 	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId", rackId).
-		Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&sws, "Id", "Vendor", "Model", "SizeUnit"); err == nil {
+		Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&sws, "Id", "Vendor", "Model", "Name", "SizeUnit", "ItiliumStatus"); err == nil {
 		for _, w := range sws {
 			u := w.SizeUnit
 			if u <= 0 {
 				u = 1
 			}
-			items = append(items, dcShelfItem{Kind: "switch", Vendor: w.Vendor + " " + w.Model, U: u})
+			items = append(items, dcShelfItem{Kind: "switch", Vendor: w.Vendor + " " + w.Model + " " + w.Name, U: u, Power: itiliumPower(w.ItiliumStatus)})
+		}
+	}
+	var tps []models.TapeLibrary
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId", rackId).Exclude("ItiliumStatus__in", 2, 3).
+		Limit(-1).All(&tps, "Id", "Model", "SizeUnit", "ItiliumStatus"); err == nil {
+		for _, t := range tps {
+			items = append(items, dcShelfItem{Kind: "tape", Vendor: "HPE " + t.Model, U: t.SizeUnit, Power: itiliumPower(t.ItiliumStatus)})
 		}
 	}
 	return items

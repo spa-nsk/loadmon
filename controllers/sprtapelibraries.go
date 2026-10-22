@@ -19,13 +19,13 @@ type TapeLibrariesFilter struct {
 	Name          string `form:"Name"`
 	Model         string `form:"Model"`
 	SerialNum     string `form:"SerialNum"`
-	InventoryNum  string `form:"InventoryNum"`
+	TechNumberIT  string `form:"TechNumberIT"` // технический номер ИТ
 	PcName        string `form:"PcName"`
 	RackCabinetId string `form:"RackCabinetId"`
 }
 
 func defaultTapeLibrariesFilter() *TapeLibrariesFilter {
-	return &TapeLibrariesFilter{ItiliumStatus: "all", RackCabinetId: "0"}
+	return &TapeLibrariesFilter{ItiliumStatus: "1", RackCabinetId: "0"} // по умолчанию - "В работе"
 }
 
 // tapeLibraryRow - строка списка: запись + разрешённые размещение и сервер.
@@ -103,8 +103,8 @@ func (this *MainController) SprTapeLibraries() {
 	if filter.SerialNum != "" {
 		qs = qs.Filter("SerialNum__icontains", filter.SerialNum)
 	}
-	if filter.InventoryNum != "" {
-		qs = qs.Filter("InventoryNum__icontains", filter.InventoryNum)
+	if filter.TechNumberIT != "" {
+		qs = qs.Filter("TechnicalNumberIT__icontains", filter.TechNumberIT)
 	}
 	if filter.PcName != "" {
 		qs = qs.Filter("PcName__icontains", filter.PcName)

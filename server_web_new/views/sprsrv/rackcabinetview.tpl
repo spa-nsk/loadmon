@@ -144,16 +144,18 @@
     var SH = null;
     var SH_FULL = 42, SH_LEV = 5, SH_UP = 1.1, SH_BEAM = 0.8, SH_FEET = 0.5, SH_PAD = 0.7, SH_GAP = 1.6, SH_GAPU = 0.12;
     function shelfSize(it) {
+        if (it.kind === 'switch' && netClass(it).fam === 'ap') return Math.max(2, it.sizeU || 0);   // точка доступа: не меньше 2U
         if (it.sizeU > 0) return it.sizeU;
         if (it.kind === 'chassis') return 10;
-        if (it.kind === 'switch') return 1;
+        if (it.kind === 'tape') return 6;
+        if (it.kind === 'switch') return netClass(it).fam === 'ap' ? 2 : 1;
         return 2; // сервер/СХД без указанной высоты - стилизованный сервер 2U
     }
     function prepShelf() {
         var clear = (SH_FULL - SH_FEET - SH_BEAM * (SH_LEV + 1)) / SH_LEV;   // свободная высота между полками
         var list = DATA.items.slice();
         list.forEach(function (it) { it.su = Math.min(shelfSize(it), clear); it.suFull = shelfSize(it); });
-        var rank = { storage: 0, chassis: 1, server: 2, 'switch': 3 };
+        var rank = { storage: 0, tape: 1, chassis: 1, server: 2, 'switch': 3 };
         list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.kind] || 9) - (rank[b.kind] || 9)) || String(a.name).localeCompare(String(b.name)); });
         var units = [];
         function newUnit() {
@@ -537,6 +539,240 @@
         }
     }
 
+
+    // ---------- точки доступа Wi-Fi (Ubiquiti UniFi, Cisco Aironet/Catalyst 9100) ----------
+    // Вид сверху на потолочное устройство, по центру отведённой высоты: UniFi AC Pro - круглая "шайба" с
+    // кольцом светодиода; Cisco AIR-AP1142 - прямоугольный корпус с жалюзи; AIR-AP3802 - крупный корпус с
+    // вентиляционными прорезями; AIR-AP1815 - малый квадрат; C9120AXI - квадрат со скошенными гранями и круглым индикатором.
+    function drawAP(c, it, x, y, w, h, k) {
+        var s = k.text, on = it.power === 1;
+        var kind = /unifi|uap|ubiquiti/.test(s) ? 'unifi' : /1142/.test(s) ? 'a1142' : /3802|3702|3602/.test(s) ? 'a3802' : /1815|1810|1832|1852/.test(s) ? 'a1815' : /c9[1-9]\d{2}/.test(s) ? 'c9120' : 'round';
+        var sz = Math.min(h * 0.88, w * 0.3), cx = x + w / 2, cy = y + h / 2;
+        var asp = { unifi: 1, a1142: 1.5, a3802: 1.3, a1815: 1.0, c9120: 1.12, round: 1 }[kind];
+        var bw = sz * asp, bh = sz;
+        // тень и подставка-лоток
+        c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(cx + 1, cy + bh * 0.46, bw * 0.55, bh * 0.1, 0, 0, TAU); c.fill();
+        var body = c.createLinearGradient(cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2);
+        body.addColorStop(0, '#f6f7f9'); body.addColorStop(1, '#bfc5ce');
+        if (kind === 'unifi' || kind === 'round') {
+            c.fillStyle = body; c.beginPath(); c.arc(cx, cy, bh / 2, 0, TAU); c.fill();
+            c.strokeStyle = 'rgba(0,0,0,0.3)'; c.lineWidth = 1; c.stroke();
+            c.strokeStyle = 'rgba(0,0,0,0.12)'; c.beginPath(); c.arc(cx, cy, bh * 0.42, 0, TAU); c.stroke();
+            if (kind === 'unifi') {
+                c.save();
+                if (on) { c.shadowColor = '#3aa0ff'; c.shadowBlur = bh * 0.25; }
+                c.strokeStyle = on ? '#3aa0ff' : '#9aa3ad'; c.lineWidth = Math.max(1.5, bh * 0.07);
+                c.beginPath(); c.arc(cx, cy, bh * 0.17, 0, TAU); c.stroke();
+                c.restore();
+            } else led(c, cx, cy, Math.max(2, bh * 0.07), C_ON, on);
+        } else {
+            fillRR(c, cx - bw / 2, cy - bh / 2, bw, bh, bh * (kind === 'c9120' ? 0.3 : 0.14), body);
+            strokeRR(c, cx - bw / 2 + 0.5, cy - bh / 2 + 0.5, bw - 1, bh - 1, bh * (kind === 'c9120' ? 0.3 : 0.14), 'rgba(0,0,0,0.3)', 1);
+            c.strokeStyle = 'rgba(0,0,0,0.16)'; c.lineWidth = 1;
+            if (kind === 'a1142') {                       // жалюзи по длинной стороне
+                for (var i = 1; i < 6; i++) { var ly = cy - bh / 2 + bh * i / 6; c.beginPath(); c.moveTo(cx - bw * 0.42, ly); c.lineTo(cx + bw * 0.42, ly); c.stroke(); }
+            } else if (kind === 'a3802') {                // вентиляционные прорези
+                c.fillStyle = 'rgba(0,0,0,0.18)';
+                for (var r = 0; r < 4; r++) for (var q = 0; q < 8; q++) c.fillRect(cx - bw * 0.38 + q * bw * 0.1, cy - bh * 0.32 + r * bh * 0.16, bw * 0.06, bh * 0.08);
+            } else if (kind === 'c9120') {                // скошенная грань и круглый индикатор
+                strokeRR(c, cx - bw * 0.42, cy - bh * 0.42, bw * 0.84, bh * 0.84, bh * 0.22, 'rgba(0,0,0,0.12)', 1);
+            }
+            var ledX = kind === 'c9120' ? cx : cx + bw * 0.34, ledY = kind === 'c9120' ? cy + bh * 0.28 : cy - bh * 0.3;
+            led(c, ledX, ledY, Math.max(2, bh * (kind === 'c9120' ? 0.07 : 0.05)), kind === 'c9120' ? '#35c3ff' : C_ON, on);
+            if (kind !== 'unifi' && bh >= 18) ciscoLogo(c, cx - bw * 0.36, cy + bh * 0.14, Math.max(5, bh * 0.2), false);
+        }
+    }
+
+    // ---------- сетевое оборудование (Cisco и др.) ----------
+    // Определение семейства по "вендор модель имя тип": Nexus, MDS, ASA/Firepower, маршрутизаторы
+    // (ISR/ASR/Catalyst 8000), модульные шасси (Catalyst 4500/6500/9400/9600, Nexus 7000), Catalyst
+    // (старые 2960/3560/3750/3850 - светлый корпус, Catalyst 9000 - тёмный), прочие производители.
+    function netClass(it) {
+        var s = ((it.vendor || '') + ' ' + (it.model || '') + ' ' + (it.name || '') + ' ' + (it.subtype || '')).toLowerCase();
+        var cisco = /cisco|catalyst|nexus|\bws-c|\bn[3579]k|\bisr|\basr|\bmds|aironet|\bair-|\bc91\d{2}|\basa\b|firepower/.test(s);
+        var fam = 'switch', era = 'old';
+        if (/aironet|\bair-|\bc91\d{2}|unifi|\buap|ubiquiti|точка доступа|access point|wi-?fi|\bwlan/.test(s)) fam = 'ap';
+        else if (/nexus|\bn[3579]k|\bn[3579]\d{3}/.test(s)) fam = 'nexus';
+        else if (/\bmds/.test(s)) fam = 'mds';
+        else if (/\basa\b|asa ?55|firepower|\bfpr|\bftd|межсетев|firewall/.test(s)) fam = 'asa';
+        else if (/\bisr|\basr|router|маршрутиз|\bc8[0-9]{3}|\bcsr/.test(s)) fam = 'router';
+        var modular = /4500|4506|4507|4510|6500|6504|6506|6509|6513|9400|9407|9410|9600|9606|\bn7k|nexus ?7|\basr ?9/.test(s);
+        if (/9[2-6]\d{2}\b|\bc9\d{3}|catalyst 9|nexus|\bc8/.test(s)) era = 'new';
+        var ports = 24, m = s.match(/-(\d{2})[a-z]/);
+        if (m) ports = parseInt(m[1], 10);
+        else if (/48|c9300|c9200|3850|2960x|3750x/.test(s) && !/24/.test(s)) ports = 48;
+        if (ports !== 8 && ports !== 12 && ports !== 16 && ports !== 24 && ports !== 32 && ports !== 48) ports = 24;
+        var vendor = /ubiquiti|unifi|\buap/.test(s) ? 'ubiquiti' : cisco ? 'cisco' : (/aruba|procurve|hpe|hp /.test(s) ? 'hpe' : /juniper/.test(s) ? 'juniper' : /huawei/.test(s) ? 'huawei' : /brocade|broadcom/.test(s) ? 'brocade' : /dell/.test(s) ? 'dell' : 'other');
+        return { fam: fam, era: era, modular: modular || (it.sizeU >= 4 && fam === 'switch'), ports: ports, vendor: vendor, text: s };
+    }
+    var NET_ACCENT = { cisco: '#049fd9', hpe: '#ff8300', juniper: '#84b135', huawei: '#e0334d', brocade: '#d11f2f', dell: '#2a8be0', other: '#8b95a5', ubiquiti: '#006fff' };
+
+    // логотип Cisco: пять штрихов-"мост" и надпись
+    function ciscoLogo(c, x, y, h, dark) {
+        var bw = Math.max(1, h * 0.09), hs = [0.45, 0.7, 1, 0.7, 0.45];
+        c.fillStyle = dark ? '#e8ecf1' : '#1a6fa6';
+        for (var i = 0; i < 5; i++) { var bh = h * hs[i]; c.fillRect(x + i * bw * 1.7, y + (h - bh) / 2, bw, bh); }
+        if (h >= 8) txt(c, 'cisco', x + bw * 9, y + h / 2, Math.max(6, h * 0.62), dark ? '#e8ecf1' : '#1a6fa6', '800', 'left');
+    }
+    // ряд портов RJ45 / SFP
+    function portRow(c, x, y, w, h, n, kind, light) {
+        var cell = w / n, pw = Math.max(2, cell * 0.78), ph = h;
+        for (var i = 0; i < n; i++) {
+            var px = x + i * cell + (cell - pw) / 2;
+            fillRR(c, px, y, pw, ph, 1, kind === 'sfp' ? '#0a0b0d' : '#0d0e10');
+            c.fillStyle = kind === 'sfp' ? (light ? '#9aa1ab' : '#5b616b') : (light ? '#7b828c' : '#454a52');
+            c.fillRect(px + pw * 0.12, y + ph * 0.18, pw * 0.76, ph * (kind === 'sfp' ? 0.4 : 0.34));
+            if (kind !== 'sfp' && ph >= 6) { c.fillStyle = 'rgba(240,200,60,0.55)'; c.fillRect(px + pw * 0.12, y + ph * 0.68, pw * 0.76, Math.max(1, ph * 0.08)); }
+        }
+    }
+    function drawNetwork(c, it, x, y, w, h) {
+        var k = netClass(it), acc = NET_ACCENT[k.vendor], on = it.power === 1;
+        if (k.fam === 'ap') { drawAP(c, it, x, y, w, h, k); return; }
+        var light = (k.era === 'old' && k.fam === 'switch' && !k.modular && k.vendor === 'cisco');
+        var top = light ? '#dfe3e8' : '#3a3e44', bot = light ? '#a2aab4' : '#17191c';
+        fillRR(c, x, y + 0.5, w, h - 1, 2, vg(c, y, h, [[0, top], [1, bot]]));
+        c.fillStyle = light ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.10)'; c.fillRect(x + 2, y + 1, w - 4, 1);
+        var ew = w * 0.034;
+        var earFill = vg(c, y, h, light ? [[0, '#c3c9d1'], [1, '#868e99']] : [[0, '#4a4d53'], [1, '#202226']]);
+        fillRR(c, x, y + 0.5, ew, h - 1, 2, earFill); fillRR(c, x + w - ew, y + 0.5, ew, h - 1, 2, earFill);
+        earSlots(c, x, y, ew, Math.max(1, Math.round(h / UH))); earSlots(c, x + w - ew, y, ew, Math.max(1, Math.round(h / UH)));
+        // акцентная полоса вендора
+        c.fillStyle = acc; c.fillRect(x + ew + 1, y + 1.5, w - 2 * ew - 2, Math.max(1, UH * 0.035));
+        var ix = x + ew + w * 0.01, iw = w - 2 * ew - w * 0.02;
+        var lh = Math.min(h * 0.4, UH * 0.5);
+        if (k.vendor === 'cisco') ciscoLogo(c, ix + iw * 0.005, y + h * 0.1, lh, !light);
+        else if (UH >= 24) txt(c, k.vendor.toUpperCase(), ix + iw * 0.005, y + h * 0.28, Math.max(6, UH * 0.22), light ? '#31363d' : '#cfd5de', '800', 'left');
+        var mn = (it.model || '').replace(/^(cisco|catalyst|hpe?|aruba)\s+/i, '');
+        if (UH >= 30 && h <= UH * 2.2) txt(c, mn, ix + iw * 0.005, y + h * 0.82, Math.max(7, UH * 0.17), light ? 'rgba(30,35,42,0.75)' : 'rgba(230,233,238,0.55)', '600', 'left');
+        // индикаторы системы
+        var lr = Math.max(1.4, UH * 0.045), ly = y + h * (h > UH * 1.5 ? 0.55 : 0.58);
+        led(c, ix + iw * 0.115, ly, lr, C_ON, on); led(c, ix + iw * 0.115 + lr * 3, ly, lr, C_STBY, it.power === 2); led(c, ix + iw * 0.115 + lr * 6, ly, lr, C_ERR, false);
+
+        var px = ix + iw * 0.17, pw = iw * 0.63, ph = h * 0.8, py = y + h * 0.12;
+        if (k.fam === 'asa') {
+            // межсетевой экран: 8 медных портов, 2 SFP, USB, статусные LED
+            portRow(c, px, py + ph * 0.18, pw * 0.58, ph * 0.5, 8, 'rj', false);
+            portRow(c, px + pw * 0.62, py + ph * 0.18, pw * 0.14, ph * 0.5, 2, 'sfp', false);
+            fillRR(c, px + pw * 0.82, py + ph * 0.22, pw * 0.07, ph * 0.4, 1, '#0a0b0d');
+            fillRR(c, px + pw * 0.92, py + ph * 0.22, pw * 0.07, ph * 0.4, 1, '#0a0b0d');
+            if (UH >= 24) txt(c, /firepower|fpr|ftd/.test(k.text) ? 'FIREPOWER' : 'ASA', px + pw * 0.58, py + ph * 0.92, Math.max(6, UH * 0.17), 'rgba(230,233,238,0.5)', '800', 'right');
+        } else if (k.fam === 'router') {
+            // маршрутизатор: модульные заглушки + WAN/LAN порты
+            for (var s = 0; s < 3; s++) {
+                var sx = px + s * pw * 0.24;
+                fillRR(c, sx, py, pw * 0.22, ph, 1.5, vg(c, py, ph, [[0, '#2a2d33'], [1, '#17181b']]));
+                strokeRR(c, sx + 0.5, py + 0.5, pw * 0.22 - 1, ph - 1, 1.5, 'rgba(255,255,255,0.12)', 1);
+                c.fillStyle = '#8a919c'; c.fillRect(sx + pw * 0.02, py + ph * 0.1, 3, 3); c.fillRect(sx + pw * 0.22 - 5, py + ph * 0.1, 3, 3);
+                c.fillRect(sx + pw * 0.02, py + ph * 0.82, 3, 3); c.fillRect(sx + pw * 0.22 - 5, py + ph * 0.82, 3, 3);
+            }
+            portRow(c, px + pw * 0.74, py + ph * 0.15, pw * 0.26, ph * 0.34, 4, 'rj', false);
+            portRow(c, px + pw * 0.74, py + ph * 0.55, pw * 0.26, ph * 0.3, 2, 'sfp', false);
+        } else if (k.modular) {
+            // модульное шасси: супервизоры и линейные карты
+            var cards = Math.max(2, Math.min(9, Math.round(h / UH / 1.6)));
+            var chh = (h * 0.84) / cards;
+            for (var q = 0; q < cards; q++) {
+                var cy = y + h * 0.09 + q * chh;
+                fillRR(c, px - iw * 0.02, cy + 0.5, pw + iw * 0.2, chh - 1, 1.5, vg(c, cy, chh, [[0, q < 2 ? '#3b3f46' : '#2b2e34'], [1, '#17181b']]));
+                if (q < 2) { txt(c, 'SUP', px, cy + chh / 2, Math.max(6, UH * 0.15), 'rgba(230,233,238,0.5)', '700', 'left'); portRow(c, px + pw * 0.25, cy + chh * 0.25, pw * 0.4, chh * 0.5, 4, 'sfp', false); }
+                else portRow(c, px, cy + chh * 0.2, pw * 0.9, chh * 0.6, 24, 'rj', false);
+            }
+        } else if (k.fam === 'nexus' || k.fam === 'mds') {
+            // Nexus/MDS: два ряда SFP+/LC портов и блок QSFP
+            var rows = k.fam === 'mds' ? 1 : 2, nn = k.fam === 'mds' ? 48 : 24;
+            var rh = (ph * 0.8) / rows;
+            for (var r = 0; r < rows; r++) portRow(c, px, py + ph * 0.1 + r * rh, pw * 0.8, rh * 0.85, nn, 'sfp', false);
+            if (k.fam === 'nexus') {
+                for (var qq = 0; qq < 3; qq++) { fillRR(c, px + pw * 0.83 + qq * pw * 0.056, py + ph * 0.1, pw * 0.05, ph * 0.8, 1, '#0a0b0d'); c.fillStyle = '#6f7580'; c.fillRect(px + pw * 0.835 + qq * pw * 0.056, py + ph * 0.18, pw * 0.04, ph * 0.3); }
+            }
+        } else {
+            // коммутатор доступа: порты RJ45 в 1-2 ряда + SFP uplink
+            var nrows = k.ports > 24 ? 2 : 1, ncols = Math.ceil(k.ports / nrows);
+            var rh2 = (ph * 0.84) / nrows;
+            for (var r2 = 0; r2 < nrows; r2++) portRow(c, px, py + ph * 0.08 + r2 * rh2, pw * 0.82, rh2 * 0.88, ncols, 'rj', light);
+            portRow(c, px + pw * 0.86, py + ph * 0.08, pw * 0.14, ph * 0.38, 2, 'sfp', light);
+            portRow(c, px + pw * 0.86, py + ph * 0.54, pw * 0.14, ph * 0.38, 2, 'sfp', light);
+        }
+        // консольный порт справа
+        fillRR(c, x + w - ew - w * 0.05, y + h * 0.4, w * 0.035, Math.max(2, h * 0.2), 1, '#0a0b0d');
+    }
+
+    // ---------- ленточные библиотеки HPE StoreEver MSL ----------
+    // MSL8096: ЖК-панель по центру, картриджные магазины слева и справа, снизу отсеки ленточных
+    // накопителей. MSL6480: модули по 6U - левый край ЖК-панель и индикаторы, справа магазины,
+    // в основном модуле снизу отсеки накопителей; в высоких (расширенных) библиотеках модули повторяются.
+    function drawTape(c, it, x, y, w, h) {
+        var s = ((it.model || '') + ' ' + (it.name || '')).toLowerCase();
+        var is8096 = /8096/.test(s), on = it.power === 1, G_ = '#01a982';
+        fillRR(c, x, y + 0.5, w, h - 1, 2, vg(c, y, h, [[0, '#2a2d33'], [0.5, '#1d1f23'], [1, '#121316']]));
+        c.fillStyle = G_; c.fillRect(x + 2, y + 1, w - 4, Math.max(1.5, UH * 0.05));
+        var ew = w * 0.03;
+        var earFill = vg(c, y, h, [[0, '#4a4d53'], [1, '#202226']]);
+        fillRR(c, x, y + 0.5, ew, h - 1, 2, earFill); fillRR(c, x + w - ew, y + 0.5, ew, h - 1, 2, earFill);
+        var nU = Math.max(1, Math.round(h / UH));
+        earSlots(c, x, y, ew, nU); earSlots(c, x + w - ew, y, ew, nU);
+        var ix = x + ew + 2, iw = w - 2 * ew - 4;
+        // логотип HPE (зелёная плашка) и название серии
+        var lgh = Math.min(UH * 0.5, h * 0.12);
+        fillRR(c, ix + iw * 0.01, y + UH * 0.18, lgh * 2.6, lgh, 2, G_);
+        txt(c, 'HPE', ix + iw * 0.01 + lgh * 1.3, y + UH * 0.18 + lgh / 2, Math.max(6, lgh * 0.72), '#0b0c0e', '800', 'center');
+        if (UH >= 24) txt(c, 'StoreEver ' + (/(msl\s*\d{4}|\d{4})/i.exec(it.model || '') ? 'MSL' + /(\d{4})/.exec(it.model)[1] : 'MSL'), ix + iw * 0.01 + lgh * 3, y + UH * 0.18 + lgh / 2, Math.max(7, UH * 0.2), 'rgba(230,233,238,0.7)', '700', 'left');
+
+        var modH = Math.min(h, UH * 6), mods = Math.max(1, Math.round(h / modH));
+        modH = h / mods;
+        for (var mi = 0; mi < mods; mi++) {
+            var my = y + mi * modH, first = (mi === 0);
+            if (mi > 0) { c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(ix, my, iw, 1.5); c.fillStyle = 'rgba(255,255,255,0.08)'; c.fillRect(ix, my + 1.5, iw, 1); }
+            var bodyY = my + (first ? UH * 0.8 : UH * 0.25), bodyH = modH - (first ? UH * 0.95 : UH * 0.4);
+            var drvH = bodyH * 0.24, magH = bodyH - drvH - bodyH * 0.04;
+            var lcdW = iw * 0.15, lcdX, magL, magR;
+            if (is8096) { lcdX = ix + iw * 0.5 - lcdW / 2; magL = { x: ix + iw * 0.01, w: iw * 0.5 - lcdW / 2 - iw * 0.02 }; magR = { x: lcdX + lcdW + iw * 0.01, w: iw * 0.5 - lcdW / 2 - iw * 0.02 }; }
+            else { lcdX = ix + iw * 0.01; magL = null; magR = { x: lcdX + lcdW + iw * 0.015, w: iw - lcdW - iw * 0.035 }; }
+            // ЖК-панель управления
+            if (first || is8096) {
+                fillRR(c, lcdX, bodyY, lcdW, magH, 2, '#0d0e11');
+                var sx = lcdX + lcdW * 0.08, sw = lcdW * 0.84, sh = Math.min(magH * 0.5, sw * 0.7);
+                fillRR(c, sx, bodyY + magH * 0.08, sw, sh, 1.5, vg(c, bodyY, sh, [[0, '#1f6fb5'], [1, '#0b2c52']]));
+                c.fillStyle = 'rgba(255,255,255,0.55)';
+                for (var tl = 0; tl < 4; tl++) c.fillRect(sx + sw * 0.1, bodyY + magH * 0.08 + sh * (0.18 + tl * 0.2), sw * (tl % 2 ? 0.5 : 0.7), Math.max(1, sh * 0.05));
+                var by0 = bodyY + magH * 0.08 + sh + magH * 0.06;
+                for (var bt = 0; bt < 4; bt++) fillRR(c, sx + bt * sw * 0.26, by0, sw * 0.2, Math.max(2, magH * 0.06), 1, '#3a3e45');
+                led(c, sx + sw * 0.12, by0 + magH * 0.14, Math.max(1.4, UH * 0.05), C_ON, on);
+                led(c, sx + sw * 0.34, by0 + magH * 0.14, Math.max(1.4, UH * 0.05), C_STBY, it.power === 2);
+                led(c, sx + sw * 0.56, by0 + magH * 0.14, Math.max(1.4, UH * 0.05), C_ERR, false);
+            } else {
+                magL = null; magR = { x: ix + iw * 0.01, w: iw * 0.98 };
+            }
+            // картриджные магазины
+            function magazines(area) {
+                if (!area) return;
+                var cols = Math.max(2, Math.round(area.w / (UH * 1.9))), mw = area.w / cols;
+                for (var cc = 0; cc < cols; cc++) {
+                    var mx = area.x + cc * mw + 1;
+                    fillRR(c, mx, bodyY, mw - 2, magH, 1.5, vg(c, bodyY, magH, [[0, '#2f3339'], [1, '#1a1c20']]));
+                    strokeRR(c, mx + 0.5, bodyY + 0.5, mw - 3, magH - 1, 1.5, 'rgba(0,0,0,0.85)', 1);
+                    var rowsN = Math.max(3, Math.round(magH / (UH * 0.42)));
+                    c.fillStyle = 'rgba(0,0,0,0.5)';
+                    for (var rr2 = 1; rr2 < rowsN; rr2++) c.fillRect(mx + 2, bodyY + magH * rr2 / rowsN, mw - 6, 1);
+                    fillRR(c, mx + mw * 0.3, bodyY + magH * 0.42, mw * 0.4, Math.max(2, magH * 0.06), 1, '#8a919c');
+                }
+            }
+            magazines(magL); magazines(magR);
+            // отсеки ленточных накопителей (LTO) - нижняя полоса основного модуля
+            if (first || is8096) {
+                var dy = bodyY + magH + bodyH * 0.04, dn = is8096 ? 6 : 4, dwAll = iw * 0.98, dw = dwAll / dn;
+                for (var di = 0; di < dn; di++) {
+                    var dx = ix + iw * 0.01 + di * dw;
+                    fillRR(c, dx + 1, dy, dw - 2, drvH, 1.5, vg(c, dy, drvH, [[0, '#3a3e45'], [1, '#1b1d21']]));
+                    fillRR(c, dx + dw * 0.08, dy + drvH * 0.3, dw * 0.55, drvH * 0.4, 1, '#0a0b0d');
+                    c.fillStyle = '#8a919c'; c.fillRect(dx + dw * 0.7, dy + drvH * 0.3, dw * 0.2, Math.max(1, drvH * 0.1));
+                    led(c, dx + dw * 0.78, dy + drvH * 0.65, Math.max(1.2, UH * 0.04), C_ON, on && di < 3);
+                }
+            }
+        }
+        if (UH >= 30 && it.model) txt(c, it.model, x + w - ew - 6, y + h - UH * 0.16, Math.max(7, UH * 0.17), 'rgba(230,233,238,0.5)', '600', 'right');
+    }
+
     // ---------- шкаф ----------
     function styleOf(it) {
         var s = (it.vendor + ' ' + it.model + ' ' + it.name).toLowerCase();
@@ -630,6 +866,8 @@
                     c.beginPath(); c.rect(x, y, w, h); c.clip();
                     if (it.kind === 'chassis') drawChassis(c, di, x, y, w, h, regions);
                     else if (it.kind === 'storage') drawStorage(c, di, x, y, w, h);
+                    else if (it.kind === 'tape') drawTape(c, di, x, y, w, h);
+                    else if (it.kind === 'switch') drawNetwork(c, di, x, y, w, h);
                     else drawServer(c, di, x, y, w, h, styleOf(it));
                     c.restore();
                     regions.push({ x: x, y: y, w: w, h: h, it: it, blade: null });
@@ -665,6 +903,8 @@
             c.beginPath(); c.rect(x, y, w, h); c.clip();
             if (it.kind === 'chassis') drawChassis(c, it, x, y, w, h, regions);
             else if (it.kind === 'storage') drawStorage(c, it, x, y, w, h);
+            else if (it.kind === 'tape') drawTape(c, it, x, y, w, h);
+            else if (it.kind === 'switch') drawNetwork(c, it, x, y, w, h);
             else drawServer(c, it, x, y, w, h, styleOf(it));
             c.restore();
             regions.push({ x: x, y: y, w: w, h: h, it: it, blade: null });
@@ -695,7 +935,7 @@
         if (p === 2) return '<span class="rv-pw" style="color:' + C_STBY + '">&#9679; Выключен</span>';
         return '<span class="rv-pw" style="color:#8a919c">&#9679; Не определено</span>';
     }
-    function kindText(it) { return { server: 'Сервер', chassis: 'Блейд-корзина', storage: 'СХД', 'switch': 'Коммутатор' }[it.kind] || ''; }
+    function kindText(it) { return { server: 'Сервер', chassis: 'Блейд-корзина', storage: 'СХД', 'switch': it.subtype || 'Сетевое оборудование', tape: 'Ленточная библиотека' }[it.kind] || ''; }
 
     function tipHtml(r) {
         var it = r.it, b = r.blade;

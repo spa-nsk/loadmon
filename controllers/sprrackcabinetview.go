@@ -53,6 +53,7 @@ type rackViewItem struct {
 	Links     []rackViewLink  `json:"links"`
 	Blades    []rackViewBlade `json:"blades,omitempty"`
 	SizeGuess bool            `json:"sizeGuess,omitempty"`
+	Subtype   string          `json:"subtype,omitempty"` // тип сетевого оборудования (коммутатор, маршрутизатор, ...)
 }
 
 type rackViewData struct {
@@ -490,16 +491,55 @@ func (this *MainController) SprRackCabinetView() {
 		var rows []rackViewKV
 		rows = rackViewKVAdd(rows, "Тип", netTypeName[sw.TypeId])
 		rows = rackViewKVAdd(rows, "IP управления", sw.ManagementIp)
+		rows = rackViewKVAdd(rows, "MAC адрес", sw.MacAddress)
 		rows = rackViewKVAdd(rows, "Серийный номер", sw.SerialNum)
+		rows = rackViewKVAdd(rows, "Принадлежность", sw.NetworkRole)
 		rows = rackViewKVAdd(rows, "Описание", sw.Annotation)
 		sizeU := sw.SizeUnit
+		guess := false
 		if sizeU <= 0 && sw.StartUnitPos > 0 {
 			sizeU = 1
+			guess = true
 		}
 		add(rackViewItem{
 			Kind: "switch", Id: sw.Id, Name: firstNonEmpty(sw.Name, fmt.Sprintf("switch-%d", sw.Id)),
 			Vendor: sw.Vendor, Model: sw.Model, StartU: sw.StartUnitPos, SizeU: sizeU, Rows: rows,
+			Power: itiliumPower(sw.ItiliumStatus), Subtype: netTypeName[sw.TypeId], SizeGuess: guess,
 			Links: []rackViewLink{{Title: "Редактировать сетевое оборудование", URL: fmt.Sprintf("/sprsrv/networkequipmentedit/%d", sw.Id)}},
+		})
+	}
+
+
+	// --- ленточные библиотеки (models.TapeLibrary): с позицией в шкафу, если задан
+	// начальный юнит; выведенные и списанные не показываем ---
+	var tapes []models.TapeLibrary
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId", id).
+		Exclude("ItiliumStatus__in", 2, 3).OrderBy("StartUnitPos", "Name").All(&tapes); err != nil {
+		flash.Notice("Ленточные библиотеки не загружены: %v", err)
+	}
+	for _, tl := range tapes {
+		var rows []rackViewKV
+		rows = rackViewKVAdd(rows, "Описание", tl.Name)
+		rows = rackViewKVAdd(rows, "IP управления", tl.IPAddress)
+		rows = rackViewKVAdd(rows, "Серийный номер", tl.SerialNum)
+		rows = rackViewKVAdd(rows, "Инвентарный номер", tl.InventoryNum)
+		rows = rackViewKVAdd(rows, "Сервер подключения", tl.PcName)
+		rows = rackViewKVAdd(rows, "Ответственный", tl.Owner)
+		rows = rackViewKVAdd(rows, "Примечание", tl.Anotation)
+		sizeU := tl.SizeUnit
+		guess := false
+		if sizeU <= 0 && tl.StartUnitPos > 0 {
+			sizeU = tapeGuessSizeU(tl.Model)
+			guess = true
+		}
+		links := []rackViewLink{{Title: "Редактировать ленточную библиотеку", URL: fmt.Sprintf("/sprsrv/tapelibrariesedit/%d", tl.Id)}}
+		if tl.ServerId > 0 {
+			links = append(links, rackViewLink{Title: "Сервер подключения", URL: fmt.Sprintf("/sprsrv/updatebase/all/%d", tl.ServerId)})
+		}
+		add(rackViewItem{
+			Kind: "tape", Id: tl.Id, Name: firstNonEmpty(tl.Name, tl.TechnicalNumberIT, fmt.Sprintf("tape-%d", tl.Id)),
+			Vendor: "HPE", Model: tl.Model, StartU: tl.StartUnitPos, SizeU: sizeU,
+			Power: itiliumPower(tl.ItiliumStatus), Rows: rows, Links: links, SizeGuess: guess,
 		})
 	}
 
@@ -527,4 +567,29 @@ func (this *MainController) SprRackCabinetView() {
 	this.Data["UHeight"] = data.UHeight
 	this.Data["ItemCount"] = len(data.Items) + len(data.Unplaced)
 	this.Data["RackJSON"] = template.JS(b)
+}
+
+// itiliumPower - состояние питания для оборудования без датчика питания по статусу Итилиум:
+// в работе - включено (1), в ремонте - выключено (2), иначе не определено (0).
+func itiliumPower(st int) int {
+	switch st {
+	case 1:
+		return 1
+	case 7:
+		return 2
+	}
+	return 0
+}
+
+// tapeGuessSizeU - высота ленточной библиотеки в юнитах по модели, если в справочнике не указана
+// (HPE StoreEver MSL: 6480 и 8096 - модули по 6U, остальные малые библиотеки - 2U/4U).
+func tapeGuessSizeU(model string) int {
+	m := strings.ToLower(model)
+	switch {
+	case strings.Contains(m, "6480"), strings.Contains(m, "8096"):
+		return 6
+	case strings.Contains(m, "4048"), strings.Contains(m, "2024"):
+		return 2
+	}
+	return 4
 }

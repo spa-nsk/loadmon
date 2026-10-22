@@ -53,7 +53,7 @@
                 <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.NetworkEquipmentFilter.SerialNum}}">
             </div>
             <div class="col-6 col-md-3">
-                <label for="DatacenterSiteId" class="form-label">ЦОД / площадка</label>
+                <label for="DatacenterSiteId" class="form-label">Площадка/ЦОД</label>
                 <select id="DatacenterSiteId" name="DatacenterSiteId" class="form-select">
                     <option value="0">Все</option>
                     {{range $dc := .DatacenterSites}}

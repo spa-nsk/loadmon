@@ -40,15 +40,15 @@
                 <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.TapeLibrariesFilter.SerialNum}}">
             </div>
             <div class="col-6 col-md-3">
-                <label for="InventoryNum" class="form-label">Инвентарный номер</label>
-                <input type="text" id="InventoryNum" name="InventoryNum" class="form-control" value="{{.TapeLibrariesFilter.InventoryNum}}">
+                <label for="TechNumberIT" class="form-label">Технический номер ИТ</label>
+                <input type="text" id="TechNumberIT" name="TechNumberIT" class="form-control" value="{{.TapeLibrariesFilter.TechNumberIT}}">
             </div>
             <div class="col-6 col-md-3">
                 <label for="PcName" class="form-label">Имя ПК</label>
                 <input type="text" id="PcName" name="PcName" class="form-control" value="{{.TapeLibrariesFilter.PcName}}">
             </div>
             <div class="col-6 col-md-3">
-                <label for="tlFilterDatacenterSiteId" class="form-label">ЦОД</label>
+                <label for="tlFilterDatacenterSiteId" class="form-label">Площадка/ЦОД</label>
                 <select id="tlFilterDatacenterSiteId" class="form-select">
                     <option value="0">Все</option>
                     {{range $dc := .DatacenterSites}}
@@ -98,7 +98,7 @@
         </thead>
         <tbody>
             {{range $tl := .TapeLibrariesList}}
-            <tr>
+            <tr class="row-context-target" data-menu-id="tlRowMenu{{$tl.Id}}">
                 <td class="text-end">{{$tl.Id}}</td>
                 <td>
                     <span class="badge {{if eq $tl.ItiliumStatus 1}}text-bg-success{{else if eq $tl.ItiliumStatus 3}}text-bg-dark{{else if or (eq $tl.ItiliumStatus 2) (eq $tl.ItiliumStatus 5)}}text-bg-secondary{{else}}text-bg-light{{end}}">
@@ -115,6 +115,9 @@
                 </td>
                 <td>{{$tl.Placement}}</td>
                 <td class="text-end">{{if gt $tl.SizeUnit 0}}{{$tl.SizeUnit}}{{end}}</td>
+                <td id="tlRowMenu{{$tl.Id}}" class="d-none">
+                    <a class="ctx-menu-item" href="/sprsrv/tapelibrariesedit/{{$tl.Id}}" target="_blank">Редактировать</a>
+                </td>
             </tr>
             {{else}}
             <tr>
@@ -147,6 +150,8 @@
     </div>
 </form>
 
+<div id="tlRowContextMenu" class="ctx-menu d-none"></div>
+
 <script>
     function tlPagerGoTo(page) {
         var field = document.getElementById('pageField');
@@ -167,7 +172,32 @@
         form.submit();
     }
 
-    // Каскадный фильтр "ЦОД -> Шкаф": select ЦОД сам не отправляется, он только
+    // Контекстное меню по правой кнопке мыши на строке таблицы - приём как в /sprsrv/datacentersitelist.
+    (function () {
+        var menu = document.getElementById('tlRowContextMenu');
+        if (!menu) return;
+        function hideMenu() { menu.classList.add('d-none'); menu.innerHTML = ''; }
+        document.querySelectorAll('.row-context-target').forEach(function (row) {
+            row.addEventListener('contextmenu', function (evt) {
+                var source = document.getElementById(row.getAttribute('data-menu-id'));
+                if (!source) return;
+                evt.preventDefault();
+                menu.innerHTML = source.innerHTML;
+                menu.classList.remove('d-none');
+                var x = evt.clientX, y = evt.clientY;
+                var maxX = window.innerWidth - menu.offsetWidth - 8, maxY = window.innerHeight - menu.offsetHeight - 8;
+                if (x > maxX) x = Math.max(8, maxX);
+                if (y > maxY) y = Math.max(8, maxY);
+                menu.style.left = x + 'px';
+                menu.style.top = y + 'px';
+            });
+        });
+        document.addEventListener('click', function (evt) { if (!menu.contains(evt.target)) hideMenu(); });
+        document.addEventListener('scroll', hideMenu, true);
+        window.addEventListener('resize', hideMenu);
+    })();
+
+    // Каскадный фильтр "Площадка/ЦОД -> Шкаф": select ЦОД сам не отправляется, он только
     // сужает список опций "Шкаф" по data-dc (как в storagesystemslist.tpl).
     (function () {
         var dcSelect = document.getElementById('tlFilterDatacenterSiteId');
