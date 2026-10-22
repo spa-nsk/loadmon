@@ -149,8 +149,25 @@ func (this *MainController) SprDatacenterSiteView() {
 	var pl []models.StorageSystemPlacement
 	if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("RackCabinetId__in", ids).
 		All(&pl, "RackCabinetId", "StorageSystemsId"); err == nil {
+		// как в просмотре шкафа: СХД без записи или демонтированные (Status=6) не считаются
+		stIds := make([]int64, 0, len(pl))
+		for _, p := range pl {
+			stIds = append(stIds, p.StorageSystemsId)
+		}
+		stOK := map[int64]bool{}
+		var stRows []models.StorageSystems
+		if len(stIds) > 0 {
+			if _, e := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", stIds).Limit(-1).All(&stRows, "Id", "Status"); e == nil {
+				for _, st := range stRows {
+					stOK[st.Id] = st.Status != 6
+				}
+			}
+		}
 		seen := map[[2]int64]bool{}
 		for _, p := range pl {
+			if !stOK[p.StorageSystemsId] {
+				continue
+			}
 			k := [2]int64{p.RackCabinetId, p.StorageSystemsId}
 			if seen[k] {
 				continue

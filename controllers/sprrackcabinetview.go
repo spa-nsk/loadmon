@@ -62,6 +62,9 @@ type rackViewData struct {
 	UHeight     int            `json:"uHeight"`
 	Items       []rackViewItem `json:"items"`
 	Unplaced    []rackViewItem `json:"unplaced"`
+	// Shelf - служебный "шкаф" площадки без шкафов ("(размещение вне шкафа)",
+	// склады и рабочие комнаты): всё оборудование показывается на стеллаже, а не в 19" шкафу.
+	Shelf bool `json:"shelf"`
 	// Суммарная мощность шкафа, Вт: тот же расчёт, что и в списке шкафов
 	// (rackpower.RackCabinetPowerVariantC - rack-серверы + корзины целиком, блейды не дублируются).
 	PowerAvgW   float64 `json:"powerAvgW"`
@@ -483,6 +486,12 @@ func (this *MainController) SprRackCabinetView() {
 			Vendor: sw.Vendor, Model: sw.Model, Rows: rows,
 			Links: []rackViewLink{{Title: "Редактировать коммутатор", URL: fmt.Sprintf("/sprsrv/switchedit/%d", sw.Id)}},
 		})
+	}
+
+	if cab.Name == models.RackCabinetOutsideName {
+		data.Shelf = true
+		data.Items = append(data.Items, data.Unplaced...)
+		data.Unplaced = []rackViewItem{}
 	}
 
 	pw := rackpower.RackCabinetPowerVariantC(o, id)
