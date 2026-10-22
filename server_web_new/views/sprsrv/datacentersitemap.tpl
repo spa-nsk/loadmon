@@ -454,7 +454,8 @@
         h += '<tr><td>Серверов</td><td><b>' + s.servers + '</b>' + (s.blades ? ' (+ блейдов ' + s.blades + ')' : '') + '</td></tr>';
         h += '<tr><td>Блейд-корзин</td><td><b>' + s.chassis + '</b></td></tr>';
         h += '<tr><td>СХД</td><td><b>' + s.storages + '</b></td></tr>';
-        h += '<tr><td>Коммутаторов</td><td><b>' + s.switches + '</b></td></tr>';
+        h += '<tr><td>Сетевого оборудования</td><td><b>' + s.switches + '</b></td></tr>';
+        h += '<tr><td>Ленточных библиотек</td><td><b>' + s.tapes + '</b></td></tr>';
         h += '<tr><td>Мощность</td><td>' + (s.powerAvgW > 0 ? '<b>' + kw(s.powerAvgW) + '</b> (ср. 24ч)' : '<b>нет данных</b>') + '</td></tr>';
         if (s.powerPeakW > 0) h += '<tr><td>Пик 24ч</td><td>' + kw(s.powerPeakW) + '</td></tr>';
         if (s.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(s.powerRatedW) + '</td></tr>';

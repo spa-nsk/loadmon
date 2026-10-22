@@ -83,10 +83,11 @@
 
     // ---- оборудование стеллажа: раскладка по секциям/полкам (те же правила, что в просмотре шкафа справа) ----
     var SH_CLEAR = (42 - 0.5 - 0.8 * 6) / 5;        // свободная высота между полками, U
-    function shelfSize(it) { return it.u > 0 ? it.u : (it.k === 'chassis' ? 10 : (it.k === 'switch' ? 1 : 2)); }
+    function isAP(it) { return it.k === 'switch' && /aironet|\bair-|\bc91\d{2}|unifi|\buap|ubiquiti|точка доступа|access point|wi-?fi|\bwlan/i.test(it.vd || ''); }
+    function shelfSize(it) { if (isAP(it)) return Math.max(2, it.u || 0); return it.u > 0 ? it.u : (it.k === 'chassis' ? 10 : (it.k === 'tape' ? 6 : (it.k === 'switch' ? 1 : 2))); }
     function packShelf(r) {
-        var list = (r.items || []).map(function (it) { return { k: it.k, vd: it.vd || '', p: it.p, su: Math.min(shelfSize(it), SH_CLEAR) }; });
-        var rank = { storage: 0, chassis: 1, server: 2, 'switch': 3 };
+        var list = (r.items || []).map(function (it) { return { k: it.k, vd: it.vd || '', p: it.p, u: it.u, su: Math.min(shelfSize(it), SH_CLEAR) }; });
+        var rank = { storage: 0, tape: 1, chassis: 1, server: 2, 'switch': 3 };
         list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.k] || 9) - (rank[b.k] || 9)); });
         var units = [];
         function newUnit() { var lv = []; for (var k = 0; k < 5; k++) lv.push({ items: [], used: 0 }); units.push(lv); }
@@ -109,7 +110,8 @@
         if (/dell|poweredge|emc|unity|vnx|powerstore|powervault/.test(s)) return '#2a8be0';
         if (/lenovo|thinksystem|\bsr\d{3}/.test(s)) return '#e2231a';
         if (/huawei|oceanstor|dorado/.test(s)) return '#e0334d';
-        if (/cisco|catalyst|nexus/.test(s)) return '#1ba0d7';
+        if (/ubiquiti|unifi|\buap/.test(s)) return '#006fff';
+        if (/cisco|catalyst|nexus|\bisr|\basr|\bmds|\basa\b|aironet|\bair-|\bc91\d{2}/.test(s)) return '#049fd9';
         return '#8b95a5';
     }
 
@@ -292,7 +294,22 @@
 
     // ---- стеллаж: трёхмерная проекция, габариты секции как у шкафа 42U, 5 полок ----
     // Полки - тонкие рамки (без сплошной заливки), оборудование рисуется непрозрачными блоками поверх.
+    // точка доступа на полке: белая "шайба" (UniFi) или малый белый корпус (Cisco), светодиод питания
+    function drawShelfAP(a0, a1, b0, b1, z, h, it, lit) {
+        var cx = (a0 + a1) / 2, cb = (b0 + b1) / 2, rad = Math.min(a1 - a0, b1 - b0) * 0.34, hh = Math.min(h * 0.45, G.s * 0.05);
+        var round = /unifi|uap|ubiquiti/i.test(it.vd), on = it.p === 1, pts = [], q;
+        for (q = 0; q < 20; q++) { var an = q / 20 * TAU; pts.push([cx + Math.cos(an) * rad * (round ? 1 : 1.25), cb + Math.sin(an) * rad * (round ? 1 : 0.95)]); }
+        var top = pts.map(function (p) { return P(p[0], p[1], z + hh); });
+        var bot = pts.map(function (p) { return P(p[0], p[1], z); });
+        poly(bot.concat(top.slice().reverse()), '#aab1bb');
+        for (q = 0; q < 20; q++) { var n = (q + 1) % 20; poly([top[q], top[n], bot[n], bot[q]], q > 4 && q < 15 ? '#c4cad2' : '#9aa1ab'); }
+        poly(top, lit ? '#ffffff' : '#eef0f3', 'rgba(0,0,0,0.3)', 0.7);
+        var lc = P(cx, cb, z + hh);
+        ctx.fillStyle = on ? (round ? '#3aa0ff' : '#35e06a') : '#8a919c';
+        ctx.beginPath(); ctx.arc(lc[0], lc[1], Math.max(1.5, rad * G.s * 0.14), 0, TAU); ctx.fill();
+    }
     function drawShelfItem(a0, a1, b0, b1, z, h, it, lit) {
+        if (isAP(it)) { drawShelfAP(a0, a1, b0, b1, z, h, it, lit); return; }
         var acc = shelfStyle(it.vd), on = it.p === 1;
         var ia0 = a0 + 0.03, ia1 = a1 - 0.03, ib0 = b0 + 0.05, ib1 = b1 - 0.02, zt = z + h;
         var front = [P(ia0, ib1, zt), P(ia1, ib1, zt), P(ia1, ib1, z), P(ia0, ib1, z)];
@@ -306,13 +323,15 @@
         faceTransform(front[0], (ia1 - ia0) * G.s, (ia1 - ia0) * G.s / 2, 0, h * G.s, 100, 40);
         ctx.fillStyle = acc; ctx.fillRect(4, 3, 92, 4);
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        var rows = it.k === 'storage' ? 4 : (it.k === 'chassis' ? 3 : 1);
+        var rows = it.k === 'storage' ? 4 : ((it.k === 'chassis' || it.k === 'tape') ? 3 : 1);
         for (var q = 0; q < rows; q++) {
             if (it.k === 'chassis') ctx.fillRect(8 + q * 29, 11, 27, 24);
+            else if (it.k === 'tape') { ctx.fillRect(8 + q * 22, 11, 20, 24); ctx.fillStyle = '#1f6fb5'; ctx.fillRect(74, 12, 18, 14); ctx.fillStyle = 'rgba(0,0,0,0.55)'; }
             else if (it.k === 'storage') ctx.fillRect(8, 11 + q * 7, 70, 5);
+            else if (it.k === 'switch') { for (var pp = 0; pp < 16; pp++) ctx.fillRect(8 + pp * 5, 13 + (pp % 2) * 8, 4, 7); }
             else ctx.fillRect(8, 13, 62, 20);
         }
-        if (it.k === 'server' || it.k === 'switch') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
+        if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
         ctx.fillStyle = on ? '#35e06a' : (it.p === 2 ? '#ffab1a' : '#8a919c');
         ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
         ctx.restore();
@@ -401,6 +420,8 @@
         h += '<tr><td>Серверов</td><td><b>' + r.servers + '</b>' + (r.blades ? ' (+ блейдов ' + r.blades + ')' : '') + '</td></tr>';
         h += '<tr><td>Корзин</td><td><b>' + r.chassis + '</b></td></tr>';
         h += '<tr><td>СХД</td><td><b>' + r.storages + '</b></td></tr>';
+        if (r.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + r.tapes + '</b></td></tr>';
+        if (r.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + r.network + '</b></td></tr>';
         h += '<tr><td>Мощность</td><td>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b> (ср. 24ч)' : '<b>нет данных</b>') + '</td></tr>';
         if (r.powerPeakW > 0) h += '<tr><td>Пик 24ч</td><td>' + kw(r.powerPeakW) + '</td></tr>';
         if (r.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(r.powerRatedW) + '</td></tr>';
@@ -423,7 +444,7 @@
         var sel = document.getElementById('dvSel');
         var t = '<b>' + (r.shelf ? 'Стеллаж (вне шкафов)' : esc(r.name)) + '</b><span class="dv-sep">&middot;</span>' + r.uHeight + 'U'
             + '<span class="dv-sep">&middot;</span>серверов ' + r.servers + (r.blades ? '+' + r.blades + ' бл.' : '')
-            + '<span class="dv-sep">&middot;</span>корзин ' + r.chassis
+            + '<span class="dv-sep">&middot;</span>корзин ' + r.chassis + (r.tapes ? '<span class="dv-sep">&middot;</span>лент. библиотек ' + r.tapes : '') + (r.network ? '<span class="dv-sep">&middot;</span>сеть ' + r.network : '')
             + '<span class="dv-sep">&middot;</span>СХД ' + r.storages
             + '<span class="dv-sep">&middot;</span>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b>' + (r.powerPeakW > 0 ? ' (пик ' + kw(r.powerPeakW) + ')' : '') : 'мощность н/д')
             + '<span class="dv-sep">&middot;</span><a href="/sprsrv/rackcabinetview/' + r.id + '" target="_blank" rel="noopener">открыть</a>';

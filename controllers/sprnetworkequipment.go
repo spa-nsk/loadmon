@@ -23,7 +23,7 @@ type NetworkEquipmentFilter struct {
 }
 
 func defaultNetworkEquipmentFilter() *NetworkEquipmentFilter {
-	return &NetworkEquipmentFilter{TypeId: "all", ItiliumStatus: "all", DatacenterSiteId: "0"}
+	return &NetworkEquipmentFilter{TypeId: "all", ItiliumStatus: "1", DatacenterSiteId: "0"} // по умолчанию - "В работе"
 }
 
 // NetworkEquipmentRow - строка списка сетевого оборудования, дополненная

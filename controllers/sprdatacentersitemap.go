@@ -26,7 +26,8 @@ type siteMapSite struct {
 	Blades      int           `json:"blades"`
 	Chassis     int           `json:"chassis"`
 	Storages    int           `json:"storages"`
-	Switches    int           `json:"switches"`
+	Switches    int           `json:"switches"` // сетевое оборудование
+	Tapes       int           `json:"tapes"`    // ленточные библиотеки
 	PowerAvgW   float64       `json:"powerAvgW"`
 	PowerPeakW  float64       `json:"powerPeakW"`
 	PowerRatedW float64       `json:"powerRatedW"`
@@ -285,7 +286,7 @@ func (this *MainController) SprDatacenterSiteMap() {
 	}
 	// коммутаторы
 	var sws []models.SwitchSprRecords
-	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Limit(-1).All(&sws, "Id", "DatacenterSiteId", "RackCabinetId"); err == nil {
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&sws, "Id", "DatacenterSiteId", "RackCabinetId"); err == nil {
 		for _, w := range sws {
 			sid := w.DatacenterSiteId
 			if sid <= 0 {
@@ -293,6 +294,15 @@ func (this *MainController) SprDatacenterSiteMap() {
 			}
 			if s := bySite[sid]; s != nil {
 				s.Switches++
+			}
+		}
+	}
+	// ленточные библиотеки (по шкафу -> площадка)
+	var tps []models.TapeLibrary
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&tps, "Id", "RackCabinetId"); err == nil {
+		for _, t := range tps {
+			if s := bySite[rackSite[t.RackCabinetId]]; s != nil {
+				s.Tapes++
 			}
 		}
 	}
