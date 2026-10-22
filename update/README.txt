@@ -7,6 +7,7 @@
   blade_systems.yaml  - импорт блейд-корзин
   blade_servers.yaml  - импорт блейд-серверов
   rack_storage.yaml   - импорт СХД
+  tape_library.yaml   - импорт ленточных библиотек (Admin -> Импорт ленточных библиотек)
 
 Файлы rack_blade.yaml и rack_blade_server.yaml (старые имена) программой не читаются.
 Нужны композиты location_split (источник "Местоположение", extra_prefix "location")

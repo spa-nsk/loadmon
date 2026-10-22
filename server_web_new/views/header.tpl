@@ -585,6 +585,10 @@
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт СХД из Итилиум</a>
                   </li>
                   <li>
+                    <a href="/admin/importtapelibraries"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт ленточных библиотек</a>
+                  </li>
+                  <li>
                     <a href="/admin/importlocalities"
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Импорт справочника населённых пунктов</a>
                   </li>
