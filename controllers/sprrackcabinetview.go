@@ -471,20 +471,35 @@ func (this *MainController) SprRackCabinetView() {
 		}
 	}
 
-	// --- коммутаторы (позиции в шкафу нет) ---
+	// --- сетевое оборудование (справочник бывших коммутаторов): с позицией в шкафу,
+	// если она задана (StartUnitPos/SizeUnit), иначе списком без позиции;
+	// выведенное и списанное не показываем ---
 	var switches []models.SwitchSprRecords
-	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId", id).OrderBy("Name").All(&switches); err != nil {
-		flash.Notice("Коммутаторы не загружены: %v", err)
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId", id).
+		Exclude("ItiliumStatus__in", 2, 3).OrderBy("StartUnitPos", "Name").All(&switches); err != nil {
+		flash.Notice("Сетевое оборудование не загружено: %v", err)
+	}
+	netTypeName := map[int64]string{}
+	var netTypes []models.NetworkEquipmentType
+	if _, err := o.QueryTable(new(models.NetworkEquipmentType)).All(&netTypes); err == nil {
+		for _, t := range netTypes {
+			netTypeName[t.Id] = t.Name
+		}
 	}
 	for _, sw := range switches {
 		var rows []rackViewKV
+		rows = rackViewKVAdd(rows, "Тип", netTypeName[sw.TypeId])
 		rows = rackViewKVAdd(rows, "IP управления", sw.ManagementIp)
 		rows = rackViewKVAdd(rows, "Серийный номер", sw.SerialNum)
 		rows = rackViewKVAdd(rows, "Описание", sw.Annotation)
+		sizeU := sw.SizeUnit
+		if sizeU <= 0 && sw.StartUnitPos > 0 {
+			sizeU = 1
+		}
 		add(rackViewItem{
 			Kind: "switch", Id: sw.Id, Name: firstNonEmpty(sw.Name, fmt.Sprintf("switch-%d", sw.Id)),
-			Vendor: sw.Vendor, Model: sw.Model, Rows: rows,
-			Links: []rackViewLink{{Title: "Редактировать коммутатор", URL: fmt.Sprintf("/sprsrv/switchedit/%d", sw.Id)}},
+			Vendor: sw.Vendor, Model: sw.Model, StartU: sw.StartUnitPos, SizeU: sizeU, Rows: rows,
+			Links: []rackViewLink{{Title: "Редактировать сетевое оборудование", URL: fmt.Sprintf("/sprsrv/networkequipmentedit/%d", sw.Id)}},
 		})
 	}
 

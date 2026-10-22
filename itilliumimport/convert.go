@@ -99,6 +99,13 @@ func applyTransform(name, val string, params map[string]string) (string, string)
 			return strconv.FormatInt(int64(f), 10), ""
 		}
 		return val, ""
+	case "money":
+		// "1 561,00" / "39 944,60" (в т.ч. с неразрывным пробелом) -> "1561.00":
+		// убрать пробелы, запятую заменить точкой.
+		if val == "" {
+			return "", ""
+		}
+		return strings.NewReplacer(" ", "", " ", "", " ", "", ",", ".").Replace(val), ""
 	case "date_ru":
 		if val == "" {
 			return "", ""
