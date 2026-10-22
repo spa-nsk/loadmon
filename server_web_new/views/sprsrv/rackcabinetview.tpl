@@ -48,7 +48,7 @@
             <div class="text-muted small">Наведите курсор на оборудование - появятся данные и ссылки. Клик закрепляет подсказку.</div>
         </div>
         <div class="rv-card" id="rvUnplacedCard" hidden>
-            <h6>Без позиции в шкафу</h6>
+            <h6>Без позиции в шкафу<span id="rvUnplacedCount" class="text-muted fw-normal"></span></h6>
             <div id="rvUnplaced" class="small"></div>
         </div>
     </aside>
@@ -136,6 +136,47 @@
     var EMBED = {{if .Embed}}true{{else}}false{{end}};
     var fitUH = 40, userZoomed = false;
     if (EMBED) TOP = 16; // во фрейме ЦОД заголовок шкафа не рисуется - верхнюю панель сжимаем
+
+    // ---------- стеллаж (площадка без шкафов: склады, рабочие комнаты) ----------
+    // Раскладка в юнитах (U) шкафа: ширина 19" устройства = RATIO U. Стеллаж - 4 яруса по 2
+    // устройства; тяжёлое (СХД, корзины) - на нижних ярусах; не поместившееся - следующий стеллаж справа.
+    var SH = null;
+    var SH_UP = 1.1, SH_BEAM = 0.8, SH_PER = 2, SH_LEV = 4, SH_PAD = 1.0, SH_GAP = 1.6, SH_TOPEXT = 0.9;
+    function shelfSize(it) {
+        if (it.sizeU > 0) return it.sizeU;
+        if (it.kind === 'chassis') return 10;
+        if (it.kind === 'switch') return 1;
+        return 2; // сервер/СХД без указанной высоты - стилизованный сервер 2U
+    }
+    function prepShelf() {
+        var list = DATA.items.slice();
+        list.forEach(function (it) { it.su = shelfSize(it); });
+        var rank = { storage: 0, chassis: 1, server: 2, 'switch': 3 };
+        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.kind] || 9) - (rank[b.kind] || 9)) || String(a.name).localeCompare(String(b.name)); });
+        var units = [], per = SH_PER * SH_LEV;
+        for (var i = 0; i < Math.max(1, list.length); i += per) {
+            var chunk = list.slice(i, i + per), levels = [];
+            for (var j = 0; j < chunk.length; j += SH_PER) levels.push(chunk.slice(j, j + SH_PER));
+            if (!levels.length) levels.push([]);
+            units.push(levels);
+        }
+        var innerW = SH_PER * RATIO + (SH_PER + 1) * SH_PAD, unitW = innerW + 2 * SH_UP;
+        var maxH = 0;
+        units.forEach(function (levels, k) {
+            var y = 0.5; // ножки
+            var lv = levels.map(function (items) {
+                var h = 0; items.forEach(function (it) { h = Math.max(h, it.su); });
+                var o = { deck: y + SH_BEAM, items: items, clear: Math.max(3, h + 0.9) };
+                y = o.deck + o.clear;
+                return o;
+            });
+            units[k] = { levels: lv, top: y };   // y - низ верхней балки
+            maxH = Math.max(maxH, y + SH_BEAM);
+        });
+        SH = { units: units, innerW: innerW, unitW: unitW, height: maxH + SH_TOPEXT, width: units.length * unitW + (units.length - 1) * SH_GAP };
+        DATA.uHeight = Math.ceil(SH.height + 1);
+    }
+    if (DATA.shelf) prepShelf();
     // подбор масштаба: шкаф по высоте равен области просмотра (во фрейме ЦОД)
     function calcFit() {
         var avail = window.innerHeight - 20 - TOP - BOT;
@@ -509,7 +550,7 @@
     function layout() {
         g.dpr = window.devicePixelRatio || 1;
         g.devW = Math.round(UH * RATIO);
-        g.W = GUT * 2 + g.devW;
+        g.W = GUT * 2 + (SH ? Math.round(SH.width * UH) : g.devW);
         g.H = TOP + DATA.uHeight * UH + BOT;
         [base, over].forEach(function (cv) {
             cv.width = Math.round(g.W * g.dpr); cv.height = Math.round(g.H * g.dpr);
@@ -552,11 +593,75 @@
         fillRR(c, GUT - 7, TOP + DATA.uHeight * UH + 6, dev + 14, BOT - 12, 2, '#101216');
     }
 
+    function yU(u) { return TOP + (DATA.uHeight - u) * UH; } // y по высоте над полом (в U)
+
+    // Стеллаж в виде спереди (по образцу складского металлического стеллажа: синие перфорированные
+    // стойки, передние балки, настил); векторный вариант - static/infra2/icons/shelf-rack.svg.
+    function drawShelf(c) {
+        var W = g.W, H = g.H;
+        fillRR(c, 0, 0, W, H, 8, hg(c, 0, W, [[0, '#14161a'], [0.5, '#1c1f25'], [1, '#14161a']]));
+        strokeRR(c, 0.5, 0.5, W - 1, H - 1, 8, '#3a3e46', 1);
+        if (!EMBED) txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : '') + '  ·  стеллаж', W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, '#cfd5de', '700', 'center');
+        c.fillStyle = vg(c, yU(0.5), UH * 0.5 + BOT, [[0, '#2a2f37'], [1, '#14161a']]);   // пол
+        c.fillRect(8, yU(0.5), W - 16, UH * 0.5 + BOT - 6);
+        SH.units.forEach(function (un, k) {
+            var x0 = GUT + k * (SH.unitW + SH_GAP) * UH, uw = SH.unitW * UH, up = SH_UP * UH;
+            var yTop = yU(un.top + SH_BEAM + SH_TOPEXT * 0.6), yBot = yU(0.5);
+            // задняя стенка и диагональные связи
+            c.fillStyle = '#0b0e13'; c.fillRect(x0 + up, yTop + up * 0.3, uw - 2 * up, yBot - yTop - up * 0.3);
+            c.strokeStyle = 'rgba(70,92,118,0.55)'; c.lineWidth = Math.max(1.5, UH * 0.1);
+            un.levels.forEach(function (lv) {
+                c.beginPath(); c.moveTo(x0 + up, yU(lv.deck)); c.lineTo(x0 + uw - up, yU(lv.deck + lv.clear)); c.stroke();
+            });
+            // стойки с перфорацией и ножками
+            [x0, x0 + uw - up].forEach(function (ux) {
+                c.fillStyle = hg(c, ux, up, [[0, '#46607c'], [0.5, '#34495f'], [1, '#222f3f']]);
+                c.fillRect(ux, yTop, up, yBot - yTop);
+                c.fillStyle = 'rgba(255,255,255,0.18)'; c.fillRect(ux + 1, yTop, 1, yBot - yTop);
+                for (var yy = yTop + UH * 0.8; yy < yBot - UH * 0.6; yy += UH * 1.0) fillRR(c, ux + up * 0.36, yy, up * 0.28, UH * 0.46, UH * 0.1, '#0a0d12');
+                fillRR(c, ux - up * 0.1, yBot, up * 1.2, UH * 0.5, 2, '#161b22');
+            });
+            // оборудование, настил и передние балки
+            un.levels.forEach(function (lv) {
+                var bx = x0 + up, bw = uw - 2 * up;
+                lv.items.forEach(function (it, idx) {
+                    var x = bx + (SH_PAD + idx * (RATIO + SH_PAD)) * UH, w = Math.round(RATIO * UH);
+                    var h = it.su * UH, y = yU(lv.deck + it.su);
+                    var di = Object.assign({}, it, { sizeU: it.su });
+                    c.save();
+                    c.beginPath(); c.rect(x, y, w, h); c.clip();
+                    if (it.kind === 'chassis') drawChassis(c, di, x, y, w, h, regions);
+                    else if (it.kind === 'storage') drawStorage(c, di, x, y, w, h);
+                    else drawServer(c, di, x, y, w, h, styleOf(it));
+                    c.restore();
+                    regions.push({ x: x, y: y, w: w, h: h, it: it, blade: null });
+                });
+                var yDeck = yU(lv.deck), bh = SH_BEAM * UH;
+                c.fillStyle = vg(c, yDeck - UH * 0.3, UH * 0.3, [[0, '#59636f'], [1, '#3b434d']]);
+                c.fillRect(bx, yDeck - UH * 0.3, bw, UH * 0.3);
+                c.fillStyle = vg(c, yDeck, bh, [[0, '#4a6482'], [0.35, '#34495f'], [1, '#1d2a38']]);
+                c.fillRect(bx, yDeck, bw, bh);
+                c.fillStyle = 'rgba(255,255,255,0.22)'; c.fillRect(bx, yDeck, bw, 1);
+                c.fillStyle = 'rgba(0,0,0,0.45)'; c.fillRect(bx, yDeck + bh - 1, bw, 1);
+            });
+            // верхняя балка
+            var yt2 = yU(un.top + SH_BEAM), bh2 = SH_BEAM * UH;
+            c.fillStyle = vg(c, yt2, bh2, [[0, '#4a6482'], [1, '#1d2a38']]);
+            c.fillRect(x0 + up, yt2, uw - 2 * up, bh2);
+        });
+    }
+
     function drawAll() {
         regions = [];
         var c = bctx;
         c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
         c.clearRect(0, 0, g.W, g.H);
+        if (SH) {
+            drawShelf(c);
+            regions.sort(function (a, b) { return (a.blade ? 0 : 1) - (b.blade ? 0 : 1); });
+            drawOver();
+            return;
+        }
         drawCabinet(c);
         DATA.items.forEach(function (it) {
             var x = GUT, w = g.devW, y = yOf(it.startU, it.sizeU), h = it.sizeU * UH;
@@ -704,6 +809,14 @@
             if (it.kind === 'chassis') { (it.blades || []).forEach(function (b) { bl++; if (b.power === 1) blOn++; }); }
             cnt(it.power);
         });
+        if (SH) {
+            var ss = '<div>Оборудование на стеллаже (площадка без шкафов): <b>' + items.length + '</b></div>';
+            ss += '<div><span class="rv-dot rv-dot-on"></span>включено: <b>' + on + '</b> &nbsp; <span class="rv-dot rv-dot-stby"></span>выключено: <b>' + off + '</b> &nbsp; <span class="rv-dot rv-dot-unk"></span>н/д: <b>' + unk + '</b></div>';
+            if (bl) ss += '<div>Блейдов в корзинах: <b>' + bl + '</b> (включено ' + blOn + ')</div>';
+            ss += '<div class="text-muted">Высота устройства - из справочника, если не указана - сервер 2U.</div>';
+            document.getElementById('rvSummary').innerHTML = ss;
+            return;
+        }
         var s = '<div>Занято юнитов: <b>' + usedU + '</b> из ' + DATA.uHeight + ' (' + Math.round(usedU * 100 / Math.max(1, DATA.uHeight)) + '%)</div>';
         s += '<div>Устройств на позициях: <b>' + items.length + '</b></div>';
         s += '<div><span class="rv-dot rv-dot-on"></span>включено: <b>' + on + '</b> &nbsp; <span class="rv-dot rv-dot-stby"></span>выключено: <b>' + off + '</b> &nbsp; <span class="rv-dot rv-dot-unk"></span>н/д: <b>' + unk + '</b></div>';
@@ -716,6 +829,7 @@
 
         if (DATA.unplaced && DATA.unplaced.length) {
             document.getElementById('rvUnplacedCard').hidden = false;
+            document.getElementById('rvUnplacedCount').textContent = ' (' + DATA.unplaced.length + ')';
             var h = '';
             DATA.unplaced.forEach(function (it) {
                 h += '<div class="rv-unpl-item"><div><b>' + esc(it.name) + '</b></div><div class="text-muted">' + esc(kindText(it)) + ((it.vendor || it.model) ? ' &middot; ' + esc((it.vendor + ' ' + it.model).trim()) : '') + '</div>';
@@ -762,5 +876,17 @@
     zoomLabel();
     layout();
     drawAll();
+
+    // Нет оборудования на позициях, но есть оборудование без позиции: пустой шкаф
+    // не рисуем - иначе список "без позиции" уходит под высокий пустой шкаф и не виден.
+    if (!DATA.items.length && DATA.unplaced && DATA.unplaced.length) {
+        document.querySelector('.rv-main').style.display = 'none';
+        var side = document.querySelector('.rv-side');
+        side.style.flex = '1 1 100%';
+        var note = document.createElement('div');
+        note.className = 'text-muted small mb-1';
+        note.textContent = 'В шкафу нет оборудования с указанной позицией (юнитом) - показано оборудование без позиции.';
+        document.getElementById('rvUnplacedCard').insertBefore(note, document.getElementById('rvUnplaced'));
+    }
 })();
 </script>
