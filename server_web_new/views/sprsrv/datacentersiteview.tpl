@@ -320,7 +320,7 @@
         poly(top, lit ? '#6a7080' : '#575c69', 'rgba(255,255,255,0.25)', 0.7);
         // лицевая панель: цветная планка вендора, линии корзин/дисков, светодиод питания
         ctx.save();
-        faceTransform(front[0], (ia1 - ia0) * G.s, (ia1 - ia0) * G.s / 2, 0, h * G.s, 100, 40);
+        faceTransform(front[0], (ia1 - ia0) * G.s, (ia1 - ia0) * G.s / 2, 0, h, 100, 40);
         ctx.fillStyle = acc; ctx.fillRect(4, 3, 92, 4);
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         var rows = it.k === 'storage' ? 4 : ((it.k === 'chassis' || it.k === 'tape') ? 3 : 1);
