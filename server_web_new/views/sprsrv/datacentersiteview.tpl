@@ -80,10 +80,43 @@
         document.getElementById('dvSummary').innerHTML = s;
     })();
 
+
+    // ---- оборудование стеллажа: раскладка по секциям/полкам (те же правила, что в просмотре шкафа справа) ----
+    var SH_CLEAR = (42 - 0.5 - 0.8 * 6) / 5;        // свободная высота между полками, U
+    function shelfSize(it) { return it.u > 0 ? it.u : (it.k === 'chassis' ? 10 : (it.k === 'switch' ? 1 : 2)); }
+    function packShelf(r) {
+        var list = (r.items || []).map(function (it) { return { k: it.k, vd: it.vd || '', p: it.p, su: Math.min(shelfSize(it), SH_CLEAR) }; });
+        var rank = { storage: 0, chassis: 1, server: 2, 'switch': 3 };
+        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.k] || 9) - (rank[b.k] || 9)); });
+        var units = [];
+        function newUnit() { var lv = []; for (var k = 0; k < 5; k++) lv.push({ items: [], used: 0 }); units.push(lv); }
+        newUnit();
+        list.forEach(function (it) {
+            for (var ui = 0; ; ui++) {
+                if (ui >= units.length) newUnit();
+                for (var k = 0; k < 5; k++) {
+                    var lv = units[ui][k];
+                    if (lv.used + it.su <= SH_CLEAR + 0.001) { lv.items.push({ it: it, off: lv.used }); lv.used += it.su + 0.12; return; }
+                }
+            }
+        });
+        r.packed = units;
+        r.units = units.length;
+    }
+    function shelfStyle(vd) {
+        var s = String(vd).toLowerCase();
+        if (/hpe|hp |hewlett|proliant|\bdl\d|synergy|c7000|3par|primera|nimble/.test(s)) return '#01a982';
+        if (/dell|poweredge|emc|unity|vnx|powerstore|powervault/.test(s)) return '#2a8be0';
+        if (/lenovo|thinksystem|\bsr\d{3}/.test(s)) return '#e2231a';
+        if (/huawei|oceanstor|dorado/.test(s)) return '#e0334d';
+        if (/cisco|catalyst|nexus/.test(s)) return '#1ba0d7';
+        return '#8b95a5';
+    }
+
     // ---- раскладка шкафов по сетке ----
     var n = racks.length;
-    var gridCols = Math.max(1, Math.ceil(Math.sqrt(Math.max(n, 1) * 1.3)));
-    var rows = Math.max(1, Math.ceil(n / gridCols));
+    var gridCols = n ? Math.max(1, Math.ceil(Math.sqrt(n * 1.3))) : 0;   // нет шкафов - стеллаж по левому краю
+    var rows = n ? Math.ceil(n / gridCols) : 1;
     var maxPower = 0;
     racks.forEach(function (r, k) {
         r.gi = k % gridCols; r.gj = Math.floor(k / gridCols);
@@ -92,11 +125,11 @@
     // стеллаж - справа от группы шкафов, габариты каждой секции как у шкафа 42U (на клетку по ширине)
     var shelfUnits = 0;
     shelves.forEach(function (r) {
-        r.units = Math.max(1, r.shelfUnits || 1);
-        r.gi = gridCols + 0.6 + shelfUnits; r.gj = Math.floor((rows - 1) / 2);
+        packShelf(r);
+        r.gi = (gridCols ? gridCols + 0.6 : 0.15) + shelfUnits; r.gj = Math.floor((rows - 1) / 2);
         shelfUnits += r.units;
     });
-    var cols = gridCols + (shelfUnits ? 0.6 + shelfUnits : 0);   // ширина сцены с учётом стеллажа
+    var cols = (gridCols ? gridCols + (shelfUnits ? 0.6 + shelfUnits : 0) : shelfUnits + 0.3);   // ширина сцены с учётом стеллажа
     var order = allRacks.slice().sort(function (a, b) { return (a.gi + a.gj) - (b.gi + b.gj) || a.gi - b.gi; });
 
     var FW = 0.60, FD = 0.80;          // размеры шкафа в клетках (ширина 600, глубина 1000 при клетке 1.2 м)
@@ -258,57 +291,78 @@
 
 
     // ---- стеллаж: трёхмерная проекция, габариты секции как у шкафа 42U, 5 полок ----
+    // Полки - тонкие рамки (без сплошной заливки), оборудование рисуется непрозрачными блоками поверх.
+    function drawShelfItem(a0, a1, b0, b1, z, h, it, lit) {
+        var acc = shelfStyle(it.vd), on = it.p === 1;
+        var ia0 = a0 + 0.03, ia1 = a1 - 0.03, ib0 = b0 + 0.05, ib1 = b1 - 0.02, zt = z + h;
+        var front = [P(ia0, ib1, zt), P(ia1, ib1, zt), P(ia1, ib1, z), P(ia0, ib1, z)];
+        var side = [P(ia1, ib1, zt), P(ia1, ib0, zt), P(ia1, ib0, z), P(ia1, ib1, z)];
+        var top = [P(ia0, ib0, zt), P(ia1, ib0, zt), P(ia1, ib1, zt), P(ia0, ib1, zt)];
+        poly(side, '#1e2026');
+        poly(front, lin(0, front[0][1], 0, front[2][1], [[0, lit ? '#454a56' : '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
+        poly(top, lit ? '#6a7080' : '#575c69', 'rgba(255,255,255,0.25)', 0.7);
+        // лицевая панель: цветная планка вендора, линии корзин/дисков, светодиод питания
+        ctx.save();
+        faceTransform(front[0], (ia1 - ia0) * G.s, (ia1 - ia0) * G.s / 2, 0, h * G.s, 100, 40);
+        ctx.fillStyle = acc; ctx.fillRect(4, 3, 92, 4);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        var rows = it.k === 'storage' ? 4 : (it.k === 'chassis' ? 3 : 1);
+        for (var q = 0; q < rows; q++) {
+            if (it.k === 'chassis') ctx.fillRect(8 + q * 29, 11, 27, 24);
+            else if (it.k === 'storage') ctx.fillRect(8, 11 + q * 7, 70, 5);
+            else ctx.fillRect(8, 13, 62, 20);
+        }
+        if (it.k === 'server' || it.k === 'switch') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
+        ctx.fillStyle = on ? '#35e06a' : (it.p === 2 ? '#ffab1a' : '#8a919c');
+        ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
+        ctx.restore();
+        poly(front, null, lit ? '#ffffff' : 'rgba(255,255,255,0.22)', 0.8);
+    }
     function drawShelf(r) {
-        var items = r.servers + r.storages + r.chassis;        // для условного заполнения полок
         var isSel = selected === r, isHov = hovered === r, lit = isSel || isHov;
         var H = G.s * 1.55;                                      // высота как у шкафа 42U (hz)
         var post = Math.max(1.2, G.s * 0.035);
+        var zs = H * 0.2, tb = H * 0.022;                         // шаг полок и толщина балки
         for (var u = 0; u < r.units; u++) {
             var a0 = r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
             var b0 = r.gj + (1 - FD) / 2, b1 = b0 + FD;
             poly([P(a0 - 0.05, b0 + 0.05, 0), P(a1 + 0.12, b0 + 0.05, 0), P(a1 + 0.12, b1 + 0.1, 0), P(a0 - 0.05, b1 + 0.1, 0)], 'rgba(0,0,0,0.28)');
-            function line(x, y, z0, z1, col, w) {
+            var line = function (x, y, z0, z1, col, w) {
                 var p0 = P(x, y, z0), p1 = P(x, y, z1);
                 ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
                 ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
-            }
-            var pc = lit ? '#6f93b8' : '#46607c';
-            // задние стойки и диагональная связь на задней стенке
-            line(a0, b0, 0, H, pc, post); line(a1, b0, 0, H, pc, post);
-            var d0 = P(a0, b0, 0), d1 = P(a1, b0, H * 0.96);
-            ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
-            ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
-            // 5 полок (снизу вверх), оборудование на них
-            var fill = items;
+            };
+            var pc = lit ? '#7fa3c8' : '#5a7898';
+            line(a0, b0, 0, H, pc, post); line(a1, b0, 0, H, pc, post);   // задние стойки
+            // полки: слабая подложка, передняя балка
             for (var k = 0; k < 5; k++) {
-                var z = H * (0.05 + 0.2 * k), t = H * 0.025;
-                var perDeck = Math.max(0, Math.min(2, fill)); fill -= 2;
-                for (var q = 0; q < perDeck; q++) {                   // условные блоки оборудования
-                    var qa0 = a0 + 0.04 + q * (FW - 0.1) / 2, qa1 = qa0 + (FW - 0.1) / 2 - 0.02, qb0 = b0 + 0.08, qb1 = b1 - 0.06, qh = z + t + H * 0.075;
-                    poly([P(qa0, qb1, qh), P(qa1, qb1, qh), P(qa1, qb1, z + t), P(qa0, qb1, z + t)], '#2c2f37');
-                    poly([P(qa1, qb1, qh), P(qa1, qb0, qh), P(qa1, qb0, z + t), P(qa1, qb1, z + t)], '#202228');
-                    poly([P(qa0, qb0, qh), P(qa1, qb0, qh), P(qa1, qb1, qh), P(qa0, qb1, qh)], '#4a4e5a', 'rgba(255,255,255,0.18)', 0.8);
-                }
-                var topf = [P(a0, b0, z + t), P(a1, b0, z + t), P(a1, b1, z + t), P(a0, b1, z + t)];
-                var frontf = [P(a0, b1, z + t), P(a1, b1, z + t), P(a1, b1, z), P(a0, b1, z)];
-                var sidef = [P(a1, b1, z + t), P(a1, b0, z + t), P(a1, b0, z), P(a1, b1, z)];
-                poly(sidef, '#1d2a38'); poly(frontf, lin(0, frontf[0][1], 0, frontf[2][1], [[0, '#4a6482'], [1, '#27384b']]));
-                poly(topf, 'rgba(75,85,99,0.55)', lit ? '#ffffff' : 'rgba(110,200,255,0.4)', 0.9);
-                if (k === 4) {                                         // название на верхней полке
-                    ctx.save();
-                    faceTransform(P(a0, b0, z + t), (a1 - a0) * G.s, (a1 - a0) * G.s / 2, -(b1 - b0) * G.s, (b1 - b0) * G.s / 2, 100, 130);
-                    ctx.font = '800 18px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillStyle = isSel ? '#7df0ff' : '#d9dcea'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
-                    ctx.restore();
+                var z = H * 0.04 + zs * k;
+                var topf = [P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)];
+                poly(topf, 'rgba(110,130,150,0.16)', lit ? '#ffffff' : 'rgba(110,200,255,0.5)', 0.9);
+                var frontf = [P(a0, b1, z + tb), P(a1, b1, z + tb), P(a1, b1, z), P(a0, b1, z)];
+                poly(frontf, lin(0, frontf[0][1], 0, frontf[2][1], [[0, '#5a7898'], [1, '#2a3b4e']]));
+            }
+            // оборудование: каждая секция - свои 5 полок
+            var pk = r.packed && r.packed[u];
+            if (pk) {
+                for (var k2 = 0; k2 < 5; k2++) {
+                    var zb = H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
+                    pk[k2].items.forEach(function (pl) {
+                        drawShelfItem(a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH, pl.it, lit);
+                    });
                 }
             }
-            // передние стойки
-            line(a0, b1, 0, H, pc, post * 1.15); line(a1, b1, 0, H, pc, post * 1.15);
-            if (isSel || isHov) {
-                var e = isSel ? '#58e6ff' : '#ffffff';
-                poly([P(a0, b1, 0), P(a1, b1, 0), P(a1, b0, 0), P(a1, b0, H), P(a0, b0, H), P(a0, b1, H)], null, e, isSel ? 2.2 : 1.8);
-            }
+            line(a0, b1, 0, H, pc, post * 1.15); line(a1, b1, 0, H, pc, post * 1.15);   // передние стойки
+            // название на верхней балке
+            var zt = H * 0.04 + zs * 4 + tb;
+            ctx.save();
+            faceTransform(P(a0, b0, zt), (a1 - a0) * G.s, (a1 - a0) * G.s / 2, -(b1 - b0) * G.s, (b1 - b0) * G.s / 2, 100, 130);
+            ctx.font = '800 18px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
+            ctx.fillStyle = isSel ? '#7df0ff' : '#d9dcea'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+            ctx.restore();
             var sil = [P(a0, b1, 0), P(a1, b1, 0), P(a1, b0, 0), P(a1, b0, H), P(a0, b0, H), P(a0, b1, H)];
+            if (isSel || isHov) poly(sil, null, isSel ? '#58e6ff' : '#ffffff', isSel ? 2.2 : 1.8);
             polys.push({ r: r, pts: sil.map(function (p) { return [p[0] + G.ox, p[1] + G.oy]; }) });
         }
     }

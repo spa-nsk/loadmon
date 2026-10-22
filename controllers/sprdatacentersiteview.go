@@ -26,8 +26,18 @@ type dcViewRack struct {
 	PowerRated float64 `json:"powerRatedW"`
 	// Shelf - служебный шкаф "(размещение вне шкафа)": рисуется как стеллаж справа от
 	// группы шкафов; ShelfUnits - число секций (примерная оценка по количеству оборудования).
-	Shelf      bool `json:"shelf,omitempty"`
-	ShelfUnits int  `json:"shelfUnits,omitempty"`
+	Shelf      bool          `json:"shelf,omitempty"`
+	ShelfUnits int           `json:"shelfUnits,omitempty"`
+	Items      []dcShelfItem `json:"items,omitempty"` // оборудование на стеллаже (для 3D-отрисовки)
+}
+
+// dcShelfItem - единица оборудования на стеллаже: тип (server/chassis/storage/switch),
+// "вендор модель" (для выбора оформления), высота в юнитах (0 - не указана), питание (0/1/2).
+type dcShelfItem struct {
+	Kind   string `json:"k"`
+	Vendor string `json:"vd"`
+	U      int    `json:"u"`
+	Power  int    `json:"p"`
 }
 
 type dcViewData struct {
@@ -199,6 +209,7 @@ func (this *MainController) SprDatacenterSiteView() {
 			continue
 		}
 		r.Shelf = true
+		r.Items = shelfItems(o, r.Id)
 		u := r.Servers*2 + r.Chassis*7 + r.Storages*2
 		r.ShelfUnits = (u + 34) / 35 // 5 полок * ~7U
 		if r.ShelfUnits < 1 {
@@ -244,4 +255,60 @@ func naturalLess(a, b string) bool {
 		j++
 	}
 	return len(a)-i < len(b)-j
+}
+
+// shelfItems собирает оборудование служебного шкафа "вне шкафа" (стеллаж) для 3D-отрисовки.
+func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
+	items := []dcShelfItem{}
+	var hws []models.ServerHardware
+	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId", rackId).Exclude("Active", 2).
+		Limit(-1).All(&hws, "Id", "Vendor", "Model", "SizeUnit", "PowerState", "FormFactor", "BladeSystemId"); err == nil {
+		for _, h := range hws {
+			if h.FormFactor == 2 && h.BladeSystemId > 0 {
+				continue
+			}
+			items = append(items, dcShelfItem{Kind: "server", Vendor: h.Vendor + " " + h.Model, U: h.SizeUnit, Power: h.PowerState})
+		}
+	}
+	var chassis []models.BladeSystems
+	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId", rackId).Exclude("Active", 2).
+		Limit(-1).All(&chassis, "Id", "Vendor", "Model", "SizeUnit", "PowerState"); err == nil {
+		for _, c := range chassis {
+			items = append(items, dcShelfItem{Kind: "chassis", Vendor: c.Vendor + " " + c.Model, U: c.SizeUnit, Power: c.PowerState})
+		}
+	}
+	var pl []models.StorageSystemPlacement
+	if _, err := o.QueryTable(new(models.StorageSystemPlacement)).Filter("RackCabinetId", rackId).
+		Limit(-1).All(&pl, "StorageSystemsId", "SizeUnit"); err == nil && len(pl) > 0 {
+		ids := make([]int64, 0, len(pl))
+		for _, p := range pl {
+			ids = append(ids, p.StorageSystemsId)
+		}
+		byId := map[int64]models.StorageSystems{}
+		var sts []models.StorageSystems
+		if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", ids).Limit(-1).All(&sts, "Id", "Vendor", "Model", "Status", "Power"); err == nil {
+			for _, st := range sts {
+				byId[st.Id] = st
+			}
+		}
+		for _, p := range pl {
+			st, ok := byId[p.StorageSystemsId]
+			if !ok || st.Status == 6 {
+				continue
+			}
+			pw := 2
+			if st.Power == 1 {
+				pw = 1
+			}
+			items = append(items, dcShelfItem{Kind: "storage", Vendor: st.Vendor + " " + st.Model, U: p.SizeUnit, Power: pw})
+		}
+	}
+	var sws []models.SwitchSprRecords
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId", rackId).
+		Limit(-1).All(&sws, "Id", "Vendor", "Model"); err == nil {
+		for _, w := range sws {
+			items = append(items, dcShelfItem{Kind: "switch", Vendor: w.Vendor + " " + w.Model, U: 1})
+		}
+	}
+	return items
 }
