@@ -24,6 +24,10 @@ type dcViewRack struct {
 	PowerAvgW  float64 `json:"powerAvgW"`
 	PowerPeakW float64 `json:"powerPeakW"`
 	PowerRated float64 `json:"powerRatedW"`
+	// Shelf - служебный шкаф "(размещение вне шкафа)": рисуется как стеллаж справа от
+	// группы шкафов; ShelfUnits - число секций (примерная оценка по количеству оборудования).
+	Shelf      bool `json:"shelf,omitempty"`
+	ShelfUnits int  `json:"shelfUnits,omitempty"`
 }
 
 type dcViewData struct {
@@ -187,6 +191,20 @@ func (this *MainController) SprDatacenterSiteView() {
 	}
 	sp := rackpower.DatacenterSitePowerTotalsBatch(o, []int64{id})[id]
 	data.PowerAvgW, data.PowerPeakW = sp.Avg24hW, sp.Peak24hW
+
+	// стеллаж вне шкафов: секция вмещает ~5 полок по ~7U (сервер 2U, корзина до 7U, СХД 2U)
+	for i := range data.Racks {
+		r := &data.Racks[i]
+		if r.Name != models.RackCabinetOutsideName {
+			continue
+		}
+		r.Shelf = true
+		u := r.Servers*2 + r.Chassis*7 + r.Storages*2
+		r.ShelfUnits = (u + 34) / 35 // 5 полок * ~7U
+		if r.ShelfUnits < 1 {
+			r.ShelfUnits = 1
+		}
+	}
 
 	sort.SliceStable(data.Racks, func(i, j int) bool { return naturalLess(data.Racks[i].Name, data.Racks[j].Name) })
 

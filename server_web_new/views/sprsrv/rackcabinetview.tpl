@@ -138,10 +138,11 @@
     if (EMBED) TOP = 16; // во фрейме ЦОД заголовок шкафа не рисуется - верхнюю панель сжимаем
 
     // ---------- стеллаж (площадка без шкафов: склады, рабочие комнаты) ----------
-    // Раскладка в юнитах (U) шкафа: ширина 19" устройства = RATIO U. Стеллаж - 4 яруса по 2
-    // устройства; тяжёлое (СХД, корзины) - на нижних ярусах; не поместившееся - следующий стеллаж справа.
+    // Секция стеллажа - габариты шкафа 42U (высота 42U, ширина 19" устройства), 5 полок. На полке
+    // устройства стоят друг на друге снизу вверх; тяжёлое (СХД, корзины) - на нижних полках; не
+    // поместившееся - следующая секция справа. Раскладка в юнитах (U).
     var SH = null;
-    var SH_UP = 1.1, SH_BEAM = 0.8, SH_PER = 2, SH_LEV = 4, SH_PAD = 1.0, SH_GAP = 1.6, SH_TOPEXT = 0.9;
+    var SH_FULL = 42, SH_LEV = 5, SH_UP = 1.1, SH_BEAM = 0.8, SH_FEET = 0.5, SH_PAD = 0.7, SH_GAP = 1.6, SH_GAPU = 0.12;
     function shelfSize(it) {
         if (it.sizeU > 0) return it.sizeU;
         if (it.kind === 'chassis') return 10;
@@ -149,38 +150,38 @@
         return 2; // сервер/СХД без указанной высоты - стилизованный сервер 2U
     }
     function prepShelf() {
+        var clear = (SH_FULL - SH_FEET - SH_BEAM * (SH_LEV + 1)) / SH_LEV;   // свободная высота между полками
         var list = DATA.items.slice();
-        list.forEach(function (it) { it.su = shelfSize(it); });
+        list.forEach(function (it) { it.su = Math.min(shelfSize(it), clear); it.suFull = shelfSize(it); });
         var rank = { storage: 0, chassis: 1, server: 2, 'switch': 3 };
         list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.kind] || 9) - (rank[b.kind] || 9)) || String(a.name).localeCompare(String(b.name)); });
-        var units = [], per = SH_PER * SH_LEV;
-        for (var i = 0; i < Math.max(1, list.length); i += per) {
-            var chunk = list.slice(i, i + per), levels = [];
-            for (var j = 0; j < chunk.length; j += SH_PER) levels.push(chunk.slice(j, j + SH_PER));
-            if (!levels.length) levels.push([]);
-            units.push(levels);
+        var units = [];
+        function newUnit() {
+            var lv = [], y = SH_FEET;
+            for (var k = 0; k < SH_LEV; k++) { lv.push({ deck: y + SH_BEAM, items: [], used: 0 }); y += SH_BEAM + clear; }
+            var u = { levels: lv }; units.push(u); return u;
         }
-        var innerW = SH_PER * RATIO + (SH_PER + 1) * SH_PAD, unitW = innerW + 2 * SH_UP;
-        var maxH = 0;
-        units.forEach(function (levels, k) {
-            var y = 0.5; // ножки
-            var lv = levels.map(function (items) {
-                var h = 0; items.forEach(function (it) { h = Math.max(h, it.su); });
-                var o = { deck: y + SH_BEAM, items: items, clear: Math.max(3, h + 0.9) };
-                y = o.deck + o.clear;
-                return o;
-            });
-            units[k] = { levels: lv, top: y };   // y - низ верхней балки
-            maxH = Math.max(maxH, y + SH_BEAM);
+        newUnit();
+        list.forEach(function (it) {
+            for (var ui = 0; ; ui++) {
+                if (ui >= units.length) newUnit();
+                var lv = units[ui].levels;
+                for (var k = 0; k < lv.length; k++) {
+                    if (lv[k].used + it.su <= clear + 0.001) { lv[k].items.push({ it: it, off: lv[k].used }); lv[k].used += it.su + SH_GAPU; return; }
+                }
+            }
         });
-        SH = { units: units, innerW: innerW, unitW: unitW, height: maxH + SH_TOPEXT, width: units.length * unitW + (units.length - 1) * SH_GAP };
-        DATA.uHeight = Math.ceil(SH.height + 1);
+        var innerW = RATIO + 2 * SH_PAD, unitW = innerW + 2 * SH_UP;
+        SH = { units: units, innerW: innerW, unitW: unitW, clear: clear, height: SH_FULL, width: units.length * unitW + (units.length - 1) * SH_GAP };
+        DATA.uHeight = SH_FULL + 2;
     }
     if (DATA.shelf) prepShelf();
     // подбор масштаба: шкаф по высоте равен области просмотра (во фрейме ЦОД)
     function calcFit() {
         var avail = window.innerHeight - 20 - TOP - BOT;
-        return Math.max(12, Math.min(90, Math.floor(avail / Math.max(1, DATA.uHeight))));
+        var f = Math.floor(avail / Math.max(1, DATA.uHeight));
+        if (SH) f = Math.min(f, Math.floor((window.innerWidth - 2 * GUT - 24) / SH.width));   // стеллаж вписывается и по ширине окна
+        return Math.max(SH ? 6 : 12, Math.min(90, f));
     }
     if (EMBED) {
         fitUH = calcFit(); UH = fitUH;
@@ -602,31 +603,28 @@
         fillRR(c, 0, 0, W, H, 8, hg(c, 0, W, [[0, '#14161a'], [0.5, '#1c1f25'], [1, '#14161a']]));
         strokeRR(c, 0.5, 0.5, W - 1, H - 1, 8, '#3a3e46', 1);
         if (!EMBED) txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : '') + '  ·  стеллаж', W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, '#cfd5de', '700', 'center');
-        c.fillStyle = vg(c, yU(0.5), UH * 0.5 + BOT, [[0, '#2a2f37'], [1, '#14161a']]);   // пол
-        c.fillRect(8, yU(0.5), W - 16, UH * 0.5 + BOT - 6);
+        c.fillStyle = vg(c, yU(SH_FEET), UH * SH_FEET + BOT, [[0, '#2a2f37'], [1, '#14161a']]);   // пол
+        c.fillRect(6, yU(SH_FEET), W - 12, UH * SH_FEET + BOT - 6);
         SH.units.forEach(function (un, k) {
             var x0 = GUT + k * (SH.unitW + SH_GAP) * UH, uw = SH.unitW * UH, up = SH_UP * UH;
-            var yTop = yU(un.top + SH_BEAM + SH_TOPEXT * 0.6), yBot = yU(0.5);
-            // задняя стенка и диагональные связи
-            c.fillStyle = '#0b0e13'; c.fillRect(x0 + up, yTop + up * 0.3, uw - 2 * up, yBot - yTop - up * 0.3);
-            c.strokeStyle = 'rgba(70,92,118,0.55)'; c.lineWidth = Math.max(1.5, UH * 0.1);
+            var yTop = yU(SH_FULL), yBot = yU(SH_FEET);
+            c.fillStyle = '#0b0e13'; c.fillRect(x0 + up, yTop + up * 0.2, uw - 2 * up, yBot - yTop - up * 0.2);   // задняя стенка
+            c.strokeStyle = 'rgba(70,92,118,0.55)'; c.lineWidth = Math.max(1, UH * 0.1);                          // диагональные связи
             un.levels.forEach(function (lv) {
-                c.beginPath(); c.moveTo(x0 + up, yU(lv.deck)); c.lineTo(x0 + uw - up, yU(lv.deck + lv.clear)); c.stroke();
+                c.beginPath(); c.moveTo(x0 + up, yU(lv.deck)); c.lineTo(x0 + uw - up, yU(lv.deck + SH.clear)); c.stroke();
             });
-            // стойки с перфорацией и ножками
-            [x0, x0 + uw - up].forEach(function (ux) {
+            [x0, x0 + uw - up].forEach(function (ux) {                                                              // стойки
                 c.fillStyle = hg(c, ux, up, [[0, '#46607c'], [0.5, '#34495f'], [1, '#222f3f']]);
                 c.fillRect(ux, yTop, up, yBot - yTop);
                 c.fillStyle = 'rgba(255,255,255,0.18)'; c.fillRect(ux + 1, yTop, 1, yBot - yTop);
                 for (var yy = yTop + UH * 0.8; yy < yBot - UH * 0.6; yy += UH * 1.0) fillRR(c, ux + up * 0.36, yy, up * 0.28, UH * 0.46, UH * 0.1, '#0a0d12');
-                fillRR(c, ux - up * 0.1, yBot, up * 1.2, UH * 0.5, 2, '#161b22');
+                fillRR(c, ux - up * 0.1, yBot, up * 1.2, UH * SH_FEET, 2, '#161b22');
             });
-            // оборудование, настил и передние балки
             un.levels.forEach(function (lv) {
-                var bx = x0 + up, bw = uw - 2 * up;
-                lv.items.forEach(function (it, idx) {
-                    var x = bx + (SH_PAD + idx * (RATIO + SH_PAD)) * UH, w = Math.round(RATIO * UH);
-                    var h = it.su * UH, y = yU(lv.deck + it.su);
+                var bx = x0 + up, bw = uw - 2 * up, yDeck = yU(lv.deck), bh = SH_BEAM * UH;
+                lv.items.forEach(function (pl) {
+                    var it = pl.it, x = bx + SH_PAD * UH, w = Math.round(RATIO * UH);
+                    var h = it.su * UH, y = yU(lv.deck + pl.off + it.su);
                     var di = Object.assign({}, it, { sizeU: it.su });
                     c.save();
                     c.beginPath(); c.rect(x, y, w, h); c.clip();
@@ -636,16 +634,14 @@
                     c.restore();
                     regions.push({ x: x, y: y, w: w, h: h, it: it, blade: null });
                 });
-                var yDeck = yU(lv.deck), bh = SH_BEAM * UH;
-                c.fillStyle = vg(c, yDeck - UH * 0.3, UH * 0.3, [[0, '#59636f'], [1, '#3b434d']]);
+                c.fillStyle = vg(c, yDeck - UH * 0.3, UH * 0.3, [[0, '#59636f'], [1, '#3b434d']]);                   // настил
                 c.fillRect(bx, yDeck - UH * 0.3, bw, UH * 0.3);
-                c.fillStyle = vg(c, yDeck, bh, [[0, '#4a6482'], [0.35, '#34495f'], [1, '#1d2a38']]);
+                c.fillStyle = vg(c, yDeck, bh, [[0, '#4a6482'], [0.35, '#34495f'], [1, '#1d2a38']]);                  // передняя балка
                 c.fillRect(bx, yDeck, bw, bh);
                 c.fillStyle = 'rgba(255,255,255,0.22)'; c.fillRect(bx, yDeck, bw, 1);
                 c.fillStyle = 'rgba(0,0,0,0.45)'; c.fillRect(bx, yDeck + bh - 1, bw, 1);
             });
-            // верхняя балка
-            var yt2 = yU(un.top + SH_BEAM), bh2 = SH_BEAM * UH;
+            var yt2 = yU(SH_FULL - 0.2), bh2 = SH_BEAM * UH * 0.8;                                                // верхняя балка
             c.fillStyle = vg(c, yt2, bh2, [[0, '#4a6482'], [1, '#1d2a38']]);
             c.fillRect(x0 + up, yt2, uw - 2 * up, bh2);
         });
@@ -862,7 +858,7 @@
         });
     }
     function setZoom(v) {
-        UH = Math.max(EMBED ? 8 : 20, Math.min(90, v));
+        UH = Math.max(SH ? 4 : (EMBED ? 8 : 20), Math.min(90, v));
         zoomLabel();
         if (!EMBED) { try { localStorage.setItem(ZKEY, String(UH)); } catch (e) { } }
         unpin(); hovered = null;
