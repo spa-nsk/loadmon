@@ -1,0 +1,110 @@
+# Конфигурация связки колонок выгрузки Итиллиум по ленточным библиотекам
+# (файл-образец "Ленточные библиотеки_clear.xlsx", лист "export") с полями
+# models.TapeLibrary. Имена целевых полей совпадают с ServerHardware.
+# Реализация: itilliumimport/converttape.go (ConvertRowTape), импорт -
+# itilliumimport/importtapelibraries.go (ImportItiliumTapeLibrary).
+#
+# Положить в каталог, указанный в app.conf (ключ yaml), под именем
+# tape_library.yaml.
+#
+# Поиск существующей записи - по S/N (TapeLibrary.SerialNum); если S/N пуст -
+# по "Тех. номер IT".
+#
+# Адрес (площадка, шкаф, начальный юнит) разбирается из колонки
+# "Местоположение" ("город, здание | этаж | помещение | Шкаф X | Unit N") в
+# Go-коде (locality.ParseLocation), размер в юнитах - из колонки "units".
+#
+# "Имя ПК" - FQDN сервера, к которому подключена библиотека; импорт ищет его в
+# справочнике серверов (ServerSprRecords.Name / NameFQDN) и пишет Id в
+# TapeLibrary.ServerId. Не найден - ServerId=0, имя остаётся в PcName.
+#
+# Колонки "Юр.Лицо", "СЗ", "Пользователь", "Дата ремонта" в схеме не хранятся.
+
+source_sheet: export
+
+fields:
+  - header: "Тех. номер IT"
+    target: TapeLibrary.TechnicalNumberIT
+    transform: trim
+
+  - header: "Дата изм. ст."
+    target: TapeLibrary.TimeActiveState
+    transform: date_ru
+
+  - header: "Бух.инв.№"
+    target: TapeLibrary.InventoryNumBuh
+    transform: numeric_to_string
+
+  - header: "Стар.инв.№"
+    target: TapeLibrary.InventoryNum
+    transform: trim
+
+  - header: "Описание (название)"
+    target: TapeLibrary.Name
+    transform: trim
+
+  - header: "S/N"
+    target: TapeLibrary.SerialNum
+    transform: trim
+
+  - header: "Автор"
+    target: TapeLibrary.Owner
+    transform: trim
+
+  - header: "Поставщик"
+    target: TapeLibrary.Counterparty
+    transform: trim
+
+  - header: "Документы"
+    target: TapeLibrary.ContractDoc
+    transform: trim
+
+  - header: "Дата док.закупки"
+    target: TapeLibrary.DateContractDoc
+    transform: date_ru
+
+  - header: "Марка/модель(Норматив)"
+    target: TapeLibrary.Model
+    transform: trim
+
+  # Размер библиотеки в юнитах.
+  - header: "units"
+    target: TapeLibrary.SizeUnit
+    transform: numeric_to_string
+
+  - header: "ip"
+    target: TapeLibrary.IPAddress
+    transform: trim
+
+  # Сервер подключения; сопоставление со справочником серверов - в Go-коде.
+  - header: "Имя ПК"
+    target: TapeLibrary.PcName
+    transform: trim
+
+composites:
+  # Сырое "Местоположение" -> extra.location_raw (адрес, шкаф и Unit).
+  - name: location_split
+    sources: ["Местоположение"]
+    targets: ["extra.location_room_text"]
+    params:
+      separator: "|"
+      extra_prefix: "location"
+
+  # Единственный статус записи - ItiliumStatus.
+  - name: enum_multi
+    sources: ["Статус"]
+    targets:
+      - "TapeLibrary.ItiliumStatus"
+    params:
+      enum: status
+
+# ItiliumStatus: 0 не указано, 1 в работе, 2 выведен, 3 списан, 4 свободно,
+# 5 на складе, 6 зарезервирован.
+enums:
+  status:
+    "В работе (эксплуатации)": "1"
+    "Выведен": "2"
+    "Списан": "3"
+    "Свободно": "4"
+    "На складе": "5"
+    "Зарезервировано": "6"

@@ -186,6 +186,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.BladeSystems))
 	orm.RegisterModel(new(models.StorageSystems))
 	orm.RegisterModel(new(models.StorageSystemPlacement))
+	orm.RegisterModel(new(models.TapeLibrary))
 	orm.RegisterModel(new(models.Datastore))
 	orm.RegisterModel(new(models.ServerHardware))
 	orm.RegisterModel(new(models.ServerHardwareComponents))
