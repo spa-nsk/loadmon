@@ -205,7 +205,7 @@ func runImportItiliumBladeServer(name string, job *ImportProgress) {
 			r.Hw.SerialNum = r.Hw.TechnicalNumberIT
 		}
 
-		if r.Spr.Stat == 1 || r.Spr.Active == 1 {
+		if r.Spr.Active == 1 {
 			r.Spr.PowerState = 1
 			r.Hw.PowerState = 1
 			r.Spr.Stat = 1
