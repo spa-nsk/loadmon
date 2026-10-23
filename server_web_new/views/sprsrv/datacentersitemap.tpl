@@ -406,9 +406,22 @@
         }
         poly(front, null, 'rgba(255,255,255,0.22)', 0.8);
     }
+    // замкнутый каркас выделения: видимые рёбра - сплошные, скрытые (за стеллажом) - тонкие полупрозрачные; ракурс на карте фиксирован
+    function boxWire(so, a0, a1, b0, b1, z0, z1, color, w) {
+        function seg(p, q, hidden) {
+            ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = hidden ? Math.max(1, w * 0.5) : w; ctx.globalAlpha = hidden ? 0.45 : 1; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.restore();
+        }
+        var A = [a0, a1], B = [b0, b1], i, j;
+        for (i = 0; i < 2; i++) for (j = 0; j < 2; j++) seg(P(so, A[i], B[j], z0), P(so, A[i], B[j], z1), i === 0 && j === 0);
+        [z0, z1].forEach(function (z) {
+            for (j = 0; j < 2; j++) seg(P(so, a0, B[j], z), P(so, a1, B[j], z), z === z0 && j === 0);
+            for (i = 0; i < 2; i++) seg(P(so, A[i], b0, z), P(so, A[i], b1, z), z === z0 && i === 0);
+        });
+    }
     function drawShelfUnit(so, site, r, u, labels) {
         var isSel = selRack === r, isHov = hovRack === r, lit = false;
-        var H = 1.55, z0 = SLAB, post = Math.max(1.2, U * 0.035);
+        var H = 1.55, z0 = SLAB, post = Math.max(1.6, U * 0.05);
         var zs = H * 0.2, tb = H * 0.022;
         var a0 = 0.3 + r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
         var b0 = 0.3 + r.gj + (1 - FD) / 2, b1 = b0 + FD;
@@ -423,23 +436,22 @@
         var d0 = P(so, a0, b0, z0), d1 = P(so, a1, b0, z0 + H * 0.96);                    // диагональная связь
         ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
         ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
-        for (var k = 0; k < 5; k++) {                                                      // полки
+        // полки снизу вверх: настил, балка, затем оборудование этой полки; вышележащий настил рисуется позже и частично прикрывает оборудование ниже
+        var pk = r.packed && r.packed[u];
+        for (var k = 0; k < 5; k++) {
             var z = z0 + H * 0.04 + zs * k;
-            poly([P(so, a0, b0, z + tb), P(so, a1, b0, z + tb), P(so, a1, b1, z + tb), P(so, a0, b1, z + tb)], 'rgba(110,130,150,0.16)', PAL.deckEdge, 0.9);
+            poly([P(so, a0, b0, z + tb), P(so, a1, b0, z + tb), P(so, a1, b1, z + tb), P(so, a0, b1, z + tb)], 'rgba(125,145,165,0.5)', PAL.deckEdge, 0.9);
             var frontf = [P(so, a0, b1, z + tb), P(so, a1, b1, z + tb), P(so, a1, b1, z), P(so, a0, b1, z)];
             poly(frontf, lin(0, frontf[0][1], 0, frontf[2][1], [[0, '#5a7898'], [1, '#2a3b4e']]));
-        }
-        var pk = r.packed && r.packed[u];
-        if (pk) {
-            for (var k2 = 0; k2 < 5; k2++) {
-                var zb = z0 + H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
-                pk[k2].items.forEach(function (pl) { drawShelfItem(so, a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH * 0.86, pl.it, lit); });
+            if (pk) {
+                var zb = z + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
+                pk[k].items.forEach(function (pl) { drawShelfItem(so, a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH * 0.86, pl.it, lit); });
             }
         }
         line(a0, b1, z0, z0 + H, pc, post * 1.15); line(a1, b1, z0, z0 + H, pc, post * 1.15);   // передние стойки
         labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, z: z0 + H, sel: isSel });
         var hl = [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, z0 + H), P(so, a0, b0, z0 + H), P(so, a0, b1, z0 + H)];
-        if (isSel) poly(hl, null, PAL.sel, lw(3)); else if (isHov) poly(hl, null, PAL.hov, lw(2.4));
+        if (isSel) boxWire(so, a0, a1, b0, b1, z0, z0 + H, PAL.sel, lw(3)); else if (isHov) boxWire(so, a0, a1, b0, b1, z0, z0 + H, PAL.hov, lw(2.4));
         // световой столб над стеллажом по общей мощности
         hits.push({ site: site, rack: r, pts: hl });
     }

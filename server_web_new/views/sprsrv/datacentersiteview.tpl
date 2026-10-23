@@ -495,10 +495,27 @@
         }
         poly(front, null, lit ? PAL.hov : 'rgba(255,255,255,0.22)', 0.8);
     }
+    // замкнутый каркас выделения: видимые рёбра - сплошные, скрытые (за стеллажом) - тонкие полупрозрачные
+    function boxWire(pj, a0, a1, b0, b1, z0, z1, aFar, bFar, color, w) {
+        var aNear = aFar === a0 ? a1 : a0, bNear = bFar === b0 ? b1 : b0;
+        function seg(p, q, hidden) {
+            ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = hidden ? Math.max(1, w * 0.5) : w; ctx.globalAlpha = hidden ? 0.45 : 1; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.restore();
+        }
+        var A = [a0, a1], B = [b0, b1], i, j;
+        for (i = 0; i < 2; i++) for (j = 0; j < 2; j++) {                   // вертикальные рёбра
+            var hv = (A[i] === aFar && B[j] === bFar);
+            seg(pj(A[i], B[j], z0), pj(A[i], B[j], z1), hv);
+        }
+        [z0, z1].forEach(function (z) {                                    // рёбра нижнего и верхнего контура
+            for (j = 0; j < 2; j++) seg(pj(a0, B[j], z), pj(a1, B[j], z), z === z0 && B[j] === bFar);
+            for (i = 0; i < 2; i++) seg(pj(A[i], b0, z), pj(A[i], b1, z), z === z0 && A[i] === aFar);
+        });
+    }
     function drawShelfUnit(r, u, labels) {
         var isSel = selected === r, isHov = hovered === r, lit = isSel || isHov;
         var H = G.s * 1.55;                                      // высота как у шкафа 42U (hz)
-        var post = Math.max(1.2, G.s * 0.035);
+        var post = Math.max(1.6, G.s * 0.05);
         var zs = H * 0.2, tb = H * 0.022;                         // шаг полок и толщина балки
         var a0 = r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
         var b0 = r.gj + (1 - FD) / 2, b1 = b0 + FD;
@@ -520,21 +537,18 @@
         ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
         ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
         var aS = CV.aPos ? a1 : a0, bS = CV.bPos ? b1 : b0;
-        // полки: слабая подложка, балки на видимых гранях
+        // полки снизу вверх: настил, балки, затем оборудование этой полки; вышележащий настил рисуется позже и частично прикрывает оборудование ниже
+        var pk = r.packed && r.packed[u];
         for (var k = 0; k < 5; k++) {
             var z = H * 0.04 + zs * k;
-            poly([P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? PAL.hov : PAL.deckEdge, 0.9);
+            poly([P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)], 'rgba(125,145,165,0.5)', PAL.deckEdge, 0.9);
             var fbm = [P(a0, bS, z + tb), P(a1, bS, z + tb), P(a1, bS, z), P(a0, bS, z)];
             poly(fbm, lin(0, Math.min(fbm[0][1], fbm[1][1]), 0, Math.max(fbm[2][1], fbm[3][1]), [[0, '#5a7898'], [1, '#2a3b4e']]));
             var fam = [P(aS, b0, z + tb), P(aS, b1, z + tb), P(aS, b1, z), P(aS, b0, z)];
             poly(fam, '#2f435a');
-        }
-        // оборудование: каждая секция - свои 5 полок
-        var pk = r.packed && r.packed[u];
-        if (pk) {
-            for (var k2 = 0; k2 < 5; k2++) {
-                var zb = H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
-                pk[k2].items.forEach(function (pl) {
+            if (pk) {
+                var zb = z + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
+                pk[k].items.forEach(function (pl) {
                     drawShelfItem(a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH * 0.86, pl.it, lit);   // 0.86 - видимый зазор между устройствами
                 });
             }
@@ -542,7 +556,7 @@
         posts.forEach(function (p) { if (p.d > medD) line(p.a, p.b, 0, H, pc, post * 1.15); });
         labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, H: H, sel: isSel });
         var hl = boxHull(a0, a1, b0, b1, 0, H);
-        if (isSel || isHov) poly(hl, null, isSel ? PAL.sel : PAL.hov, isSel ? 2.4 : 1.9);
+        if (isSel || isHov) boxWire(P, a0, a1, b0, b1, 0, H, CV.aPos ? a0 : a1, CV.bPos ? b0 : b1, isSel ? PAL.sel : PAL.hov, isSel ? 2.6 : 2);
         polys.push({ r: r, pts: hl });
     }
 
