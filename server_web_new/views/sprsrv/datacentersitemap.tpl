@@ -15,15 +15,24 @@
 
 <div class="sm-wrap">
     <div class="sm-bar d-flex align-items-center justify-content-between gap-2">
-        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Колесо - масштаб, перетаскивание - прокрутка, клик по шкафу/стеллажу/ЦОД - детали и выбор (ЦОД выдвигается из стопки), правая кнопка - переход к оборудованию площадки.</div>
+        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Колесо - масштаб, перетаскивание или полоса справа - прокрутка, клик по шкафу/стеллажу/ЦОД - детали и выбор (ЦОД выдвигается из стопки), правая кнопка - переход к оборудованию площадки.</div>
         <div class="btn-group flex-shrink-0" role="group" aria-label="Масштаб карты">
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomOut" title="Уменьшить">&minus;</button>
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomFit" title="Вписать всю карту в окно" style="min-width:3.6rem">100%</button>
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomIn" title="Увеличить">+</button>
         </div>
     </div>
+    <div class="sm-filters d-flex flex-wrap align-items-center gap-2">
+        <label class="d-flex align-items-center gap-1 mb-0">Город
+            <select id="smCitySel" class="form-select form-select-sm" style="width:auto;max-width:15rem;" title="Перейти к городу"></select></label>
+        <label class="d-flex align-items-center gap-1 mb-0">Площадка/ЦОД
+            <select id="smSiteSel" class="form-select form-select-sm" style="width:auto;max-width:34rem;" title="Перейти к площадке/ЦОД"></select></label>
+        <button type="button" id="smAll" class="btn btn-outline-secondary btn-sm py-0" title="Вписать всю карту в окно">Вся карта</button>
+        <span class="text-muted small ms-auto">Выбор запоминается</span>
+    </div>
     <div class="sm-stage" id="smStage">
         <canvas id="smCanvas"></canvas>
+        <canvas id="smVScroll" title="Положение по высоте карты"></canvas>
         <div id="smTip" class="sm-tip" hidden></div>
         <div id="smPanel" class="sm-tip sm-panel" hidden></div>
         <div id="smCtx" class="sm-ctx" hidden></div>
@@ -33,25 +42,42 @@
 <style>
     .sm-wrap { display: flex; flex-direction: column; gap: 0.4rem; height: calc(100vh - 170px); min-height: 520px; }
     .sm-bar { flex: 0 0 auto; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--bs-border-color); background: var(--bs-tertiary-bg); font-size: 0.85rem; }
+    .sm-filters { flex: 0 0 auto; font-size: 0.85rem; }
+    #smVScroll { position: absolute; right: 3px; top: 6px; width: 14px; z-index: 4; cursor: pointer; }
     .sm-bar-text { min-width: 0; color: var(--bs-secondary-color); }
-    .sm-stage { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: #17144f; }
+    .sm-stage { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: linear-gradient(#171d25, #0e1318); }
+    [data-bs-theme="light"] .sm-stage { background: linear-gradient(#f3f6fa, #dbe3ec); }
     #smCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
     #smCanvas.sm-drag { cursor: grabbing; }
+    /* всплывающие подсказки, панель и меню - палитра тёмной и светлой тем */
     .sm-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 210px; max-width: 320px; padding: 0.55rem 0.7rem; border-radius: 0.5rem; font-size: 0.82rem; line-height: 1.35;
-              background: rgba(14, 13, 48, 0.95); color: #e8e8ff; border: 1px solid rgba(120, 130, 255, 0.45); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
-    .sm-panel { z-index: 6; pointer-events: auto; top: 10px; right: 10px; left: auto; border-color: rgba(88, 230, 255, 0.7); }
-    .sm-tip b.sm-name { font-size: 0.95rem; color: #fff; }
-    .sm-tip .sm-sub { color: #a9aef0; font-size: 0.78rem; margin-bottom: 0.2rem; }
+              background: rgba(17, 23, 30, 0.96); color: #e6edf3; border: 1px solid rgba(110, 190, 190, 0.5); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
+    [data-bs-theme="light"] .sm-tip { background: rgba(255, 255, 255, 0.97); color: #1d2b3a; border-color: rgba(13, 148, 136, 0.45); box-shadow: 0 6px 22px rgba(30, 50, 80, 0.22); }
+    .sm-panel { z-index: 6; pointer-events: auto; top: 10px; right: 28px; left: auto; border-color: rgba(45, 212, 191, 0.7); }
+    [data-bs-theme="light"] .sm-panel { border-color: rgba(13, 148, 136, 0.7); }
+    .sm-tip b.sm-name { font-size: 0.95rem; color: #f8fafc; }
+    [data-bs-theme="light"] .sm-tip b.sm-name { color: #0f1b2a; }
+    .sm-tip .sm-sub { color: #9fb0c2; font-size: 0.78rem; margin-bottom: 0.2rem; }
+    [data-bs-theme="light"] .sm-tip .sm-sub { color: #52667a; }
     .sm-tip table { border-collapse: collapse; margin-top: 0.25rem; width: 100%; }
     .sm-tip td { padding: 1px 0; vertical-align: top; }
-    .sm-tip td:first-child { color: #a9aef0; padding-right: 0.7rem; white-space: nowrap; }
-    .sm-tip .sm-hint { margin-top: 0.35rem; color: #8f94d8; font-size: 0.75rem; }
-    .sm-tip a { color: #7df0ff; }
-    .sm-ctx { position: absolute; z-index: 9; min-width: 250px; padding: 0.3rem; border-radius: 0.5rem; background: rgba(14, 13, 48, 0.97); border: 1px solid rgba(120, 130, 255, 0.6); box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55); }
-    .sm-ctx .sm-ctx-title { padding: 0.25rem 0.6rem; font-size: 0.75rem; color: #a9aef0; border-bottom: 1px solid rgba(120, 130, 255, 0.3); margin-bottom: 0.2rem; }
-    .sm-ctx a { display: block; padding: 0.35rem 0.6rem; border-radius: 0.35rem; font-size: 0.85rem; color: #e8e8ff; text-decoration: none; }
-    .sm-ctx a:hover { background: rgba(88, 230, 255, 0.18); color: #fff; }
-    .sm-close { position: absolute; top: 2px; right: 8px; background: none; border: 0; color: #a9aef0; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+    .sm-tip td:first-child { color: #9fb0c2; padding-right: 0.7rem; white-space: nowrap; }
+    [data-bs-theme="light"] .sm-tip td:first-child { color: #52667a; }
+    .sm-tip .sm-hint { margin-top: 0.35rem; color: #8196aa; font-size: 0.75rem; }
+    [data-bs-theme="light"] .sm-tip .sm-hint { color: #64788c; }
+    .sm-tip a { color: #5eead4; }
+    [data-bs-theme="light"] .sm-tip a { color: #0f766e; }
+    .sm-tip hr { border-color: rgba(140, 165, 190, 0.4) !important; }
+    .sm-ctx { position: absolute; z-index: 9; min-width: 250px; padding: 0.3rem; border-radius: 0.5rem; background: rgba(17, 23, 30, 0.97); border: 1px solid rgba(110, 190, 190, 0.55); box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55); }
+    .sm-ctx .sm-ctx-title { padding: 0.25rem 0.6rem; font-size: 0.75rem; color: #9fb0c2; border-bottom: 1px solid rgba(140, 165, 190, 0.3); margin-bottom: 0.2rem; }
+    .sm-ctx a { display: block; padding: 0.35rem 0.6rem; border-radius: 0.35rem; font-size: 0.85rem; color: #e6edf3; text-decoration: none; }
+    .sm-ctx a:hover { background: rgba(45, 212, 191, 0.18); color: #fff; }
+    [data-bs-theme="light"] .sm-ctx { background: rgba(255, 255, 255, 0.98); border-color: rgba(13, 148, 136, 0.45); box-shadow: 0 8px 26px rgba(30, 50, 80, 0.25); }
+    [data-bs-theme="light"] .sm-ctx .sm-ctx-title { color: #52667a; border-bottom-color: rgba(60, 90, 120, 0.25); }
+    [data-bs-theme="light"] .sm-ctx a { color: #1d2b3a; }
+    [data-bs-theme="light"] .sm-ctx a:hover { background: rgba(13, 148, 136, 0.12); color: #0f1b2a; }
+    .sm-close { position: absolute; top: 2px; right: 8px; background: none; border: 0; color: #9fb0c2; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+    [data-bs-theme="light"] .sm-close { color: #52667a; }
 </style>
 
 <script>
@@ -78,6 +104,38 @@
     var hits = [];                                 // [{site, rack, pts}] в координатах мира, порядок = порядок рисования
     var overlay = [];                              // выноски/подписи - рисуются последним проходом поверх всего
     var allSites = [];
+
+    // ---- цветовые схемы (светлая/тёмная тема сайта, атрибут data-bs-theme): приглушённая графитово-бирюзовая палитра ----
+    // Изображения оборудования (шкафы APC, устройства вендоров, стойки стеллажа) от темы не зависят.
+    var PALS = {
+        dark: {
+            bgTop: '#171d25', bgBot: '#0e1318', bandEven: 'rgba(0,0,0,0.16)', bandOdd: 'rgba(255,255,255,0.025)',
+            slabTop: ['#2a3a4c', '#202d3c'], slabL: '#18222d', slabR: '#121a23', slabEdge: 'rgba(110,190,190,0.55)', slabGrid: 'rgba(150,175,195,0.14)',
+            dash: 'rgba(160,185,205,0.6)', plateFill: 'rgba(15,21,28,0.94)', plateStroke: 'rgba(140,165,190,0.6)', plateText: '#f1f5f9',
+            floorText: '#9fb0c2', addrText: '#e8eef5', textShadow: 'rgba(0,0,0,0.55)', deckEdge: 'rgba(120,190,200,0.5)',
+            listBg: 'rgba(12,17,23,0.95)', listLine: 'rgba(120,160,185,0.4)', cityBg: 'rgba(38,52,68,0.55)', cityBgHov: 'rgba(45,212,191,0.2)', cityEdge: 'rgba(120,160,185,0.4)',
+            title: '#f1f5f9', sub: '#9fb0c2', sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4',
+            sbTrack: 'rgba(12,17,23,0.6)', sbTick: 'rgba(150,175,195,0.35)', sbThumb: 'rgba(45,212,191,0.5)', sbThumbDim: 'rgba(45,212,191,0.22)',
+            glow: '45,212,191', glowMode: 'lighter'
+        },
+        light: {
+            bgTop: '#f3f6fa', bgBot: '#dbe3ec', bandEven: 'rgba(30,50,80,0.05)', bandOdd: 'rgba(255,255,255,0.45)',
+            slabTop: ['#e9eff6', '#d5dfea'], slabL: '#a4b4c6', slabR: '#91a3b8', slabEdge: 'rgba(52,96,120,0.65)', slabGrid: 'rgba(40,70,100,0.13)',
+            dash: 'rgba(60,90,120,0.55)', plateFill: 'rgba(255,255,255,0.95)', plateStroke: 'rgba(60,90,120,0.55)', plateText: '#1d2b3a',
+            floorText: '#52667a', addrText: '#1d2b3a', textShadow: 'rgba(255,255,255,0.7)', deckEdge: 'rgba(52,96,120,0.5)',
+            listBg: 'rgba(245,248,251,0.96)', listLine: 'rgba(60,90,120,0.3)', cityBg: 'rgba(255,255,255,0.85)', cityBgHov: 'rgba(13,148,136,0.14)', cityEdge: 'rgba(60,90,120,0.32)',
+            title: '#1d2b3a', sub: '#52667a', sel: '#0d9488', hov: '#14b8a6', selTxt: '#0f766e',
+            sbTrack: 'rgba(30,50,80,0.12)', sbTick: 'rgba(60,90,120,0.4)', sbThumb: 'rgba(13,148,136,0.5)', sbThumbDim: 'rgba(13,148,136,0.22)',
+            glow: '13,148,136', glowMode: 'source-over'
+        }
+    };
+    var PAL = PALS.dark;
+    function setPal() {
+        PAL = document.documentElement.getAttribute('data-bs-theme') === 'light' ? PALS.light : PALS.dark;
+        stage.style.background = 'linear-gradient(' + PAL.bgTop + ',' + PAL.bgBot + ')';
+    }
+    setPal();
+    if (window.MutationObserver) new MutationObserver(function () { setPal(); redraw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
 
     var kw = function (w) { return w >= 1000 ? (w / 1000).toFixed(1) + ' кВт' : Math.round(w) + ' Вт'; };
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -174,6 +232,8 @@
         bl.forEach(function (b) { b.y = rowH - b.h; });
         return { c: c, blds: bl, w: Math.max(x - 2.4 * U, 6 * U), h: rowH + 0.6 * U };
     });
+    var sitesById = {};
+    cities.forEach(function (ct) { ct.blds.forEach(function (bl) { bl.b.floors.forEach(function (fl, k) { fl.sites.forEach(function (s) { s.ct = ct; s.bl = bl; s.k = k; sitesById[s.id] = s; }); }); }); });
     var WORLD = { w: 0, h: 0 };
     (function () {
         var y = 0;
@@ -208,7 +268,7 @@
         var a0 = 0.3 + gi + (1 - FW) / 2, a1 = a0 + FW;
         var b0 = 0.3 + gj + (1 - FD) / 2, b1 = b0 + FD;
         var z0 = SLAB, H = z0 + hz(r), s = U;
-        var isSel = selRack === r, isHov = hovRack === r, lit = isSel || isHov;
+        var isSel = selRack === r, isHov = hovRack === r, lit = false;   // корпус не меняет цвет, подсвечивается только контур
 
         poly([P(so, a0 - 0.05, b0 + 0.05, z0), P(so, a1 + 0.1, b0 + 0.05, z0), P(so, a1 + 0.1, b1 + 0.08, z0), P(so, a0 - 0.05, b1 + 0.08, z0)], 'rgba(0,0,0,0.28)');
         var left = [P(so, a0, b1, H), P(so, a1, b1, H), P(so, a1, b1, z0), P(so, a0, b1, z0)];
@@ -254,13 +314,12 @@
             while (nm.length > 2 && ctx.measureText(nm).width > 92) nm = nm.slice(0, -2) + '…';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(nm, 51.5, 66.5);
-            ctx.fillStyle = isSel ? '#7df0ff' : (isHov ? '#aef4ff' : '#d9dcea');
+            ctx.fillStyle = '#d9dcea';
             ctx.fillText(nm, 50, 65);
             ctx.restore();
         }
-        var edge = isSel ? '#58e6ff' : (isHov ? '#8fefff' : 'rgba(255,255,255,0.16)');
-        var elw = lw(isSel ? 2.6 : (isHov ? 2.2 : 1));
-        if (isSel || isHov) { var tn = isSel ? SEL_TINT : HOV_TINT; poly(left, tn); poly(right, tn); poly(top, tn); }
+        var edge = isSel ? PAL.sel : (isHov ? PAL.hov : 'rgba(255,255,255,0.16)');
+        var elw = lw(isSel ? 3 : (isHov ? 2.4 : 1));
         poly(left, null, edge, elw); poly(right, null, edge, elw); poly(top, null, edge, elw);
 
         // световой столб над шкафом пропорционально мощности (относительно самого мощного шкафа площадки)
@@ -269,8 +328,8 @@
             var pcx = (top[0][0] + top[2][0]) / 2, pcy = (top[0][1] + top[2][1]) / 2;
             var pbh = (H - z0) * U * (0.35 + 0.9 * frac), pbw = (a1 - a0) * U * 0.75;
             ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.fillStyle = lin(0, pcy, 0, pcy - pbh, [[0, 'rgba(60,220,230,' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(60,220,230,0)']]);
+            ctx.globalCompositeOperation = PAL.glowMode;
+            ctx.fillStyle = lin(0, pcy, 0, pcy - pbh, [[0, 'rgba(' + PAL.glow + ',' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(' + PAL.glow + ',0)']]);
             ctx.fillRect(pcx - pbw / 2, pcy - pbh, pbw, pbh);
             ctx.restore();
         }
@@ -288,7 +347,7 @@
         var bot = pts.map(function (p) { return P(so, p[0], p[1], z); });
         poly(bot.concat(top.slice().reverse()), '#aab1bb');
         for (q = 0; q < 20; q++) { var nn = (q + 1) % 20; poly([top[q], top[nn], bot[nn], bot[q]], q > 4 && q < 15 ? '#c4cad2' : '#9aa1ab'); }
-        poly(top, lit ? '#ffffff' : '#eef0f3', 'rgba(0,0,0,0.3)', 0.7);
+        poly(top, '#eef0f3', 'rgba(0,0,0,0.3)', 0.7);
         var lc = P(so, cx, cb, z + hh);
         ctx.fillStyle = on ? (round ? '#3aa0ff' : '#35e06a') : '#8a919c';
         ctx.beginPath(); ctx.arc(lc[0], lc[1], Math.max(1.2, rad * U * 0.14), 0, TAU); ctx.fill();
@@ -301,8 +360,8 @@
         var side = [P(so, ia1, ib1, zt), P(so, ia1, ib0, zt), P(so, ia1, ib0, z), P(so, ia1, ib1, z)];
         var top = [P(so, ia0, ib0, zt), P(so, ia1, ib0, zt), P(so, ia1, ib1, zt), P(so, ia0, ib1, zt)];
         poly(side, '#1e2026');
-        poly(front, lin(0, front[0][1], 0, front[2][1], [[0, lit ? '#454a56' : '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
-        poly(top, lit ? '#6a7080' : '#575c69', 'rgba(255,255,255,0.25)', 0.7);
+        poly(front, lin(0, front[0][1], 0, front[2][1], [[0, '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
+        poly(top, '#575c69', 'rgba(255,255,255,0.25)', 0.7);
         if (cam.k > 0.7) {
             ctx.save();
             faceTransform(front[0], (ia1 - ia0) * U, (ia1 - ia0) * U / 2, 0, h * U, 100, 40);
@@ -323,10 +382,10 @@
         } else {
             poly(front, null, null); ctx.fillStyle = acc; ctx.fillRect(front[0][0], front[0][1], front[1][0] - front[0][0], Math.max(1, U * 0.03));
         }
-        poly(front, null, lit ? '#8fefff' : 'rgba(255,255,255,0.22)', 0.8);
+        poly(front, null, 'rgba(255,255,255,0.22)', 0.8);
     }
     function drawShelfUnit(so, site, r, u, labels) {
-        var isSel = selRack === r, isHov = hovRack === r, lit = isSel || isHov;
+        var isSel = selRack === r, isHov = hovRack === r, lit = false;
         var H = 1.55, z0 = SLAB, post = Math.max(1.2, U * 0.035);
         var zs = H * 0.2, tb = H * 0.022;
         var a0 = 0.3 + r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
@@ -337,14 +396,14 @@
             ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
         };
-        var pc = isSel ? '#58e6ff' : (isHov ? '#8fefff' : '#5a7898');
+        var pc = '#5a7898';
         line(a0, b0, z0, z0 + H, pc, post); line(a1, b0, z0, z0 + H, pc, post);          // задние стойки
         var d0 = P(so, a0, b0, z0), d1 = P(so, a1, b0, z0 + H * 0.96);                    // диагональная связь
         ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
         ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
         for (var k = 0; k < 5; k++) {                                                      // полки
             var z = z0 + H * 0.04 + zs * k;
-            poly([P(so, a0, b0, z + tb), P(so, a1, b0, z + tb), P(so, a1, b1, z + tb), P(so, a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? '#8fefff' : 'rgba(110,200,255,0.5)', 0.9);
+            poly([P(so, a0, b0, z + tb), P(so, a1, b0, z + tb), P(so, a1, b1, z + tb), P(so, a0, b1, z + tb)], 'rgba(110,130,150,0.16)', PAL.deckEdge, 0.9);
             var frontf = [P(so, a0, b1, z + tb), P(so, a1, b1, z + tb), P(so, a1, b1, z), P(so, a0, b1, z)];
             poly(frontf, lin(0, frontf[0][1], 0, frontf[2][1], [[0, '#5a7898'], [1, '#2a3b4e']]));
         }
@@ -358,7 +417,7 @@
         line(a0, b1, z0, z0 + H, pc, post * 1.15); line(a1, b1, z0, z0 + H, pc, post * 1.15);   // передние стойки
         labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, z: z0 + H, sel: isSel });
         var hl = [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, z0 + H), P(so, a0, b0, z0 + H), P(so, a0, b1, z0 + H)];
-        if (isSel) poly(hl, SEL_TINT, '#58e6ff', lw(2.6)); else if (isHov) poly(hl, HOV_TINT, '#8fefff', lw(2.2));
+        if (isSel) poly(hl, null, PAL.sel, lw(3)); else if (isHov) poly(hl, null, PAL.hov, lw(2.4));
         // световой столб над стеллажом по общей мощности
         hits.push({ site: site, rack: r, pts: hl });
     }
@@ -368,7 +427,7 @@
         faceTransform(P(so, L.a0, L.b0, L.z), (L.a1 - L.a0) * U, (L.a1 - L.a0) * U / 2, -(L.b1 - L.b0) * U, (L.b1 - L.b0) * U / 2, 100, 130);
         ctx.font = '800 17px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-        ctx.fillStyle = L.sel ? '#7df0ff' : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+        ctx.fillStyle = '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
         ctx.restore();
     }
 
@@ -384,20 +443,20 @@
             var q0 = P(o, site.aOff, 0, zf);
             var oo = { x: q0[0], y: q0[1] };
             ctx.save(); ctx.setLineDash([6, 5]);
-            poly([P(oo, 0, 0, SLAB), P(oo, A, 0, SLAB), P(oo, A, B, SLAB), P(oo, 0, B, SLAB)], null, 'rgba(150,160,255,0.45)', lw(1.2));
+            poly([P(oo, 0, 0, SLAB), P(oo, A, 0, SLAB), P(oo, A, B, SLAB), P(oo, 0, B, SLAB)], null, PAL.dash, lw(1.2));
             ctx.restore();
             poly([P(so, 0.1, B + 0.1, 0), P(so, A + 0.15, B + 0.1, 0), P(so, A + 0.15, 0.1, 0), P(so, 0.1, 0.1, 0)], 'rgba(0,0,0,' + (0.25 * site.e).toFixed(2) + ')');
         }
         var top = [P(so, 0, 0, SLAB), P(so, A, 0, SLAB), P(so, A, B, SLAB), P(so, 0, B, SLAB)];
         var fL = [P(so, 0, B, SLAB), P(so, A, B, SLAB), P(so, A, B, 0), P(so, 0, B, 0)];
         var fR = [P(so, A, B, SLAB), P(so, A, 0, SLAB), P(so, A, 0, 0), P(so, A, B, 0)];
-        poly(fL, '#1a1766'); poly(fR, '#14124d');
-        poly(top, lin(0, top[0][1], 0, top[2][1], [[0, '#2b2585'], [1, '#1d1a63']]));
-        var edge = isSel ? '#58e6ff' : (isHov ? '#8fefff' : 'rgba(110,200,255,0.6)');
+        poly(fL, PAL.slabL); poly(fR, PAL.slabR);
+        poly(top, lin(0, top[0][1], 0, top[2][1], [[0, PAL.slabTop[0]], [1, PAL.slabTop[1]]]));
+        var edge = isSel ? PAL.sel : (isHov ? PAL.hov : PAL.slabEdge);
         var elw = lw(isSel ? 2.4 : (isHov ? 2 : 1.4));
         poly(top, null, edge, elw); poly(fL, null, edge, elw); poly(fR, null, edge, elw);
         if (cam.k > 0.5) {
-            ctx.strokeStyle = 'rgba(140,150,255,0.16)'; ctx.lineWidth = lw(1);
+            ctx.strokeStyle = PAL.slabGrid; ctx.lineWidth = lw(1);
             for (var i = 1; i < A; i++) { var p = P(so, i, 0, SLAB), q = P(so, i, B, SLAB); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
             for (var j = 1; j < B; j++) { var p2 = P(so, 0, j, SLAB), q2 = P(so, A, j, SLAB); ctx.beginPath(); ctx.moveTo(p2[0], p2[1]); ctx.lineTo(q2[0], q2[1]); ctx.stroke(); }
         }
@@ -420,7 +479,7 @@
         var site = c.site, so = c.so, isSel = selSite === site, isHov = hovSite === site;
         var pa0 = 0.1, pa1 = c.A - 0.1, pb0 = c.B + 0.12, pb1 = c.B + 0.78;
         var plate = [P(so, pa0, pb0, SLAB), P(so, pa1, pb0, SLAB), P(so, pa1, pb1, SLAB), P(so, pa0, pb1, SLAB)];
-        poly(plate, 'rgba(14,13,48,0.94)', isSel ? '#58e6ff' : (isHov ? '#8fefff' : 'rgba(120,130,255,0.75)'), lw(1.3));
+        poly(plate, PAL.plateFill, isSel ? PAL.sel : (isHov ? PAL.hov : PAL.plateStroke), lw(1.3));
         if (cam.k < 0.2) return;
         var Wl = 300, Hl = Math.max(30, Math.round(300 * (pb1 - pb0) / (pa1 - pa0)));
         ctx.save();
@@ -431,7 +490,7 @@
         if (tw > Wl - 14) { fsz = Math.max(10, Math.floor(fsz * (Wl - 14) / tw)); ctx.font = '800 ' + fsz + 'px ' + FONT; }
         while (txt.length > 2 && ctx.measureText(txt).width > Wl - 14) txt = txt.slice(0, -2) + '…';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = isSel ? '#7df0ff' : '#ffffff';
+        ctx.fillStyle = isSel ? PAL.selTxt : PAL.plateText;
         ctx.fillText(txt, Wl / 2, Hl / 2 + 1);
         ctx.restore();
     }
@@ -441,7 +500,7 @@
         // пунктир по задней грани, соединяющий этажи
         if (bl.n > 1) {
             var d0 = P(o, 0, 0, SLAB), d1 = P(o, 0, 0, (bl.n - 1) * bl.FH + SLAB);
-            ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(150,160,255,0.65)'; ctx.lineWidth = lw(1.4);
+            ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = PAL.dash; ctx.lineWidth = lw(1.4);
             ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke(); ctx.restore();
         }
         var late = [];
@@ -463,8 +522,8 @@
         ctx.save();
         if (c.label !== undefined) {
             ctx.font = '600 15px ' + FONT; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillText(c.label, c.x + 1, c.y + 1);
-            ctx.fillStyle = '#a9aef0'; ctx.fillText(c.label, c.x, c.y);
+            ctx.fillStyle = PAL.textShadow; ctx.fillText(c.label, c.x + 1, c.y + 1);
+            ctx.fillStyle = PAL.floorText; ctx.fillText(c.label, c.x, c.y);
         } else {
             var fs = 20;
             ctx.font = '700 ' + fs + 'px ' + FONT;
@@ -472,8 +531,8 @@
             if (tw > c.maxW) { fs = Math.max(11, Math.floor(fs * c.maxW / tw)); ctx.font = '700 ' + fs + 'px ' + FONT; }
             var t = c.addr; while (t.length > 3 && ctx.measureText(t).width > c.maxW) t = t.slice(0, -2) + '…';
             ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillText(t, c.x + 1, c.y + 1);
-            ctx.fillStyle = '#e8e8ff'; ctx.fillText(t, c.x, c.y);
+            ctx.fillStyle = PAL.textShadow; ctx.fillText(t, c.x + 1, c.y + 1);
+            ctx.fillStyle = PAL.addrText; ctx.fillText(t, c.x, c.y);
         }
         ctx.restore();
     }
@@ -483,9 +542,9 @@
         cityBoxes = [];
         ctx.save();
         ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
-        ctx.fillStyle = 'rgba(14,13,48,0.92)';
+        ctx.fillStyle = PAL.listBg;
         ctx.fillRect(0, 0, LW, G.h);
-        ctx.strokeStyle = 'rgba(120,130,255,0.5)'; ctx.lineWidth = 1;
+        ctx.strokeStyle = PAL.listLine; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(LW + 0.5, 0); ctx.lineTo(LW + 0.5, G.h); ctx.stroke();
         cities.forEach(function (ct) {
             var top = cam.ty + (ct.y - 0.3 * U) * cam.k, bot = cam.ty + (ct.y + ct.h + 0.6 * U) * cam.k;
@@ -493,19 +552,26 @@
             var t0 = Math.max(top, 0), b0 = Math.min(bot, G.h);
             cityBoxes.push({ ct: ct, y0: t0, y1: b0 });
             var isCur = hovCity === ct;
-            ctx.fillStyle = isCur ? 'rgba(70,80,200,0.55)' : 'rgba(40,40,120,0.45)';
+            ctx.fillStyle = isCur ? PAL.cityBgHov : PAL.cityBg;
             ctx.fillRect(6, t0 + 3, LW - 12, Math.max(10, b0 - t0 - 6));
-            ctx.strokeStyle = isCur ? '#58e6ff' : 'rgba(110,200,255,0.45)';
+            ctx.strokeStyle = isCur ? PAL.sel : PAL.cityEdge;
             ctx.strokeRect(6.5, t0 + 3.5, LW - 13, Math.max(10, b0 - t0 - 6) - 1);
-            var cy = (t0 + b0) / 2;
+            var cy = (t0 + b0) / 2, ph = b0 - t0 - 6;
             var sc = 0; ct.blds.forEach(function (b) { b.b.floors.forEach(function (f) { sc += f.sites.length; }); });
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            var fs = 17, nm = ct.c.name;
-            ctx.font = '800 ' + fs + 'px ' + FONT;
-            while (nm.length > 3 && ctx.measureText(nm).width > LW - 28) nm = nm.slice(0, -2) + '…';
-            ctx.fillStyle = '#ffffff'; ctx.fillText(nm, 14, cy - 8);
-            ctx.font = '600 12px ' + FONT; ctx.fillStyle = '#a9aef0';
-            ctx.fillText('зданий ' + ct.blds.length + ' · ЦОД ' + sc, 14, cy + 11);
+            var nm = ct.c.name;
+            if (ph >= 36) {                                           // достаточно места: название и сводка
+                ctx.font = '800 17px ' + FONT;
+                while (nm.length > 3 && ctx.measureText(nm).width > LW - 28) nm = nm.slice(0, -2) + '…';
+                ctx.fillStyle = PAL.title; ctx.fillText(nm, 14, cy - 8);
+                ctx.font = '600 12px ' + FONT; ctx.fillStyle = PAL.sub;
+                ctx.fillText('зданий ' + ct.blds.length + ' · ЦОД ' + sc, 14, cy + 11);
+            } else if (ph >= 11) {                                    // плашка низкая: только название по высоте плашки, без наложения
+                var fs = Math.min(15, ph - 3);
+                ctx.font = '700 ' + fs + 'px ' + FONT;
+                while (nm.length > 3 && ctx.measureText(nm).width > LW - 28) nm = nm.slice(0, -2) + '…';
+                ctx.fillStyle = PAL.title; ctx.fillText(nm, 14, cy);
+            }
         });
         ctx.restore();
     }
@@ -518,15 +584,115 @@
         var m = 30, availW = G.w - LW - 2 * m, availH = G.h - 2 * m;
         var k = Math.min(availW / ct.w, availH / (ct.h + 0.6 * U));
         cam.k = Math.max(0.05, Math.min(1.5, k));
-        cam.tx = LW + m; cam.ty = m - (ct.y - 0.3 * U) * cam.k;
-        if ((ct.h + 0.6 * U) * cam.k < availH) cam.ty += (availH - (ct.h + 0.6 * U) * cam.k) / 2;
+        cam.tx = LW + m; cam.ty = m - (ct.y - 0.3 * U) * cam.k;                 // по левому краю, строка города - вверху
         redraw();
+    }
+    function fitBuilding(ct, bl) {                  // показать здание целиком (слева, по высоте окна)
+        var m = 30, availW = G.w - LW - 2 * m, availH = G.h - 2 * m;
+        var k = Math.min(availW / bl.w, availH / bl.h);
+        cam.k = Math.max(0.05, Math.min(1.6, k));
+        cam.tx = LW + m - (ct.x + bl.x) * cam.k;
+        cam.ty = m - (ct.y + bl.y) * cam.k;
+        if (bl.h * cam.k < availH) cam.ty += (availH - bl.h * cam.k) / 2;
+        redraw();
+    }
+    function focusSite(site) { fitBuilding(site.ct, site.bl); select(site, null); }
+
+    // ---- фильтры вверху: быстрый переход к городу / площадке; последний выбор запоминается ----
+    var citySel = document.getElementById('smCitySel'), siteSel = document.getElementById('smSiteSel');
+    var LS_CITY = 'datacentersitemap.city', LS_SITE = 'datacentersitemap.site';
+    function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+    function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { } }
+    function cityByName(nm) { for (var i = 0; i < cities.length; i++) if (cities[i].c.name === nm) return cities[i]; return null; }
+    function fillCities() {
+        var h = '<option value="">Все города (' + cities.length + ')</option>';
+        cities.forEach(function (ct) { h += '<option value="' + esc(ct.c.name) + '">' + esc(ct.c.name) + '</option>'; });
+        citySel.innerHTML = h;
+    }
+    function fillSites(cityName) {
+        var h = '<option value="">Все площадки/ЦОД</option>';
+        cities.forEach(function (ct) {
+            if (cityName && ct.c.name !== cityName) return;
+            var g = '';
+            ct.blds.forEach(function (bl) { bl.b.floors.forEach(function (fl) { fl.sites.forEach(function (s) {
+                g += '<option value="' + s.id + '">' + esc(bl.b.address + ' · ' + floorTitle(fl.floor) + ' · ' + s.room) + '</option>';
+            }); }); });
+            h += cityName ? g : '<optgroup label="' + esc(ct.c.name) + '">' + g + '</optgroup>';
+        });
+        siteSel.innerHTML = h;
+    }
+    citySel.addEventListener('change', function () {
+        var nm = citySel.value;
+        lsSet(LS_CITY, nm); lsSet(LS_SITE, '');
+        fillSites(nm);
+        select(null, null);
+        var ct = nm ? cityByName(nm) : null;
+        if (ct) fitCity(ct); else { fit(); redraw(); }
+    });
+    siteSel.addEventListener('change', function () {
+        var s = sitesById[siteSel.value];
+        lsSet(LS_SITE, siteSel.value);
+        if (s) { citySel.value = s.ct.c.name; lsSet(LS_CITY, s.ct.c.name); focusSite(s); }
+    });
+    document.getElementById('smAll').addEventListener('click', function () { citySel.value = ''; siteSel.value = ''; lsSet(LS_CITY, ''); lsSet(LS_SITE, ''); fillSites(''); fit(); redraw(); });
+    function initView() {                           // при открытии: восстановить последний выбор, иначе - первый город
+        fillCities(); fillSites('');
+        var sid = lsGet(LS_SITE), cnm = lsGet(LS_CITY);
+        var s = sid ? sitesById[sid] : null;
+        if (s) { citySel.value = s.ct.c.name; fillSites(s.ct.c.name); siteSel.value = String(s.id); focusSite(s); return; }
+        var ct = cnm ? cityByName(cnm) : null;
+        if (ct) { citySel.value = ct.c.name; fillSites(ct.c.name); fitCity(ct); return; }
+        fitCity(cities[0]);
+    }
+
+    // ---- вертикальная полоса прокрутки: положение окна просмотра на всей карте (риски - границы городов) ----
+    var sb = document.getElementById('smVScroll'), sbCtx = sb ? sb.getContext('2d') : null;
+    var SB_W = 14, SB_PAD = 20, sbDrag = null;
+    function sbGeom() {
+        var trackH = Math.max(40, G.h - 12), contentH = WORLD.h * cam.k + 2 * SB_PAD, range = Math.max(0, contentH - G.h);
+        var off = Math.min(Math.max(SB_PAD - cam.ty, 0), range);
+        var thumbH = Math.max(24, trackH * Math.min(1, G.h / contentH));
+        return { trackH: trackH, contentH: contentH, range: range, off: off, thumbH: thumbH, thumbY: range > 0 ? off / range * (trackH - thumbH) : 0 };
+    }
+    function drawScroll() {
+        if (!sb) return;
+        var g = sbGeom();
+        sbCtx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
+        sbCtx.clearRect(0, 0, SB_W, g.trackH);
+        sbCtx.fillStyle = PAL.sbTrack; sbCtx.fillRect(4, 0, 8, g.trackH);
+        sbCtx.strokeStyle = PAL.sbTick; sbCtx.lineWidth = 1;
+        cities.forEach(function (ct) {                                         // границы городов
+            var y = Math.round((ct.y * cam.k + SB_PAD) / g.contentH * g.trackH) + 0.5;
+            sbCtx.beginPath(); sbCtx.moveTo(2, y); sbCtx.lineTo(SB_W - 2, y); sbCtx.stroke();
+        });
+        sbCtx.fillStyle = g.range > 0 ? PAL.sbThumb : PAL.sbThumbDim;
+        sbCtx.fillRect(2, g.thumbY, SB_W - 4, g.thumbH);
+        sbCtx.strokeStyle = PAL.sel; sbCtx.strokeRect(2.5, g.thumbY + 0.5, SB_W - 5, g.thumbH - 1);
+        // подсказка: какие города сейчас видны
+        var vy0 = -cam.ty / cam.k, vy1 = (G.h - cam.ty) / cam.k, a = -1, b = -1;
+        cities.forEach(function (ct, i) { if (ct.y + ct.h >= vy0 && ct.y <= vy1) { if (a < 0) a = i; b = i; } });
+        sb.title = 'Города ' + (a + 1) + '–' + (b + 1) + ' из ' + cities.length + ' (масштаб ' + Math.round(cam.k * 100) + '%)';
+    }
+    function sbSetOff(off) { var g = sbGeom(); cam.ty = SB_PAD - Math.min(Math.max(off, 0), g.range); redraw(); }
+    if (sb) {
+        sb.addEventListener('mousedown', function (e) {
+            var rect = sb.getBoundingClientRect(), y = e.clientY - rect.top, g = sbGeom();
+            if (y >= g.thumbY && y <= g.thumbY + g.thumbH) sbDrag = { y: e.clientY, off: g.off };
+            else { sbSetOff((y - g.thumbH / 2) / Math.max(1, g.trackH - g.thumbH) * g.range); sbDrag = { y: e.clientY, off: sbGeom().off }; }
+            e.preventDefault(); e.stopPropagation();
+        });
+        window.addEventListener('mousemove', function (e) {
+            if (!sbDrag) return;
+            var g = sbGeom();
+            sbSetOff(sbDrag.off + (e.clientY - sbDrag.y) / Math.max(1, g.trackH - g.thumbH) * g.range);
+        });
+        window.addEventListener('mouseup', function () { sbDrag = null; });
     }
 
     // ---- сцена ----
     function render() {
         ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
-        ctx.fillStyle = lin(0, 0, 0, G.h, [[0, '#1b1763'], [1, '#100e3a']]);
+        ctx.fillStyle = lin(0, 0, 0, G.h, [[0, PAL.bgTop], [1, PAL.bgBot]]);
         ctx.fillRect(0, 0, G.w, G.h);
         ctx.save();
         ctx.translate(cam.tx, cam.ty); ctx.scale(cam.k, cam.k);
@@ -535,7 +701,7 @@
         // подложка строк городов (чередование) - на всю видимую ширину
         cities.forEach(function (ct, i) {
             if (ct.y > vy1 || ct.y + ct.h + 1.2 * U < vy0) return;
-            ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.12)';
+            ctx.fillStyle = i % 2 ? PAL.bandOdd : PAL.bandEven;
             ctx.fillRect(vx0, ct.y - 0.3 * U, vx1 - vx0, ct.h + 0.9 * U);
         });
         cities.forEach(function (ct) {
@@ -550,6 +716,7 @@
         ctx.restore();
         drawCityList();
         pctBtn.textContent = Math.round(cam.k * 100) + '%';
+        drawScroll();
     }
     var raf = 0;
     function redraw() { if (!raf) raf = requestAnimationFrame(frame); }
@@ -569,12 +736,11 @@
 
     // ---- камера ----
     function fit() {
-        var m = 40, availW = G.w - LW - 2 * m;
+        var m = 20, availW = G.w - LW - 2 * m;
         var k = Math.min(availW / WORLD.w, (G.h - 2 * m) / WORLD.h);
-        cam.k = Math.max(0.05, Math.min(1.2, k));
-        cam.tx = LW + m + Math.max(0, (availW - WORLD.w * cam.k) / 2);
+        cam.k = Math.max(0.02, Math.min(1.5, k));
+        cam.tx = LW + m;                               // изображение выравнивается по левому и верхнему краю
         cam.ty = m;
-        if (WORLD.h * cam.k + 2 * m < G.h) cam.ty = (G.h - WORLD.h * cam.k) / 2;
     }
     var fitted = false;
     function resize() {
@@ -582,7 +748,8 @@
         G.dpr = window.devicePixelRatio || 1;
         G.w = Math.max(200, rect.width); G.h = Math.max(200, rect.height);
         canvas.width = Math.round(G.w * G.dpr); canvas.height = Math.round(G.h * G.dpr);
-        if (!fitted) { fit(); fitted = true; }
+        if (sb) { sb.width = Math.round(SB_W * G.dpr); sb.height = Math.round(Math.max(40, G.h - 12) * G.dpr); sb.style.width = SB_W + 'px'; sb.style.height = Math.max(40, G.h - 12) + 'px'; }
+        if (!fitted) { fitted = true; initView(); }
         render();
     }
     function zoomAt(f, px, py) {
@@ -650,7 +817,7 @@
             var h = '<button type="button" class="sm-close" title="Закрыть" id="smPanelClose">&times;</button>' + siteInfo(site);
             h += '<div class="sm-hint"><a href="/sprsrv/datacentersiteview/' + site.id + '" target="_blank" rel="noopener">Открыть оборудование ЦОД</a></div>';
             if (rack) {
-                h += '<hr style="border-color:rgba(120,130,255,.4);margin:.5rem 0">' + rackInfo(rack);
+                h += '<hr style="margin:.5rem 0">' + rackInfo(rack);
                 h += '<div class="sm-hint"><a href="/sprsrv/rackcabinetview/' + rack.id + '" target="_blank" rel="noopener">' + (rack.shelf ? 'Открыть стеллаж' : 'Открыть шкаф') + '</a></div>';
             }
             panel.innerHTML = h; panel.hidden = false;
