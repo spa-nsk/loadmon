@@ -91,10 +91,10 @@
     // Изображения оборудования (шкафы APC, устройства вендоров, стойки стеллажа) от темы не зависят.
     var PALS = {
         dark:  { bgTop: '#171d25', bgBot: '#0e1318', floorTop: '#243242', floorBot: '#1b2733', floorEdge: 'rgba(110,190,190,0.5)', grid: 'rgba(150,175,195,0.14)',
-                 sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(120,190,200,0.5)', glowMode: 'lighter',
+                 sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4', hovTxt: '#ccfbf1', labelText: '#e6e9f2', labelShadow: 'rgba(0,0,0,0.6)', deckEdge: 'rgba(120,190,200,0.5)', glowMode: 'lighter',
                  cornerBg: 'rgba(15,21,28,0.8)', cornerBgHot: 'rgba(45,212,191,0.3)', cornerEdge: 'rgba(175,208,228,0.95)', cornerGlyph: '#dbe8f2' },
         light: { bgTop: '#f3f6fa', bgBot: '#dbe3ec', floorTop: '#bccbdc', floorBot: '#a6b8cc', floorEdge: 'rgba(40,82,110,0.8)', grid: 'rgba(40,70,100,0.24)',
-                 sel: '#0d9488', hov: '#14b8a6', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(52,96,120,0.5)', glowMode: 'source-over',
+                 sel: '#0d9488', hov: '#14b8a6', selTxt: '#0f766e', hovTxt: '#0f766e', labelText: '#17324a', labelShadow: 'rgba(255,255,255,0.9)', deckEdge: 'rgba(52,96,120,0.5)', glowMode: 'source-over',
                  cornerBg: 'rgba(255,255,255,0.88)', cornerBgHot: 'rgba(13,148,136,0.2)', cornerEdge: 'rgba(40,80,110,0.95)', cornerGlyph: '#2b4a64' }
     };
     var PAL = PALS.dark;
@@ -473,6 +473,8 @@
         poly(side, '#1e2026');
         poly(front, lin(0, Math.min(front[0][1], front[1][1]), 0, Math.max(front[2][1], front[3][1]), [[0, lit ? '#454a56' : '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
         poly(top, lit ? '#6a7080' : '#575c69', 'rgba(255,255,255,0.25)', 0.7);
+        ctx.save(); ctx.strokeStyle = acc; ctx.lineWidth = Math.max(1.4, G.s * 0.022); ctx.lineCap = 'butt';   // цветная полоса вендора по передней кромке
+        ctx.beginPath(); ctx.moveTo(front[0][0], front[0][1]); ctx.lineTo(front[1][0], front[1][1]); ctx.stroke(); ctx.restore();
         if (CV.bPos) {                                   // лицевая панель видна только с передней стороны
             ctx.save();
             vertFaceXf(front[0], front[1], h, 100, 40);
@@ -533,7 +535,7 @@
             for (var k2 = 0; k2 < 5; k2++) {
                 var zb = H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
                 pk[k2].items.forEach(function (pl) {
-                    drawShelfItem(a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH, pl.it, lit);
+                    drawShelfItem(a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH * 0.86, pl.it, lit);   // 0.86 - видимый зазор между устройствами
                 });
             }
         }
@@ -556,9 +558,9 @@
         labels.forEach(function (L) {
             ctx.save();
             if (topFaceXf(L.a0, L.a1, L.b0, L.b1, L.H, 100, 130)) {
-                ctx.font = '800 17px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-                ctx.fillStyle = L.sel ? PAL.selTxt : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+                ctx.font = '800 19px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = PAL.labelShadow; ctx.fillText('СТЕЛЛАЖ', 51, 66);
+                ctx.fillStyle = L.sel ? PAL.selTxt : PAL.labelText; ctx.fillText('СТЕЛЛАЖ', 50, 65);
             }
             ctx.restore();
         });

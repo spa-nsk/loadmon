@@ -112,7 +112,7 @@
             bgTop: '#171d25', bgBot: '#0e1318', bandEven: 'rgba(0,0,0,0.16)', bandOdd: 'rgba(255,255,255,0.025)',
             slabTop: ['#2a3a4c', '#202d3c'], slabL: '#18222d', slabR: '#121a23', slabEdge: 'rgba(110,190,190,0.55)', slabGrid: 'rgba(150,175,195,0.14)',
             dash: 'rgba(160,185,205,0.6)', plateFill: 'rgba(15,21,28,0.94)', plateStroke: 'rgba(140,165,190,0.6)', plateText: '#f1f5f9',
-            floorText: '#9fb0c2', addrText: '#e8eef5', textShadow: 'rgba(0,0,0,0.55)', deckEdge: 'rgba(120,190,200,0.5)',
+            floorText: '#9fb0c2', addrText: '#e8eef5', textShadow: 'rgba(0,0,0,0.55)', deckEdge: 'rgba(120,190,200,0.5)', labelText: '#e6e9f2', labelShadow: 'rgba(0,0,0,0.6)',
             listBg: 'rgba(12,17,23,0.95)', listLine: 'rgba(120,160,185,0.4)', cityBg: 'rgba(38,52,68,0.55)', cityBgHov: 'rgba(45,212,191,0.2)', cityEdge: 'rgba(120,160,185,0.4)',
             title: '#f1f5f9', sub: '#9fb0c2', sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4',
             sbTrack: 'rgba(12,17,23,0.6)', sbTick: 'rgba(150,175,195,0.35)', sbThumb: 'rgba(45,212,191,0.5)', sbThumbDim: 'rgba(45,212,191,0.22)',
@@ -122,7 +122,7 @@
             bgTop: '#f3f6fa', bgBot: '#dbe3ec', bandEven: 'rgba(30,50,80,0.07)', bandOdd: 'rgba(255,255,255,0.4)',
             slabTop: ['#d3deea', '#bccbdc'], slabL: '#8ea2b8', slabR: '#7b90a8', slabEdge: 'rgba(40,82,110,0.8)', slabGrid: 'rgba(40,70,100,0.22)',
             dash: 'rgba(60,90,120,0.55)', plateFill: 'rgba(255,255,255,0.95)', plateStroke: 'rgba(60,90,120,0.55)', plateText: '#1d2b3a',
-            floorText: '#52667a', addrText: '#1d2b3a', textShadow: 'rgba(255,255,255,0.7)', deckEdge: 'rgba(52,96,120,0.5)',
+            floorText: '#52667a', addrText: '#1d2b3a', textShadow: 'rgba(255,255,255,0.7)', deckEdge: 'rgba(52,96,120,0.5)', labelText: '#17324a', labelShadow: 'rgba(255,255,255,0.9)',
             listBg: 'rgba(245,248,251,0.96)', listLine: 'rgba(60,90,120,0.3)', cityBg: 'rgba(255,255,255,0.85)', cityBgHov: 'rgba(13,148,136,0.14)', cityEdge: 'rgba(60,90,120,0.32)',
             title: '#1d2b3a', sub: '#52667a', sel: '#0d9488', hov: '#14b8a6', selTxt: '#0f766e',
             sbTrack: 'rgba(30,50,80,0.12)', sbTick: 'rgba(60,90,120,0.4)', sbThumb: 'rgba(13,148,136,0.5)', sbThumbDim: 'rgba(13,148,136,0.22)',
@@ -382,6 +382,8 @@
         poly(side, '#1e2026');
         poly(front, lin(0, front[0][1], 0, front[2][1], [[0, '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
         poly(top, '#575c69', 'rgba(255,255,255,0.25)', 0.7);
+        ctx.save(); ctx.strokeStyle = acc; ctx.lineWidth = Math.max(1.2, U * 0.03); ctx.lineCap = 'butt';   // цветная полоса вендора по передней кромке
+        ctx.beginPath(); ctx.moveTo(front[0][0], front[0][1]); ctx.lineTo(front[1][0], front[1][1]); ctx.stroke(); ctx.restore();
         if (cam.k > 0.7) {
             ctx.save();
             faceTransform(front[0], (ia1 - ia0) * U, (ia1 - ia0) * U / 2, 0, h * U, 100, 40);
@@ -431,7 +433,7 @@
         if (pk) {
             for (var k2 = 0; k2 < 5; k2++) {
                 var zb = z0 + H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
-                pk[k2].items.forEach(function (pl) { drawShelfItem(so, a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH, pl.it, lit); });
+                pk[k2].items.forEach(function (pl) { drawShelfItem(so, a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH * 0.86, pl.it, lit); });
             }
         }
         line(a0, b1, z0, z0 + H, pc, post * 1.15); line(a1, b1, z0, z0 + H, pc, post * 1.15);   // передние стойки
@@ -445,9 +447,9 @@
         if (cam.k < 0.22) return;
         ctx.save();
         faceTransform(P(so, L.a0, L.b0, L.z), (L.a1 - L.a0) * U, (L.a1 - L.a0) * U / 2, -(L.b1 - L.b0) * U, (L.b1 - L.b0) * U / 2, 100, 130);
-        ctx.font = '800 17px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-        ctx.fillStyle = '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+        ctx.font = '800 19px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = PAL.labelShadow; ctx.fillText('СТЕЛЛАЖ', 51, 66);
+        ctx.fillStyle = PAL.labelText; ctx.fillText('СТЕЛЛАЖ', 50, 65);
         ctx.restore();
     }
 
