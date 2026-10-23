@@ -26,6 +26,9 @@
         <div class="dv-stage" id="dvStage">
             <canvas id="dvCanvas"></canvas>
             <div id="dvTip" class="dv-tip" hidden></div>
+            <div id="dvZoomInd" class="dv-zoom-ind">Масштаб: 100%</div>
+            <button type="button" id="dvResetView" class="dv-reset-view" title="Сбросить масштаб и ракурс (двойной клик по пустому месту - то же)">&#8634; Вид</button>
+            <div class="dv-view-hint">Колесо - масштаб &middot; тяните за угол основания - ракурс &middot; тяните пустое место - сдвиг</div>
         </div>
     </div>
     <div class="dv-right">
@@ -48,6 +51,13 @@
     .dv-frame { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; background: var(--bs-body-bg); }
     .dv-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 190px; padding: 0.55rem 0.7rem; border-radius: 0.5rem; font-size: 0.82rem; line-height: 1.35;
               background: rgba(14, 13, 48, 0.94); color: #e8e8ff; border: 1px solid rgba(120, 130, 255, 0.45); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
+    .dv-zoom-ind { position: absolute; z-index: 6; top: 12px; left: 50%; transform: translateX(-50%); pointer-events: none; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+                   background: rgba(14, 13, 48, 0.92); color: #e8e8ff; border: 1px solid rgba(120, 130, 255, 0.55); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); opacity: 0; transition: opacity 0.25s; }
+    .dv-zoom-ind.dv-zi-on { opacity: 1; }
+    .dv-reset-view { position: absolute; z-index: 6; top: 10px; right: 10px; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; cursor: pointer;
+                     background: rgba(14, 13, 48, 0.85); color: #cfd5ff; border: 1px solid rgba(120, 130, 255, 0.5); }
+    .dv-reset-view:hover { color: #fff; border-color: #58e6ff; }
+    .dv-view-hint { position: absolute; z-index: 4; left: 10px; bottom: 8px; pointer-events: none; font-size: 0.72rem; color: rgba(190, 196, 255, 0.7); }
     .dv-tip b.dv-name { font-size: 0.95rem; color: #fff; }
     .dv-tip table { border-collapse: collapse; margin-top: 0.25rem; }
     .dv-tip td { padding: 1px 0; vertical-align: top; }
@@ -132,31 +142,67 @@
         shelfUnits += r.units;
     });
     var cols = (gridCols ? gridCols + (shelfUnits ? 0.6 + shelfUnits : 0) : shelfUnits + 0.3);   // ширина сцены с учётом стеллажа
-    var order = allRacks.slice().sort(function (a, b) { return (a.gi + a.gj) - (b.gi + b.gj) || a.gi - b.gi; });
+
+    // отдельные рисуемые объекты: шкафы и секции стеллажа (у секции - свой центр для сортировки по глубине)
+    var items3d = [];
+    racks.forEach(function (r) { items3d.push({ r: r, shelfUnit: -1, ca: r.gi + 0.5, cb: r.gj + 0.5 }); });
+    shelves.forEach(function (r) { for (var u = 0; u < r.units; u++) items3d.push({ r: r, shelfUnit: u, ca: r.gi + u + 0.5, cb: r.gj + 0.5 }); });
 
     var FW = 0.60, FD = 0.80;          // размеры шкафа в клетках (ширина 600, глубина 1000 при клетке 1.2 м)
-    var selected = null, hovered = null;
+    var selected = null, hovered = null, hoverCorner = -1;
     var polys = [];                    // силуэты для hit-test: {r, pts}
-    var G = { w: 0, h: 0, dpr: 1, s: 1, ox: 0, oy: 0 };
+    var G = { w: 0, h: 0, dpr: 1, s: 1, baseS: 1 };
 
-    // изометрия: a - вдоль "вправо-вниз", b - вдоль "влево-вниз"
-    function P(a, b, z) { return [(a - b) * G.s, (a + b) * G.s / 2 - z]; }
+    // ---- камера: поворот (yaw) вокруг вертикали и наклон (pitch); по умолчанию - прежняя изометрия 45 / 30 градусов ----
+    var YAW0 = Math.PI / 4, PITCH0 = Math.PI / 6;
+    var cam = { yaw: YAW0, pitch: PITCH0, zoom: 1, panX: 0, panY: 0 };
+    var CV = { sy: 0, cy: 0, sp: 0, zk: 1, K: 1, offX: 0, offY: 0, aPos: true, bPos: true };
+
     function hz(r) { return G.s * 1.55 * Math.max(0.5, Math.min(1.4, r.uHeight / 42)); }
+
+    // проекция без смещения (для расчёта габаритов): ca, cb - координаты относительно центра сцены
+    function projRaw(a, b, z, yaw, pitch, S) {
+        var ca = a - cols / 2, cb = b - rows / 2, sy = Math.sin(yaw), cy = Math.cos(yaw);
+        var X = ca * cy - cb * sy, Y = ca * sy + cb * cy, K = Math.SQRT2 * S;
+        return [X * K, Y * K * Math.sin(pitch) - z * Math.cos(pitch) / Math.cos(PITCH0)];
+    }
+    var FLOOR_M = 0.35;
+    function floorCorners() { return [[-FLOOR_M, -FLOOR_M], [cols + FLOOR_M, -FLOOR_M], [cols + FLOOR_M, rows + FLOOR_M], [-FLOOR_M, rows + FLOOR_M]]; }
+    function sceneBBox(yaw, pitch, S) {
+        var zTop = 1.55 * 1.4 * S + 0.3 * S, minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+        floorCorners().forEach(function (c) {
+            [0, zTop].forEach(function (z) {
+                var p = projRaw(c[0], c[1], z, yaw, pitch, S);
+                minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+            });
+        });
+        return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+    }
+    function setCamera() {
+        var S = G.baseS * cam.zoom;
+        G.s = S;
+        CV.sy = Math.sin(cam.yaw); CV.cy = Math.cos(cam.yaw); CV.sp = Math.sin(cam.pitch);
+        CV.zk = Math.cos(cam.pitch) / Math.cos(PITCH0); CV.K = Math.SQRT2 * S;
+        CV.aPos = CV.sy > 0; CV.bPos = CV.cy > 0;           // какие боковые грани видны (нормаль к наблюдателю)
+        var bb = sceneBBox(cam.yaw, cam.pitch, S);
+        CV.offX = G.w / 2 + cam.panX - (bb.minX + bb.maxX) / 2;
+        CV.offY = G.h / 2 + cam.panY - (bb.minY + bb.maxY) / 2;
+    }
+    function P(a, b, z) {
+        var ca = a - cols / 2, cb = b - rows / 2;
+        var X = ca * CV.cy - cb * CV.sy, Y = ca * CV.sy + cb * CV.cy;
+        return [X * CV.K + CV.offX, Y * CV.K * CV.sp - z * CV.zk + CV.offY];
+    }
+    function depthOf(ca, cb) { return (ca - cols / 2) * CV.sy + (cb - rows / 2) * CV.cy; }
 
     function layout() {
         var rect = stage.getBoundingClientRect();
         G.dpr = window.devicePixelRatio || 1;
         G.w = Math.max(200, rect.width); G.h = Math.max(200, rect.height);
         canvas.width = Math.round(G.w * G.dpr); canvas.height = Math.round(G.h * G.dpr);
-        // масштаб по габаритам сцены
-        var spanX = (cols + rows + 0.6), spanY = (cols + rows) / 2 + 1.55 * 1.4 + 0.9;
-        G.s = Math.min(G.w * 0.94 / spanX, G.h * 0.9 / spanY);
-        G.ox = G.w / 2 + (rows - cols) * G.s / 2;
-        G.oy = G.h - 0.5 * G.s - ((cols + rows) / 2) * G.s - 0.2 * G.s + ((cols + rows) / 2 + 0.2) * G.s * 0; // пересчитывается ниже
-        // поставим сцену по центру по вертикали
-        var topY = -(1.55 * 1.4) * G.s - 0.6 * G.s;
-        var botY = ((cols + rows) / 2) * G.s + 0.3 * G.s;
-        G.oy = (G.h - (botY - topY)) / 2 - topY;
+        var bb = sceneBBox(YAW0, PITCH0, 1);                   // базовый масштаб - вписать сцену в окно при стандартном ракурсе
+        G.baseS = Math.min(G.w * 0.94 / (bb.maxX - bb.minX), G.h * 0.9 / (bb.maxY - bb.minY));
+        setCamera();
     }
 
     // ---- примитивы ----
@@ -173,111 +219,179 @@
         stops.forEach(function (s) { g.addColorStop(s[0], s[1]); });
         return g;
     }
-
-    function drawFloor() {
-        // фон
-        ctx.fillStyle = lin(0, 0, 0, G.h, [[0, '#1b1763'], [1, '#100e3a']]);
-        ctx.fillRect(0, 0, G.w, G.h);
-        // плита пола
-        var m = 0.35;
-        var f = [P(-m, -m, 0), P(cols + m, -m, 0), P(cols + m, rows + m, 0), P(-m, rows + m, 0)];
-        // P(a,b): a - по "cols"? у нас gi вдоль a, gj вдоль b
-        f = [P(-m, -m, 0), P(cols + m, -m, 0), P(cols + m, rows + m, 0), P(-m, rows + m, 0)];
-        ctx.save();
-        ctx.translate(G.ox, G.oy);
-        poly(f, lin(0, f[0][1], 0, f[2][1], [[0, '#2b2585'], [1, '#1d1a63']]), 'rgba(110,200,255,0.55)', 1.5);
-        // сетка плиток
-        ctx.strokeStyle = 'rgba(140,150,255,0.18)'; ctx.lineWidth = 1;
-        for (var i = 0; i <= cols; i++) { var a = P(i, 0, 0), b = P(i, rows, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
-        for (var j = 0; j <= rows; j++) { var c = P(0, j, 0), d = P(cols, j, 0); ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
-        ctx.restore();
+    function hull(pts) {                                       // выпуклая оболочка (цепочка Эндрю) - силуэт для hit-test
+        var p = pts.slice().sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+        function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+        var lo = [], up = [], i;
+        for (i = 0; i < p.length; i++) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p[i]) <= 0) lo.pop(); lo.push(p[i]); }
+        for (i = p.length - 1; i >= 0; i--) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p[i]) <= 0) up.pop(); up.push(p[i]); }
+        lo.pop(); up.pop();
+        return lo.concat(up);
     }
-
+    function boxHull(a0, a1, b0, b1, z0, z1) {
+        var pts = [];
+        [a0, a1].forEach(function (a) { [b0, b1].forEach(function (b) { pts.push(P(a, b, z0)); pts.push(P(a, b, z1)); }); });
+        return hull(pts);
+    }
     // локальная система грани: origin (screen), ux/uy - вектор на Wl, vx/vy - вектор на Hl
     function faceTransform(o, ux, uy, vx, vy, Wl, Hl) {
         ctx.transform(ux / Wl, uy / Wl, vx / Hl, vy / Hl, o[0], o[1]);
+    }
+    // вертикальная грань между двумя верхними точками pA, pB (экранные) высотой hpx: слева направо без зеркалирования
+    function vertFaceXf(pA, pB, hpx, Wl, Hl) {
+        var l = pA, r = pB;
+        if (pA[0] > pB[0]) { l = pB; r = pA; }
+        faceTransform(l, r[0] - l[0], r[1] - l[1], 0, hpx * CV.zk, Wl, Hl);
+    }
+    // горизонтальная грань (верх) прямоугольника: подбираем ориентацию, чтобы текст читался (без зеркала и вверх ногами)
+    function topFaceXf(a0, a1, b0, b1, z, Wl, Hl) {
+        var best = null, bestScore = -1e9;
+        var cs = [[a0, b0], [a1, b0], [a1, b1], [a0, b1]];
+        [[0, 1], [1, 0]].forEach(function (swap) {
+            for (var ci = 0; ci < 4; ci++) for (var sgn = 0; sgn < 2; sgn++) {
+                var o = cs[ci], pa = cs[(ci + (sgn ? 3 : 1)) % 4], pb = cs[(ci + (sgn ? 1 : 3)) % 4];
+                var u = swap[0] ? pa : pb, v = swap[0] ? pb : pa;
+                var po = P(o[0], o[1], z), pu = P(u[0], u[1], z), pv = P(v[0], v[1], z);
+                var ux = pu[0] - po[0], uy = pu[1] - po[1], vx = pv[0] - po[0], vy = pv[1] - po[1];
+                var det = ux * vy - uy * vx;
+                if (det <= 0) continue;                         // зеркальная ориентация - пропускаем
+                var len = Math.sqrt(ux * ux + uy * uy) || 1;
+                var score = ux / len + (uy / len) * -0.2;       // u должен идти вправо; небольшое предпочтение вдоль экрана
+                if (score > bestScore) { bestScore = score; best = [po, ux, uy, vx, vy]; }
+            }
+        });
+        if (!best) return false;
+        faceTransform(best[0], best[1], best[2], best[3], best[4], Wl, Hl);
+        return true;
+    }
+
+    function drawFloor() {
+        ctx.fillStyle = lin(0, 0, 0, G.h, [[0, '#1b1763'], [1, '#100e3a']]);
+        ctx.fillRect(0, 0, G.w, G.h);
+        var fc = floorCorners().map(function (c) { return P(c[0], c[1], 0); });
+        poly(fc, lin(0, Math.min.apply(null, fc.map(function (p) { return p[1]; })), 0, Math.max.apply(null, fc.map(function (p) { return p[1]; })), [[0, '#2b2585'], [1, '#1d1a63']]), 'rgba(110,200,255,0.55)', 1.5);
+        ctx.strokeStyle = 'rgba(140,150,255,0.18)'; ctx.lineWidth = 1;
+        for (var i = 0; i <= cols; i++) { var a = P(i, 0, 0), b = P(i, rows, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+        for (var j = 0; j <= rows; j++) { var c = P(0, j, 0), d = P(cols, j, 0); ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
+    }
+
+    // маркеры углов основания: за любой можно тянуть - меняется ракурс (курсор "move" как подсказка)
+    function cornerPoints() { return floorCorners().map(function (c) { return P(c[0], c[1], 0); }); }
+    function drawCorners() {
+        var cp = cornerPoints();
+        cp.forEach(function (p, i) {
+            var hot = (hoverCorner === i) || (dragMode === 'rotate' && dragCorner === i);
+            ctx.save();
+            ctx.fillStyle = hot ? 'rgba(88,230,255,0.35)' : 'rgba(20,18,70,0.75)';
+            ctx.strokeStyle = hot ? '#58e6ff' : 'rgba(140,200,255,0.8)'; ctx.lineWidth = hot ? 2.2 : 1.4;
+            ctx.beginPath(); ctx.arc(p[0], p[1], hot ? 11 : 9, 0, TAU); ctx.fill(); ctx.stroke();
+            // значок "перемещение во все стороны" - четыре стрелки
+            ctx.strokeStyle = hot ? '#ffffff' : '#bfe8ff'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+            var r = hot ? 6 : 5;
+            ctx.beginPath();
+            ctx.moveTo(p[0] - r, p[1]); ctx.lineTo(p[0] + r, p[1]); ctx.moveTo(p[0], p[1] - r); ctx.lineTo(p[0], p[1] + r);
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+                ctx.moveTo(p[0] + d[0] * r, p[1] + d[1] * r);
+                ctx.lineTo(p[0] + d[0] * (r - 2.2) + d[1] * 2, p[1] + d[1] * (r - 2.2) + d[0] * 2);
+                ctx.moveTo(p[0] + d[0] * r, p[1] + d[1] * r);
+                ctx.lineTo(p[0] + d[0] * (r - 2.2) - d[1] * 2, p[1] + d[1] * (r - 2.2) - d[0] * 2);
+            });
+            ctx.stroke();
+            ctx.restore();
+        });
+    }
+    function cornerAt(x, y) {
+        var cp = cornerPoints();
+        for (var i = 0; i < cp.length; i++) { var dx = x - cp[i][0], dy = y - cp[i][1]; if (dx * dx + dy * dy <= 14 * 14) return i; }
+        return -1;
     }
 
     function drawRack(r) {
         var a0 = r.gi + (1 - FW) / 2, a1 = a0 + FW;
         var b0 = r.gj + (1 - FD) / 2, b1 = b0 + FD;
         var H = hz(r), s = G.s;
-        var isSel = selected === r, isHov = hovered === r;
+        var isSel = selected === r, isHov = hovered === r, lit = isSel || isHov;
+        var aS = CV.aPos ? a1 : a0, bS = CV.bPos ? b1 : b0;
 
         // тень на полу
         poly([P(a0 - 0.05, b0 + 0.05, 0), P(a1 + 0.12, b0 + 0.05, 0), P(a1 + 0.12, b1 + 0.1, 0), P(a0 - 0.05, b1 + 0.1, 0)], 'rgba(0,0,0,0.28)');
 
-        var left = [P(a0, b1, H), P(a1, b1, H), P(a1, b1, 0), P(a0, b1, 0)];    // передняя дверь
-        var right = [P(a1, b1, H), P(a1, b0, H), P(a1, b0, 0), P(a1, b1, 0)];   // боковая панель
+        var fb = [P(a0, bS, H), P(a1, bS, H), P(a1, bS, 0), P(a0, bS, 0)];      // грань по оси b: дверь, если видна передняя сторона
+        var fa = [P(aS, b0, H), P(aS, b1, H), P(aS, b1, 0), P(aS, b0, 0)];      // боковая грань по оси a
         var top = [P(a0, b0, H), P(a1, b0, H), P(a1, b1, H), P(a0, b1, H)];
+        var hasDoor = CV.bPos;
 
-        var lit = isHov || isSel;
-        poly(left, lin(0, left[0][1], 0, left[3][1], [[0, lit ? '#3a3e48' : '#2c2f37'], [1, lit ? '#262930' : '#1b1d22']]));
-        poly(right, lin(0, right[0][1], 0, right[3][1], [[0, lit ? '#2a2d34' : '#202228'], [1, '#121317']]));
+        poly(fb, lin(0, Math.min(fb[0][1], fb[1][1]), 0, Math.max(fb[2][1], fb[3][1]), [[0, lit ? '#3a3e48' : '#2c2f37'], [1, lit ? '#262930' : '#1b1d22']]));
+        poly(fa, lin(0, Math.min(fa[0][1], fa[1][1]), 0, Math.max(fa[2][1], fa[3][1]), [[0, lit ? '#2a2d34' : '#202228'], [1, '#121317']]));
         poly(top, lit ? '#4a4e5a' : '#3a3d47');
 
         // --- передняя перфорированная дверь (локальные координаты 120 x 300) ---
-        ctx.save();
-        faceTransform(left[0], (a1 - a0) * s, (a1 - a0) * s / 2, 0, H, 120, 300);
-        // рамка двери
-        ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.4;
-        ctx.strokeRect(5, 5, 110, 290);
-        // перфорация
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        for (var yy = 40; yy < 282; yy += 9) {
-            for (var xx = 14; xx < 94; xx += 8) {
-                ctx.beginPath(); ctx.arc(xx + ((((yy - 40) / 9) | 0) % 2 ? 4 : 0), yy, 2.1, 0, TAU); ctx.fill();
+        if (hasDoor) {
+            ctx.save();
+            vertFaceXf(fb[0], fb[1], H, 120, 300);
+            ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.4;
+            ctx.strokeRect(5, 5, 110, 290);
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            for (var yy = 40; yy < 282; yy += 9) {
+                for (var xx = 14; xx < 94; xx += 8) {
+                    ctx.beginPath(); ctx.arc(xx + ((((yy - 40) / 9) | 0) % 2 ? 4 : 0), yy, 2.1, 0, TAU); ctx.fill();
+                }
             }
+            ctx.fillStyle = lin(98, 0, 108, 0, [[0, '#b8bcc6'], [1, '#6f7480']]);
+            ctx.fillRect(100, 120, 7, 60);
+            ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(103.5, 150, 2.2, 0, TAU); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 12, 96, 22);
+            ctx.fillStyle = '#3dcd58'; ctx.font = '700 15px "Segoe UI", Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+            ctx.fillText('APC', 18, 24);
+            ctx.fillStyle = 'rgba(230,232,240,0.6)'; ctx.font = '600 8px "Segoe UI", Arial, sans-serif';
+            ctx.fillText('NetShelter', 58, 24);
+            ctx.restore();
+        } else {                                           // задняя стенка: сплошная панель с ребром жёсткости
+            ctx.save();
+            vertFaceXf(fb[0], fb[1], H, 120, 300);
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.2;
+            ctx.strokeRect(6, 6, 108, 288);
+            ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(55, 6, 10, 288);
+            ctx.restore();
         }
-        // ручка с замком
-        ctx.fillStyle = lin(98, 0, 108, 0, [[0, '#b8bcc6'], [1, '#6f7480']]);
-        ctx.fillRect(100, 120, 7, 60);
-        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(103.5, 150, 2.2, 0, TAU); ctx.fill();
-        // планка с логотипом
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(12, 12, 96, 22);
-        ctx.fillStyle = '#3dcd58'; ctx.font = '700 15px "Segoe UI", Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-        ctx.fillText('APC', 18, 24);
-        ctx.fillStyle = 'rgba(230,232,240,0.6)'; ctx.font = '600 8px "Segoe UI", Arial, sans-serif';
-        ctx.fillText('NetShelter', 58, 24);
-        ctx.restore();
 
         // --- боковая панель: вертикальные рёбра ---
         ctx.save();
-        faceTransform(right[0], (b1 - b0) * s, -(b1 - b0) * s / 2, 0, H, 160, 300);
+        vertFaceXf(fa[0], fa[1], H, 160, 300);
         ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.2;
         ctx.strokeRect(8, 8, 144, 284);
         ctx.fillStyle = 'rgba(255,255,255,0.05)';
         ctx.fillRect(75, 8, 10, 284);
         ctx.restore();
 
-        // --- верх: вентиляторная панель и надпись у лицевой кромки (в проекции) ---
+        // --- верх: вентиляторная панель и название шкафа ---
         ctx.save();
-        faceTransform(P(a0, b0, H), (a1 - a0) * s, (a1 - a0) * s / 2, -(b1 - b0) * s, (b1 - b0) * s / 2, 100, 130);
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(12, 8, 76, 24);
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        for (var k = 0; k < 6; k++) ctx.fillRect(16 + k * 12, 11, 7, 18);
-        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(12, 40, 34, 28); ctx.fillRect(54, 40, 34, 28);
-        // название шкафа - как будто написано на крышке перед лицевой панелью
-        var fsz = 26;
-        ctx.font = '800 ' + fsz + 'px "Segoe UI", Arial, sans-serif';
-        var tw = ctx.measureText(r.name).width;
-        if (tw > 88) { fsz = Math.max(9, Math.floor(fsz * 88 / tw)); ctx.font = '800 ' + fsz + 'px "Segoe UI", Arial, sans-serif'; }
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(r.name, 51.5, 102.5);
-        ctx.fillStyle = isSel ? '#7df0ff' : (isHov ? '#ffffff' : '#d9dcea');
-        ctx.fillText(r.name, 50, 101);
+        if (topFaceXf(a0, a1, b0, b1, H, 100, 130)) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(12, 8, 76, 24);
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
+            for (var k = 0; k < 6; k++) ctx.fillRect(16 + k * 12, 11, 7, 18);
+            ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(12, 40, 34, 28); ctx.fillRect(54, 40, 34, 28);
+            var fsz = 26;
+            ctx.font = '800 ' + fsz + 'px "Segoe UI", Arial, sans-serif';
+            var tw = ctx.measureText(r.name).width;
+            if (tw > 88) { fsz = Math.max(9, Math.floor(fsz * 88 / tw)); ctx.font = '800 ' + fsz + 'px "Segoe UI", Arial, sans-serif'; }
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(r.name, 51.5, 102.5);
+            ctx.fillStyle = isSel ? '#7df0ff' : (isHov ? '#ffffff' : '#d9dcea');
+            ctx.fillText(r.name, 50, 101);
+        }
         ctx.restore();
 
         // кромки
         var edge = isSel ? '#58e6ff' : (isHov ? '#ffffff' : 'rgba(255,255,255,0.16)');
         var elw = isSel ? 2.4 : (isHov ? 2 : 1);
-        poly(left, null, edge, elw); poly(right, null, edge, elw); poly(top, null, edge, elw);
+        poly(fb, null, edge, elw); poly(fa, null, edge, elw); poly(top, null, edge, elw);
 
         // световой столб над шкафом пропорционально мощности
         if (maxPower > 0 && r.powerAvgW > 0) {
             var frac = r.powerAvgW / maxPower;
             var cx = (top[0][0] + top[2][0]) / 2, cy = (top[0][1] + top[2][1]) / 2;
-            var bh = H * (0.35 + 0.9 * frac), bw = (a1 - a0) * s * 0.75;
+            var bh = H * CV.zk * (0.35 + 0.9 * frac), bw = (a1 - a0) * s * 0.75;
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
             ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(60,220,230,' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(60,220,230,0)']]);
@@ -285,12 +399,8 @@
             ctx.restore();
         }
 
-        // силуэт для hit-test (экранные координаты без translate)
-        var sil = [P(a0, b1, 0), P(a1, b1, 0), P(a1, b0, 0), P(a1, b0, H), P(a0, b0, H), P(a0, b1, H)];
-        polys.push({ r: r, pts: sil.map(function (p) { return [p[0] + G.ox, p[1] + G.oy]; }) });
-
+        polys.push({ r: r, pts: boxHull(a0, a1, b0, b1, 0, H) });
     }
-
 
     // ---- стеллаж: трёхмерная проекция, габариты секции как у шкафа 42U, 5 полок ----
     // Полки - тонкие рамки (без сплошной заливки), оборудование рисуется непрозрачными блоками поверх.
@@ -302,7 +412,7 @@
         var top = pts.map(function (p) { return P(p[0], p[1], z + hh); });
         var bot = pts.map(function (p) { return P(p[0], p[1], z); });
         poly(bot.concat(top.slice().reverse()), '#aab1bb');
-        for (q = 0; q < 20; q++) { var n = (q + 1) % 20; poly([top[q], top[n], bot[n], bot[q]], q > 4 && q < 15 ? '#c4cad2' : '#9aa1ab'); }
+        for (q = 0; q < 20; q++) { var nn = (q + 1) % 20; poly([top[q], top[nn], bot[nn], bot[q]], '#b5bcc5'); }
         poly(top, lit ? '#ffffff' : '#eef0f3', 'rgba(0,0,0,0.3)', 0.7);
         var lc = P(cx, cb, z + hh);
         ctx.fillStyle = on ? (round ? '#3aa0ff' : '#35e06a') : '#8a919c';
@@ -312,91 +422,103 @@
         if (isAP(it)) { drawShelfAP(a0, a1, b0, b1, z, h, it, lit); return; }
         var acc = shelfStyle(it.vd), on = it.p === 1;
         var ia0 = a0 + 0.03, ia1 = a1 - 0.03, ib0 = b0 + 0.05, ib1 = b1 - 0.02, zt = z + h;
-        var front = [P(ia0, ib1, zt), P(ia1, ib1, zt), P(ia1, ib1, z), P(ia0, ib1, z)];
-        var side = [P(ia1, ib1, zt), P(ia1, ib0, zt), P(ia1, ib0, z), P(ia1, ib1, z)];
+        var aS = CV.aPos ? ia1 : ia0, bS = CV.bPos ? ib1 : ib0;
+        var front = [P(ia0, bS, zt), P(ia1, bS, zt), P(ia1, bS, z), P(ia0, bS, z)];
+        var side = [P(aS, ib0, zt), P(aS, ib1, zt), P(aS, ib1, z), P(aS, ib0, z)];
         var top = [P(ia0, ib0, zt), P(ia1, ib0, zt), P(ia1, ib1, zt), P(ia0, ib1, zt)];
         poly(side, '#1e2026');
-        poly(front, lin(0, front[0][1], 0, front[2][1], [[0, lit ? '#454a56' : '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
+        poly(front, lin(0, Math.min(front[0][1], front[1][1]), 0, Math.max(front[2][1], front[3][1]), [[0, lit ? '#454a56' : '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
         poly(top, lit ? '#6a7080' : '#575c69', 'rgba(255,255,255,0.25)', 0.7);
-        // лицевая панель: цветная планка вендора, линии корзин/дисков, светодиод питания
-        ctx.save();
-        faceTransform(front[0], (ia1 - ia0) * G.s, (ia1 - ia0) * G.s / 2, 0, h, 100, 40);
-        ctx.fillStyle = acc; ctx.fillRect(4, 3, 92, 4);
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        var rows = it.k === 'storage' ? 4 : ((it.k === 'chassis' || it.k === 'tape') ? 3 : 1);
-        for (var q = 0; q < rows; q++) {
-            if (it.k === 'chassis') ctx.fillRect(8 + q * 29, 11, 27, 24);
-            else if (it.k === 'tape') { ctx.fillRect(8 + q * 22, 11, 20, 24); ctx.fillStyle = '#1f6fb5'; ctx.fillRect(74, 12, 18, 14); ctx.fillStyle = 'rgba(0,0,0,0.55)'; }
-            else if (it.k === 'storage') ctx.fillRect(8, 11 + q * 7, 70, 5);
-            else if (it.k === 'switch') { for (var pp = 0; pp < 16; pp++) ctx.fillRect(8 + pp * 5, 13 + (pp % 2) * 8, 4, 7); }
-            else ctx.fillRect(8, 13, 62, 20);
+        if (CV.bPos) {                                   // лицевая панель видна только с передней стороны
+            ctx.save();
+            vertFaceXf(front[0], front[1], h, 100, 40);
+            ctx.fillStyle = acc; ctx.fillRect(4, 3, 92, 4);
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            var rows3 = it.k === 'storage' ? 4 : ((it.k === 'chassis' || it.k === 'tape') ? 3 : 1);
+            for (var q = 0; q < rows3; q++) {
+                if (it.k === 'chassis') ctx.fillRect(8 + q * 29, 11, 27, 24);
+                else if (it.k === 'tape') { ctx.fillRect(8 + q * 22, 11, 20, 24); ctx.fillStyle = '#1f6fb5'; ctx.fillRect(74, 12, 18, 14); ctx.fillStyle = 'rgba(0,0,0,0.55)'; }
+                else if (it.k === 'storage') ctx.fillRect(8, 11 + q * 7, 70, 5);
+                else if (it.k === 'switch') { for (var pp = 0; pp < 16; pp++) ctx.fillRect(8 + pp * 5, 13 + (pp % 2) * 8, 4, 7); }
+                else ctx.fillRect(8, 13, 62, 20);
+            }
+            if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
+            ctx.fillStyle = on ? '#35e06a' : (it.p === 2 ? '#ffab1a' : '#8a919c');
+            ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
+            ctx.restore();
         }
-        if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
-        ctx.fillStyle = on ? '#35e06a' : (it.p === 2 ? '#ffab1a' : '#8a919c');
-        ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
-        ctx.restore();
         poly(front, null, lit ? '#ffffff' : 'rgba(255,255,255,0.22)', 0.8);
     }
-    function drawShelf(r) {
+    function drawShelfUnit(r, u, labels) {
         var isSel = selected === r, isHov = hovered === r, lit = isSel || isHov;
         var H = G.s * 1.55;                                      // высота как у шкафа 42U (hz)
         var post = Math.max(1.2, G.s * 0.035);
         var zs = H * 0.2, tb = H * 0.022;                         // шаг полок и толщина балки
-        var labels = [];
-        for (var u = 0; u < r.units; u++) {
-            var a0 = r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
-            var b0 = r.gj + (1 - FD) / 2, b1 = b0 + FD;
-            poly([P(a0 - 0.05, b0 + 0.05, 0), P(a1 + 0.12, b0 + 0.05, 0), P(a1 + 0.12, b1 + 0.1, 0), P(a0 - 0.05, b1 + 0.1, 0)], 'rgba(0,0,0,0.28)');
-            var line = function (x, y, z0, z1, col, w) {
-                var p0 = P(x, y, z0), p1 = P(x, y, z1);
-                ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
-            };
-            var pc = lit ? '#7fa3c8' : '#5a7898';
-            line(a0, b0, 0, H, pc, post); line(a1, b0, 0, H, pc, post);   // задние стойки
-            // полки: слабая подложка, передняя балка
-            for (var k = 0; k < 5; k++) {
-                var z = H * 0.04 + zs * k;
-                var topf = [P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)];
-                poly(topf, 'rgba(110,130,150,0.16)', lit ? '#ffffff' : 'rgba(110,200,255,0.5)', 0.9);
-                var frontf = [P(a0, b1, z + tb), P(a1, b1, z + tb), P(a1, b1, z), P(a0, b1, z)];
-                poly(frontf, lin(0, frontf[0][1], 0, frontf[2][1], [[0, '#5a7898'], [1, '#2a3b4e']]));
-            }
-            // оборудование: каждая секция - свои 5 полок
-            var pk = r.packed && r.packed[u];
-            if (pk) {
-                for (var k2 = 0; k2 < 5; k2++) {
-                    var zb = H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
-                    pk[k2].items.forEach(function (pl) {
-                        drawShelfItem(a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH, pl.it, lit);
-                    });
-                }
-            }
-            line(a0, b1, 0, H, pc, post * 1.15); line(a1, b1, 0, H, pc, post * 1.15);   // передние стойки
-            labels.push({ a0: a0, a1: a1, b0: b0, b1: b1 });   // название рисуется после всех секций (иначе его перекрывает соседняя секция)
-            var sil = [P(a0, b1, 0), P(a1, b1, 0), P(a1, b0, 0), P(a1, b0, H), P(a0, b0, H), P(a0, b1, H)];
-            if (isSel || isHov) poly(sil, null, isSel ? '#58e6ff' : '#ffffff', isSel ? 2.2 : 1.8);
-            polys.push({ r: r, pts: sil.map(function (p) { return [p[0] + G.ox, p[1] + G.oy]; }) });
+        var a0 = r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
+        var b0 = r.gj + (1 - FD) / 2, b1 = b0 + FD;
+        poly([P(a0 - 0.05, b0 + 0.05, 0), P(a1 + 0.12, b0 + 0.05, 0), P(a1 + 0.12, b1 + 0.1, 0), P(a0 - 0.05, b1 + 0.1, 0)], 'rgba(0,0,0,0.28)');
+        var line = function (x, y, z0, z1, col, w) {
+            var p0 = P(x, y, z0), p1 = P(x, y, z1);
+            ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+        };
+        var pc = lit ? '#7fa3c8' : '#5a7898';
+        // четыре стойки: сначала дальние от наблюдателя, потом ближние
+        var posts = [[a0, b0], [a1, b0], [a1, b1], [a0, b1]].map(function (p) { return { a: p[0], b: p[1], d: depthOf(p[0], p[1]) }; });
+        posts.sort(function (x, y) { return x.d - y.d; });
+        var medD = (posts[1].d + posts[2].d) / 2;
+        posts.forEach(function (p) { if (p.d <= medD) line(p.a, p.b, 0, H, pc, post); });
+        // диагональная связь на дальней стенке
+        var far = posts[0], far2 = posts[1];
+        var d0 = P(far.a, far.b, 0), d1 = P(far2.a, far2.b, H * 0.96);
+        ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
+        ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
+        var aS = CV.aPos ? a1 : a0, bS = CV.bPos ? b1 : b0;
+        // полки: слабая подложка, балки на видимых гранях
+        for (var k = 0; k < 5; k++) {
+            var z = H * 0.04 + zs * k;
+            poly([P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? '#ffffff' : 'rgba(110,200,255,0.5)', 0.9);
+            var fbm = [P(a0, bS, z + tb), P(a1, bS, z + tb), P(a1, bS, z), P(a0, bS, z)];
+            poly(fbm, lin(0, Math.min(fbm[0][1], fbm[1][1]), 0, Math.max(fbm[2][1], fbm[3][1]), [[0, '#5a7898'], [1, '#2a3b4e']]));
+            var fam = [P(aS, b0, z + tb), P(aS, b1, z + tb), P(aS, b1, z), P(aS, b0, z)];
+            poly(fam, '#2f435a');
         }
-        // подпись "СТЕЛЛАЖ" на верхнем ободе каждой секции, поверх всего
-        labels.forEach(function (L) {
-            ctx.save();
-            faceTransform(P(L.a0, L.b0, H), (L.a1 - L.a0) * G.s, (L.a1 - L.a0) * G.s / 2, -(L.b1 - L.b0) * G.s, (L.b1 - L.b0) * G.s / 2, 100, 130);
-            ctx.font = '800 17px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-            ctx.fillStyle = isSel ? '#7df0ff' : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
-            ctx.restore();
-        });
+        // оборудование: каждая секция - свои 5 полок
+        var pk = r.packed && r.packed[u];
+        if (pk) {
+            for (var k2 = 0; k2 < 5; k2++) {
+                var zb = H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
+                pk[k2].items.forEach(function (pl) {
+                    drawShelfItem(a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH, pl.it, lit);
+                });
+            }
+        }
+        posts.forEach(function (p) { if (p.d > medD) line(p.a, p.b, 0, H, pc, post * 1.15); });
+        labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, H: H, sel: isSel });
+        var hl = boxHull(a0, a1, b0, b1, 0, H);
+        if (isSel || isHov) poly(hl, null, isSel ? '#58e6ff' : '#ffffff', isSel ? 2.2 : 1.8);
+        polys.push({ r: r, pts: hl });
     }
 
     function render() {
         ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
         drawFloor();
         polys = [];
-        ctx.save();
-        ctx.translate(G.ox, G.oy);
-        order.forEach(function (r) { if (r.shelf) drawShelf(r); else drawRack(r); });
-        ctx.restore();
+        // порядок рисования - по глубине относительно наблюдателя (дальние первыми)
+        var order = items3d.slice().sort(function (x, y) { return depthOf(x.ca, x.cb) - depthOf(y.ca, y.cb) || x.ca - y.ca; });
+        var labels = [];
+        order.forEach(function (it) { if (it.shelfUnit >= 0) drawShelfUnit(it.r, it.shelfUnit, labels); else drawRack(it.r); });
+        // подпись "СТЕЛЛАЖ" на верхнем ободе каждой секции, поверх всего
+        labels.forEach(function (L) {
+            ctx.save();
+            if (topFaceXf(L.a0, L.a1, L.b0, L.b1, L.H, 100, 130)) {
+                ctx.font = '800 17px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
+                ctx.fillStyle = L.sel ? '#7df0ff' : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+            }
+            ctx.restore();
+        });
+        drawCorners();
     }
 
     // ---- hit-test ----
@@ -456,26 +578,117 @@
         render();
     }
 
-    canvas.addEventListener('mousemove', function (e) {
+    // ---- масштаб колесом мыши с индикатором в процентах ----
+    var zoomInd = document.getElementById('dvZoomInd'), zoomIndTimer = null;
+    function showZoomInd() {
+        if (!zoomInd) return;
+        zoomInd.textContent = 'Масштаб: ' + Math.round(cam.zoom * 100) + '%';
+        zoomInd.classList.add('dv-zi-on');
+        clearTimeout(zoomIndTimer);
+        zoomIndTimer = setTimeout(function () { zoomInd.classList.remove('dv-zi-on'); }, 1000);
+    }
+    function zoomAt(f, px, py) {
+        var nz = Math.max(0.3, Math.min(6, cam.zoom * f));
+        f = nz / cam.zoom;
+        // точка под курсором остаётся на месте: смещение экранных координат относительно центра окна масштабируется
+        cam.panX = px - G.w / 2 - (px - G.w / 2 - cam.panX) * f;
+        cam.panY = py - G.h / 2 - (py - G.h / 2 - cam.panY) * f;
+        cam.zoom = nz;
+        setCamera(); tip.hidden = true; render(); showZoomInd();
+    }
+    canvas.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        var rect = canvas.getBoundingClientRect();
+        var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        zoomAt(Math.exp(-dy * 0.0015), e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+
+    // ---- изменение ракурса: тянем за угол основания; корректируем поворот и наклон так, чтобы угол следовал за курсором ----
+    function cornerScreen(i, yaw, pitch) {
+        var sYaw = cam.yaw, sPitch = cam.pitch;
+        cam.yaw = yaw; cam.pitch = pitch; setCamera();
+        var p = cornerPoints()[i];
+        cam.yaw = sYaw; cam.pitch = sPitch; setCamera();
+        return p;
+    }
+    var PITCH_MIN = 12 * Math.PI / 180, PITCH_MAX = 80 * Math.PI / 180;
+    function rotateByCornerDrag(i, dx, dy) {
+        var eps = 0.01, p0 = cornerScreen(i, cam.yaw, cam.pitch);
+        var py = cornerScreen(i, cam.yaw + eps, cam.pitch), pp = cornerScreen(i, cam.yaw, cam.pitch + eps);
+        var j11 = (py[0] - p0[0]) / eps, j21 = (py[1] - p0[1]) / eps, j12 = (pp[0] - p0[0]) / eps, j22 = (pp[1] - p0[1]) / eps;
+        var det = j11 * j22 - j12 * j21, dyaw, dpitch;
+        if (Math.abs(det) > 1e-3) { dyaw = (dx * j22 - dy * j12) / det; dpitch = (j11 * dy - j21 * dx) / det; }
+        else { dyaw = -dx * 0.008; dpitch = dy * 0.004; }
+        var lim = 0.2;
+        dyaw = Math.max(-lim, Math.min(lim, dyaw)); dpitch = Math.max(-lim, Math.min(lim, dpitch));
+        cam.yaw += dyaw;
+        cam.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, cam.pitch + dpitch));
+        if (cam.yaw > Math.PI * 2) cam.yaw -= Math.PI * 2; else if (cam.yaw < 0) cam.yaw += Math.PI * 2;
+        setCamera();
+    }
+    function resetView() { cam.yaw = YAW0; cam.pitch = PITCH0; cam.zoom = 1; cam.panX = 0; cam.panY = 0; setCamera(); render(); showZoomInd(); }
+
+    // ---- мышь: поворот за угол, прокрутка за пустое место, наведение/выбор шкафа ----
+    var dragMode = null, dragCorner = -1, dragStart = null, lastPt = null, dragMoved = false;
+    canvas.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
         var rect = canvas.getBoundingClientRect();
         var x = e.clientX - rect.left, y = e.clientY - rect.top;
-        var r = pick(x, y);
+        tip.hidden = true;
+        var ci = cornerAt(x, y);
+        dragStart = { x: x, y: y }; lastPt = { x: x, y: y }; dragMoved = false;
+        if (ci >= 0) { dragMode = 'rotate'; dragCorner = ci; canvas.style.cursor = 'move'; }
+        else if (!pick(x, y)) { dragMode = 'pan'; canvas.style.cursor = 'grabbing'; }
+        else dragMode = 'click';
+        e.preventDefault();
+    });
+    window.addEventListener('mousemove', function (e) {
+        if (!dragMode || dragMode === 'click') return;
+        var rect = canvas.getBoundingClientRect();
+        var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        if (!dragMoved && Math.abs(x - dragStart.x) + Math.abs(y - dragStart.y) > 3) dragMoved = true;
+        if (!dragMoved) return;
+        var dx = x - lastPt.x, dy = y - lastPt.y;
+        lastPt = { x: x, y: y };
+        if (dragMode === 'rotate') rotateByCornerDrag(dragCorner, dx, dy);
+        else { cam.panX += dx; cam.panY += dy; setCamera(); }
+        render();
+    });
+    window.addEventListener('mouseup', function (e) {
+        if (!dragMode) return;
+        var mode = dragMode, moved = dragMoved;
+        dragMode = null; dragCorner = -1;
+        var rect = canvas.getBoundingClientRect();
+        var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        canvas.style.cursor = cornerAt(x, y) >= 0 ? 'move' : 'default';
+        if (mode === 'click' && !moved) { var r = pick(x, y); if (r) selectRack(r); }
+        else render();
+    });
+    canvas.addEventListener('mousemove', function (e) {
+        if (dragMode && dragMode !== 'click') return;
+        var rect = canvas.getBoundingClientRect();
+        var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        var ci = cornerAt(x, y);
+        var r = ci >= 0 ? null : pick(x, y);
+        var changed = false;
+        if (ci !== hoverCorner) { hoverCorner = ci; changed = true; }
         if (r !== hovered) {
-            hovered = r;
+            hovered = r; changed = true;
             // шкаф под курсором становится выбранным (с небольшой задержкой, чтобы
             // при быстром движении мыши не загружать фрейм для каждого шкафа)
             if (selTimer) { clearTimeout(selTimer); selTimer = null; }
             if (r && r !== selected) selTimer = setTimeout(function () { selTimer = null; if (hovered === r) selectRack(r); }, 150);
-            render();
         }
-        canvas.style.cursor = r ? 'pointer' : 'default';
+        if (changed) render();
+        canvas.style.cursor = ci >= 0 ? 'move' : (r ? 'pointer' : 'grab');
+        canvas.title = ci >= 0 ? 'Потяните за угол, чтобы изменить ракурс' : '';
     });
-    canvas.addEventListener('mouseleave', function () { hovered = null; if (selTimer) { clearTimeout(selTimer); selTimer = null; } tip.hidden = true; render(); });
-    canvas.addEventListener('click', function (e) {
+    canvas.addEventListener('mouseleave', function () { hovered = null; hoverCorner = -1; if (selTimer) { clearTimeout(selTimer); selTimer = null; } tip.hidden = true; if (!dragMode) render(); });
+    canvas.addEventListener('dblclick', function (e) {
         var rect = canvas.getBoundingClientRect();
-        var r = pick(e.clientX - rect.left, e.clientY - rect.top);
-        if (r) selectRack(r);
+        if (cornerAt(e.clientX - rect.left, e.clientY - rect.top) >= 0 || !pick(e.clientX - rect.left, e.clientY - rect.top)) resetView();
     });
+    document.getElementById('dvResetView').addEventListener('click', resetView);
 
     // масштаб шкафа в правой части: кнопки управляют фреймом, индикатор берёт значение у него
     function zoomCmd(cmd) {
