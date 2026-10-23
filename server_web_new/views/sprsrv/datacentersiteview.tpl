@@ -342,6 +342,7 @@
         var H = G.s * 1.55;                                      // высота как у шкафа 42U (hz)
         var post = Math.max(1.2, G.s * 0.035);
         var zs = H * 0.2, tb = H * 0.022;                         // шаг полок и толщина балки
+        var labels = [];
         for (var u = 0; u < r.units; u++) {
             var a0 = r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
             var b0 = r.gj + (1 - FD) / 2, b1 = b0 + FD;
@@ -372,18 +373,20 @@
                 }
             }
             line(a0, b1, 0, H, pc, post * 1.15); line(a1, b1, 0, H, pc, post * 1.15);   // передние стойки
-            // название на верхней балке
-            var zt = H * 0.04 + zs * 4 + tb;
-            ctx.save();
-            faceTransform(P(a0, b0, zt), (a1 - a0) * G.s, (a1 - a0) * G.s / 2, -(b1 - b0) * G.s, (b1 - b0) * G.s / 2, 100, 130);
-            ctx.font = '800 18px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-            ctx.fillStyle = isSel ? '#7df0ff' : '#d9dcea'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
-            ctx.restore();
+            labels.push({ a0: a0, a1: a1, b0: b0, b1: b1 });   // название рисуется после всех секций (иначе его перекрывает соседняя секция)
             var sil = [P(a0, b1, 0), P(a1, b1, 0), P(a1, b0, 0), P(a1, b0, H), P(a0, b0, H), P(a0, b1, H)];
             if (isSel || isHov) poly(sil, null, isSel ? '#58e6ff' : '#ffffff', isSel ? 2.2 : 1.8);
             polys.push({ r: r, pts: sil.map(function (p) { return [p[0] + G.ox, p[1] + G.oy]; }) });
         }
+        // подпись "СТЕЛЛАЖ" на верхнем ободе каждой секции, поверх всего
+        labels.forEach(function (L) {
+            ctx.save();
+            faceTransform(P(L.a0, L.b0, H), (L.a1 - L.a0) * G.s, (L.a1 - L.a0) * G.s / 2, -(L.b1 - L.b0) * G.s, (L.b1 - L.b0) * G.s / 2, 100, 130);
+            ctx.font = '800 17px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
+            ctx.fillStyle = isSel ? '#7df0ff' : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+            ctx.restore();
+        });
     }
 
     function render() {
