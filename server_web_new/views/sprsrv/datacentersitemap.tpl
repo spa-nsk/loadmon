@@ -15,7 +15,7 @@
 
 <div class="sm-wrap">
     <div class="sm-bar d-flex align-items-center justify-content-between gap-2">
-        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Колесо - масштаб, перетаскивание или полоса справа - прокрутка, клик по шкафу/стеллажу/ЦОД - детали и выбор (ЦОД выдвигается из стопки), правая кнопка - переход к оборудованию площадки.</div>
+        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Колесо - масштаб, перетаскивание или полоса справа - прокрутка, клик по шкафу/стеллажу/ЦОД - детали и выбор, правая кнопка - переход к оборудованию площадки.</div>
         <div class="btn-group flex-shrink-0" role="group" aria-label="Масштаб карты">
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomOut" title="Уменьшить">&minus;</button>
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomFit" title="Вписать всю карту в окно" style="min-width:3.6rem">100%</button>
@@ -210,6 +210,7 @@
         return '#8b95a5';
     }
 
+    var FLOOR_GAP = 1.0;                           // зазор между этажами (в клетках) сверх высоты диагонали плиты верхнего этажа
     var PAD_L = 3;                                 // запас слева под подписи этажей и выдвижение ЦОД
     var siteCnt = 0, rackCnt = 0, bldCnt = 0;
     var shelfCnt = 0;
@@ -240,10 +241,14 @@
                 A = Math.max(A, f.A); B = Math.max(B, f.B);
                 half = Math.max(half, (f.A + f.B) / 2);
             });
-            var n = b.floors.length, FH = half + 2.5;
+            // высота этажей: зазор считается по размеру каждого вышележащего этажа (а не по самому большому в здании),
+            // шкафы нижнего этажа допускается слегка перекрывать плитой верхнего - так стопка заметно компактнее
+            var n = b.floors.length, zs = [0];
+            for (var fi = 1; fi < n; fi++) zs.push(zs[fi - 1] + (b.floors[fi].A + b.floors[fi].B) / 2 + FLOOR_GAP);
+            var ztop = zs[n - 1];
             bldCnt++;
-            return { b: b, A: A, B: B, n: n, FH: FH,
-                     w: (A + B + PAD_L) * U, h: (2.3 + (n - 1) * FH + (A + B) / 2 + 1.8) * U };
+            return { b: b, A: A, B: B, n: n, zs: zs, ztop: ztop,
+                     w: (A + B + PAD_L) * U, h: (2.3 + ztop + (A + B) / 2 + 1.8) * U };
         });
         // один город - одна горизонтальная строка: здания (адреса) слева направо, общая линия основания
         var x = 0, rowH = 0;
@@ -511,18 +516,18 @@
     }
 
     function drawBuilding(bx, by, bl) {
-        var o = { x: bx + (bl.B + PAD_L) * U, y: by + (2.3 + (bl.n - 1) * bl.FH) * U };
+        var o = { x: bx + (bl.B + PAD_L) * U, y: by + (2.3 + bl.ztop) * U };
         // пунктир по задней грани, соединяющий этажи
         if (bl.n > 1) {
-            var d0 = P(o, 0, 0, SLAB), d1 = P(o, 0, 0, (bl.n - 1) * bl.FH + SLAB);
+            var d0 = P(o, 0, 0, SLAB), d1 = P(o, 0, 0, bl.ztop + SLAB);
             ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = PAL.dash; ctx.lineWidth = lw(1.4);
             ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke(); ctx.restore();
         }
         var late = [];
         bl.b.floors.forEach(function (fl, k) {
-            var zf = k * bl.FH;
+            var zf = bl.zs[k];
             fl.sites.forEach(function (s) {
-                if (s.e > 0.01 || s === selSite) { late.push({ s: s, zf: zf }); return; }
+                if (s.e > 0.01) { late.push({ s: s, zf: zf }); return; }
                 drawSite(o, s, zf);
             });
             var lp = P(o, 0, fl.B, zf + SLAB);
@@ -828,7 +833,6 @@
         if (selSite && selSite !== site) selSite.tgt = 0;
         selSite = site; selRack = rack;
         if (site) {
-            site.tgt = 1;
             var h = '<button type="button" class="sm-close" title="Закрыть" id="smPanelClose">&times;</button>' + siteInfo(site);
             h += '<div class="sm-hint"><a href="/sprsrv/datacentersiteview/' + site.id + '" target="_blank" rel="noopener">Открыть оборудование ЦОД</a></div>';
             if (rack) {
