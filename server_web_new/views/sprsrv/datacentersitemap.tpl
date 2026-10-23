@@ -133,14 +133,14 @@
 
     // оттенки янтаря для световых столбов: от светло-янтарного (малая мощность) к насыщенно-оранжевому (максимум)
     function glowRGB(frac, dark) {
-        var stops = dark ? [[252, 211, 77], [245, 158, 11], [249, 115, 22]] : [[217, 160, 20], [217, 119, 6], [194, 65, 12]];
+        var stops = [[253, 224, 120], [251, 191, 36], [245, 158, 11]];     // один и тот же светлый янтарный ряд в обеих темах
         var t = Math.max(0, Math.min(1, frac)) * 2, i = Math.min(1, Math.floor(t)), f = t - i;
         var a = stops[i], b = stops[i + 1];
         return Math.round(a[0] + (b[0] - a[0]) * f) + ',' + Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f);
     }
     // столб + светящееся "навершие" на крыше шкафа (cx, cy - центр крыши в экранных координатах)
     function drawGlow(cx, cy, bw, bh, frac, dark, mode) {
-        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.3 : 0.4) + 0.4 * frac;
+        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.32 : 0.5) + (dark ? 0.4 : 0.35) * frac;
         ctx.save();
         ctx.globalCompositeOperation = mode;
         ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + rgb + ',' + a0.toFixed(2) + ')'], [1, 'rgba(' + rgb + ',0)']]);
