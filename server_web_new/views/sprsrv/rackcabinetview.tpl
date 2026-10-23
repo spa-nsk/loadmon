@@ -34,6 +34,7 @@
 <blockquote class="blockquote">{{.flash.notice}}</blockquote>
 {{end}}
 
+<div id="rvZoomInd" class="rv-zoom-ind"></div>
 <div class="rv-layout">
     <aside class="rv-side">
         <div class="rv-card">
@@ -65,6 +66,9 @@
 </div>
 
 <style>
+    .rv-zoom-ind { position: fixed; z-index: 60; top: 12px; left: 50%; transform: translateX(-50%); pointer-events: none; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+                   background: var(--bs-body-bg); color: var(--bs-body-color); border: 1px solid var(--bs-border-color); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); opacity: 0; transition: opacity 0.25s; }
+    .rv-zoom-ind.rv-zi-on { opacity: 1; }
     .rv-layout { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
     .rv-side { flex: 0 0 300px; max-width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
     .rv-main { flex: 1 1 auto; min-width: 0; padding-bottom: 1rem; }
@@ -797,21 +801,30 @@
         });
     }
 
+    // палитра корпуса шкафа/стеллажа по теме сайта (оборудование вендоров от темы не зависит)
+    function cp() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'light'
+            ? { frame: ['#b9c3cf', '#d3dae3', '#b9c3cf'], frameStroke: '#8e9aa8', inner: '#e3e9f0', top: ['#c5ced9', '#aeb9c6'], title: '#27384a', stripe: 'rgba(40,60,90,0.07)', sep: 'rgba(40,60,90,0.22)', num: '#566678', plinth: '#a3afbd',
+                floor: ['#c9d2dd', '#aab6c4'], back: '#dde4ec', brace: 'rgba(60,85,115,0.5)' }
+            : { frame: ['#1d2229', '#2c333c', '#1d2229'], frameStroke: '#4a525d', inner: '#1a2027', top: ['#353d47', '#252b33'], title: '#cfd5de', stripe: 'rgba(255,255,255,0.045)', sep: 'rgba(0,0,0,0.45)', num: '#9aa5b1', plinth: '#161b21',
+                floor: ['#2e353e', '#171c22'], back: '#151a20', brace: 'rgba(70,92,118,0.55)' };
+    }
+
     function drawCabinet(c) {
-        var W = g.W, H = g.H, dev = g.devW;
+        var W = g.W, H = g.H, dev = g.devW, P_ = cp();
         // наружная рама
-        fillRR(c, 0, 0, W, H, 8, hg(c, 0, W, [[0, '#14161a'], [0.5, '#23262c'], [1, '#14161a']]));
-        strokeRR(c, 0.5, 0.5, W - 1, H - 1, 8, '#3a3e46', 1);
+        fillRR(c, 0, 0, W, H, 8, hg(c, 0, W, [[0, P_.frame[0]], [0.5, P_.frame[1]], [1, P_.frame[2]]]));
+        strokeRR(c, 0.5, 0.5, W - 1, H - 1, 8, P_.frameStroke, 1);
         // внутренний объём
-        fillRR(c, GUT - 7, TOP - 6, dev + 14, DATA.uHeight * UH + 12, 3, '#08090b');
+        fillRR(c, GUT - 7, TOP - 6, dev + 14, DATA.uHeight * UH + 12, 3, P_.inner);
         // верхняя панель с названием
-        fillRR(c, GUT - 7, 6, dev + 14, TOP - 14, 3, vg(c, 6, TOP - 14, [[0, '#2b2e35'], [1, '#1a1c21']]));
-        if (!EMBED) txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : ''), W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, '#cfd5de', '700', 'center');
+        fillRR(c, GUT - 7, 6, dev + 14, TOP - 14, 3, vg(c, 6, TOP - 14, [[0, P_.top[0]], [1, P_.top[1]]]));
+        if (!EMBED) txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : ''), W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, P_.title, '700', 'center');
         // рейки с отверстиями и номера юнитов
         var railW = UH * 0.55, fs = Math.max(8, Math.round(UH * 0.28));
         for (var u = 1; u <= DATA.uHeight; u++) {
             var y = yOf(u, 1);
-            c.fillStyle = (u % 2) ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.0)';
+            c.fillStyle = (u % 2) ? P_.stripe : 'rgba(255,255,255,0.0)';
             c.fillRect(GUT, y, dev, UH);
             [GUT, GUT + dev - railW].forEach(function (rx) {
                 c.fillStyle = vg(c, y, UH, [[0, '#7d838d'], [1, '#575c65']]);
@@ -822,14 +835,14 @@
                     c.fillRect(rx + railW * 0.5 - UH * 0.06, hy - UH * 0.06, UH * 0.12, UH * 0.12);
                 }
             });
-            c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(GUT, y, dev, 1);
+            c.fillStyle = P_.sep; c.fillRect(GUT, y, dev, 1);
             if (UH >= 24 || u % 5 === 0 || u === 1) {
-                txt(c, String(u), GUT - 9, y + UH / 2 + 0.5, fs, '#8a919c', '500', 'right');
-                txt(c, String(u), GUT + dev + 9, y + UH / 2 + 0.5, fs, '#8a919c', '500', 'left');
+                txt(c, String(u), GUT - 9, y + UH / 2 + 0.5, fs, P_.num, '500', 'right');
+                txt(c, String(u), GUT + dev + 9, y + UH / 2 + 0.5, fs, P_.num, '500', 'left');
             }
         }
         // цоколь
-        fillRR(c, GUT - 7, TOP + DATA.uHeight * UH + 6, dev + 14, BOT - 12, 2, '#101216');
+        fillRR(c, GUT - 7, TOP + DATA.uHeight * UH + 6, dev + 14, BOT - 12, 2, P_.plinth);
     }
 
     function yU(u) { return TOP + (DATA.uHeight - u) * UH; } // y по высоте над полом (в U)
@@ -837,17 +850,17 @@
     // Стеллаж в виде спереди (по образцу складского металлического стеллажа: синие перфорированные
     // стойки, передние балки, настил); векторный вариант - static/infra2/icons/shelf-rack.svg.
     function drawShelf(c) {
-        var W = g.W, H = g.H;
-        fillRR(c, 0, 0, W, H, 8, hg(c, 0, W, [[0, '#14161a'], [0.5, '#1c1f25'], [1, '#14161a']]));
-        strokeRR(c, 0.5, 0.5, W - 1, H - 1, 8, '#3a3e46', 1);
-        if (!EMBED) txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : '') + '  ·  стеллаж', W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, '#cfd5de', '700', 'center');
-        c.fillStyle = vg(c, yU(SH_FEET), UH * SH_FEET + BOT, [[0, '#2a2f37'], [1, '#14161a']]);   // пол
+        var W = g.W, H = g.H, P_ = cp();
+        fillRR(c, 0, 0, W, H, 8, hg(c, 0, W, [[0, P_.frame[0]], [0.5, P_.frame[1]], [1, P_.frame[2]]]));
+        strokeRR(c, 0.5, 0.5, W - 1, H - 1, 8, P_.frameStroke, 1);
+        if (!EMBED) txt(c, DATA.cabinetName + (DATA.site ? '  ·  ' + DATA.site : '') + '  ·  стеллаж', W / 2, 6 + (TOP - 14) / 2 + 0.5, 13, P_.title, '700', 'center');
+        c.fillStyle = vg(c, yU(SH_FEET), UH * SH_FEET + BOT, [[0, P_.floor[0]], [1, P_.floor[1]]]);   // пол
         c.fillRect(6, yU(SH_FEET), W - 12, UH * SH_FEET + BOT - 6);
         SH.units.forEach(function (un, k) {
             var x0 = GUT + k * (SH.unitW + SH_GAP) * UH, uw = SH.unitW * UH, up = SH_UP * UH;
             var yTop = yU(SH_FULL), yBot = yU(SH_FEET);
-            c.fillStyle = '#0b0e13'; c.fillRect(x0 + up, yTop + up * 0.2, uw - 2 * up, yBot - yTop - up * 0.2);   // задняя стенка
-            c.strokeStyle = 'rgba(70,92,118,0.55)'; c.lineWidth = Math.max(1, UH * 0.1);                          // диагональные связи
+            c.fillStyle = P_.back; c.fillRect(x0 + up, yTop + up * 0.2, uw - 2 * up, yBot - yTop - up * 0.2);   // задняя стенка
+            c.strokeStyle = P_.brace; c.lineWidth = Math.max(1, UH * 0.1);                          // диагональные связи
             un.levels.forEach(function (lv) {
                 c.beginPath(); c.moveTo(x0 + up, yU(lv.deck)); c.lineTo(x0 + uw - up, yU(lv.deck + SH.clear)); c.stroke();
             });
@@ -1027,6 +1040,7 @@
         hideTimer = setTimeout(hideTip, 350);
     });
     base.addEventListener('click', function (e) {
+        if (window.__rvPanned) return;        // это было перетаскивание, а не клик
         var rc = base.getBoundingClientRect();
         var r = hit(e.clientX - rc.left, e.clientY - rc.top);
         clearTimeout(showTimer); clearTimeout(hideTimer);
@@ -1080,18 +1094,24 @@
     }
 
     // ---------- масштаб ----------
-    function zoomLabel() {
+    var zoomIndEl = document.getElementById('rvZoomInd'), zoomIndT = null;
+    function zoomLabel(notify) {
         var pct = Math.round(UH * 100 / (EMBED ? fitUH : 40));
         document.getElementById('rvZoomReset').textContent = pct + '%';
-        // во фрейме просмотра ЦОД индикатор масштаба показывает родительская страница
-        if (window.parent !== window) { try { window.parent.postMessage({ type: 'rvZoomState', pct: pct }, location.origin); } catch (e) { } }
+        // всплывающий индикатор масштаба во фрейме ЦОД - только при изменении масштаба пользователем
+        if (notify && zoomIndEl) {
+            zoomIndEl.textContent = 'Масштаб: ' + pct + '%';
+            zoomIndEl.classList.add('rv-zi-on');
+            clearTimeout(zoomIndT);
+            zoomIndT = setTimeout(function () { zoomIndEl.classList.remove('rv-zi-on'); }, 1000);
+        }
     }
     window.addEventListener('message', function (e) {
         if (e.origin !== location.origin) return;
         var m = e.data || {};
-        if (m.type === 'dvTheme' && (m.theme === 'light' || m.theme === 'dark')) { document.documentElement.setAttribute('data-bs-theme', m.theme); return; }   // тема страницы ЦОД
+        if (m.type === 'dvTheme' && (m.theme === 'light' || m.theme === 'dark')) { document.documentElement.setAttribute('data-bs-theme', m.theme); if (typeof drawAll === 'function' && g.W) drawAll(); return; }   // тема страницы ЦОД
         if (m.type !== 'rvZoom') return;
-        if (m.cmd === 'in') { userZoomed = true; setZoom(UH + 4); } else if (m.cmd === 'out') { userZoomed = true; setZoom(UH - 4); } else if (m.cmd === 'reset') { userZoomed = false; if (EMBED) fitUH = calcFit(); setZoom(EMBED ? fitUH : 40); }
+        if (m.cmd === 'in') { userZoomed = true; setZoom(UH + 4, true); } else if (m.cmd === 'out') { userZoomed = true; setZoom(UH - 4, true); } else if (m.cmd === 'reset') { userZoomed = false; if (EMBED) fitUH = calcFit(); setZoom(EMBED ? fitUH : 40, true); }
     });
     if (EMBED) {
         window.addEventListener('resize', function () {
@@ -1100,9 +1120,9 @@
             if (f !== UH) { fitUH = f; setZoom(f); }
         });
     }
-    function setZoom(v) {
+    function setZoom(v, notify) {
         UH = Math.max(SH ? 4 : (EMBED ? 8 : 20), Math.min(90, v));
-        zoomLabel();
+        zoomLabel(notify);
         if (!EMBED) { try { localStorage.setItem(ZKEY, String(UH)); } catch (e) { } }
         unpin(); hovered = null;
         layout(); drawAll();
@@ -1126,6 +1146,36 @@
         note.className = 'text-muted small mb-1';
         note.textContent = 'В шкафу нет оборудования с указанной позицией (юнитом) - показано оборудование без позиции.';
         document.getElementById('rvUnplacedCard').insertBefore(note, document.getElementById('rvUnplaced'));
+    }
+
+    // во фрейме ЦОД: масштаб колесом мыши (как на 3D-сцене слева), сдвиг перетаскиванием, двойной клик - вписать
+    if (EMBED) {
+        var scroller = document.querySelector('.content-panel') || document.scrollingElement || document.documentElement;
+        window.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            var old = UH;
+            userZoomed = true;
+            setZoom(Math.round(UH * Math.exp(-e.deltaY * 0.0015) * 10) / 10, true);
+            var ratio = UH / old;
+            if (ratio !== 1 && scroller) {                      // точка под курсором остаётся на месте
+                var rc = scroller.getBoundingClientRect(), cx = e.clientX - rc.left, cy = e.clientY - rc.top;
+                scroller.scrollLeft = (scroller.scrollLeft + cx) * ratio - cx;
+                scroller.scrollTop = (scroller.scrollTop + cy) * ratio - cy;
+            }
+        }, { passive: false });
+        var panDrag = null;
+        window.addEventListener('mousedown', function (e) { if (e.button === 0) panDrag = { x: e.clientX, y: e.clientY, moved: false }; });
+        window.addEventListener('mousemove', function (e) {
+            if (!panDrag) return;
+            var dx = e.clientX - panDrag.x, dy = e.clientY - panDrag.y;
+            if (!panDrag.moved && Math.abs(dx) + Math.abs(dy) > 5) { panDrag.moved = true; window.__rvPanned = true; }
+            if (panDrag.moved && scroller) { scroller.scrollLeft -= dx; scroller.scrollTop -= dy; panDrag.x = e.clientX; panDrag.y = e.clientY; }
+        });
+        window.addEventListener('mouseup', function () { panDrag = null; setTimeout(function () { window.__rvPanned = false; }, 0); });
+        base.addEventListener('dblclick', function (e) {
+            var rc = base.getBoundingClientRect();
+            if (!hit(e.clientX - rc.left, e.clientY - rc.top)) { userZoomed = false; fitUH = calcFit(); setZoom(fitUH, true); }
+        });
     }
 })();
 </script>

@@ -17,18 +17,13 @@
     <div class="dv-left">
         <div class="dv-sel d-flex align-items-center justify-content-between gap-2">
             <div id="dvSel" class="dv-sel-text">Наведите курсор на шкаф</div>
-            <div class="btn-group flex-shrink-0" role="group" aria-label="Масштаб шкафа">
-                <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="dvZoomOut" title="Уменьшить шкаф">&minus;</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="dvZoomReset" title="Масштаб по умолчанию" style="min-width:3.6rem">100%</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="dvZoomIn" title="Увеличить шкаф">+</button>
-            </div>
         </div>
         <div class="dv-stage" id="dvStage">
             <canvas id="dvCanvas"></canvas>
             <div id="dvTip" class="dv-tip" hidden></div>
             <div id="dvZoomInd" class="dv-zoom-ind">Масштаб: 100%</div>
             <button type="button" id="dvResetView" class="dv-reset-view" title="Сбросить масштаб и ракурс (двойной клик по пустому месту - то же)">&#8634; Вид</button>
-            <div class="dv-view-hint">Колесо - масштаб &middot; тяните за угол основания - ракурс &middot; тяните пустое место - сдвиг</div>
+            <div class="dv-view-hint">Колесо - масштаб (и справа у шкафа) &middot; тяните за угол основания - ракурс &middot; тяните пустое место - сдвиг</div>
         </div>
     </div>
     <div class="dv-right">
@@ -106,14 +101,14 @@
 
     // оттенки янтаря для световых столбов: от светло-янтарного (малая мощность) к насыщенно-оранжевому (максимум)
     function glowRGB(frac, dark) {
-        var stops = dark ? [[252, 211, 77], [245, 158, 11], [249, 115, 22]] : [[217, 160, 20], [217, 119, 6], [194, 65, 12]];
+        var stops = [[253, 224, 120], [251, 191, 36], [245, 158, 11]];     // один и тот же светлый янтарный ряд в обеих темах
         var t = Math.max(0, Math.min(1, frac)) * 2, i = Math.min(1, Math.floor(t)), f = t - i;
         var a = stops[i], b = stops[i + 1];
         return Math.round(a[0] + (b[0] - a[0]) * f) + ',' + Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f);
     }
     // столб + светящееся "навершие" на крыше шкафа (cx, cy - центр крыши в экранных координатах)
     function drawGlow(cx, cy, bw, bh, frac, dark, mode) {
-        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.3 : 0.4) + 0.4 * frac;
+        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.32 : 0.5) + (dark ? 0.4 : 0.35) * frac;
         ctx.save();
         ctx.globalCompositeOperation = mode;
         ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + rgb + ',' + a0.toFixed(2) + ')'], [1, 'rgba(' + rgb + ',0)']]);
@@ -739,19 +734,7 @@
     });
     document.getElementById('dvResetView').addEventListener('click', resetView);
 
-    // масштаб шкафа в правой части: кнопки управляют фреймом, индикатор берёт значение у него
-    function zoomCmd(cmd) {
-        var f = document.getElementById('dvFrame');
-        if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'rvZoom', cmd: cmd }, location.origin);
-    }
-    document.getElementById('dvZoomIn').addEventListener('click', function () { zoomCmd('in'); });
-    document.getElementById('dvZoomOut').addEventListener('click', function () { zoomCmd('out'); });
-    document.getElementById('dvZoomReset').addEventListener('click', function () { zoomCmd('reset'); });
-    window.addEventListener('message', function (e) {
-        if (e.origin !== location.origin) return;
-        var m = e.data || {};
-        if (m.type === 'rvZoomState') document.getElementById('dvZoomReset').textContent = m.pct + '%';
-    });
+    // масштаб шкафа в правой части меняется колесом мыши внутри фрейма; индикатор масштаба показывает сам фрейм (всплывающий)
 
     document.getElementById('dvFrame').addEventListener('load', pushThemeToFrame);
     function resize() { layout(); render(); }
