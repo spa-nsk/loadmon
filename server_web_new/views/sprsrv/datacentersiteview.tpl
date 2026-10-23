@@ -47,9 +47,10 @@
     .dv-stage { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: linear-gradient(#171d25, #0e1318); }
     [data-bs-theme="light"] .dv-stage { background: linear-gradient(#f3f6fa, #dbe3ec); }
     #dvCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-    .dv-right { display: flex; flex-direction: column; border: 1px solid var(--bs-border-color); border-radius: 0.6rem; background: var(--bs-body-bg); overflow: hidden; }
+    .dv-right { display: flex; flex-direction: column; border: 1px solid var(--bs-border-color); border-radius: 0.6rem; background: linear-gradient(#171d25, #0e1318); overflow: hidden; }
+    [data-bs-theme="light"] .dv-right { background: linear-gradient(#f3f6fa, #dbe3ec); }
     .dv-right-head { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--bs-border-color); }
-    .dv-frame { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; background: var(--bs-body-bg); }
+    .dv-frame { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; background: transparent; }
     /* всплывающие элементы поверх сцены - палитра тёмной и светлой тем */
     .dv-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 190px; padding: 0.55rem 0.7rem; border-radius: 0.5rem; font-size: 0.82rem; line-height: 1.35;
               background: rgba(17, 23, 30, 0.96); color: #e6edf3; border: 1px solid rgba(110, 190, 190, 0.5); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
@@ -64,7 +65,7 @@
     [data-bs-theme="light"] .dv-reset-view { background: rgba(255, 255, 255, 0.92); color: #34506a; border-color: rgba(52, 96, 120, 0.5); }
     [data-bs-theme="light"] .dv-reset-view:hover { color: #0f766e; border-color: #0d9488; }
     .dv-view-hint { position: absolute; z-index: 4; left: 10px; bottom: 8px; pointer-events: none; font-size: 0.72rem; color: rgba(170, 190, 208, 0.75); }
-    [data-bs-theme="light"] .dv-view-hint { color: rgba(60, 90, 120, 0.8); }
+    [data-bs-theme="light"] .dv-view-hint { color: #3f566c; }
     .dv-tip b.dv-name { font-size: 0.95rem; color: #f8fafc; }
     [data-bs-theme="light"] .dv-tip b.dv-name { color: #0f1b2a; }
     .dv-tip table { border-collapse: collapse; margin-top: 0.25rem; }
@@ -95,16 +96,40 @@
     // Изображения оборудования (шкафы APC, устройства вендоров, стойки стеллажа) от темы не зависят.
     var PALS = {
         dark:  { bgTop: '#171d25', bgBot: '#0e1318', floorTop: '#243242', floorBot: '#1b2733', floorEdge: 'rgba(110,190,190,0.5)', grid: 'rgba(150,175,195,0.14)',
-                 sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(120,190,200,0.5)', glow: '45,212,191', glowMode: 'lighter',
-                 cornerBg: 'rgba(15,21,28,0.8)', cornerBgHot: 'rgba(45,212,191,0.3)', cornerEdge: 'rgba(150,185,205,0.85)', cornerGlyph: '#c3d4e2' },
-        light: { bgTop: '#f3f6fa', bgBot: '#dbe3ec', floorTop: '#cfdae6', floorBot: '#bccad9', floorEdge: 'rgba(52,96,120,0.55)', grid: 'rgba(40,70,100,0.14)',
-                 sel: '#0d9488', hov: '#14b8a6', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(52,96,120,0.5)', glow: '13,148,136', glowMode: 'source-over',
-                 cornerBg: 'rgba(255,255,255,0.88)', cornerBgHot: 'rgba(13,148,136,0.2)', cornerEdge: 'rgba(52,96,120,0.75)', cornerGlyph: '#34506a' }
+                 sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(120,190,200,0.5)', glowMode: 'lighter',
+                 cornerBg: 'rgba(15,21,28,0.8)', cornerBgHot: 'rgba(45,212,191,0.3)', cornerEdge: 'rgba(175,208,228,0.95)', cornerGlyph: '#dbe8f2' },
+        light: { bgTop: '#f3f6fa', bgBot: '#dbe3ec', floorTop: '#bccbdc', floorBot: '#a6b8cc', floorEdge: 'rgba(40,82,110,0.8)', grid: 'rgba(40,70,100,0.24)',
+                 sel: '#0d9488', hov: '#14b8a6', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(52,96,120,0.5)', glowMode: 'source-over',
+                 cornerBg: 'rgba(255,255,255,0.88)', cornerBgHot: 'rgba(13,148,136,0.2)', cornerEdge: 'rgba(40,80,110,0.95)', cornerGlyph: '#2b4a64' }
     };
     var PAL = PALS.dark;
+
+    // оттенки янтаря для световых столбов: от светло-янтарного (малая мощность) к насыщенно-оранжевому (максимум)
+    function glowRGB(frac, dark) {
+        var stops = dark ? [[252, 211, 77], [245, 158, 11], [249, 115, 22]] : [[217, 160, 20], [217, 119, 6], [194, 65, 12]];
+        var t = Math.max(0, Math.min(1, frac)) * 2, i = Math.min(1, Math.floor(t)), f = t - i;
+        var a = stops[i], b = stops[i + 1];
+        return Math.round(a[0] + (b[0] - a[0]) * f) + ',' + Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f);
+    }
+    // столб + светящееся "навершие" на крыше шкафа (cx, cy - центр крыши в экранных координатах)
+    function drawGlow(cx, cy, bw, bh, frac, dark, mode) {
+        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.3 : 0.4) + 0.4 * frac;
+        ctx.save();
+        ctx.globalCompositeOperation = mode;
+        ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + rgb + ',' + a0.toFixed(2) + ')'], [1, 'rgba(' + rgb + ',0)']]);
+        ctx.fillRect(cx - bw / 2, cy - bh, bw, bh);
+        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, a0 + 0.3).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(cx, cy, bw * 0.52, bw * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+    function pushThemeToFrame() {                    // фрейм со шкафом - отдельная страница: передаём ей текущую тему
+        var f = document.getElementById('dvFrame');
+        if (f && f.contentWindow) { try { f.contentWindow.postMessage({ type: 'dvTheme', theme: document.documentElement.getAttribute('data-bs-theme') }, location.origin); } catch (e) { } }
+    }
     function setPal() {
         PAL = document.documentElement.getAttribute('data-bs-theme') === 'light' ? PALS.light : PALS.dark;
         stage.style.background = 'linear-gradient(' + PAL.bgTop + ',' + PAL.bgBot + ')';
+        pushThemeToFrame();
     }
     setPal();
     if (window.MutationObserver) new MutationObserver(function () { setPal(); if (typeof render === 'function' && G.w) render(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
@@ -420,11 +445,7 @@
             var frac = r.powerAvgW / maxPower;
             var cx = (top[0][0] + top[2][0]) / 2, cy = (top[0][1] + top[2][1]) / 2;
             var bh = H * CV.zk * (0.35 + 0.9 * frac), bw = (a1 - a0) * s * 0.75;
-            ctx.save();
-            ctx.globalCompositeOperation = PAL.glowMode;
-            ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + PAL.glow + ',' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(' + PAL.glow + ',0)']]);
-            ctx.fillRect(cx - bw / 2, cy - bh, bw, bh);
-            ctx.restore();
+            drawGlow(cx, cy, bw, bh, frac, PAL === PALS.dark, PAL.glowMode);
         }
 
         polys.push({ r: r, pts: boxHull(a0, a1, b0, b1, 0, H) });
@@ -732,6 +753,7 @@
         if (m.type === 'rvZoomState') document.getElementById('dvZoomReset').textContent = m.pct + '%';
     });
 
+    document.getElementById('dvFrame').addEventListener('load', pushThemeToFrame);
     function resize() { layout(); render(); }
     if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
     layout(); render();

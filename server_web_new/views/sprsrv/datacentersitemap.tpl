@@ -116,20 +116,39 @@
             listBg: 'rgba(12,17,23,0.95)', listLine: 'rgba(120,160,185,0.4)', cityBg: 'rgba(38,52,68,0.55)', cityBgHov: 'rgba(45,212,191,0.2)', cityEdge: 'rgba(120,160,185,0.4)',
             title: '#f1f5f9', sub: '#9fb0c2', sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4',
             sbTrack: 'rgba(12,17,23,0.6)', sbTick: 'rgba(150,175,195,0.35)', sbThumb: 'rgba(45,212,191,0.5)', sbThumbDim: 'rgba(45,212,191,0.22)',
-            glow: '45,212,191', glowMode: 'lighter'
+            glowMode: 'lighter'
         },
         light: {
-            bgTop: '#f3f6fa', bgBot: '#dbe3ec', bandEven: 'rgba(30,50,80,0.05)', bandOdd: 'rgba(255,255,255,0.45)',
-            slabTop: ['#e9eff6', '#d5dfea'], slabL: '#a4b4c6', slabR: '#91a3b8', slabEdge: 'rgba(52,96,120,0.65)', slabGrid: 'rgba(40,70,100,0.13)',
+            bgTop: '#f3f6fa', bgBot: '#dbe3ec', bandEven: 'rgba(30,50,80,0.07)', bandOdd: 'rgba(255,255,255,0.4)',
+            slabTop: ['#d3deea', '#bccbdc'], slabL: '#8ea2b8', slabR: '#7b90a8', slabEdge: 'rgba(40,82,110,0.8)', slabGrid: 'rgba(40,70,100,0.22)',
             dash: 'rgba(60,90,120,0.55)', plateFill: 'rgba(255,255,255,0.95)', plateStroke: 'rgba(60,90,120,0.55)', plateText: '#1d2b3a',
             floorText: '#52667a', addrText: '#1d2b3a', textShadow: 'rgba(255,255,255,0.7)', deckEdge: 'rgba(52,96,120,0.5)',
             listBg: 'rgba(245,248,251,0.96)', listLine: 'rgba(60,90,120,0.3)', cityBg: 'rgba(255,255,255,0.85)', cityBgHov: 'rgba(13,148,136,0.14)', cityEdge: 'rgba(60,90,120,0.32)',
             title: '#1d2b3a', sub: '#52667a', sel: '#0d9488', hov: '#14b8a6', selTxt: '#0f766e',
             sbTrack: 'rgba(30,50,80,0.12)', sbTick: 'rgba(60,90,120,0.4)', sbThumb: 'rgba(13,148,136,0.5)', sbThumbDim: 'rgba(13,148,136,0.22)',
-            glow: '13,148,136', glowMode: 'source-over'
+            glowMode: 'source-over'
         }
     };
     var PAL = PALS.dark;
+
+    // оттенки янтаря для световых столбов: от светло-янтарного (малая мощность) к насыщенно-оранжевому (максимум)
+    function glowRGB(frac, dark) {
+        var stops = dark ? [[252, 211, 77], [245, 158, 11], [249, 115, 22]] : [[217, 160, 20], [217, 119, 6], [194, 65, 12]];
+        var t = Math.max(0, Math.min(1, frac)) * 2, i = Math.min(1, Math.floor(t)), f = t - i;
+        var a = stops[i], b = stops[i + 1];
+        return Math.round(a[0] + (b[0] - a[0]) * f) + ',' + Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f);
+    }
+    // столб + светящееся "навершие" на крыше шкафа (cx, cy - центр крыши в экранных координатах)
+    function drawGlow(cx, cy, bw, bh, frac, dark, mode) {
+        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.3 : 0.4) + 0.4 * frac;
+        ctx.save();
+        ctx.globalCompositeOperation = mode;
+        ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + rgb + ',' + a0.toFixed(2) + ')'], [1, 'rgba(' + rgb + ',0)']]);
+        ctx.fillRect(cx - bw / 2, cy - bh, bw, bh);
+        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, a0 + 0.3).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(cx, cy, bw * 0.52, bw * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
     function setPal() {
         PAL = document.documentElement.getAttribute('data-bs-theme') === 'light' ? PALS.light : PALS.dark;
         stage.style.background = 'linear-gradient(' + PAL.bgTop + ',' + PAL.bgBot + ')';
@@ -327,11 +346,7 @@
             var frac = r.powerAvgW / site.maxPower;
             var pcx = (top[0][0] + top[2][0]) / 2, pcy = (top[0][1] + top[2][1]) / 2;
             var pbh = (H - z0) * U * (0.35 + 0.9 * frac), pbw = (a1 - a0) * U * 0.75;
-            ctx.save();
-            ctx.globalCompositeOperation = PAL.glowMode;
-            ctx.fillStyle = lin(0, pcy, 0, pcy - pbh, [[0, 'rgba(' + PAL.glow + ',' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(' + PAL.glow + ',0)']]);
-            ctx.fillRect(pcx - pbw / 2, pcy - pbh, pbw, pbh);
-            ctx.restore();
+            drawGlow(pcx, pcy, pbw, pbh, frac, PAL === PALS.dark, PAL.glowMode);
         }
 
         hits.push({ site: site, rack: r, pts: [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, H), P(so, a0, b0, H), P(so, a0, b1, H)] });

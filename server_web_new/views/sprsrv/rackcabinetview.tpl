@@ -7,6 +7,8 @@
     .rv-main { order: 1; flex: 0 0 auto; width: auto; padding-bottom: 0; }
     .rv-side { order: 2; flex: 1 1 240px; min-width: 0; max-width: 100%; }
     .rv-side > .rv-card:not(#rvUnplacedCard) { display: none; }
+    /* фон берёт родительская страница ЦОД (общий градиент темы) */
+    html, body, .content-panel { background: transparent !important; }
 </style>{{end}}
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
@@ -1087,6 +1089,7 @@
     window.addEventListener('message', function (e) {
         if (e.origin !== location.origin) return;
         var m = e.data || {};
+        if (m.type === 'dvTheme' && (m.theme === 'light' || m.theme === 'dark')) { document.documentElement.setAttribute('data-bs-theme', m.theme); return; }   // тема страницы ЦОД
         if (m.type !== 'rvZoom') return;
         if (m.cmd === 'in') { userZoomed = true; setZoom(UH + 4); } else if (m.cmd === 'out') { userZoomed = true; setZoom(UH - 4); } else if (m.cmd === 'reset') { userZoomed = false; if (EMBED) fitUH = calcFit(); setZoom(EMBED ? fitUH : 40); }
     });
