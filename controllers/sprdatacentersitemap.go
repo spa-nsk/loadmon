@@ -182,6 +182,10 @@ func (this *MainController) SprDatacenterSiteMap() {
 				u = 42
 			}
 			rk := &dcViewRack{Id: r.Id, Name: r.Name, UHeight: u}
+			if r.Name == models.RackCabinetOutsideName { // служебный шкаф "вне шкафа" - стеллаж с оборудованием
+				rk.Shelf = true
+				rk.Items = shelfItems(o, r.Id)
+			}
 			s.Racks = append(s.Racks, rk)
 			rackSite[r.Id] = r.DatacenterSiteId
 			rackBy[r.Id] = rk
@@ -231,6 +235,25 @@ func (this *MainController) SprDatacenterSiteMap() {
 				if r := rackBy[chassisRack[b.BladeSystemId]]; r != nil {
 					r.Blades++
 				}
+			}
+		}
+	}
+	// ленточные библиотеки и сетевое оборудование по шкафам (выведенное/списанное не считаем)
+	var tpl []models.TapeLibrary
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId__gt", 0).Exclude("ItiliumStatus__in", 2, 3).
+		Limit(-1).All(&tpl, "Id", "RackCabinetId"); err == nil {
+		for _, t := range tpl {
+			if r := rackBy[t.RackCabinetId]; r != nil {
+				r.Tapes++
+			}
+		}
+	}
+	var ntl []models.SwitchSprRecords
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId__gt", 0).Exclude("ItiliumStatus__in", 2, 3).
+		Limit(-1).All(&ntl, "Id", "RackCabinetId"); err == nil {
+		for _, n := range ntl {
+			if r := rackBy[n.RackCabinetId]; r != nil {
+				r.Network++
 			}
 		}
 	}

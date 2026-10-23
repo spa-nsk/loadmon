@@ -15,7 +15,7 @@
 
 <div class="sm-wrap">
     <div class="sm-bar d-flex align-items-center justify-content-between gap-2">
-        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Колесо - масштаб, перетаскивание левой кнопкой - прокрутка, клик по шкафу/ЦОД - детали, выбранный ЦОД выдвигается из стопки.</div>
+        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Колесо - масштаб, перетаскивание - прокрутка, клик по шкафу/стеллажу/ЦОД - детали и выбор (ЦОД выдвигается из стопки), правая кнопка - переход к оборудованию площадки.</div>
         <div class="btn-group flex-shrink-0" role="group" aria-label="Масштаб карты">
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomOut" title="Уменьшить">&minus;</button>
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomFit" title="Вписать всю карту в окно" style="min-width:3.6rem">100%</button>
@@ -26,6 +26,7 @@
         <canvas id="smCanvas"></canvas>
         <div id="smTip" class="sm-tip" hidden></div>
         <div id="smPanel" class="sm-tip sm-panel" hidden></div>
+        <div id="smCtx" class="sm-ctx" hidden></div>
     </div>
 </div>
 
@@ -46,6 +47,10 @@
     .sm-tip td:first-child { color: #a9aef0; padding-right: 0.7rem; white-space: nowrap; }
     .sm-tip .sm-hint { margin-top: 0.35rem; color: #8f94d8; font-size: 0.75rem; }
     .sm-tip a { color: #7df0ff; }
+    .sm-ctx { position: absolute; z-index: 9; min-width: 250px; padding: 0.3rem; border-radius: 0.5rem; background: rgba(14, 13, 48, 0.97); border: 1px solid rgba(120, 130, 255, 0.6); box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55); }
+    .sm-ctx .sm-ctx-title { padding: 0.25rem 0.6rem; font-size: 0.75rem; color: #a9aef0; border-bottom: 1px solid rgba(120, 130, 255, 0.3); margin-bottom: 0.2rem; }
+    .sm-ctx a { display: block; padding: 0.35rem 0.6rem; border-radius: 0.35rem; font-size: 0.85rem; color: #e8e8ff; text-decoration: none; }
+    .sm-ctx a:hover { background: rgba(88, 230, 255, 0.18); color: #fff; }
     .sm-close { position: absolute; top: 2px; right: 8px; background: none; border: 0; color: #a9aef0; font-size: 1.2rem; line-height: 1; cursor: pointer; }
 </style>
 
@@ -77,7 +82,7 @@
     var kw = function (w) { return w >= 1000 ? (w / 1000).toFixed(1) + ' кВт' : Math.round(w) + ' Вт'; };
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     function floorTitle(f) { return f === 0 ? 'Подвал (0)' : 'Этаж ' + f; }
-    function hz(r) { return 1.2 * Math.max(0.5, Math.min(1.4, r.uHeight / 42)); }
+    function hz(r) { return 1.55 * Math.max(0.5, Math.min(1.4, r.uHeight / 42)); }
 
     // ---- раскладка: города -> здания -> этажи -> ЦОД ----
     function shelf(items, limit, gap) {
@@ -94,30 +99,74 @@
         return { w: W, h: Math.max(0, y - gap) };
     }
 
+    // ---- оборудование стеллажа: раскладка по секциям/полкам (те же правила, что в просмотре оборудования площадки) ----
+    var SH_CLEAR = (42 - 0.5 - 0.8 * 6) / 5;        // свободная высота между полками, U
+    function isAP(it) { return it.k === 'switch' && /aironet|\bair-|\bc91\d{2}|unifi|\buap|ubiquiti|точка доступа|access point|wi-?fi|\bwlan/i.test(it.vd || ''); }
+    function shelfSize(it) { if (isAP(it)) return Math.max(2, it.u || 0); return it.u > 0 ? it.u : (it.k === 'chassis' ? 10 : (it.k === 'tape' ? 6 : (it.k === 'switch' ? 1 : 2))); }
+    function packShelf(r) {
+        var list = (r.items || []).map(function (it) { return { k: it.k, vd: it.vd || '', p: it.p, u: it.u, su: Math.min(shelfSize(it), SH_CLEAR) }; });
+        var rank = { storage: 0, tape: 1, chassis: 1, server: 2, 'switch': 3 };
+        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.k] || 9) - (rank[b.k] || 9)); });
+        var units = [];
+        function newUnit() { var lv = []; for (var k = 0; k < 5; k++) lv.push({ items: [], used: 0 }); units.push(lv); }
+        newUnit();
+        list.forEach(function (it) {
+            for (var ui = 0; ; ui++) {
+                if (ui >= units.length) newUnit();
+                for (var k = 0; k < 5; k++) {
+                    var lv = units[ui][k];
+                    if (lv.used + it.su <= SH_CLEAR + 0.001) { lv.items.push({ it: it, off: lv.used }); lv.used += it.su + 0.12; return; }
+                }
+            }
+        });
+        r.packed = units;
+        r.units = units.length;
+    }
+    function shelfStyle(vd) {
+        var s = String(vd).toLowerCase();
+        if (/hpe|hp |hewlett|proliant|\bdl\d|synergy|c7000|3par|primera|nimble/.test(s)) return '#01a982';
+        if (/dell|poweredge|emc|unity|vnx|powerstore|powervault/.test(s)) return '#2a8be0';
+        if (/lenovo|thinksystem|\bsr\d{3}/.test(s)) return '#e2231a';
+        if (/huawei|oceanstor|dorado/.test(s)) return '#e0334d';
+        if (/ubiquiti|unifi|\buap/.test(s)) return '#006fff';
+        if (/cisco|catalyst|nexus|\bisr|\basr|\bmds|\basa\b|aironet|\bair-|\bc91\d{2}/.test(s)) return '#049fd9';
+        return '#8b95a5';
+    }
+
     var PAD_L = 3;                                 // запас слева под подписи этажей и выдвижение ЦОД
     var siteCnt = 0, rackCnt = 0, bldCnt = 0;
+    var shelfCnt = 0;
     var cities = DATA.map(function (c) {
         var bl = c.buildings.map(function (b) {
             var A = 0, B = 0, half = 0;
             b.floors.forEach(function (f) {
                 var x = 0, bf = 0;
                 f.sites.forEach(function (s) {
-                    var n = s.racks.length;
-                    s.cols = n ? Math.max(1, Math.ceil(Math.sqrt(n * 1.3))) : 2;
+                    s.normal = s.racks.filter(function (r) { return !r.shelf; });
+                    s.shelves = s.racks.filter(function (r) { return r.shelf; });
+                    var n = s.normal.length, su = 0;
+                    s.shelves.forEach(function (r) { packShelf(r); su += r.units; });
+                    s.cols = n ? Math.max(1, Math.ceil(Math.sqrt(n * 1.3))) : 0;     // нет шкафов - стеллаж по левому краю
                     s.rows = n ? Math.ceil(n / s.cols) : 1;
-                    s.sA = s.cols + 0.6; s.sB = s.rows + 0.6;
+                    s.shelfUnits = su;
+                    s.shelfStart = s.cols ? s.cols + 0.6 : 0.15;                       // стеллаж - справа от группы шкафов
+                    var gridW = s.cols ? s.cols + (su ? 0.6 + su : 0) : (su ? su + 0.3 : 2);
+                    var shelfOff = 0;
+                    s.shelves.forEach(function (r) { r.gi = s.shelfStart + shelfOff; r.gj = Math.floor((s.rows - 1) / 2); shelfOff += r.units; });
+                    s.maxPower = 0; s.normal.forEach(function (r) { if (r.powerAvgW > s.maxPower) s.maxPower = r.powerAvgW; });
+                    s.sA = gridW + 0.6; s.sB = s.rows + 0.6;
                     s.aOff = x; x += s.sA + 0.8; bf = Math.max(bf, s.sB);
                     s.e = 0; s.tgt = 0; s.floor = f.floor; allSites.push(s);
-                    siteCnt++; rackCnt += n;
+                    siteCnt++; rackCnt += n; shelfCnt += s.shelves.length;
                 });
                 f.A = Math.max(0.5, x - 0.8); f.B = bf;
                 A = Math.max(A, f.A); B = Math.max(B, f.B);
                 half = Math.max(half, (f.A + f.B) / 2);
             });
-            var n = b.floors.length, FH = half + 2.0;
+            var n = b.floors.length, FH = half + 2.5;
             bldCnt++;
             return { b: b, A: A, B: B, n: n, FH: FH,
-                     w: (A + B + PAD_L) * U, h: (1.9 + (n - 1) * FH + (A + B) / 2 + 1.8) * U };
+                     w: (A + B + PAD_L) * U, h: (2.3 + (n - 1) * FH + (A + B) / 2 + 1.8) * U };
         });
         // один город - одна горизонтальная строка: здания (адреса) слева направо, общая линия основания
         var x = 0, rowH = 0;
@@ -133,7 +182,7 @@
     })();
     var LW = 180;                                  // ширина левого списка городов (в пикселях экрана)
     var cityBoxes = [];
-    document.getElementById('smSummary').innerHTML = 'Городов: <b>' + cities.length + '</b> &middot; зданий: <b>' + bldCnt + '</b> &middot; ЦОД: <b>' + siteCnt + '</b> &middot; шкафов: <b>' + rackCnt + '</b>';
+    document.getElementById('smSummary').innerHTML = 'Городов: <b>' + cities.length + '</b> &middot; зданий: <b>' + bldCnt + '</b> &middot; ЦОД: <b>' + siteCnt + '</b> &middot; шкафов: <b>' + rackCnt + '</b>' + (shelfCnt ? ' &middot; стеллажей: <b>' + shelfCnt + '</b>' : '');
 
     // изометрия: a - вправо-вниз, b - влево-вниз, z - вверх (в клетках)
     function P(o, a, b, z) { return [o.x + (a - b) * U, o.y + (a + b) * U / 2 - z * U]; }
@@ -211,9 +260,116 @@
         }
         var edge = isSel ? '#58e6ff' : (isHov ? '#ffffff' : 'rgba(255,255,255,0.16)');
         var elw = lw(isSel ? 2.6 : (isHov ? 2.2 : 1));
+        if (isSel) { poly(left, SEL_TINT); poly(right, SEL_TINT); poly(top, SEL_TINT); }
         poly(left, null, edge, elw); poly(right, null, edge, elw); poly(top, null, edge, elw);
 
+        // световой столб над шкафом пропорционально мощности (относительно самого мощного шкафа площадки)
+        if (site.maxPower > 0 && r.powerAvgW > 0) {
+            var frac = r.powerAvgW / site.maxPower;
+            var pcx = (top[0][0] + top[2][0]) / 2, pcy = (top[0][1] + top[2][1]) / 2;
+            var pbh = (H - z0) * U * (0.35 + 0.9 * frac), pbw = (a1 - a0) * U * 0.75;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = lin(0, pcy, 0, pcy - pbh, [[0, 'rgba(60,220,230,' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(60,220,230,0)']]);
+            ctx.fillRect(pcx - pbw / 2, pcy - pbh, pbw, pbh);
+            ctx.restore();
+        }
+
         hits.push({ site: site, rack: r, pts: [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, H), P(so, a0, b0, H), P(so, a0, b1, H)] });
+    }
+
+    // ---- стеллаж в стиле просмотра оборудования площадки: рамка из стоек и полок, оборудование непрозрачными блоками ----
+    var SEL_TINT = 'rgba(88,230,255,0.30)';
+    function drawShelfAP(so, a0, a1, b0, b1, z, h, it, lit) {
+        var cx = (a0 + a1) / 2, cb = (b0 + b1) / 2, rad = Math.min(a1 - a0, b1 - b0) * 0.34, hh = Math.min(h * 0.45, 0.05);
+        var round = /unifi|uap|ubiquiti/i.test(it.vd), on = it.p === 1, pts = [], q;
+        for (q = 0; q < 20; q++) { var an = q / 20 * TAU; pts.push([cx + Math.cos(an) * rad * (round ? 1 : 1.25), cb + Math.sin(an) * rad * (round ? 1 : 0.95)]); }
+        var top = pts.map(function (p) { return P(so, p[0], p[1], z + hh); });
+        var bot = pts.map(function (p) { return P(so, p[0], p[1], z); });
+        poly(bot.concat(top.slice().reverse()), '#aab1bb');
+        for (q = 0; q < 20; q++) { var nn = (q + 1) % 20; poly([top[q], top[nn], bot[nn], bot[q]], q > 4 && q < 15 ? '#c4cad2' : '#9aa1ab'); }
+        poly(top, lit ? '#ffffff' : '#eef0f3', 'rgba(0,0,0,0.3)', 0.7);
+        var lc = P(so, cx, cb, z + hh);
+        ctx.fillStyle = on ? (round ? '#3aa0ff' : '#35e06a') : '#8a919c';
+        ctx.beginPath(); ctx.arc(lc[0], lc[1], Math.max(1.2, rad * U * 0.14), 0, TAU); ctx.fill();
+    }
+    function drawShelfItem(so, a0, a1, b0, b1, z, h, it, lit) {
+        if (isAP(it)) { drawShelfAP(so, a0, a1, b0, b1, z, h, it, lit); return; }
+        var acc = shelfStyle(it.vd), on = it.p === 1;
+        var ia0 = a0 + 0.03, ia1 = a1 - 0.03, ib0 = b0 + 0.05, ib1 = b1 - 0.02, zt = z + h;
+        var front = [P(so, ia0, ib1, zt), P(so, ia1, ib1, zt), P(so, ia1, ib1, z), P(so, ia0, ib1, z)];
+        var side = [P(so, ia1, ib1, zt), P(so, ia1, ib0, zt), P(so, ia1, ib0, z), P(so, ia1, ib1, z)];
+        var top = [P(so, ia0, ib0, zt), P(so, ia1, ib0, zt), P(so, ia1, ib1, zt), P(so, ia0, ib1, zt)];
+        poly(side, '#1e2026');
+        poly(front, lin(0, front[0][1], 0, front[2][1], [[0, lit ? '#454a56' : '#353841'], [1, '#22252b']]), 'rgba(0,0,0,0.6)', 0.7);
+        poly(top, lit ? '#6a7080' : '#575c69', 'rgba(255,255,255,0.25)', 0.7);
+        if (cam.k > 0.7) {
+            ctx.save();
+            faceTransform(front[0], (ia1 - ia0) * U, (ia1 - ia0) * U / 2, 0, h * U, 100, 40);
+            ctx.fillStyle = acc; ctx.fillRect(4, 3, 92, 4);
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            var rows3 = it.k === 'storage' ? 4 : ((it.k === 'chassis' || it.k === 'tape') ? 3 : 1);
+            for (var q = 0; q < rows3; q++) {
+                if (it.k === 'chassis') ctx.fillRect(8 + q * 29, 11, 27, 24);
+                else if (it.k === 'tape') { ctx.fillRect(8 + q * 22, 11, 20, 24); ctx.fillStyle = '#1f6fb5'; ctx.fillRect(74, 12, 18, 14); ctx.fillStyle = 'rgba(0,0,0,0.55)'; }
+                else if (it.k === 'storage') ctx.fillRect(8, 11 + q * 7, 70, 5);
+                else if (it.k === 'switch') { for (var pp = 0; pp < 16; pp++) ctx.fillRect(8 + pp * 5, 13 + (pp % 2) * 8, 4, 7); }
+                else ctx.fillRect(8, 13, 62, 20);
+            }
+            if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
+            ctx.fillStyle = on ? '#35e06a' : (it.p === 2 ? '#ffab1a' : '#8a919c');
+            ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
+            ctx.restore();
+        } else {
+            poly(front, null, null); ctx.fillStyle = acc; ctx.fillRect(front[0][0], front[0][1], front[1][0] - front[0][0], Math.max(1, U * 0.03));
+        }
+        poly(front, null, lit ? '#ffffff' : 'rgba(255,255,255,0.22)', 0.8);
+    }
+    function drawShelfUnit(so, site, r, u, labels) {
+        var isSel = selRack === r, isHov = hovRack === r, lit = isSel || isHov;
+        var H = 1.55, z0 = SLAB, post = Math.max(1.2, U * 0.035);
+        var zs = H * 0.2, tb = H * 0.022;
+        var a0 = 0.3 + r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
+        var b0 = 0.3 + r.gj + (1 - FD) / 2, b1 = b0 + FD;
+        poly([P(so, a0 - 0.05, b0 + 0.05, z0), P(so, a1 + 0.1, b0 + 0.05, z0), P(so, a1 + 0.1, b1 + 0.08, z0), P(so, a0 - 0.05, b1 + 0.08, z0)], 'rgba(0,0,0,0.28)');
+        var line = function (x, y, za, zb, col, w) {
+            var p0 = P(so, x, y, za), p1 = P(so, x, y, zb);
+            ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+        };
+        var pc = isSel ? '#58e6ff' : (lit ? '#7fa3c8' : '#5a7898');
+        line(a0, b0, z0, z0 + H, pc, post); line(a1, b0, z0, z0 + H, pc, post);          // задние стойки
+        var d0 = P(so, a0, b0, z0), d1 = P(so, a1, b0, z0 + H * 0.96);                    // диагональная связь
+        ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
+        ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
+        for (var k = 0; k < 5; k++) {                                                      // полки
+            var z = z0 + H * 0.04 + zs * k;
+            poly([P(so, a0, b0, z + tb), P(so, a1, b0, z + tb), P(so, a1, b1, z + tb), P(so, a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? '#ffffff' : 'rgba(110,200,255,0.5)', 0.9);
+            var frontf = [P(so, a0, b1, z + tb), P(so, a1, b1, z + tb), P(so, a1, b1, z), P(so, a0, b1, z)];
+            poly(frontf, lin(0, frontf[0][1], 0, frontf[2][1], [[0, '#5a7898'], [1, '#2a3b4e']]));
+        }
+        var pk = r.packed && r.packed[u];
+        if (pk) {
+            for (var k2 = 0; k2 < 5; k2++) {
+                var zb = z0 + H * 0.04 + zs * k2 + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
+                pk[k2].items.forEach(function (pl) { drawShelfItem(so, a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH, pl.it, lit); });
+            }
+        }
+        line(a0, b1, z0, z0 + H, pc, post * 1.15); line(a1, b1, z0, z0 + H, pc, post * 1.15);   // передние стойки
+        labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, z: z0 + H, sel: isSel });
+        var hl = [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, z0 + H), P(so, a0, b0, z0 + H), P(so, a0, b1, z0 + H)];
+        if (isSel) poly(hl, SEL_TINT, '#58e6ff', lw(2.4)); else if (isHov) poly(hl, null, '#ffffff', lw(2));
+        // световой столб над стеллажом по общей мощности
+        hits.push({ site: site, rack: r, pts: hl });
+    }
+    function drawShelfLabel(so, L) {
+        if (cam.k < 0.22) return;
+        ctx.save();
+        faceTransform(P(so, L.a0, L.b0, L.z), (L.a1 - L.a0) * U, (L.a1 - L.a0) * U / 2, -(L.b1 - L.b0) * U, (L.b1 - L.b0) * U / 2, 100, 130);
+        ctx.font = '800 17px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
+        ctx.fillStyle = L.sel ? '#7df0ff' : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+        ctx.restore();
     }
 
     // ---- один ЦОД: тонкая основа + шкафы ----
@@ -248,9 +404,13 @@
         hits.push({ site: site, rack: null, pts: top });
 
         // шкафы: сзади вперёд
-        var rs = site.racks.map(function (r, i) { return { r: r, gi: i % site.cols, gj: Math.floor(i / site.cols) }; });
+        var rs = site.normal.map(function (r, i) { return { r: r, gi: i % site.cols, gj: Math.floor(i / site.cols) }; });
         rs.sort(function (x, y) { return (x.gi + x.gj) - (y.gi + y.gj) || x.gi - y.gi; });
-        rs.forEach(function (it) { drawRack(so, site, it.r, it.gi, it.gj); });
+        site.shelves.forEach(function (r) { for (var u = 0; u < r.units; u++) rs.push({ r: r, gi: r.gi + u, gj: r.gj, shelfUnit: u }); });
+        rs.sort(function (x, y) { return (x.gi + x.gj) - (y.gi + y.gj) || x.gi - y.gi; });
+        var shelfLabels = [];
+        rs.forEach(function (it) { if (it.shelfUnit !== undefined) drawShelfUnit(so, site, it.r, it.shelfUnit, shelfLabels); else drawRack(so, site, it.r, it.gi, it.gj); });
+        shelfLabels.forEach(function (L) { drawShelfLabel(so, L); });
 
         // выноска с названием в плоскости этажа - перед передней кромкой основы (поверх всего)
         overlay.push({ site: site, so: so, A: A, B: B });
@@ -277,7 +437,7 @@
     }
 
     function drawBuilding(bx, by, bl) {
-        var o = { x: bx + (bl.B + PAD_L) * U, y: by + (1.9 + (bl.n - 1) * bl.FH) * U };
+        var o = { x: bx + (bl.B + PAD_L) * U, y: by + (2.3 + (bl.n - 1) * bl.FH) * U };
         // пунктир по задней грани, соединяющий этажи
         if (bl.n > 1) {
             var d0 = P(o, 0, 0, SLAB), d1 = P(o, 0, 0, (bl.n - 1) * bl.FH + SLAB);
@@ -450,7 +610,7 @@
     // ---- подсказка/панель ----
     function siteInfo(s) {
         var h = '<b class="sm-name">' + esc(s.name) + '</b>';
-        h += '<div class="sm-sub">' + floorTitle(s.floor) + (s.room && s.room !== s.name ? ' &middot; комната ' + esc(s.room) : '') + ' &middot; шкафов ' + s.racks.length + '</div><table>';
+        h += '<div class="sm-sub">' + floorTitle(s.floor) + (s.room && s.room !== s.name ? ' &middot; комната ' + esc(s.room) : '') + ' &middot; шкафов ' + s.normal.length + (s.shelves.length ? ' + стеллаж' : '') + '</div><table>';
         h += '<tr><td>Серверов</td><td><b>' + s.servers + '</b>' + (s.blades ? ' (+ блейдов ' + s.blades + ')' : '') + '</td></tr>';
         h += '<tr><td>Блейд-корзин</td><td><b>' + s.chassis + '</b></td></tr>';
         h += '<tr><td>СХД</td><td><b>' + s.storages + '</b></td></tr>';
@@ -462,10 +622,12 @@
         return h + '</table>';
     }
     function rackInfo(r) {
-        var h = '<b class="sm-name">Шкаф ' + esc(r.name) + '</b><div class="sm-sub">' + r.uHeight + 'U</div><table>';
+        var h = '<b class="sm-name">' + (r.shelf ? 'Стеллаж (оборудование вне шкафов)' : 'Шкаф ' + esc(r.name)) + '</b><div class="sm-sub">' + (r.shelf ? 'секций ' + (r.units || 1) + ' &middot; 5 полок' : r.uHeight + 'U') + '</div><table>';
         h += '<tr><td>Серверов</td><td><b>' + r.servers + '</b>' + (r.blades ? ' (+ блейдов ' + r.blades + ')' : '') + '</td></tr>';
         h += '<tr><td>Корзин</td><td><b>' + r.chassis + '</b></td></tr>';
         h += '<tr><td>СХД</td><td><b>' + r.storages + '</b></td></tr>';
+        if (r.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + r.tapes + '</b></td></tr>';
+        if (r.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + r.network + '</b></td></tr>';
         h += '<tr><td>Мощность</td><td>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b> (ср. 24ч)' : '<b>нет данных</b>') + '</td></tr>';
         if (r.powerPeakW > 0) h += '<tr><td>Пик 24ч</td><td>' + kw(r.powerPeakW) + '</td></tr>';
         if (r.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(r.powerRatedW) + '</td></tr>';
@@ -489,7 +651,7 @@
             h += '<div class="sm-hint"><a href="/sprsrv/datacentersiteview/' + site.id + '" target="_blank" rel="noopener">Открыть оборудование ЦОД</a></div>';
             if (rack) {
                 h += '<hr style="border-color:rgba(120,130,255,.4);margin:.5rem 0">' + rackInfo(rack);
-                h += '<div class="sm-hint"><a href="/sprsrv/rackcabinetview/' + rack.id + '" target="_blank" rel="noopener">Открыть шкаф</a></div>';
+                h += '<div class="sm-hint"><a href="/sprsrv/rackcabinetview/' + rack.id + '" target="_blank" rel="noopener">' + (rack.shelf ? 'Открыть стеллаж' : 'Открыть шкаф') + '</a></div>';
             }
             panel.innerHTML = h; panel.hidden = false;
             document.getElementById('smPanelClose').addEventListener('click', function () { select(null, null); });
@@ -547,6 +709,36 @@
     document.getElementById('smZoomIn').addEventListener('click', function () { zoomAt(1.25, G.w / 2, G.h / 2); });
     document.getElementById('smZoomOut').addEventListener('click', function () { zoomAt(0.8, G.w / 2, G.h / 2); });
     pctBtn.addEventListener('click', function () { fit(); redraw(); });
+
+
+    // ---- контекстное меню (правая кнопка): переход к оборудованию площадки/ЦОД ----
+    var ctxMenu = document.getElementById('smCtx');
+    function hideCtx() { if (ctxMenu) { ctxMenu.hidden = true; ctxMenu.innerHTML = ''; } }
+    function showCtx(hit, x, y) {
+        var s = hit.site, h = '<div class="sm-ctx-title">' + esc(s.name) + ' &middot; ' + floorTitle(s.floor) + '</div>';
+        h += '<a href="/sprsrv/datacentersiteview/' + s.id + '" target="_blank" rel="noopener">Просмотр оборудования площадки/ЦОД</a>';
+        if (hit.rack) h += '<a href="/sprsrv/rackcabinetview/' + hit.rack.id + '" target="_blank" rel="noopener">' + (hit.rack.shelf ? 'Открыть стеллаж' : 'Открыть шкаф ' + esc(hit.rack.name)) + '</a>';
+        h += '<a href="/sprsrv/datacentersiteedit/' + s.id + '" target="_blank" rel="noopener">Редактировать площадку/ЦОД</a>';
+        ctxMenu.innerHTML = h; ctxMenu.hidden = false;
+        var tw = ctxMenu.offsetWidth, th = ctxMenu.offsetHeight;
+        ctxMenu.style.left = Math.max(4, Math.min(x, G.w - tw - 4)) + 'px';
+        ctxMenu.style.top = Math.max(4, Math.min(y, G.h - th - 4)) + 'px';
+    }
+    canvas.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        var rect = canvas.getBoundingClientRect();
+        var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        if (cityAt(x, y)) { hideCtx(); return; }
+        var h = pick(x, y);
+        if (!h) { hideCtx(); return; }
+        tip.hidden = true;
+        select(h.site, h.rack || null);
+        showCtx(h, x, y);
+    });
+    document.addEventListener('click', function (e) { if (ctxMenu && !ctxMenu.contains(e.target)) hideCtx(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideCtx(); });
+    canvas.addEventListener('mousedown', hideCtx);
+    canvas.addEventListener('wheel', hideCtx, { passive: true });
 
     if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
     resize();
