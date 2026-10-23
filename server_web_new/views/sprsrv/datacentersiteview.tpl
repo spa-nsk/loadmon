@@ -44,25 +44,35 @@
     .dv-sel-text { min-width: 0; }
     .dv-sel { flex: 0 0 auto; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--bs-border-color); background: var(--bs-tertiary-bg); font-size: 0.9rem; }
     .dv-sel .dv-sep { color: var(--bs-secondary-color); margin: 0 0.35rem; }
-    .dv-stage { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: #17144f; }
+    .dv-stage { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--bs-border-color); background: linear-gradient(#171d25, #0e1318); }
+    [data-bs-theme="light"] .dv-stage { background: linear-gradient(#f3f6fa, #dbe3ec); }
     #dvCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     .dv-right { display: flex; flex-direction: column; border: 1px solid var(--bs-border-color); border-radius: 0.6rem; background: var(--bs-body-bg); overflow: hidden; }
     .dv-right-head { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--bs-border-color); }
     .dv-frame { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; background: var(--bs-body-bg); }
+    /* всплывающие элементы поверх сцены - палитра тёмной и светлой тем */
     .dv-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 190px; padding: 0.55rem 0.7rem; border-radius: 0.5rem; font-size: 0.82rem; line-height: 1.35;
-              background: rgba(14, 13, 48, 0.94); color: #e8e8ff; border: 1px solid rgba(120, 130, 255, 0.45); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
+              background: rgba(17, 23, 30, 0.96); color: #e6edf3; border: 1px solid rgba(110, 190, 190, 0.5); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
+    [data-bs-theme="light"] .dv-tip { background: rgba(255, 255, 255, 0.97); color: #1d2b3a; border-color: rgba(13, 148, 136, 0.45); box-shadow: 0 6px 22px rgba(30, 50, 80, 0.22); }
     .dv-zoom-ind { position: absolute; z-index: 6; top: 12px; left: 50%; transform: translateX(-50%); pointer-events: none; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
-                   background: rgba(14, 13, 48, 0.92); color: #e8e8ff; border: 1px solid rgba(120, 130, 255, 0.55); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); opacity: 0; transition: opacity 0.25s; }
+                   background: rgba(17, 23, 30, 0.94); color: #e6edf3; border: 1px solid rgba(110, 190, 190, 0.55); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4); opacity: 0; transition: opacity 0.25s; }
+    [data-bs-theme="light"] .dv-zoom-ind { background: rgba(255, 255, 255, 0.96); color: #1d2b3a; border-color: rgba(13, 148, 136, 0.5); box-shadow: 0 4px 16px rgba(30, 50, 80, 0.2); }
     .dv-zoom-ind.dv-zi-on { opacity: 1; }
     .dv-reset-view { position: absolute; z-index: 6; top: 10px; right: 10px; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; cursor: pointer;
-                     background: rgba(14, 13, 48, 0.85); color: #cfd5ff; border: 1px solid rgba(120, 130, 255, 0.5); }
-    .dv-reset-view:hover { color: #fff; border-color: #58e6ff; }
-    .dv-view-hint { position: absolute; z-index: 4; left: 10px; bottom: 8px; pointer-events: none; font-size: 0.72rem; color: rgba(190, 196, 255, 0.7); }
-    .dv-tip b.dv-name { font-size: 0.95rem; color: #fff; }
+                     background: rgba(17, 23, 30, 0.88); color: #c3d4e2; border: 1px solid rgba(110, 190, 190, 0.5); }
+    .dv-reset-view:hover { color: #fff; border-color: #2dd4bf; }
+    [data-bs-theme="light"] .dv-reset-view { background: rgba(255, 255, 255, 0.92); color: #34506a; border-color: rgba(52, 96, 120, 0.5); }
+    [data-bs-theme="light"] .dv-reset-view:hover { color: #0f766e; border-color: #0d9488; }
+    .dv-view-hint { position: absolute; z-index: 4; left: 10px; bottom: 8px; pointer-events: none; font-size: 0.72rem; color: rgba(170, 190, 208, 0.75); }
+    [data-bs-theme="light"] .dv-view-hint { color: rgba(60, 90, 120, 0.8); }
+    .dv-tip b.dv-name { font-size: 0.95rem; color: #f8fafc; }
+    [data-bs-theme="light"] .dv-tip b.dv-name { color: #0f1b2a; }
     .dv-tip table { border-collapse: collapse; margin-top: 0.25rem; }
     .dv-tip td { padding: 1px 0; vertical-align: top; }
-    .dv-tip td:first-child { color: #a9aef0; padding-right: 0.7rem; white-space: nowrap; }
-    .dv-tip .dv-hint { margin-top: 0.35rem; color: #8f94d8; font-size: 0.75rem; }
+    .dv-tip td:first-child { color: #9fb0c2; padding-right: 0.7rem; white-space: nowrap; }
+    [data-bs-theme="light"] .dv-tip td:first-child { color: #52667a; }
+    .dv-tip .dv-hint { margin-top: 0.35rem; color: #8196aa; font-size: 0.75rem; }
+    [data-bs-theme="light"] .dv-tip .dv-hint { color: #64788c; }
 </style>
 
 <script>
@@ -80,6 +90,24 @@
     var racks = allRacks.filter(function (r) { return !r.shelf; });   // шкафы
     var shelves = allRacks.filter(function (r) { return r.shelf; });  // стеллаж площадки без шкафов ("вне шкафа")
     var TAU = Math.PI * 2;
+
+    // ---- цветовые схемы (светлая/тёмная тема сайта, атрибут data-bs-theme): приглушённая графитово-бирюзовая палитра ----
+    // Изображения оборудования (шкафы APC, устройства вендоров, стойки стеллажа) от темы не зависят.
+    var PALS = {
+        dark:  { bgTop: '#171d25', bgBot: '#0e1318', floorTop: '#243242', floorBot: '#1b2733', floorEdge: 'rgba(110,190,190,0.5)', grid: 'rgba(150,175,195,0.14)',
+                 sel: '#2dd4bf', hov: '#99f6e4', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(120,190,200,0.5)', glow: '45,212,191', glowMode: 'lighter',
+                 cornerBg: 'rgba(15,21,28,0.8)', cornerBgHot: 'rgba(45,212,191,0.3)', cornerEdge: 'rgba(150,185,205,0.85)', cornerGlyph: '#c3d4e2' },
+        light: { bgTop: '#f3f6fa', bgBot: '#dbe3ec', floorTop: '#cfdae6', floorBot: '#bccad9', floorEdge: 'rgba(52,96,120,0.55)', grid: 'rgba(40,70,100,0.14)',
+                 sel: '#0d9488', hov: '#14b8a6', selTxt: '#5eead4', hovTxt: '#ccfbf1', deckEdge: 'rgba(52,96,120,0.5)', glow: '13,148,136', glowMode: 'source-over',
+                 cornerBg: 'rgba(255,255,255,0.88)', cornerBgHot: 'rgba(13,148,136,0.2)', cornerEdge: 'rgba(52,96,120,0.75)', cornerGlyph: '#34506a' }
+    };
+    var PAL = PALS.dark;
+    function setPal() {
+        PAL = document.documentElement.getAttribute('data-bs-theme') === 'light' ? PALS.light : PALS.dark;
+        stage.style.background = 'linear-gradient(' + PAL.bgTop + ',' + PAL.bgBot + ')';
+    }
+    setPal();
+    if (window.MutationObserver) new MutationObserver(function () { setPal(); if (typeof render === 'function' && G.w) render(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
 
     // ---- сводка ----
     var kw = function (w) { return w >= 1000 ? (w / 1000).toFixed(1) + ' кВт' : Math.round(w) + ' Вт'; };
@@ -266,11 +294,11 @@
     }
 
     function drawFloor() {
-        ctx.fillStyle = lin(0, 0, 0, G.h, [[0, '#1b1763'], [1, '#100e3a']]);
+        ctx.fillStyle = lin(0, 0, 0, G.h, [[0, PAL.bgTop], [1, PAL.bgBot]]);
         ctx.fillRect(0, 0, G.w, G.h);
         var fc = floorCorners().map(function (c) { return P(c[0], c[1], 0); });
-        poly(fc, lin(0, Math.min.apply(null, fc.map(function (p) { return p[1]; })), 0, Math.max.apply(null, fc.map(function (p) { return p[1]; })), [[0, '#2b2585'], [1, '#1d1a63']]), 'rgba(110,200,255,0.55)', 1.5);
-        ctx.strokeStyle = 'rgba(140,150,255,0.18)'; ctx.lineWidth = 1;
+        poly(fc, lin(0, Math.min.apply(null, fc.map(function (p) { return p[1]; })), 0, Math.max.apply(null, fc.map(function (p) { return p[1]; })), [[0, PAL.floorTop], [1, PAL.floorBot]]), PAL.floorEdge, 1.5);
+        ctx.strokeStyle = PAL.grid; ctx.lineWidth = 1;
         for (var i = 0; i <= cols; i++) { var a = P(i, 0, 0), b = P(i, rows, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
         for (var j = 0; j <= rows; j++) { var c = P(0, j, 0), d = P(cols, j, 0); ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
     }
@@ -282,11 +310,11 @@
         cp.forEach(function (p, i) {
             var hot = (hoverCorner === i) || (dragMode === 'rotate' && dragCorner === i);
             ctx.save();
-            ctx.fillStyle = hot ? 'rgba(88,230,255,0.35)' : 'rgba(20,18,70,0.75)';
-            ctx.strokeStyle = hot ? '#58e6ff' : 'rgba(140,200,255,0.8)'; ctx.lineWidth = hot ? 2.2 : 1.4;
+            ctx.fillStyle = hot ? PAL.cornerBgHot : PAL.cornerBg;
+            ctx.strokeStyle = hot ? PAL.sel : PAL.cornerEdge; ctx.lineWidth = hot ? 2.2 : 1.4;
             ctx.beginPath(); ctx.arc(p[0], p[1], hot ? 11 : 9, 0, TAU); ctx.fill(); ctx.stroke();
             // значок "перемещение во все стороны" - четыре стрелки
-            ctx.strokeStyle = hot ? '#ffffff' : '#bfe8ff'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+            ctx.strokeStyle = hot ? PAL.sel : PAL.cornerGlyph; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
             var r = hot ? 6 : 5;
             ctx.beginPath();
             ctx.moveTo(p[0] - r, p[1]); ctx.lineTo(p[0] + r, p[1]); ctx.moveTo(p[0], p[1] - r); ctx.lineTo(p[0], p[1] + r);
@@ -377,13 +405,13 @@
             if (tw > 88) { fsz = Math.max(9, Math.floor(fsz * 88 / tw)); ctx.font = '800 ' + fsz + 'px "Segoe UI", Arial, sans-serif'; }
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(r.name, 51.5, 102.5);
-            ctx.fillStyle = isSel ? '#7df0ff' : (isHov ? '#ffffff' : '#d9dcea');
+            ctx.fillStyle = isSel ? PAL.selTxt : (isHov ? PAL.hovTxt : '#d9dcea');
             ctx.fillText(r.name, 50, 101);
         }
         ctx.restore();
 
         // кромки
-        var edge = isSel ? '#58e6ff' : (isHov ? '#ffffff' : 'rgba(255,255,255,0.16)');
+        var edge = isSel ? PAL.sel : (isHov ? PAL.hov : 'rgba(255,255,255,0.16)');
         var elw = isSel ? 2.4 : (isHov ? 2 : 1);
         poly(fb, null, edge, elw); poly(fa, null, edge, elw); poly(top, null, edge, elw);
 
@@ -393,8 +421,8 @@
             var cx = (top[0][0] + top[2][0]) / 2, cy = (top[0][1] + top[2][1]) / 2;
             var bh = H * CV.zk * (0.35 + 0.9 * frac), bw = (a1 - a0) * s * 0.75;
             ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(60,220,230,' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(60,220,230,0)']]);
+            ctx.globalCompositeOperation = PAL.glowMode;
+            ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + PAL.glow + ',' + (0.25 + 0.4 * frac).toFixed(2) + ')'], [1, 'rgba(' + PAL.glow + ',0)']]);
             ctx.fillRect(cx - bw / 2, cy - bh, bw, bh);
             ctx.restore();
         }
@@ -447,7 +475,7 @@
             ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
             ctx.restore();
         }
-        poly(front, null, lit ? '#ffffff' : 'rgba(255,255,255,0.22)', 0.8);
+        poly(front, null, lit ? PAL.hov : 'rgba(255,255,255,0.22)', 0.8);
     }
     function drawShelfUnit(r, u, labels) {
         var isSel = selected === r, isHov = hovered === r, lit = isSel || isHov;
@@ -462,7 +490,7 @@
             ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
         };
-        var pc = lit ? '#7fa3c8' : '#5a7898';
+        var pc = isSel ? PAL.sel : (isHov ? PAL.hov : '#5a7898');
         // четыре стойки: сначала дальние от наблюдателя, потом ближние
         var posts = [[a0, b0], [a1, b0], [a1, b1], [a0, b1]].map(function (p) { return { a: p[0], b: p[1], d: depthOf(p[0], p[1]) }; });
         posts.sort(function (x, y) { return x.d - y.d; });
@@ -477,7 +505,7 @@
         // полки: слабая подложка, балки на видимых гранях
         for (var k = 0; k < 5; k++) {
             var z = H * 0.04 + zs * k;
-            poly([P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? '#ffffff' : 'rgba(110,200,255,0.5)', 0.9);
+            poly([P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? PAL.hov : PAL.deckEdge, 0.9);
             var fbm = [P(a0, bS, z + tb), P(a1, bS, z + tb), P(a1, bS, z), P(a0, bS, z)];
             poly(fbm, lin(0, Math.min(fbm[0][1], fbm[1][1]), 0, Math.max(fbm[2][1], fbm[3][1]), [[0, '#5a7898'], [1, '#2a3b4e']]));
             var fam = [P(aS, b0, z + tb), P(aS, b1, z + tb), P(aS, b1, z), P(aS, b0, z)];
@@ -496,7 +524,7 @@
         posts.forEach(function (p) { if (p.d > medD) line(p.a, p.b, 0, H, pc, post * 1.15); });
         labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, H: H, sel: isSel });
         var hl = boxHull(a0, a1, b0, b1, 0, H);
-        if (isSel || isHov) poly(hl, null, isSel ? '#58e6ff' : '#ffffff', isSel ? 2.2 : 1.8);
+        if (isSel || isHov) poly(hl, null, isSel ? PAL.sel : PAL.hov, isSel ? 2.4 : 1.9);
         polys.push({ r: r, pts: hl });
     }
 
@@ -514,7 +542,7 @@
             if (topFaceXf(L.a0, L.a1, L.b0, L.b1, L.H, 100, 130)) {
                 ctx.font = '800 17px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-                ctx.fillStyle = L.sel ? '#7df0ff' : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+                ctx.fillStyle = L.sel ? PAL.selTxt : '#e6e9f2'; ctx.fillText('СТЕЛЛАЖ', 50, 65);
             }
             ctx.restore();
         });
