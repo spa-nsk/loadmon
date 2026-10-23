@@ -254,13 +254,13 @@
             while (nm.length > 2 && ctx.measureText(nm).width > 92) nm = nm.slice(0, -2) + '…';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(nm, 51.5, 66.5);
-            ctx.fillStyle = isSel ? '#7df0ff' : (isHov ? '#ffffff' : '#d9dcea');
+            ctx.fillStyle = isSel ? '#7df0ff' : (isHov ? '#aef4ff' : '#d9dcea');
             ctx.fillText(nm, 50, 65);
             ctx.restore();
         }
-        var edge = isSel ? '#58e6ff' : (isHov ? '#ffffff' : 'rgba(255,255,255,0.16)');
+        var edge = isSel ? '#58e6ff' : (isHov ? '#8fefff' : 'rgba(255,255,255,0.16)');
         var elw = lw(isSel ? 2.6 : (isHov ? 2.2 : 1));
-        if (isSel) { poly(left, SEL_TINT); poly(right, SEL_TINT); poly(top, SEL_TINT); }
+        if (isSel || isHov) { var tn = isSel ? SEL_TINT : HOV_TINT; poly(left, tn); poly(right, tn); poly(top, tn); }
         poly(left, null, edge, elw); poly(right, null, edge, elw); poly(top, null, edge, elw);
 
         // световой столб над шкафом пропорционально мощности (относительно самого мощного шкафа площадки)
@@ -279,7 +279,7 @@
     }
 
     // ---- стеллаж в стиле просмотра оборудования площадки: рамка из стоек и полок, оборудование непрозрачными блоками ----
-    var SEL_TINT = 'rgba(88,230,255,0.30)';
+    var SEL_TINT = 'rgba(88,230,255,0.34)', HOV_TINT = 'rgba(88,230,255,0.18)';   // выбран / под курсором - голубая подкраска
     function drawShelfAP(so, a0, a1, b0, b1, z, h, it, lit) {
         var cx = (a0 + a1) / 2, cb = (b0 + b1) / 2, rad = Math.min(a1 - a0, b1 - b0) * 0.34, hh = Math.min(h * 0.45, 0.05);
         var round = /unifi|uap|ubiquiti/i.test(it.vd), on = it.p === 1, pts = [], q;
@@ -323,7 +323,7 @@
         } else {
             poly(front, null, null); ctx.fillStyle = acc; ctx.fillRect(front[0][0], front[0][1], front[1][0] - front[0][0], Math.max(1, U * 0.03));
         }
-        poly(front, null, lit ? '#ffffff' : 'rgba(255,255,255,0.22)', 0.8);
+        poly(front, null, lit ? '#8fefff' : 'rgba(255,255,255,0.22)', 0.8);
     }
     function drawShelfUnit(so, site, r, u, labels) {
         var isSel = selRack === r, isHov = hovRack === r, lit = isSel || isHov;
@@ -337,14 +337,14 @@
             ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
         };
-        var pc = isSel ? '#58e6ff' : (lit ? '#7fa3c8' : '#5a7898');
+        var pc = isSel ? '#58e6ff' : (isHov ? '#8fefff' : '#5a7898');
         line(a0, b0, z0, z0 + H, pc, post); line(a1, b0, z0, z0 + H, pc, post);          // задние стойки
         var d0 = P(so, a0, b0, z0), d1 = P(so, a1, b0, z0 + H * 0.96);                    // диагональная связь
         ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
         ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
         for (var k = 0; k < 5; k++) {                                                      // полки
             var z = z0 + H * 0.04 + zs * k;
-            poly([P(so, a0, b0, z + tb), P(so, a1, b0, z + tb), P(so, a1, b1, z + tb), P(so, a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? '#ffffff' : 'rgba(110,200,255,0.5)', 0.9);
+            poly([P(so, a0, b0, z + tb), P(so, a1, b0, z + tb), P(so, a1, b1, z + tb), P(so, a0, b1, z + tb)], 'rgba(110,130,150,0.16)', lit ? '#8fefff' : 'rgba(110,200,255,0.5)', 0.9);
             var frontf = [P(so, a0, b1, z + tb), P(so, a1, b1, z + tb), P(so, a1, b1, z), P(so, a0, b1, z)];
             poly(frontf, lin(0, frontf[0][1], 0, frontf[2][1], [[0, '#5a7898'], [1, '#2a3b4e']]));
         }
@@ -358,7 +358,7 @@
         line(a0, b1, z0, z0 + H, pc, post * 1.15); line(a1, b1, z0, z0 + H, pc, post * 1.15);   // передние стойки
         labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, z: z0 + H, sel: isSel });
         var hl = [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, z0 + H), P(so, a0, b0, z0 + H), P(so, a0, b1, z0 + H)];
-        if (isSel) poly(hl, SEL_TINT, '#58e6ff', lw(2.4)); else if (isHov) poly(hl, null, '#ffffff', lw(2));
+        if (isSel) poly(hl, SEL_TINT, '#58e6ff', lw(2.6)); else if (isHov) poly(hl, HOV_TINT, '#8fefff', lw(2.2));
         // световой столб над стеллажом по общей мощности
         hits.push({ site: site, rack: r, pts: hl });
     }
@@ -393,7 +393,7 @@
         var fR = [P(so, A, B, SLAB), P(so, A, 0, SLAB), P(so, A, 0, 0), P(so, A, B, 0)];
         poly(fL, '#1a1766'); poly(fR, '#14124d');
         poly(top, lin(0, top[0][1], 0, top[2][1], [[0, '#2b2585'], [1, '#1d1a63']]));
-        var edge = isSel ? '#58e6ff' : (isHov ? '#ffffff' : 'rgba(110,200,255,0.6)');
+        var edge = isSel ? '#58e6ff' : (isHov ? '#8fefff' : 'rgba(110,200,255,0.6)');
         var elw = lw(isSel ? 2.4 : (isHov ? 2 : 1.4));
         poly(top, null, edge, elw); poly(fL, null, edge, elw); poly(fR, null, edge, elw);
         if (cam.k > 0.5) {
@@ -420,7 +420,7 @@
         var site = c.site, so = c.so, isSel = selSite === site, isHov = hovSite === site;
         var pa0 = 0.1, pa1 = c.A - 0.1, pb0 = c.B + 0.12, pb1 = c.B + 0.78;
         var plate = [P(so, pa0, pb0, SLAB), P(so, pa1, pb0, SLAB), P(so, pa1, pb1, SLAB), P(so, pa0, pb1, SLAB)];
-        poly(plate, 'rgba(14,13,48,0.94)', isSel ? '#58e6ff' : (isHov ? '#ffffff' : 'rgba(120,130,255,0.75)'), lw(1.3));
+        poly(plate, 'rgba(14,13,48,0.94)', isSel ? '#58e6ff' : (isHov ? '#8fefff' : 'rgba(120,130,255,0.75)'), lw(1.3));
         if (cam.k < 0.2) return;
         var Wl = 300, Hl = Math.max(30, Math.round(300 * (pb1 - pb0) / (pa1 - pa0)));
         ctx.save();
@@ -669,7 +669,7 @@
     window.addEventListener('mousemove', function (e) {
         if (!drag) return;
         var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-        if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 4) { drag.moved = true; canvas.classList.add('sm-drag'); }
+        if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 7) { drag.moved = true; canvas.classList.add('sm-drag'); }
         if (drag.moved) { cam.tx = drag.tx + dx; cam.ty = drag.ty + dy; redraw(); }
     });
     window.addEventListener('mouseup', function (e) {
