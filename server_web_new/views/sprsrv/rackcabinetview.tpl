@@ -810,6 +810,20 @@
                 floor: ['#2e353e', '#171c22'], back: '#151a20', brace: 'rgba(70,92,118,0.55)' };
     }
 
+    // светлая тема: под каждым устройством - тень и тонкий тёмный контур, чтобы светлые передние панели не сливались с фоном шкафа
+    function isLightTheme() { return document.documentElement.getAttribute('data-bs-theme') === 'light'; }
+    function noBacking(it) { return it.kind === 'switch' && netClass(it).fam === 'ap'; }     // точки доступа рисуются отдельно, без подложки
+    function deviceBacking(c, x, y, w, h, it) {
+        if (!isLightTheme() || noBacking(it)) return;
+        c.save();
+        c.shadowColor = 'rgba(25,40,60,0.5)'; c.shadowBlur = Math.max(3, UH * 0.3); c.shadowOffsetY = Math.max(1, UH * 0.08);
+        c.fillStyle = '#20252c'; c.fillRect(x, y + 0.5, w, h - 1);
+        c.restore();
+    }
+    function deviceOutline(c, x, y, w, h, it) {
+        if (!isLightTheme() || noBacking(it)) return;
+        c.save(); c.strokeStyle = 'rgba(20,32,48,0.65)'; c.lineWidth = 1; c.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); c.restore();
+    }
     function drawCabinet(c) {
         var W = g.W, H = g.H, dev = g.devW, P_ = cp();
         // наружная рама
@@ -877,6 +891,7 @@
                     var it = pl.it, x = bx + SH_PAD * UH, w = Math.round(RATIO * UH);
                     var h = it.su * UH, y = yU(lv.deck + pl.off + it.su);
                     var di = Object.assign({}, it, { sizeU: it.su });
+                    deviceBacking(c, x, y, w, h, it);
                     c.save();
                     c.beginPath(); c.rect(x, y, w, h); c.clip();
                     if (it.kind === 'chassis') drawChassis(c, di, x, y, w, h, regions);
@@ -885,6 +900,7 @@
                     else if (it.kind === 'switch') drawNetwork(c, di, x, y, w, h);
                     else drawServer(c, di, x, y, w, h, styleOf(it));
                     c.restore();
+                    deviceOutline(c, x, y, w, h, it);
                     regions.push({ x: x, y: y, w: w, h: h, it: it, blade: null });
                 });
                 c.fillStyle = vg(c, yDeck - UH * 0.3, UH * 0.3, [[0, '#59636f'], [1, '#3b434d']]);                   // настил
@@ -914,6 +930,7 @@
         drawCabinet(c);
         DATA.items.forEach(function (it) {
             var x = GUT, w = g.devW, y = yOf(it.startU, it.sizeU), h = it.sizeU * UH;
+            deviceBacking(c, x, y, w, h, it);
             c.save();
             c.beginPath(); c.rect(x, y, w, h); c.clip();
             if (it.kind === 'chassis') drawChassis(c, it, x, y, w, h, regions);
@@ -922,6 +939,7 @@
             else if (it.kind === 'switch') drawNetwork(c, it, x, y, w, h);
             else drawServer(c, it, x, y, w, h, styleOf(it));
             c.restore();
+            deviceOutline(c, x, y, w, h, it);
             regions.push({ x: x, y: y, w: w, h: h, it: it, blade: null });
         });
         // hit() берёт первое совпадение - области блейдов должны проверяться раньше общей области корзины
