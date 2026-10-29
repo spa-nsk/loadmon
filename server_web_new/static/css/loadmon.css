@@ -450,3 +450,85 @@
     line-height: 1.35;
     color: #cbd5e1;
 }
+
+/* ---------------------------------------------------------------------- */
+/* ApexCharts: подписи осей и иконки тулбара читаемы в light и dark.
+   Без этого после theme.mode=dark или при переключении темы без reload
+   светлый fill/stroke остаётся на белой карточке и цифры/кнопки пропадают. */
+/* ---------------------------------------------------------------------- */
+
+html:not([data-bs-theme="dark"]) .apexcharts-canvas .apexcharts-text tspan,
+html:not([data-bs-theme="dark"]) .apexcharts-canvas text.apexcharts-text,
+html:not([data-bs-theme="dark"]) .apexcharts-canvas .apexcharts-xaxis text,
+html:not([data-bs-theme="dark"]) .apexcharts-canvas .apexcharts-yaxis text,
+html:not([data-bs-theme="dark"]) .apexcharts-canvas .apexcharts-legend-text {
+    fill: #334155 !important;
+    color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .apexcharts-canvas .apexcharts-text tspan,
+[data-bs-theme="dark"] .apexcharts-canvas text.apexcharts-text,
+[data-bs-theme="dark"] .apexcharts-canvas .apexcharts-xaxis text,
+[data-bs-theme="dark"] .apexcharts-canvas .apexcharts-yaxis text,
+[data-bs-theme="dark"] .apexcharts-canvas .apexcharts-legend-text {
+    fill: #e2e8f0 !important;
+    color: #e2e8f0 !important;
+}
+
+html:not([data-bs-theme="dark"]) .apexcharts-gridline {
+    stroke: rgba(15, 23, 42, 0.14) !important;
+}
+
+[data-bs-theme="dark"] .apexcharts-gridline {
+    stroke: rgba(255, 255, 255, 0.14) !important;
+}
+
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar {
+    color: #475569;
+}
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg {
+    fill: #475569 !important;
+    color: #475569 !important;
+}
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg path,
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg line,
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg circle,
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg rect,
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg polyline {
+    stroke: #475569 !important;
+}
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg [fill="none"] {
+    fill: none !important;
+}
+html:not([data-bs-theme="dark"]) .apexcharts-toolbar svg :not([fill="none"]) {
+    fill: #475569 !important;
+}
+
+[data-bs-theme="dark"] .apexcharts-toolbar {
+    color: #cbd5e1;
+}
+[data-bs-theme="dark"] .apexcharts-toolbar svg {
+    fill: #cbd5e1 !important;
+    color: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .apexcharts-toolbar svg path,
+[data-bs-theme="dark"] .apexcharts-toolbar svg line,
+[data-bs-theme="dark"] .apexcharts-toolbar svg circle,
+[data-bs-theme="dark"] .apexcharts-toolbar svg rect,
+[data-bs-theme="dark"] .apexcharts-toolbar svg polyline {
+    stroke: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .apexcharts-toolbar svg [fill="none"] {
+    fill: none !important;
+}
+[data-bs-theme="dark"] .apexcharts-toolbar svg :not([fill="none"]) {
+    fill: #cbd5e1 !important;
+}
+
+html:not([data-bs-theme="dark"]) .apexcharts-tooltip.apexcharts-theme-dark {
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .apexcharts-tooltip.apexcharts-theme-light {
+    color: #1e293b;
+}
