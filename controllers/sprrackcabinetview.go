@@ -66,6 +66,9 @@ type rackViewData struct {
 	// Shelf - служебный "шкаф" площадки без шкафов ("(размещение вне шкафа)",
 	// склады и рабочие комнаты): всё оборудование показывается на стеллаже, а не в 19" шкафу.
 	Shelf bool `json:"shelf"`
+	// ShelfUnit - номер секции стеллажа (1-based) для показа одной секции во фрейме ЦОД;
+	// 0 - все секции (полная страница / без параметра).
+	ShelfUnit int `json:"shelfUnit,omitempty"`
 	// Суммарная мощность шкафа, Вт: тот же расчёт, что и в списке шкафов
 	// (rackpower.RackCabinetPowerVariantC - rack-серверы + корзины целиком, блейды не дублируются).
 	PowerAvgW   float64 `json:"powerAvgW"`
@@ -553,6 +556,10 @@ func (this *MainController) SprRackCabinetView() {
 		data.Shelf = true
 		data.Items = append(data.Items, data.Unplaced...)
 		data.Unplaced = []rackViewItem{}
+		if su, err := this.GetInt("shelfUnit"); err == nil && su > 0 {
+			data.ShelfUnit = su // 1-based: одна секция в порядке наполнения
+			data.CabinetName = fmt.Sprintf("Стеллаж %d", su)
+		}
 	}
 
 	pw := rackpower.RackCabinetPowerVariantC(o, id)
@@ -568,7 +575,7 @@ func (this *MainController) SprRackCabinetView() {
 		flash.Store(&this.Controller)
 	}
 
-	this.Data["CabinetName"] = cab.Name
+	this.Data["CabinetName"] = data.CabinetName
 	this.Data["SiteName"] = siteName
 	this.Data["UHeight"] = data.UHeight
 	this.Data["ItemCount"] = len(data.Items) + len(data.Unplaced)

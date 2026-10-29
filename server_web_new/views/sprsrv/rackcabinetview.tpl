@@ -162,7 +162,11 @@
         var list = DATA.items.slice();
         list.forEach(function (it) { it.su = Math.min(shelfSize(it), clear); it.suFull = shelfSize(it); });
         var rank = { storage: 0, tape: 1, chassis: 1, server: 2, 'switch': 3 };
-        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.kind] || 9) - (rank[b.kind] || 9)) || String(a.name).localeCompare(String(b.name)); });
+        list.sort(function (a, b) {
+            var va = (a.vendor || '') + ' ' + (a.model || '') + ' ' + (a.name || '');
+            var vb = (b.vendor || '') + ' ' + (b.model || '') + ' ' + (b.name || '');
+            return (b.su - a.su) || ((rank[a.kind] || 9) - (rank[b.kind] || 9)) || va.localeCompare(vb);
+        });
         var units = [];
         function newUnit() {
             var lv = [], y = SH_FEET;
@@ -183,7 +187,17 @@
         SH = { units: units, innerW: innerW, unitW: unitW, clear: clear, height: SH_FULL, width: units.length * unitW + (units.length - 1) * SH_GAP };
         DATA.uHeight = SH_FULL + 2;
     }
-    if (DATA.shelf) prepShelf();
+    if (DATA.shelf) {
+        prepShelf();
+        // из просмотра ЦОД: показать только одну секцию по номеру наполнения (1-based)
+        var su = DATA.shelfUnit | 0;
+        if (su > 0 && SH.units.length > 0) {
+            var ix = Math.min(su, SH.units.length) - 1;
+            SH.units = [SH.units[ix]];
+            SH.width = SH.unitW;
+            if (!DATA.cabinetName || DATA.cabinetName.indexOf('Стеллаж') !== 0) DATA.cabinetName = 'Стеллаж ' + (ix + 1);
+        }
+    }
     // подбор масштаба: шкаф по высоте равен области просмотра (во фрейме ЦОД)
     function calcFit() {
         var avail = window.innerHeight - 20 - TOP - BOT;
