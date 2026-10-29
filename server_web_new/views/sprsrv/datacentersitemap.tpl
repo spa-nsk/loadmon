@@ -100,10 +100,32 @@
     var FW = 0.60, FD = 0.80;                      // размер шкафа в клетках
     var cam = { k: 1, tx: 0, ty: 0 };
     var G = { w: 0, h: 0, dpr: 1 };
-    var hovSite = null, hovRack = null, selSite = null, selRack = null, hovCity = null;
-    var hits = [];                                 // [{site, rack, pts}] в координатах мира, порядок = порядок рисования
+    var hovSite = null, hovRack = null, hovShelfUnit = -1;
+    var selSite = null, selRack = null, selShelfUnit = -1, hovCity = null;
+    var hits = [];                                 // [{site, rack, shelfUnit, pts}] в координатах мира, порядок = порядок рисования
     var overlay = [];                              // выноски/подписи - рисуются последним проходом поверх всего
     var allSites = [];
+    // статистика одной секции стеллажа (как в просмотре оборудования площадки)
+    function unitStats(r, u) {
+        var s = { servers: 0, chassis: 0, storages: 0, tapes: 0, network: 0 }, pk = r.packed && r.packed[u];
+        if (!pk) return s;
+        pk.forEach(function (lv) {
+            lv.items.forEach(function (pl) {
+                var k = pl.it.k;
+                if (k === 'server') s.servers++;
+                else if (k === 'chassis') s.chassis++;
+                else if (k === 'storage') s.storages++;
+                else if (k === 'tape') s.tapes++;
+                else if (k === 'switch') s.network++;
+            });
+        });
+        return s;
+    }
+    function sameShelfUnit(rack, u, otherRack, otherU) {
+        if (rack !== otherRack) return false;
+        if (!rack || !rack.shelf || (rack.units || 1) <= 1) return true;
+        return u === otherU;
+    }
 
     // ---- цветовые схемы (светлая/тёмная тема сайта, атрибут data-bs-theme): приглушённая графитово-бирюзовая палитра ----
     // Изображения оборудования (шкафы APC, устройства вендоров, стойки стеллажа) от темы не зависят.
@@ -420,7 +442,10 @@
         });
     }
     function drawShelfUnit(so, site, r, u, labels) {
-        var isSel = selRack === r, isHov = hovRack === r, lit = false;
+        // при нескольких секциях выделяем каждую отдельно (как в просмотре оборудования площадки)
+        var isSel = sameShelfUnit(r, u, selRack, selShelfUnit);
+        var isHov = sameShelfUnit(r, u, hovRack, hovShelfUnit);
+        var lit = false;
         var H = 1.55, z0 = SLAB, post = Math.max(1.6, U * 0.05);
         var zs = H * 0.2, tb = H * 0.022;
         var a0 = 0.3 + r.gi + u + (1 - FW) / 2, a1 = a0 + FW;
@@ -431,7 +456,7 @@
             ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
         };
-        var pc = '#5a7898';
+        var pc = isSel ? PAL.sel : (isHov ? PAL.hov : '#5a7898');
         line(a0, b0, z0, z0 + H, pc, post); line(a1, b0, z0, z0 + H, pc, post);          // задние стойки
         var d0 = P(so, a0, b0, z0), d1 = P(so, a1, b0, z0 + H * 0.96);                    // диагональная связь
         ctx.strokeStyle = 'rgba(70,92,118,0.6)'; ctx.lineWidth = Math.max(1, post * 0.6);
@@ -449,19 +474,21 @@
             }
         }
         line(a0, b1, z0, z0 + H, pc, post * 1.15); line(a1, b1, z0, z0 + H, pc, post * 1.15);   // передние стойки
-        labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, z: z0 + H, sel: isSel });
+        // номер секции = порядок наполнения (как в просмотре оборудования площадки)
+        labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, z: z0 + H, sel: isSel, num: u + 1, multi: (r.units || 1) > 1 });
         var hl = [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, z0 + H), P(so, a0, b0, z0 + H), P(so, a0, b1, z0 + H)];
         if (isSel) boxWire(so, a0, a1, b0, b1, z0, z0 + H, PAL.sel, lw(3)); else if (isHov) boxWire(so, a0, a1, b0, b1, z0, z0 + H, PAL.hov, lw(2.4));
-        // световой столб над стеллажом по общей мощности
-        hits.push({ site: site, rack: r, pts: hl });
+        hits.push({ site: site, rack: r, shelfUnit: u, pts: hl });
     }
     function drawShelfLabel(so, L) {
         if (cam.k < 0.22) return;
+        // номер добавляем, когда секций больше одной (иначе просто «СТЕЛЛАЖ»)
+        var txt = L.multi ? ('СТЕЛЛАЖ ' + L.num) : 'СТЕЛЛАЖ';
         ctx.save();
         faceTransform(P(so, L.a0, L.b0, L.z), (L.a1 - L.a0) * U, (L.a1 - L.a0) * U / 2, -(L.b1 - L.b0) * U, (L.b1 - L.b0) * U / 2, 100, 130);
-        ctx.font = '800 19px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = PAL.labelShadow; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-        ctx.fillStyle = PAL.labelText; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+        ctx.font = '800 ' + (L.multi ? '17' : '19') + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = PAL.labelShadow; ctx.fillText(txt, 51, 66);
+        ctx.fillStyle = L.sel ? PAL.selTxt : PAL.labelText; ctx.fillText(txt, 50, 65);
         ctx.restore();
     }
 
@@ -822,20 +849,43 @@
         if (s.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(s.powerRatedW) + '</td></tr>';
         return h + '</table>';
     }
-    function rackInfo(r) {
-        var h = '<b class="sm-name">' + (r.shelf ? 'Стеллаж (оборудование вне шкафов)' : 'Шкаф ' + esc(r.name)) + '</b><div class="sm-sub">' + (r.shelf ? 'секций ' + (r.units || 1) + ' &middot; 5 полок' : r.uHeight + 'U') + '</div><table>';
-        h += '<tr><td>Серверов</td><td><b>' + r.servers + '</b>' + (r.blades ? ' (+ блейдов ' + r.blades + ')' : '') + '</td></tr>';
-        h += '<tr><td>Корзин</td><td><b>' + r.chassis + '</b></td></tr>';
-        h += '<tr><td>СХД</td><td><b>' + r.storages + '</b></td></tr>';
-        if (r.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + r.tapes + '</b></td></tr>';
-        if (r.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + r.network + '</b></td></tr>';
-        h += '<tr><td>Мощность</td><td>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b> (ср. 24ч)' : '<b>нет данных</b>') + '</td></tr>';
-        if (r.powerPeakW > 0) h += '<tr><td>Пик 24ч</td><td>' + kw(r.powerPeakW) + '</td></tr>';
-        if (r.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(r.powerRatedW) + '</td></tr>';
+    function rackInfo(r, shelfUnit) {
+        var multi = r.shelf && (r.units || 1) > 1 && shelfUnit != null && shelfUnit >= 0;
+        var st = multi ? unitStats(r, shelfUnit) : null;
+        var title = r.shelf
+            ? (multi ? ('Стеллаж ' + (shelfUnit + 1) + ' (вне шкафов)') : 'Стеллаж (оборудование вне шкафов)')
+            : ('Шкаф ' + esc(r.name));
+        var sub = r.shelf
+            ? (multi ? ('секция ' + (shelfUnit + 1) + ' из ' + r.units + ' &middot; 5 полок') : ('секций ' + (r.units || 1) + ' &middot; 5 полок'))
+            : (r.uHeight + 'U');
+        var h = '<b class="sm-name">' + title + '</b><div class="sm-sub">' + sub + '</div><table>';
+        if (st) {
+            h += '<tr><td>Серверов</td><td><b>' + st.servers + '</b></td></tr>';
+            h += '<tr><td>Корзин</td><td><b>' + st.chassis + '</b></td></tr>';
+            h += '<tr><td>СХД</td><td><b>' + st.storages + '</b></td></tr>';
+            if (st.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + st.tapes + '</b></td></tr>';
+            if (st.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + st.network + '</b></td></tr>';
+        } else {
+            h += '<tr><td>Серверов</td><td><b>' + r.servers + '</b>' + (r.blades ? ' (+ блейдов ' + r.blades + ')' : '') + '</td></tr>';
+            h += '<tr><td>Корзин</td><td><b>' + r.chassis + '</b></td></tr>';
+            h += '<tr><td>СХД</td><td><b>' + r.storages + '</b></td></tr>';
+            if (r.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + r.tapes + '</b></td></tr>';
+            if (r.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + r.network + '</b></td></tr>';
+            h += '<tr><td>Мощность</td><td>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b> (ср. 24ч)' : '<b>нет данных</b>') + '</td></tr>';
+            if (r.powerPeakW > 0) h += '<tr><td>Пик 24ч</td><td>' + kw(r.powerPeakW) + '</td></tr>';
+            if (r.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(r.powerRatedW) + '</td></tr>';
+        }
         return h + '</table>';
     }
+    function rackViewUrl(r, shelfUnit) {
+        var url = '/sprsrv/rackcabinetview/' + r.id;
+        if (r.shelf) url += '?shelfUnit=' + ((shelfUnit != null && shelfUnit >= 0 ? shelfUnit : 0) + 1);
+        return url;
+    }
     function showTip(hit, x, y) {
-        tip.innerHTML = (hit.rack ? rackInfo(hit.rack) + '<div class="sm-sub" style="margin-top:.3rem">ЦОД: ' + esc(hit.site.name) + '</div>' : siteInfo(hit.site)) + '<div class="sm-hint">Клик - выделить</div>';
+        tip.innerHTML = (hit.rack
+            ? rackInfo(hit.rack, hit.shelfUnit) + '<div class="sm-sub" style="margin-top:.3rem">ЦОД: ' + esc(hit.site.name) + '</div>'
+            : siteInfo(hit.site)) + '<div class="sm-hint">Клик - выделить</div>';
         tip.hidden = false;
         var tw = tip.offsetWidth, th = tip.offsetHeight;
         var px = x + 16, py = y + 16;
@@ -843,18 +893,21 @@
         if (py + th > G.h - 4) py = G.h - th - 4;
         tip.style.left = Math.max(4, px) + 'px'; tip.style.top = Math.max(4, py) + 'px';
     }
-    function select(site, rack) {
+    function select(site, rack, shelfUnit) {
         if (selSite && selSite !== site) selSite.tgt = 0;
-        selSite = site; selRack = rack;
+        selSite = site;
+        selRack = rack || null;
+        selShelfUnit = (rack && rack.shelf) ? (shelfUnit == null || shelfUnit < 0 ? 0 : shelfUnit) : -1;
         if (site) {
             var h = '<button type="button" class="sm-close" title="Закрыть" id="smPanelClose">&times;</button>' + siteInfo(site);
             h += '<div class="sm-hint"><a href="/sprsrv/datacentersiteview/' + site.id + '" target="_blank" rel="noopener">Открыть оборудование ЦОД</a></div>';
             if (rack) {
-                h += '<hr style="margin:.5rem 0">' + rackInfo(rack);
-                h += '<div class="sm-hint"><a href="/sprsrv/rackcabinetview/' + rack.id + '" target="_blank" rel="noopener">' + (rack.shelf ? 'Открыть стеллаж' : 'Открыть шкаф') + '</a></div>';
+                h += '<hr style="margin:.5rem 0">' + rackInfo(rack, selShelfUnit);
+                h += '<div class="sm-hint"><a href="' + rackViewUrl(rack, selShelfUnit) + '" target="_blank" rel="noopener">'
+                    + (rack.shelf ? ((rack.units || 1) > 1 ? 'Открыть стеллаж ' + (selShelfUnit + 1) : 'Открыть стеллаж') : 'Открыть шкаф') + '</a></div>';
             }
             panel.innerHTML = h; panel.hidden = false;
-            document.getElementById('smPanelClose').addEventListener('click', function () { select(null, null); });
+            document.getElementById('smPanelClose').addEventListener('click', function () { select(null, null, -1); });
         } else panel.hidden = true;
         redraw();
     }
@@ -882,9 +935,11 @@
         var cc = cityAt(cx, cy);
         if (cc) { fitCity(cc); return; }
         var h = pick(cx, cy);
-        if (!h) select(null, null);
-        else if (h.rack) select(h.site, h.rack === selRack ? null : h.rack);
-        else select(h.site === selSite && !selRack ? null : h.site, null);
+        if (!h) select(null, null, -1);
+        else if (h.rack) {
+            var same = sameShelfUnit(h.rack, h.shelfUnit, selRack, selShelfUnit);
+            select(h.site, same ? null : h.rack, same ? -1 : h.shelfUnit);
+        } else select(h.site === selSite && !selRack ? null : h.site, null, -1);
     });
     canvas.addEventListener('mousemove', function (e) {
         if (drag && drag.moved) return;
@@ -894,10 +949,11 @@
         if (hc !== hovCity) { hovCity = hc; canvas.style.cursor = hc ? 'pointer' : ''; redraw(); }
         var h = hc ? null : pick(x, y);
         var ns = h ? h.site : null, nr = h ? h.rack : null;
-        if (ns !== hovSite || nr !== hovRack) { hovSite = ns; hovRack = nr; redraw(); }
+        var nu = (h && h.rack && h.rack.shelf) ? (h.shelfUnit == null ? 0 : h.shelfUnit) : -1;
+        if (ns !== hovSite || nr !== hovRack || nu !== hovShelfUnit) { hovSite = ns; hovRack = nr; hovShelfUnit = nu; redraw(); }
         if (h) showTip(h, x, y); else tip.hidden = true;
     });
-    canvas.addEventListener('mouseleave', function () { hovCity = null; hovSite = null; hovRack = null; tip.hidden = true; redraw(); });
+    canvas.addEventListener('mouseleave', function () { hovCity = null; hovSite = null; hovRack = null; hovShelfUnit = -1; tip.hidden = true; redraw(); });
     canvas.addEventListener('wheel', function (e) {
         e.preventDefault();
         var rect = canvas.getBoundingClientRect();
@@ -917,7 +973,13 @@
     function showCtx(hit, x, y) {
         var s = hit.site, h = '<div class="sm-ctx-title">' + esc(s.name) + ' &middot; ' + floorTitle(s.floor) + '</div>';
         h += '<a href="/sprsrv/datacentersiteview/' + s.id + '" target="_blank" rel="noopener">Просмотр оборудования площадки/ЦОД</a>';
-        if (hit.rack) h += '<a href="/sprsrv/rackcabinetview/' + hit.rack.id + '" target="_blank" rel="noopener">' + (hit.rack.shelf ? 'Открыть стеллаж' : 'Открыть шкаф ' + esc(hit.rack.name)) + '</a>';
+        if (hit.rack) {
+            var su = hit.rack.shelf ? (hit.shelfUnit == null ? 0 : hit.shelfUnit) : -1;
+            var label = hit.rack.shelf
+                ? ((hit.rack.units || 1) > 1 ? 'Открыть стеллаж ' + (su + 1) : 'Открыть стеллаж')
+                : ('Открыть шкаф ' + esc(hit.rack.name));
+            h += '<a href="' + rackViewUrl(hit.rack, su) + '" target="_blank" rel="noopener">' + label + '</a>';
+        }
         h += '<a href="/sprsrv/datacentersiteedit/' + s.id + '" target="_blank" rel="noopener">Редактировать площадку/ЦОД</a>';
         ctxMenu.innerHTML = h; ctxMenu.hidden = false;
         var tw = ctxMenu.offsetWidth, th = ctxMenu.offsetHeight;
@@ -932,7 +994,7 @@
         var h = pick(x, y);
         if (!h) { hideCtx(); return; }
         tip.hidden = true;
-        select(h.site, h.rack || null);
+        select(h.site, h.rack || null, h.rack && h.rack.shelf ? h.shelfUnit : -1);
         showCtx(h, x, y);
     });
     document.addEventListener('click', function (e) { if (ctxMenu && !ctxMenu.contains(e.target)) hideCtx(); });
