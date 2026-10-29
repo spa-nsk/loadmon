@@ -213,10 +213,10 @@ func (this *MainController) SprRackCabinetView() {
 		}
 	}
 
-	// --- блейд-корзины и блейды в них ---
+	// --- блейд-корзины и блейды в них (списанные и «в пути» блейды скрываем; у корзин нет ItiliumStatus) ---
 	var chassisRows []models.BladeSystems
 	if _, err := o.QueryTable(new(models.BladeSystems)).
-		Filter("RackCabinetId", id).Exclude("Active", 2).OrderBy("StartUnitPos").All(&chassisRows); err != nil {
+		Filter("RackCabinetId", id).OrderBy("StartUnitPos").All(&chassisRows); err != nil {
 		flash.Notice("Корзины не загружены: %v", err)
 	}
 	chassisIds := make([]int64, 0, len(chassisRows))
@@ -226,15 +226,19 @@ func (this *MainController) SprRackCabinetView() {
 	var bladeRows []models.ServerHardware
 	if len(chassisIds) > 0 {
 		if _, err := o.QueryTable(new(models.ServerHardware)).
-			Filter("BladeSystemId__in", chassisIds).Exclude("Active", 2).OrderBy("BladeNum").All(&bladeRows); err != nil {
+			Filter("BladeSystemId__in", chassisIds).
+			Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+			OrderBy("BladeNum").All(&bladeRows); err != nil {
 			flash.Notice("Блейд-серверы не загружены: %v", err)
 		}
 	}
 
-	// --- серверы шкафа (rack) ---
+	// --- серверы шкафа (rack): списанные и «в пути» не показываем ---
 	var hwRows []models.ServerHardware
 	if _, err := o.QueryTable(new(models.ServerHardware)).
-		Filter("RackCabinetId", id).Exclude("Active", 2).OrderBy("StartUnitPos").All(&hwRows); err != nil {
+		Filter("RackCabinetId", id).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+		OrderBy("StartUnitPos").All(&hwRows); err != nil {
 		flash.Notice("Серверы не загружены: %v", err)
 	}
 	chassisInRack := make(map[int64]bool, len(chassisRows))
@@ -474,10 +478,11 @@ func (this *MainController) SprRackCabinetView() {
 
 	// --- сетевое оборудование (справочник бывших коммутаторов): с позицией в шкафу,
 	// если она задана (StartUnitPos/SizeUnit), иначе списком без позиции;
-	// выведенное и списанное не показываем ---
+	// списанное и «в пути» не показываем ---
 	var switches []models.SwitchSprRecords
 	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId", id).
-		Exclude("ItiliumStatus__in", 2, 3).OrderBy("StartUnitPos", "Name").All(&switches); err != nil {
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+		OrderBy("StartUnitPos", "Name").All(&switches); err != nil {
 		flash.Notice("Сетевое оборудование не загружено: %v", err)
 	}
 	netTypeName := map[int64]string{}
@@ -511,10 +516,11 @@ func (this *MainController) SprRackCabinetView() {
 
 
 	// --- ленточные библиотеки (models.TapeLibrary): с позицией в шкафу, если задан
-	// начальный юнит; выведенные и списанные не показываем ---
+	// начальный юнит; списанные и «в пути» не показываем ---
 	var tapes []models.TapeLibrary
 	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId", id).
-		Exclude("ItiliumStatus__in", 2, 3).OrderBy("StartUnitPos", "Name").All(&tapes); err != nil {
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+		OrderBy("StartUnitPos", "Name").All(&tapes); err != nil {
 		flash.Notice("Ленточные библиотеки не загружены: %v", err)
 	}
 	for _, tl := range tapes {
@@ -568,6 +574,13 @@ func (this *MainController) SprRackCabinetView() {
 	this.Data["ItemCount"] = len(data.Items) + len(data.Unplaced)
 	this.Data["RackJSON"] = template.JS(b)
 }
+
+// Статусы Итилиум, скрываемые на планах площадок/ЦОД и в просмотре шкафа.
+// Остальное оборудование (в т.ч. выведенное) показываем.
+const (
+	itiliumStatusWrittenOff = 3 // списан
+	itiliumStatusInTransit  = 8 // в пути
+)
 
 // itiliumPower - состояние питания для оборудования без датчика питания по статусу Итилиум:
 // в работе - включено (1), в ремонте - выключено (2), иначе не определено (0).

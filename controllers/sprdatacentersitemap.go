@@ -197,9 +197,10 @@ func (this *MainController) SprDatacenterSiteMap() {
 		}
 	}
 
-	// rack-серверы
+	// rack-серверы (списанные и «в пути» не считаем; выведенные и прочие статусы - да)
 	var hws []models.ServerHardware
-	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId__gt", 0).Exclude("Active", 2).
+	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId__gt", 0).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&hws, "Id", "RackCabinetId", "FormFactor", "BladeSystemId"); err == nil {
 		for _, h := range hws {
 			if h.FormFactor == 2 {
@@ -217,10 +218,10 @@ func (this *MainController) SprDatacenterSiteMap() {
 			}
 		}
 	}
-	// корзины и блейды
+	// корзины и блейды (у корзин нет ItiliumStatus - показываем все с размещением)
 	chassisRack := map[int64]int64{}
 	var chassis []models.BladeSystems
-	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId__gt", 0).Exclude("Active", 2).
+	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId__gt", 0).
 		Limit(-1).All(&chassis, "Id", "RackCabinetId"); err == nil {
 		for _, c := range chassis {
 			chassisRack[c.Id] = c.RackCabinetId
@@ -229,7 +230,8 @@ func (this *MainController) SprDatacenterSiteMap() {
 			}
 		}
 		var blades []models.ServerHardware
-		if _, err := o.QueryTable(new(models.ServerHardware)).Filter("BladeSystemId__gt", 0).Exclude("Active", 2).
+		if _, err := o.QueryTable(new(models.ServerHardware)).Filter("BladeSystemId__gt", 0).
+			Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 			Limit(-1).All(&blades, "Id", "BladeSystemId"); err == nil {
 			for _, b := range blades {
 				if r := rackBy[chassisRack[b.BladeSystemId]]; r != nil {
@@ -238,9 +240,10 @@ func (this *MainController) SprDatacenterSiteMap() {
 			}
 		}
 	}
-	// ленточные библиотеки и сетевое оборудование по шкафам (выведенное/списанное не считаем)
+	// ленточные библиотеки и сетевое оборудование по шкафам (списанные и «в пути» не считаем)
 	var tpl []models.TapeLibrary
-	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId__gt", 0).Exclude("ItiliumStatus__in", 2, 3).
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId__gt", 0).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&tpl, "Id", "RackCabinetId"); err == nil {
 		for _, t := range tpl {
 			if r := rackBy[t.RackCabinetId]; r != nil {
@@ -249,7 +252,8 @@ func (this *MainController) SprDatacenterSiteMap() {
 		}
 	}
 	var ntl []models.SwitchSprRecords
-	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId__gt", 0).Exclude("ItiliumStatus__in", 2, 3).
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId__gt", 0).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&ntl, "Id", "RackCabinetId"); err == nil {
 		for _, n := range ntl {
 			if r := rackBy[n.RackCabinetId]; r != nil {
@@ -307,9 +311,11 @@ func (this *MainController) SprDatacenterSiteMap() {
 			s.Chassis += r.Chassis
 		}
 	}
-	// коммутаторы
+	// сетевое оборудование
 	var sws []models.SwitchSprRecords
-	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&sws, "Id", "DatacenterSiteId", "RackCabinetId"); err == nil {
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+		Limit(-1).All(&sws, "Id", "DatacenterSiteId", "RackCabinetId"); err == nil {
 		for _, w := range sws {
 			sid := w.DatacenterSiteId
 			if sid <= 0 {
@@ -322,7 +328,9 @@ func (this *MainController) SprDatacenterSiteMap() {
 	}
 	// ленточные библиотеки (по шкафу -> площадка)
 	var tps []models.TapeLibrary
-	if _, err := o.QueryTable(new(models.TapeLibrary)).Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&tps, "Id", "RackCabinetId"); err == nil {
+	if _, err := o.QueryTable(new(models.TapeLibrary)).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+		Limit(-1).All(&tps, "Id", "RackCabinetId"); err == nil {
 		for _, t := range tps {
 			if s := bySite[rackSite[t.RackCabinetId]]; s != nil {
 				s.Tapes++

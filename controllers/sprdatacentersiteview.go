@@ -116,9 +116,10 @@ func (this *MainController) SprDatacenterSiteView() {
 		byId[data.Racks[i].Id] = &data.Racks[i]
 	}
 
-	// rack-серверы
+	// rack-серверы (списанные и «в пути» не показываем; выведенные и прочие статусы - да)
 	var hws []models.ServerHardware
-	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId__in", ids).Exclude("Active", 2).
+	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId__in", ids).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		All(&hws, "Id", "RackCabinetId", "FormFactor", "BladeSystemId"); err == nil {
 		for _, h := range hws {
 			if h.FormFactor == 2 {
@@ -136,10 +137,10 @@ func (this *MainController) SprDatacenterSiteView() {
 			}
 		}
 	}
-	// корзины и блейды в них
+	// корзины и блейды в них (у корзин нет ItiliumStatus - показываем все с размещением в шкафу)
 	var chassis []models.BladeSystems
 	chassisRack := map[int64]int64{}
-	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId__in", ids).Exclude("Active", 2).
+	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId__in", ids).
 		All(&chassis, "Id", "RackCabinetId"); err == nil {
 		chIds := make([]int64, 0, len(chassis))
 		for _, c := range chassis {
@@ -151,7 +152,8 @@ func (this *MainController) SprDatacenterSiteView() {
 		}
 		if len(chIds) > 0 {
 			var blades []models.ServerHardware
-			if _, err := o.QueryTable(new(models.ServerHardware)).Filter("BladeSystemId__in", chIds).Exclude("Active", 2).
+			if _, err := o.QueryTable(new(models.ServerHardware)).Filter("BladeSystemId__in", chIds).
+				Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 				All(&blades, "Id", "BladeSystemId"); err == nil {
 				for _, b := range blades {
 					if r := byId[chassisRack[b.BladeSystemId]]; r != nil {
@@ -195,9 +197,10 @@ func (this *MainController) SprDatacenterSiteView() {
 		}
 	}
 
-	// ленточные библиотеки и сетевое оборудование (выведенное/списанное не считаем)
+	// ленточные библиотеки и сетевое оборудование (списанные и «в пути» не считаем)
 	var tapes []models.TapeLibrary
-	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId__in", ids).Exclude("ItiliumStatus__in", 2, 3).
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId__in", ids).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&tapes, "Id", "RackCabinetId"); err == nil {
 		for _, t := range tapes {
 			if r := byId[t.RackCabinetId]; r != nil {
@@ -206,7 +209,8 @@ func (this *MainController) SprDatacenterSiteView() {
 		}
 	}
 	var nets []models.SwitchSprRecords
-	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId__in", ids).Exclude("ItiliumStatus__in", 2, 3).
+	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId__in", ids).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&nets, "Id", "RackCabinetId"); err == nil {
 		for _, n := range nets {
 			if r := byId[n.RackCabinetId]; r != nil {
@@ -283,7 +287,8 @@ func naturalLess(a, b string) bool {
 func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 	items := []dcShelfItem{}
 	var hws []models.ServerHardware
-	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId", rackId).Exclude("Active", 2).
+	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId", rackId).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&hws, "Id", "Vendor", "Model", "SizeUnit", "PowerState", "FormFactor", "BladeSystemId"); err == nil {
 		for _, h := range hws {
 			if h.FormFactor == 2 && h.BladeSystemId > 0 {
@@ -293,7 +298,7 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 		}
 	}
 	var chassis []models.BladeSystems
-	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId", rackId).Exclude("Active", 2).
+	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId", rackId).
 		Limit(-1).All(&chassis, "Id", "Vendor", "Model", "SizeUnit", "PowerState"); err == nil {
 		for _, c := range chassis {
 			items = append(items, dcShelfItem{Kind: "chassis", Vendor: c.Vendor + " " + c.Model, U: c.SizeUnit, Power: c.PowerState})
@@ -327,7 +332,8 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 	}
 	var sws []models.SwitchSprRecords
 	if _, err := o.QueryTable(new(models.SwitchSprRecords)).Filter("RackCabinetId", rackId).
-		Exclude("ItiliumStatus__in", 2, 3).Limit(-1).All(&sws, "Id", "Vendor", "Model", "Name", "SizeUnit", "ItiliumStatus"); err == nil {
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+		Limit(-1).All(&sws, "Id", "Vendor", "Model", "Name", "SizeUnit", "ItiliumStatus"); err == nil {
 		for _, w := range sws {
 			u := w.SizeUnit
 			if u <= 0 {
@@ -337,7 +343,8 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 		}
 	}
 	var tps []models.TapeLibrary
-	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId", rackId).Exclude("ItiliumStatus__in", 2, 3).
+	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId", rackId).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&tps, "Id", "Model", "SizeUnit", "ItiliumStatus"); err == nil {
 		for _, t := range tps {
 			items = append(items, dcShelfItem{Kind: "tape", Vendor: "HPE " + t.Model, U: t.SizeUnit, Power: itiliumPower(t.ItiliumStatus)})
