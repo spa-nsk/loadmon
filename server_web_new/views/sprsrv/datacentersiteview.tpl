@@ -146,7 +146,7 @@
     function packShelf(r) {
         var list = (r.items || []).map(function (it) { return { k: it.k, vd: it.vd || '', p: it.p, u: it.u, su: Math.min(shelfSize(it), SH_CLEAR) }; });
         var rank = { storage: 0, tape: 1, chassis: 1, server: 2, 'switch': 3 };
-        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.k] || 9) - (rank[b.k] || 9)); });
+        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.k] || 9) - (rank[b.k] || 9)) || String(a.vd).localeCompare(String(b.vd)); });
         var units = [];
         function newUnit() { var lv = []; for (var k = 0; k < 5; k++) lv.push({ items: [], used: 0 }); units.push(lv); }
         newUnit();
@@ -197,9 +197,27 @@
     shelves.forEach(function (r) { for (var u = 0; u < r.units; u++) items3d.push({ r: r, shelfUnit: u, ca: r.gi + u + 0.5, cb: r.gj + 0.5 }); });
 
     var FW = 0.60, FD = 0.80;          // размеры шкафа в клетках (ширина 600, глубина 1000 при клетке 1.2 м)
+    // выбранный/наведённый объект: { r, u } где u = -1 для шкафа, 0..N-1 для секции стеллажа
     var selected = null, hovered = null, hoverCorner = -1;
-    var polys = [];                    // силуэты для hit-test: {r, pts}
+    var polys = [];                    // силуэты для hit-test: {r, u, pts}
     var G = { w: 0, h: 0, dpr: 1, s: 1, baseS: 1 };
+    function sameHit(a, b) { return !!a && !!b && a.r === b.r && a.u === b.u; }
+    function hitOf(r, u) { return { r: r, u: u == null ? -1 : u }; }
+    function unitStats(r, u) {
+        var s = { servers: 0, chassis: 0, storages: 0, tapes: 0, network: 0 }, pk = r.packed && r.packed[u];
+        if (!pk) return s;
+        pk.forEach(function (lv) {
+            lv.items.forEach(function (pl) {
+                var k = pl.it.k;
+                if (k === 'server') s.servers++;
+                else if (k === 'chassis') s.chassis++;
+                else if (k === 'storage') s.storages++;
+                else if (k === 'tape') s.tapes++;
+                else if (k === 'switch') s.network++;
+            });
+        });
+        return s;
+    }
 
     // ---- камера: поворот (yaw) вокруг вертикали и наклон (pitch); по умолчанию - прежняя изометрия 45 / 30 градусов ----
     var YAW0 = Math.PI / 4, PITCH0 = Math.PI / 6;
@@ -358,7 +376,7 @@
         var a0 = r.gi + (1 - FW) / 2, a1 = a0 + FW;
         var b0 = r.gj + (1 - FD) / 2, b1 = b0 + FD;
         var H = hz(r), s = G.s;
-        var isSel = selected === r, isHov = hovered === r, lit = isSel || isHov;
+        var isSel = sameHit(selected, hitOf(r, -1)), isHov = sameHit(hovered, hitOf(r, -1)), lit = isSel || isHov;
         var aS = CV.aPos ? a1 : a0, bS = CV.bPos ? b1 : b0;
 
         // тень на полу
@@ -443,7 +461,7 @@
             drawGlow(cx, cy, bw, bh, frac, PAL === PALS.dark, PAL.glowMode);
         }
 
-        polys.push({ r: r, pts: boxHull(a0, a1, b0, b1, 0, H) });
+        polys.push({ r: r, u: -1, pts: boxHull(a0, a1, b0, b1, 0, H) });
     }
 
     // ---- стеллаж: трёхмерная проекция, габариты секции как у шкафа 42U, 5 полок ----
@@ -513,7 +531,7 @@
         });
     }
     function drawShelfUnit(r, u, labels) {
-        var isSel = selected === r, isHov = hovered === r, lit = isSel || isHov;
+        var isSel = sameHit(selected, hitOf(r, u)), isHov = sameHit(hovered, hitOf(r, u)), lit = isSel || isHov;
         var H = G.s * 1.55;                                      // высота как у шкафа 42U (hz)
         var post = Math.max(1.6, G.s * 0.05);
         var zs = H * 0.2, tb = H * 0.022;                         // шаг полок и толщина балки
@@ -554,10 +572,10 @@
             }
         }
         posts.forEach(function (p) { if (p.d > medD) line(p.a, p.b, 0, H, pc, post * 1.15); });
-        labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, H: H, sel: isSel });
+        labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, H: H, sel: isSel, num: u + 1 });
         var hl = boxHull(a0, a1, b0, b1, 0, H);
         if (isSel || isHov) boxWire(P, a0, a1, b0, b1, 0, H, CV.aPos ? a0 : a1, CV.bPos ? b0 : b1, isSel ? PAL.sel : PAL.hov, isSel ? 2.6 : 2);
-        polys.push({ r: r, pts: hl });
+        polys.push({ r: r, u: u, pts: hl });
     }
 
     function render() {
@@ -568,13 +586,14 @@
         var order = items3d.slice().sort(function (x, y) { return depthOf(x.ca, x.cb) - depthOf(y.ca, y.cb) || x.ca - y.ca; });
         var labels = [];
         order.forEach(function (it) { if (it.shelfUnit >= 0) drawShelfUnit(it.r, it.shelfUnit, labels); else drawRack(it.r); });
-        // подпись "СТЕЛЛАЖ" на верхнем ободе каждой секции, поверх всего
+        // подпись "СТЕЛЛАЖ N" на верхнем ободе каждой секции (N - порядок наполнения), поверх всего
         labels.forEach(function (L) {
+            var txt = 'СТЕЛЛАЖ ' + L.num;
             ctx.save();
             if (topFaceXf(L.a0, L.a1, L.b0, L.b1, L.H, 100, 130)) {
-                ctx.font = '800 19px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillStyle = PAL.labelShadow; ctx.fillText('СТЕЛЛАЖ', 51, 66);
-                ctx.fillStyle = L.sel ? PAL.selTxt : PAL.labelText; ctx.fillText('СТЕЛЛАЖ', 50, 65);
+                ctx.font = '800 17px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = PAL.labelShadow; ctx.fillText(txt, 51, 66);
+                ctx.fillStyle = L.sel ? PAL.selTxt : PAL.labelText; ctx.fillText(txt, 50, 65);
             }
             ctx.restore();
         });
@@ -592,25 +611,35 @@
     }
     function pick(x, y) {
         for (var i = polys.length - 1; i >= 0; i--) { // последние нарисованы поверх
-            if (inPoly([x, y], polys[i].pts)) return polys[i].r;
+            if (inPoly([x, y], polys[i].pts)) return hitOf(polys[i].r, polys[i].u);
         }
         return null;
     }
 
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
-    function showTip(r, x, y) {
-        var h = '<b class="dv-name">' + (r.shelf ? 'Стеллаж (вне шкафов)' : 'Шкаф ' + esc(r.name)) + '</b><table>';
+    function showTip(hit, x, y) {
+        var r = hit.r, st = hit.u >= 0 ? unitStats(r, hit.u) : null;
+        var title = r.shelf ? ('Стеллаж ' + (hit.u + 1) + ' (вне шкафов)') : ('Шкаф ' + esc(r.name));
+        var h = '<b class="dv-name">' + title + '</b><table>';
         h += '<tr><td>Высота</td><td>' + r.uHeight + 'U</td></tr>';
-        h += '<tr><td>Серверов</td><td><b>' + r.servers + '</b>' + (r.blades ? ' (+ блейдов ' + r.blades + ')' : '') + '</td></tr>';
-        h += '<tr><td>Корзин</td><td><b>' + r.chassis + '</b></td></tr>';
-        h += '<tr><td>СХД</td><td><b>' + r.storages + '</b></td></tr>';
-        if (r.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + r.tapes + '</b></td></tr>';
-        if (r.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + r.network + '</b></td></tr>';
-        h += '<tr><td>Мощность</td><td>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b> (ср. 24ч)' : '<b>нет данных</b>') + '</td></tr>';
-        if (r.powerPeakW > 0) h += '<tr><td>Пик 24ч</td><td>' + kw(r.powerPeakW) + '</td></tr>';
-        if (r.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(r.powerRatedW) + '</td></tr>';
-        h += '</table><div class="dv-hint">Детали шкафа - справа</div>';
+        if (st) {
+            h += '<tr><td>Серверов</td><td><b>' + st.servers + '</b></td></tr>';
+            h += '<tr><td>Корзин</td><td><b>' + st.chassis + '</b></td></tr>';
+            h += '<tr><td>СХД</td><td><b>' + st.storages + '</b></td></tr>';
+            if (st.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + st.tapes + '</b></td></tr>';
+            if (st.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + st.network + '</b></td></tr>';
+        } else {
+            h += '<tr><td>Серверов</td><td><b>' + r.servers + '</b>' + (r.blades ? ' (+ блейдов ' + r.blades + ')' : '') + '</td></tr>';
+            h += '<tr><td>Корзин</td><td><b>' + r.chassis + '</b></td></tr>';
+            h += '<tr><td>СХД</td><td><b>' + r.storages + '</b></td></tr>';
+            if (r.tapes) h += '<tr><td>Ленточных библиотек</td><td><b>' + r.tapes + '</b></td></tr>';
+            if (r.network) h += '<tr><td>Сетевого оборудования</td><td><b>' + r.network + '</b></td></tr>';
+            h += '<tr><td>Мощность</td><td>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b> (ср. 24ч)' : '<b>нет данных</b>') + '</td></tr>';
+            if (r.powerPeakW > 0) h += '<tr><td>Пик 24ч</td><td>' + kw(r.powerPeakW) + '</td></tr>';
+            if (r.powerRatedW > 0) h += '<tr><td>Паспорт</td><td>' + kw(r.powerRatedW) + '</td></tr>';
+        }
+        h += '</table><div class="dv-hint">Детали ' + (r.shelf ? 'стеллажа' : 'шкафа') + ' - справа</div>';
         tip.innerHTML = h;
         tip.hidden = false;
         var tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -622,19 +651,32 @@
     }
 
     var selTimer = null;
-    function selectRack(r) {
+    function selectHit(hit) {
+        if (!hit) return;
         if (selTimer) { clearTimeout(selTimer); selTimer = null; }
-        if (selected === r && document.getElementById('dvFrame').getAttribute('src') !== 'about:blank') return;
-        selected = r;
+        if (sameHit(selected, hit) && document.getElementById('dvFrame').getAttribute('src') !== 'about:blank') return;
+        selected = hit;
+        var r = hit.r, st = hit.u >= 0 ? unitStats(r, hit.u) : null;
+        var title = r.shelf ? ('Стеллаж ' + (hit.u + 1)) : esc(r.name);
+        var url = '/sprsrv/rackcabinetview/' + r.id + (r.shelf ? '?shelfUnit=' + (hit.u + 1) : '');
+        var emb = '/sprsrv/rackcabinetview/' + r.id + '?embed=1' + (r.shelf ? '&shelfUnit=' + (hit.u + 1) : '');
         var sel = document.getElementById('dvSel');
-        var t = '<b>' + (r.shelf ? 'Стеллаж (вне шкафов)' : esc(r.name)) + '</b><span class="dv-sep">&middot;</span>' + r.uHeight + 'U'
-            + '<span class="dv-sep">&middot;</span>серверов ' + r.servers + (r.blades ? '+' + r.blades + ' бл.' : '')
-            + '<span class="dv-sep">&middot;</span>корзин ' + r.chassis + (r.tapes ? '<span class="dv-sep">&middot;</span>лент. библиотек ' + r.tapes : '') + (r.network ? '<span class="dv-sep">&middot;</span>сеть ' + r.network : '')
-            + '<span class="dv-sep">&middot;</span>СХД ' + r.storages
-            + '<span class="dv-sep">&middot;</span>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b>' + (r.powerPeakW > 0 ? ' (пик ' + kw(r.powerPeakW) + ')' : '') : 'мощность н/д')
-            + '<span class="dv-sep">&middot;</span><a href="/sprsrv/rackcabinetview/' + r.id + '" target="_blank" rel="noopener">открыть</a>';
+        var t = '<b>' + title + '</b><span class="dv-sep">&middot;</span>' + r.uHeight + 'U';
+        if (st) {
+            t += '<span class="dv-sep">&middot;</span>серверов ' + st.servers
+                + '<span class="dv-sep">&middot;</span>корзин ' + st.chassis
+                + (st.tapes ? '<span class="dv-sep">&middot;</span>лент. библиотек ' + st.tapes : '')
+                + (st.network ? '<span class="dv-sep">&middot;</span>сеть ' + st.network : '')
+                + '<span class="dv-sep">&middot;</span>СХД ' + st.storages;
+        } else {
+            t += '<span class="dv-sep">&middot;</span>серверов ' + r.servers + (r.blades ? '+' + r.blades + ' бл.' : '')
+                + '<span class="dv-sep">&middot;</span>корзин ' + r.chassis + (r.tapes ? '<span class="dv-sep">&middot;</span>лент. библиотек ' + r.tapes : '') + (r.network ? '<span class="dv-sep">&middot;</span>сеть ' + r.network : '')
+                + '<span class="dv-sep">&middot;</span>СХД ' + r.storages
+                + '<span class="dv-sep">&middot;</span>' + (r.powerAvgW > 0 ? '<b>' + kw(r.powerAvgW) + '</b>' + (r.powerPeakW > 0 ? ' (пик ' + kw(r.powerPeakW) + ')' : '') : 'мощность н/д');
+        }
+        t += '<span class="dv-sep">&middot;</span><a href="' + url + '" target="_blank" rel="noopener">открыть</a>';
         sel.innerHTML = t;
-        document.getElementById('dvFrame').src = '/sprsrv/rackcabinetview/' + r.id + '?embed=1';
+        document.getElementById('dvFrame').src = emb;
         render();
     }
 
@@ -721,7 +763,7 @@
         var rect = canvas.getBoundingClientRect();
         var x = e.clientX - rect.left, y = e.clientY - rect.top;
         canvas.style.cursor = cornerAt(x, y) >= 0 ? 'move' : 'default';
-        if (mode === 'click' && !moved) { var r = pick(x, y); if (r) selectRack(r); }
+        if (mode === 'click' && !moved) { var h = pick(x, y); if (h) selectHit(h); }
         else render();
     });
     canvas.addEventListener('mousemove', function (e) {
@@ -729,18 +771,18 @@
         var rect = canvas.getBoundingClientRect();
         var x = e.clientX - rect.left, y = e.clientY - rect.top;
         var ci = cornerAt(x, y);
-        var r = ci >= 0 ? null : pick(x, y);
+        var h = ci >= 0 ? null : pick(x, y);
         var changed = false;
         if (ci !== hoverCorner) { hoverCorner = ci; changed = true; }
-        if (r !== hovered) {
-            hovered = r; changed = true;
-            // шкаф под курсором становится выбранным (с небольшой задержкой, чтобы
-            // при быстром движении мыши не загружать фрейм для каждого шкафа)
+        if (!sameHit(h, hovered)) {
+            hovered = h; changed = true;
+            // объект под курсором становится выбранным (с небольшой задержкой, чтобы
+            // при быстром движении мыши не загружать фрейм для каждой секции)
             if (selTimer) { clearTimeout(selTimer); selTimer = null; }
-            if (r && r !== selected) selTimer = setTimeout(function () { selTimer = null; if (hovered === r) selectRack(r); }, 150);
+            if (h && !sameHit(h, selected)) selTimer = setTimeout(function () { selTimer = null; if (sameHit(hovered, h)) selectHit(h); }, 150);
         }
         if (changed) render();
-        canvas.style.cursor = ci >= 0 ? 'move' : (r ? 'pointer' : 'grab');
+        canvas.style.cursor = ci >= 0 ? 'move' : (h ? 'pointer' : 'grab');
         canvas.title = ci >= 0 ? 'Потяните за угол, чтобы изменить ракурс' : '';
     });
     canvas.addEventListener('mouseleave', function () { hovered = null; hoverCorner = -1; if (selTimer) { clearTimeout(selTimer); selTimer = null; } tip.hidden = true; if (!dragMode) render(); });
@@ -757,8 +799,11 @@
     if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
     layout(); render();
 
-    // по умолчанию - первый шкаф с оборудованием
-    var first = allRacks.filter(function (r) { return r.servers + r.chassis + r.storages > 0; })[0] || allRacks[0];
-    selectRack(first);
+    // по умолчанию - первый шкаф с оборудованием, иначе первая секция стеллажа
+    var firstRack = racks.filter(function (r) { return r.servers + r.chassis + r.storages > 0; })[0] || racks[0];
+    var firstShelf = shelves[0];
+    if (firstRack) selectHit(hitOf(firstRack, -1));
+    else if (firstShelf && firstShelf.units > 0) selectHit(hitOf(firstShelf, 0));
+    else if (firstShelf) selectHit(hitOf(firstShelf, 0));
 })();
 </script>
