@@ -77,9 +77,9 @@
 
         var palette = ['#2fb344', '#4dabf7', '#f59f00', '#e64980', '#7950f2', '#15aabf'];
 
-        var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        var apexTheme = isDark ? 'dark' : 'light';
-        var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+        var c = (window.LoadmonApexTheme && LoadmonApexTheme.colors()) || { mode: 'light', foreColor: '#334155', grid: 'rgba(15,23,42,0.12)' };
+        var apexTheme = c.mode;
+        var gridColor = c.grid;
 
         var renderedCharts = [];
 
@@ -119,6 +119,7 @@
                     type: 'area',
                     height: 320,
                     background: 'transparent',
+                    foreColor: c.foreColor,
                     toolbar: { show: true, tools: { download: false, zoom: true, pan: true, reset: true } },
                     zoom: { enabled: true },
                     animations: { enabled: false },
@@ -139,7 +140,7 @@
                 },
                 dataLabels: { enabled: false },
                 markers: { size: 0 },
-                legend: { show: seriesNames.length > 1, labels: { colors: 'var(--bs-emphasis-color)' } },
+                legend: { show: seriesNames.length > 1, labels: { colors: c.foreColor } },
                 xaxis: {
                     type: 'datetime',
                     labels: {
@@ -167,6 +168,7 @@
 
             var apexChart = new ApexCharts(wrap, options);
             apexChart.render();
+            if (window.LoadmonApexTheme) LoadmonApexTheme.register(apexChart);
             renderedCharts.push({ title: chart.title + (chart.unit ? ' (' + chart.unit + ')' : ''), chart: apexChart });
         });
 

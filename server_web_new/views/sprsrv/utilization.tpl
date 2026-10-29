@@ -394,9 +394,9 @@
     var risks = {{.RisksJSON}};
     var dataGaps = {{.DataGapsJSON}};
 
-    var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-    var apexTheme = isDark ? 'dark' : 'light';
-    var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    var c = (window.LoadmonApexTheme && LoadmonApexTheme.colors()) || { mode: 'light', foreColor: '#334155', grid: 'rgba(15,23,42,0.12)' };
+    var apexTheme = c.mode;
+    var gridColor = c.grid;
     var COLOR_DANGER = '#e64980', COLOR_WARNING = '#f59f00', COLOR_NORMAL = '#4dabf7', COLOR_OK = '#2fb344';
 
     function statusColor(status) {
@@ -486,8 +486,8 @@
         if (!el) return;
         if (!items.length) { emptyState(elId, (opts && opts.emptyText) || 'Нет данных для отображения'); return; }
         var height = Math.max(220, items.length * 34 + 60);
-        new ApexCharts(el, {
-            chart: { type: 'bar', height: height, background: 'transparent', toolbar: { show: false }, animations: { enabled: false } },
+        var barChart = new ApexCharts(el, {
+            chart: { type: 'bar', height: height, background: 'transparent', foreColor: c.foreColor, toolbar: { show: false }, animations: { enabled: false } },
             theme: { mode: apexTheme },
             plotOptions: { bar: { horizontal: true, distributed: true, barHeight: '62%', borderRadius: 3 } },
             series: [{ name: (opts && opts.unit) || '%', data: items.map(function (x) { return x.value; }) }],
@@ -495,18 +495,20 @@
             dataLabels: {
                 enabled: true,
                 formatter: function (v) { return v.toFixed(1) + ((opts && opts.unit === '%') ? '%' : ''); },
-                style: { colors: ['var(--bs-emphasis-color)'] },
+                style: { colors: [c.foreColor] },
                 offsetX: 6
             },
             xaxis: {
                 categories: items.map(function (x) { return x.name; }),
                 max: (opts && opts.unit === '%') ? 100 : undefined,
-                labels: { style: { colors: 'var(--bs-secondary-color)' } }
+                labels: { style: { colors: c.muted || c.foreColor } }
             },
-            yaxis: { labels: { style: { colors: 'var(--bs-emphasis-color)' } } },
+            yaxis: { labels: { style: { colors: c.foreColor } } },
             grid: { borderColor: gridColor },
             colors: items.map(function (x) { return x.color || COLOR_NORMAL; })
-        }).render();
+        });
+        barChart.render();
+        if (window.LoadmonApexTheme) LoadmonApexTheme.register(barChart);
     }
 
     // Кластеры и хосты по CPU avg %

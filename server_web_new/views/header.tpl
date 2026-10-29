@@ -30,6 +30,7 @@
   <script src="/static/5.3.8/js/bootstrap.bundle.min.js?v={{.StaticVer}}" class="astro-vvvwv3sm"></script>
   <script src="/static/js/sidebars.js?v={{.StaticVer}}" class="astro-vvvwv3sm"></script>
   <script src="/static/js/color-modes.js?v={{.StaticVer}}"></script>
+  <script src="/static/js/apex-theme.js?v={{.StaticVer}}"></script>
   <script src="/static/js2/jquery.min.js?v={{.StaticVer}}"></script>
 
   <style>
