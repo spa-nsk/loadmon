@@ -4,11 +4,12 @@ import (
 	"encoding/csv"
 	"fmt"
 	"loadmon/csvtools"
-	"loadmon/rackpower"
 	"loadmon/models"
+	"loadmon/rackpower"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
@@ -22,9 +23,12 @@ import (
 // запросу пользователя ("добавь выгрузку как во всех справочниках"), по
 // образцу controllers/sprbladesystems.go.
 type RackCabinetFilter struct {
+	// LocalityCode - код ОКТМО населённого пункта (подсказка как в
+	// /sprsrv/datacentersitelist); сужает список через площадки с этим кодом.
+	LocalityCode     string `form:"LocalityCode"`
+	DatacenterSiteId string `form:"DatacenterSiteId"` // площадка/ЦОД (Id)
 	Name             string `form:"Name"`
 	AltName          string `form:"AltName"`
-	DatacenterSiteId string `form:"DatacenterSiteId"`
 	// ShowUnnamed == "1" - показывать и шкафы, у которых не заполнены оба
 	// наименования (Name и AltName); по умолчанию такие записи скрыты.
 	ShowUnnamed string `form:"ShowUnnamed"`
@@ -103,6 +107,12 @@ func (this *MainController) SprRackCabinet() {
 	this.Data[keyFilter] = filter
 
 	o := orm.NewOrm()
+
+	// Справочник площадок для select «Площадка/ЦОД» (каскад по LocalityCode на клиенте).
+	var allSites []models.DatacenterSite
+	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&allSites, "Id", "Name", "LocalityCode")
+	this.Data["DatacenterSites"] = allSites
+
 	qs := o.QueryTable("cmdb_rack_cabinet")
 	if filter.ShowUnnamed != "1" {
 		// Пробелы заполнением не считаются - TRIM средствами ORM не
@@ -114,16 +124,34 @@ func (this *MainController) SprRackCabinet() {
 			qs = qs.Exclude("Id__in", emptyIds)
 		}
 	}
+	filter.LocalityCode = strings.TrimSpace(filter.LocalityCode)
+	if filter.LocalityCode != "" {
+		this.Data["FilterLocalityName"] = localityNamesByCode(o, []models.DatacenterSite{{LocalityCode: filter.LocalityCode}})[filter.LocalityCode]
+	}
+	// Площадка/ЦОД: точный Id; иначе при выбранном населённом пункте - все
+	// шкафы площадок с этим LocalityCode.
+	if filter.DatacenterSiteId != "" && filter.DatacenterSiteId != "0" {
+		if dcid, err := strconv.ParseInt(filter.DatacenterSiteId, 10, 64); err == nil && dcid > 0 {
+			qs = qs.Filter("DatacenterSiteId", dcid)
+		}
+	} else if filter.LocalityCode != "" {
+		siteIds := make([]int64, 0)
+		for _, s := range allSites {
+			if s.LocalityCode == filter.LocalityCode {
+				siteIds = append(siteIds, s.Id)
+			}
+		}
+		if len(siteIds) == 0 {
+			qs = qs.Filter("Id", int64(-1)) // пустой результат
+		} else {
+			qs = qs.Filter("DatacenterSiteId__in", siteIds)
+		}
+	}
 	if filter.Name != "" {
 		qs = qs.Filter("Name__icontains", filter.Name)
 	}
 	if filter.AltName != "" {
 		qs = qs.Filter("AltName__icontains", filter.AltName)
-	}
-	if filter.DatacenterSiteId != "" {
-		if dcid, err := strconv.ParseInt(filter.DatacenterSiteId, 10, 64); err == nil {
-			qs = qs.Filter("DatacenterSiteId", dcid)
-		}
 	}
 
 	totalRecords, err := qs.Count()

@@ -14,6 +14,22 @@
 
     <div class="hw-filter-bar mb-3 p-3 rounded border">
         <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3 position-relative">
+                <label for="LocalitySearch" class="form-label">Населённый пункт</label>
+                <input type="text" id="LocalitySearch" class="form-control" autocomplete="off"
+                       placeholder="начните вводить название, например: Новосиб" value="{{.FilterLocalityName}}">
+                <input type="hidden" id="LocalityCode" name="LocalityCode" value="{{.RackCabinetFilter.LocalityCode}}">
+                <div id="LocalityList" class="list-group position-absolute w-100 shadow d-none" style="z-index: 1050; max-height: 320px; overflow-y: auto;"></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="DatacenterSiteId" class="form-label">Площадка/ЦОД</label>
+                <select id="DatacenterSiteId" name="DatacenterSiteId" class="form-select">
+                    <option value="0">Все</option>
+                    {{range $dc := .DatacenterSites}}
+                    <option value="{{$dc.Id}}" data-locality="{{$dc.LocalityCode}}" {{if eq $.RackCabinetFilter.DatacenterSiteId (printf "%d" $dc.Id)}}selected{{end}}>{{$dc.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
             <div class="col-6 col-md-3">
                 <label for="Name" class="form-label">Наименование</label>
                 <input type="text" id="Name" name="Name" class="form-control" value="{{.RackCabinetFilter.Name}}">
@@ -109,6 +125,89 @@
 <div id="rcRowContextMenu" class="ctx-menu d-none"></div>
 
 <script>
+    // Фильтр по населённому пункту: подсказка /sprsrv/localitysearch (как в
+    // справочнике площадок/ЦОД); сужает select «Площадка/ЦОД» по data-locality.
+    (function () {
+        var search = document.getElementById('LocalitySearch');
+        var list = document.getElementById('LocalityList');
+        var code = document.getElementById('LocalityCode');
+        var siteSelect = document.getElementById('DatacenterSiteId');
+        if (!search || !list || !code) return;
+        var timer = null, seq = 0;
+        var allSiteOptions = siteSelect ? Array.prototype.slice.call(siteSelect.options) : [];
+
+        function filterSitesByLocality() {
+            if (!siteSelect) return;
+            var loc = code.value || '';
+            var cur = siteSelect.value;
+            siteSelect.innerHTML = '';
+            allSiteOptions.forEach(function (opt) {
+                if (opt.value === '0' || opt.value === '') {
+                    siteSelect.appendChild(opt.cloneNode(true));
+                    return;
+                }
+                if (!loc || opt.getAttribute('data-locality') === loc) {
+                    siteSelect.appendChild(opt.cloneNode(true));
+                }
+            });
+            var still = false;
+            Array.prototype.forEach.call(siteSelect.options, function (o) {
+                if (o.value === cur) still = true;
+            });
+            siteSelect.value = still ? cur : '0';
+        }
+
+        function hide() { list.classList.add('d-none'); list.innerHTML = ''; }
+
+        function pick(item) {
+            code.value = item.oktmo;
+            search.value = item.label;
+            hide();
+            filterSitesByLocality();
+        }
+
+        function render(items) {
+            list.innerHTML = '';
+            if (!items.length) {
+                var empty = document.createElement('div');
+                empty.className = 'list-group-item text-muted small';
+                empty.textContent = 'Ничего не найдено';
+                list.appendChild(empty);
+            }
+            items.forEach(function (it) {
+                var a = document.createElement('button');
+                a.type = 'button';
+                a.className = 'list-group-item list-group-item-action small';
+                a.textContent = it.label + '  [' + it.oktmo + ']';
+                a.addEventListener('mousedown', function (e) { e.preventDefault(); pick(it); });
+                list.appendChild(a);
+            });
+            list.classList.remove('d-none');
+        }
+
+        function query() {
+            var q = search.value.trim();
+            if (q.length < 2) { hide(); return; }
+            var my = ++seq;
+            fetch('/sprsrv/localitysearch?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (items) { if (my === seq) render(items); })
+                .catch(function () { hide(); });
+        }
+
+        search.addEventListener('input', function () {
+            if (search.value.trim() === '') {
+                code.value = '';
+                filterSitesByLocality();
+            }
+            clearTimeout(timer);
+            timer = setTimeout(query, 200);
+        });
+        search.addEventListener('blur', function () { setTimeout(hide, 150); });
+        search.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+        filterSitesByLocality();
+    })();
+
     (function () {
         var STORAGE_KEY = 'rackcabinetlist.filterSticky';
         var bar = document.querySelector('.hw-filter-bar');
