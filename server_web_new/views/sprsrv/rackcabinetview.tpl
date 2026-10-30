@@ -142,6 +142,9 @@
     var EMBED = {{if .Embed}}true{{else}}false{{end}};
     var fitUH = 40, userZoomed = false;
     if (EMBED) TOP = 16; // во фрейме ЦОД заголовок шкафа не рисуется - верхнюю панель сжимаем
+    // deep-link /sprsrv/location-uri → ?hw=ServerHardware.Id — закрепить подсветку устройства
+    var FOCUS_HW = 0;
+    try { FOCUS_HW = parseInt(new URLSearchParams(location.search).get('hw') || '0', 10) || 0; } catch (e) { FOCUS_HW = 0; }
 
     // ---------- стеллаж (площадка без шкафов: склады, рабочие комнаты) ----------
     // Секция стеллажа - габариты шкафа 42U (высота 42U, ширина 19" устройства), 5 полок. На полке
@@ -1163,10 +1166,26 @@
     document.getElementById('rvZoomOut').addEventListener('click', function () { setZoom(UH - 4); });
     document.getElementById('rvZoomReset').addEventListener('click', function () { setZoom(40); });
 
+    function regionForHw(id) {
+        if (!id) return null;
+        for (var i = 0; i < regions.length; i++) {
+            var r = regions[i];
+            if (r.blade && r.blade.id === id) return r;
+            if (!r.blade && r.it && r.it.id === id && r.it.kind === 'server') return r;
+        }
+        return null;
+    }
+    function pinFocusHw() {
+        if (!FOCUS_HW) return;
+        var r = regionForHw(FOCUS_HW);
+        if (r) { pinned = true; showTip(r); }
+    }
+
     renderSide();
     zoomLabel();
     layout();
     drawAll();
+    pinFocusHw();
 
     // Нет оборудования на позициях, но есть оборудование без позиции: пустой шкаф
     // не рисуем - иначе список "без позиции" уходит под высокий пустой шкаф и не виден.

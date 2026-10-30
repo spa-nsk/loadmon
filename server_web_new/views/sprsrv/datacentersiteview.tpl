@@ -650,6 +650,11 @@
         tip.style.top = Math.max(4, py) + 'px';
     }
 
+    // deep-link из /sprsrv/location-uri/:id → ?rack=&hw=
+    var qsFocus = new URLSearchParams(location.search);
+    var focusRackId = parseInt(qsFocus.get('rack') || '0', 10) || 0;
+    var focusHwId = parseInt(qsFocus.get('hw') || '0', 10) || 0;
+
     var selTimer = null;
     function selectHit(hit) {
         if (!hit) return;
@@ -658,8 +663,11 @@
         selected = hit;
         var r = hit.r, st = hit.u >= 0 ? unitStats(r, hit.u) : null;
         var title = r.shelf ? ('Стеллаж ' + (hit.u + 1)) : esc(r.name);
-        var url = '/sprsrv/rackcabinetview/' + r.id + (r.shelf ? '?shelfUnit=' + (hit.u + 1) : '');
-        var emb = '/sprsrv/rackcabinetview/' + r.id + '?embed=1' + (r.shelf ? '&shelfUnit=' + (hit.u + 1) : '');
+        var pinHw = focusHwId > 0 && focusRackId === r.id ? focusHwId : 0;
+        // при подсветке конкретного сервера на стеллаже - все секции (иначе устройство может быть в другой секции)
+        var shelfQ = (r.shelf && !pinHw) ? ('shelfUnit=' + (hit.u + 1)) : '';
+        var url = '/sprsrv/rackcabinetview/' + r.id + (shelfQ || pinHw ? '?' : '') + shelfQ + (pinHw ? ((shelfQ ? '&' : '') + 'hw=' + pinHw) : '');
+        var emb = '/sprsrv/rackcabinetview/' + r.id + '?embed=1' + (shelfQ ? '&' + shelfQ : '') + (pinHw ? '&hw=' + pinHw : '');
         var sel = document.getElementById('dvSel');
         var t = '<b>' + title + '</b><span class="dv-sep">&middot;</span>' + r.uHeight + 'U';
         if (st) {
@@ -799,11 +807,16 @@
     if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
     layout(); render();
 
-    // по умолчанию - первый шкаф с оборудованием, иначе первая секция стеллажа
-    var firstRack = racks.filter(function (r) { return r.servers + r.chassis + r.storages > 0; })[0] || racks[0];
-    var firstShelf = shelves[0];
-    if (firstRack) selectHit(hitOf(firstRack, -1));
-    else if (firstShelf && firstShelf.units > 0) selectHit(hitOf(firstShelf, 0));
-    else if (firstShelf) selectHit(hitOf(firstShelf, 0));
+    // deep-link ?rack= — выделить шкаф/стеллаж; иначе первый шкаф с оборудованием / секция стеллажа
+    var focusCab = focusRackId > 0 ? allRacks.filter(function (r) { return r.id === focusRackId; })[0] : null;
+    if (focusCab) {
+        selectHit(focusCab.shelf ? hitOf(focusCab, 0) : hitOf(focusCab, -1));
+    } else {
+        var firstRack = racks.filter(function (r) { return r.servers + r.chassis + r.storages > 0; })[0] || racks[0];
+        var firstShelf = shelves[0];
+        if (firstRack) selectHit(hitOf(firstRack, -1));
+        else if (firstShelf && firstShelf.units > 0) selectHit(hitOf(firstShelf, 0));
+        else if (firstShelf) selectHit(hitOf(firstShelf, 0));
+    }
 })();
 </script>
