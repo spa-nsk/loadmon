@@ -12,10 +12,9 @@ import "time"
 // того же поля, размер - из колонки units (SizeUnit).
 type TapeLibrary struct {
 	Id int64 `form:"Id" json:"Id"`
-	// ItiliumStatus - статус по данным Итилиум (единственный статус записи):
-	// 0 - не указано, 1 - в работе, 2 - выведен, 3 - списан, 4 - свободно,
-	// 5 - на складе, 6 - зарезервирован (как ServerHardware.ItiliumStatus).
-	ItiliumStatus   int       `orm:"default(0)" form:"ItiliumStatus" json:"ItiliumStatus"`
+	// ItiliumStatus - статус по данным Итилиум (единственный статус записи);
+	// коды и имена - models.ItiliumStatusList.
+	ItiliumStatus   int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
 	TimeActiveState time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"` // дата изменения статуса в Итилиум
 	// ServerId - ссылка на ServerSprRecords.Id: сервер, к которому подключена
 	// библиотека (по «Имя ПК»); 0 - не найден в справочнике серверов.

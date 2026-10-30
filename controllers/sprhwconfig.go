@@ -702,6 +702,7 @@ func (this *MainController) SprHwConfigEdit() {
 		// залогиненного пользователя, редактирующего карточку вручную.
 		formActive, _ := strconv.Atoi(this.GetString("Active"))
 		models.SetActiveWithAudit(&rec.Active, &rec.TimeActiveState, &rec.ActivatorUser, &rec.TimeDeActiveState, &rec.DeActivatorUser, formActive, currentUserId)
+		rec.ItiliumStatus, _ = strconv.Atoi(this.GetString("ItiliumStatus"))
 		rec.DeActivateInfo = this.GetString("DeActivateInfo")
 		rec.Vendor = this.GetString("Vendor")
 		rec.Model = this.GetString("Model")
@@ -802,6 +803,7 @@ func (this *MainController) SprHwConfigEdit() {
 	}
 
 	this.Data["HW"] = rec
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 	this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)

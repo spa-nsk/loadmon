@@ -126,8 +126,7 @@ composites:
     params:
       enum: status
 
-# ItiliumStatus: 0 не указано, 1 в работе, 2 выведен, 3 списан, 4 свободно,
-# 5 на складе, 6 зарезервирован, 7 в ремонте, 8 в пути, 9 черновик.
+# ItiliumStatus: см. models.ItiliumStatusList (0..9).
 enums:
   status:
     "В работе (эксплуатации)": "1"

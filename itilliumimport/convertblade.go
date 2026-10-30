@@ -62,7 +62,7 @@ func ConvertRowBlade(cfg *Config, row map[string]string) *ResultBlade {
 	}
 
 	for _, c := range cfg.Composites {
-		applyCompositeBlade(res, row, c)
+		applyCompositeBlade(cfg, res, row, c)
 	}
 
 	return res
@@ -93,12 +93,9 @@ func setTargetBlade(res *ResultBlade, target, out string) error {
 	return setReflectField(v, parts[1], out)
 }
 
-// applyCompositeBlade - аналог applyComposite (convert.go), сокращённый
-// набор составных преобразований, реально нужных для BladeSystems
-// (местоположение и размещение в стойке; словарь статусов/суммарная память
-// для шасси не нужны - в отличие от ServerSprRecords/ServerHardware, у
-// BladeSystems нет полей Active/Stat/MemoryMb).
-func applyCompositeBlade(res *ResultBlade, row map[string]string, c CompositeMapping) {
+// applyCompositeBlade - аналог applyComposite (convert.go): местоположение,
+// размещение в стойке и enum_multi для ItiliumStatus (см. blade_systems.yaml).
+func applyCompositeBlade(cfg *Config, res *ResultBlade, row map[string]string, c CompositeMapping) {
 	switch c.Name {
 	case "location_split":
 		compositeLocationSplitBlade(res, row, c)
@@ -106,8 +103,41 @@ func applyCompositeBlade(res *ResultBlade, row map[string]string, c CompositeMap
 		compositeRackUnitSplitBlade(res, row, c)
 	case "concat_extra":
 		compositeConcatExtraBlade(res, row, c)
+	case "enum_multi":
+		compositeEnumMultiBlade(cfg, res, row, c)
 	default:
 		res.warn("composite %q: неизвестное или неподдерживаемое для импорта блейд-корзин имя преобразования, пропущено", c.Name)
+	}
+}
+
+// compositeEnumMultiBlade - как compositeEnumMultiTape: "Статус" -> BladeSystems.ItiliumStatus.
+func compositeEnumMultiBlade(cfg *Config, res *ResultBlade, row map[string]string, c CompositeMapping) {
+	val, ok := sourceValue(row, c.Sources, 0)
+	if !ok || val == "" {
+		return
+	}
+	enumName := c.Params["enum"]
+	table := cfg.Enums[enumName]
+	if table == nil {
+		res.warn("enum_multi: словарь %q не найден (enums)", enumName)
+		return
+	}
+	mapped, ok := table[val]
+	if !ok {
+		res.warn("enum_multi: значение %q отсутствует в словаре %q", val, enumName)
+		res.Extra["status_raw"] = val
+		return
+	}
+	values := strings.Split(mapped, "|")
+	for i, target := range c.Targets {
+		if i >= len(values) {
+			break
+		}
+		if v := strings.TrimSpace(values[i]); v != "" {
+			if err := setTargetBlade(res, target, v); err != nil {
+				res.warn("enum_multi -> %s: %v", target, err)
+			}
+		}
 	}
 }
 

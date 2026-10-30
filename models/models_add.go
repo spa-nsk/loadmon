@@ -1184,6 +1184,8 @@ type BladeSystems struct {
 	Id                int64     `form:"Id"`
 	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"`               // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
 	Active            int       `form:"Active" csv:"Статус" json:"Active"`                                  // 0 не указано 1 активен 2 выведен из эксплуатации
+	// ItiliumStatus - статус по данным Итилиум; коды и имена - models.ItiliumStatusList.
+	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
 	Name              string    `form:"Name"`                                                               //короткое наименование
 	Vendor            string    `form:"Vendor"`                                                             //производитель
 	Model             string    `form:"Model"`                                                              //модель
@@ -1288,6 +1290,8 @@ type StorageSystems struct {
 	Model         string    `form:"Model"`                                                            //модель
 	PartNum       string    `form:"PartNum"`                                                          //код продукта у вендора
 	Status        int       `form:"Status"`                                                           //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
+	// ItiliumStatus - статус по данным Итилиум; коды и имена - models.ItiliumStatusList.
+	ItiliumStatus int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
 	Size          int       `form:"Size"`                                                             //максимальное количество дисков
 	Used          int       `form:"Used"`                                                             //общее количество установленных дисков
 	IpAddress     string    `form:"IpAddress"`                                                        //IP apec
@@ -1758,10 +1762,9 @@ type ServerHardware struct {
 	Id         int64 `form:"Id" csv:"%" json:"Id"`
 	PowerState int   `form:"PowerState" csv:"Состояние питания" json:"PowerState"` // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
 	Active     int   `form:"Active" csv:"Статус" json:"Active"`                    // 0 не указано 1 активен 2 выведен из эксплуатации
-	// ItiliumStatus - реальный статус сервера по данным Итилиум (rack и blade):
-	// 0 - не указано, 1 - в работе, 2 - выведен, 3 - списан, 4 - свободно,
-	// 5 - на складе, 6 - зарезервирован. Задел на будущее: заполняется при
-	// загрузке из Итилиум, на Active (статус эксплуатации в CMDB) не влияет.
+	// ItiliumStatus - реальный статус сервера по данным Итилиум (rack и blade);
+	// коды и имена - models.ItiliumStatusList. Заполняется при загрузке из
+	// Итилиум, на Active (статус эксплуатации в CMDB) не влияет.
 	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
 	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса" json:"TimeActiveState"`             // время изменения статуса активности введения в эксплуатацию
 	ActivatorUser     int64     `orm:"null" form:"ActivatorUser" csv:"Автор ввода в эксплуатацию" json:"ActivatorUser"`             // автор записи
@@ -2315,7 +2318,7 @@ type SwitchSprRecords struct {
 	// прежними (switch_spr_records), чтобы не потерять уже заведённые записи;
 	// имена новых полей совпадают с ServerHardware.
 	TypeId            int64     `orm:"null;default(0)" form:"TypeId" csv:"Тип оборудования (ссылка)"`   // FK на NetworkEquipmentType.Id
-	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум"`            // 0 не указано, 1 в работе, 2 выведен, 3 списан, 4 свободно, 5 на складе, 6 зарезервирован, 7 в ремонте, 8 в пути, 9 черновик
+	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум"`            // коды и имена - models.ItiliumStatusList
 	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса"`        //
 	MacAddress        string    `orm:"null" form:"MacAddress" csv:"MAC адрес"`                          //
 	StartUnitPos      int       `orm:"default(0)" form:"StartUnitPos" csv:"Номер юнита"`                //

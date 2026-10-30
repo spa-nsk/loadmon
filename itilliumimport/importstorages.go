@@ -235,10 +235,11 @@ func runImportItiliumStorage(name string, job *ImportProgress) {
 			st.InventoryNum = r.St.InventoryNum
 			st.InventoryNumBuh = r.St.InventoryNumBuh
 			st.TechnicalNumberIT = r.St.TechnicalNumberIT
+			st.ItiliumStatus = r.St.ItiliumStatus
 			st.Anotation = r.St.Anotation
 			st.Id_User = 9999
 			st.Time_Mfy = time.Now().Local()
-			if _, err := trn.Update(&st, "InventoryNum", "InventoryNumBuh", "TechnicalNumberIT", "Anotation", "Id_User", "Time_Mfy"); err != nil {
+			if _, err := trn.Update(&st, "InventoryNum", "InventoryNumBuh", "TechnicalNumberIT", "ItiliumStatus", "Anotation", "Id_User", "Time_Mfy"); err != nil {
 				log.Println("itilliumimport: ImportItiliumStorage(", name, ") - ошибка обновления st:", err)
 				trn.Rollback()
 				continue

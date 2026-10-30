@@ -216,10 +216,12 @@ func (this *MainController) SprRackCabinetView() {
 		}
 	}
 
-	// --- блейд-корзины и блейды в них (списанные и «в пути» блейды скрываем; у корзин нет ItiliumStatus) ---
+	// --- блейд-корзины и блейды в них (списанные и «в пути» скрываем) ---
 	var chassisRows []models.BladeSystems
 	if _, err := o.QueryTable(new(models.BladeSystems)).
-		Filter("RackCabinetId", id).OrderBy("StartUnitPos").All(&chassisRows); err != nil {
+		Filter("RackCabinetId", id).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+		OrderBy("StartUnitPos").All(&chassisRows); err != nil {
 		flash.Notice("Корзины не загружены: %v", err)
 	}
 	chassisIds := make([]int64, 0, len(chassisRows))
@@ -431,7 +433,7 @@ func (this *MainController) SprRackCabinetView() {
 		}
 		for _, p := range placements {
 			st, ok := stByID[p.StorageSystemsId]
-			if !ok || st.Status == 6 { // 6 - демонтирована
+			if !ok || st.Status == 6 || models.ItiliumStatusHiddenFromPlans(st.ItiliumStatus) { // 6 - демонтирована; 3/8 - списан/в пути
 				continue
 			}
 			sizeU := p.SizeUnit
@@ -585,8 +587,9 @@ func (this *MainController) SprRackCabinetView() {
 // Статусы Итилиум, скрываемые на планах площадок/ЦОД и в просмотре шкафа.
 // Остальное оборудование (в т.ч. выведенное) показываем.
 const (
-	itiliumStatusWrittenOff = 3 // списан
-	itiliumStatusInTransit  = 8 // в пути
+	// алиасы на общий перечень models.ItiliumStatus* (планы ЦОД/шкафа)
+	itiliumStatusWrittenOff = models.ItiliumStatusWrittenOff
+	itiliumStatusInTransit  = models.ItiliumStatusInTransit
 )
 
 // itiliumPower - состояние питания для оборудования без датчика питания по статусу Итилиум:

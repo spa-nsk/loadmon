@@ -74,6 +74,14 @@
                         </select>
                     </div>
                     <div class="col-4">
+                        <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
+                        <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
+                            {{range $s := .ItiliumStatuses}}
+                            <option value="{{$s.Value}}" {{if eq $.ST.ItiliumStatus $s.Value}}selected{{end}}>{{$s.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                    <div class="col-4">
                         <label for="Power" class="form-label">Питание</label>
                         <select id="Power" name="Power" class="form-select">
                             <option value="0" {{if eq .ST.Power 0}}selected{{end}}>Выключен</option>

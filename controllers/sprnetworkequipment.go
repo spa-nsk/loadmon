@@ -37,10 +37,6 @@ type NetworkEquipmentRow struct {
 	UnitText           string // "15" или "15-16" - занимаемые юниты
 }
 
-var networkEquipmentStatusNames = map[int]string{
-	0: "Не указано", 1: "В работе", 2: "Выведен", 3: "Списан", 4: "Свободно",
-	5: "На складе", 6: "Зарезервировано", 7: "В ремонте", 8: "В пути", 9: "Черновик",
-}
 
 // SprNetworkEquipment отображает список справочника сетевого оборудования
 // (models.SwitchSprRecords, таблица switch_spr_records - бывший справочник
@@ -89,6 +85,7 @@ func (this *MainController) SprNetworkEquipment() {
 		exportXLSX = this.GetString("ExportBTN2") == "Экспорт в XLSX"
 	}
 	this.Data[keyFilter] = filter
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 
 	o := orm.NewOrm()
 
@@ -246,7 +243,7 @@ func networkEquipmentExportTable(rows []NetworkEquipmentRow) ([]string, [][]stri
 	data := make([][]string, 0, len(rows))
 	for _, r := range rows {
 		data = append(data, []string{
-			strconv.FormatInt(r.Id, 10), r.TypeName, networkEquipmentStatusNames[r.ItiliumStatus], r.Name,
+			strconv.FormatInt(r.Id, 10), r.TypeName, models.ItiliumStatusName(r.ItiliumStatus), r.Name,
 			r.Vendor, r.Model, r.SerialNum, r.ManagementIp, r.MacAddress, r.TechnicalNumberIT, r.InventoryNum,
 			r.InventoryNumBuh, networkEquipmentPlacementText(r), strconv.Itoa(r.StartUnitPos), strconv.Itoa(r.SizeUnit),
 			r.NetworkRole, r.ReplacementModel, strconv.FormatFloat(r.Cost, 'f', 2, 64),
@@ -456,6 +453,7 @@ func (this *MainController) fillNetworkEquipmentEditData(o orm.Ormer, rec models
 	}
 	this.Data["LinkedNetworkIds"] = linkedIds
 	this.Data["SW"] = rec
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 	this.Data["DateContractDocStr"] = formatStorageSystemsDate(rec.DateContractDoc)
 	this.Data["TimeActiveStateStr"] = formatStorageSystemsDate(rec.TimeActiveState)
 }
