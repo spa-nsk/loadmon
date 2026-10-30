@@ -28,16 +28,9 @@
                 <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
                 <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
                     <option value="all" {{if eq .NetworkEquipmentFilter.ItiliumStatus "all"}}selected{{end}}>Все</option>
-                    <option value="1" {{if eq .NetworkEquipmentFilter.ItiliumStatus "1"}}selected{{end}}>В работе</option>
-                    <option value="2" {{if eq .NetworkEquipmentFilter.ItiliumStatus "2"}}selected{{end}}>Выведен</option>
-                    <option value="3" {{if eq .NetworkEquipmentFilter.ItiliumStatus "3"}}selected{{end}}>Списан</option>
-                    <option value="4" {{if eq .NetworkEquipmentFilter.ItiliumStatus "4"}}selected{{end}}>Свободно</option>
-                    <option value="5" {{if eq .NetworkEquipmentFilter.ItiliumStatus "5"}}selected{{end}}>На складе</option>
-                    <option value="6" {{if eq .NetworkEquipmentFilter.ItiliumStatus "6"}}selected{{end}}>Зарезервировано</option>
-                    <option value="7" {{if eq .NetworkEquipmentFilter.ItiliumStatus "7"}}selected{{end}}>В ремонте</option>
-                    <option value="8" {{if eq .NetworkEquipmentFilter.ItiliumStatus "8"}}selected{{end}}>В пути</option>
-                    <option value="9" {{if eq .NetworkEquipmentFilter.ItiliumStatus "9"}}selected{{end}}>Черновик</option>
-                    <option value="0" {{if eq .NetworkEquipmentFilter.ItiliumStatus "0"}}selected{{end}}>Не указано</option>
+                    {{range $s := .ItiliumStatuses}}
+                    <option value="{{$s.Value}}" {{if eq $.NetworkEquipmentFilter.ItiliumStatus (printf "%d" $s.Value)}}selected{{end}}>{{$s.Name}}</option>
+                    {{end}}
                 </select>
             </div>
             <div class="col-6 col-md-3">

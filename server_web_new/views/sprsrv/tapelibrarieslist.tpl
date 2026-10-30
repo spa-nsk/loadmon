@@ -18,13 +18,9 @@
                 <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
                 <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
                     <option value="all" {{if eq .TapeLibrariesFilter.ItiliumStatus "all"}}selected{{end}}>Все</option>
-                    <option value="1" {{if eq .TapeLibrariesFilter.ItiliumStatus "1"}}selected{{end}}>В работе</option>
-                    <option value="2" {{if eq .TapeLibrariesFilter.ItiliumStatus "2"}}selected{{end}}>Выведен</option>
-                    <option value="3" {{if eq .TapeLibrariesFilter.ItiliumStatus "3"}}selected{{end}}>Списан</option>
-                    <option value="4" {{if eq .TapeLibrariesFilter.ItiliumStatus "4"}}selected{{end}}>Свободно</option>
-                    <option value="5" {{if eq .TapeLibrariesFilter.ItiliumStatus "5"}}selected{{end}}>На складе</option>
-                    <option value="6" {{if eq .TapeLibrariesFilter.ItiliumStatus "6"}}selected{{end}}>Зарезервировано</option>
-                    <option value="0" {{if eq .TapeLibrariesFilter.ItiliumStatus "0"}}selected{{end}}>Не указано</option>
+                    {{range $s := .ItiliumStatuses}}
+                    <option value="{{$s.Value}}" {{if eq $.TapeLibrariesFilter.ItiliumStatus (printf "%d" $s.Value)}}selected{{end}}>{{$s.Name}}</option>
+                    {{end}}
                 </select>
             </div>
             <div class="col-6 col-md-3">
@@ -102,7 +98,7 @@
                 <td class="text-end">{{$tl.Id}}</td>
                 <td>
                     <span class="badge {{if eq $tl.ItiliumStatus 1}}text-bg-success{{else if eq $tl.ItiliumStatus 3}}text-bg-dark{{else if or (eq $tl.ItiliumStatus 2) (eq $tl.ItiliumStatus 5)}}text-bg-secondary{{else}}text-bg-light{{end}}">
-                        {{if eq $tl.ItiliumStatus 1}}В работе{{else if eq $tl.ItiliumStatus 2}}Выведен{{else if eq $tl.ItiliumStatus 3}}Списан{{else if eq $tl.ItiliumStatus 4}}Свободно{{else if eq $tl.ItiliumStatus 5}}На складе{{else if eq $tl.ItiliumStatus 6}}Зарезервировано{{else}}Не указано{{end}}
+                        {{if eq $tl.ItiliumStatus 1}}В работе{{else if eq $tl.ItiliumStatus 2}}Выведен{{else if eq $tl.ItiliumStatus 3}}Списан{{else if eq $tl.ItiliumStatus 4}}Свободно{{else if eq $tl.ItiliumStatus 5}}На складе{{else if eq $tl.ItiliumStatus 6}}Зарезервировано{{else if eq $tl.ItiliumStatus 7}}В ремонте{{else if eq $tl.ItiliumStatus 8}}В пути{{else if eq $tl.ItiliumStatus 9}}Черновик{{else}}Не указано{{end}}
                     </span>
                 </td>
                 <td><a href="/sprsrv/tapelibrariesedit/{{$tl.Id}}" target="_blank">{{if $tl.Name}}{{$tl.Name}}{{else}}{{$tl.TechnicalNumberIT}}{{end}}</a></td>

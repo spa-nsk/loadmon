@@ -32,6 +32,7 @@ import (
 type StorageSystemsFilter struct {
 	TypeWork      string `form:"TypeWork"`
 	Status        string `form:"Status"`
+	ItiliumStatus string `form:"ItiliumStatus"`
 	Vendor        string `form:"Vendor"`
 	Model         string `form:"Model"`
 	ShortName     string `form:"ShortName"`
@@ -48,8 +49,8 @@ func defaultStorageSystemsFilter() *StorageSystemsFilter {
 	// сразу показываются только реально эксплуатируемые СХД, а не весь
 	// справочник вперемешку с демонтированными/тестовыми записями - тот же
 	// принцип, что уже применён к умолчаниям TypeWork/RackCabinetId в этой
-	// же структуре.
-	return &StorageSystemsFilter{TypeWork: "all", Status: "1", RackCabinetId: "0"}
+	// же структуре. ItiliumStatus - "all" (поле новое, у старых записей часто 0).
+	return &StorageSystemsFilter{TypeWork: "all", Status: "1", ItiliumStatus: "all", RackCabinetId: "0"}
 }
 
 // SprStorageSystems отображает список записей справочника СХД
@@ -115,6 +116,7 @@ func (this *MainController) SprStorageSystems() {
 	}
 
 	this.Data[keyFilter] = filter
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 
 	o := orm.NewOrm()
 
@@ -139,6 +141,11 @@ func (this *MainController) SprStorageSystems() {
 	if filter.Status != "" && filter.Status != "all" {
 		if v, err := strconv.Atoi(filter.Status); err == nil {
 			qs = qs.Filter("Status", v)
+		}
+	}
+	if filter.ItiliumStatus != "" && filter.ItiliumStatus != "all" {
+		if v, err := strconv.Atoi(filter.ItiliumStatus); err == nil {
+			qs = qs.Filter("ItiliumStatus", v)
 		}
 	}
 	if filter.Vendor != "" {
@@ -628,6 +635,7 @@ func (this *MainController) SprStorageSystemsEdit() {
 
 		rec.TypeWork = parseIntField("Тип использования", "TypeWork")
 		rec.Status = parseIntField("Состояние", "Status")
+		rec.ItiliumStatus = parseIntField("Статус Итилиум", "ItiliumStatus")
 		rec.Power = parseIntField("Питание", "Power")
 		rec.ApiType = parseIntField("Тип API", "ApiType")
 
@@ -734,6 +742,7 @@ func (this *MainController) SprStorageSystemsEdit() {
 	this.Data["Placements"] = placements
 
 	this.Data["ST"] = rec
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 	this.Data["AdCertDateStr"] = formatStorageSystemsDate(rec.AdCertDate)
 	this.Data["DateContractDocStr"] = formatStorageSystemsDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatStorageSystemsDate(rec.DateInvoice)

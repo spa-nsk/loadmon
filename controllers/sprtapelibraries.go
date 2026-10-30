@@ -78,6 +78,7 @@ func (this *MainController) SprTapeLibraries() {
 		exportXLSX = this.GetString("ExportBTN2") == "Экспорт в XLSX"
 	}
 	this.Data[keyFilter] = filter
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 
 	o := orm.NewOrm()
 
@@ -344,13 +345,9 @@ func (this *MainController) fillTapeLibraryEditData(o orm.Ormer, rec models.Tape
 	this.Data["DatacenterSites"] = dcSites
 
 	this.Data["TL"] = rec
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 	this.Data["ServerName"] = tapeLibraryServerNames(o, []int64{rec.ServerId})[rec.ServerId]
 	this.Data["DateContractDocStr"] = formatStorageSystemsDate(rec.DateContractDoc)
-}
-
-var tapeLibraryStatusNames = map[int]string{
-	0: "Не указано", 1: "В работе", 2: "Выведен", 3: "Списан",
-	4: "Свободно", 5: "На складе", 6: "Зарезервировано",
 }
 
 // tapeLibraryExportTable - заголовок и строки выгрузки списка (читаемые значения:
@@ -363,7 +360,7 @@ func tapeLibraryExportTable(rows []tapeLibraryRow) ([]string, [][]string) {
 	data := make([][]string, 0, len(rows))
 	for _, r := range rows {
 		data = append(data, []string{
-			strconv.FormatInt(r.Id, 10), tapeLibraryStatusNames[r.ItiliumStatus], r.Name, r.Model, r.SerialNum,
+			strconv.FormatInt(r.Id, 10), models.ItiliumStatusName(r.ItiliumStatus), r.Name, r.Model, r.SerialNum,
 			r.IPAddress, r.TechnicalNumberIT, r.InventoryNum, r.InventoryNumBuh, r.PcName, r.ServerName,
 			r.Placement, strconv.Itoa(r.StartUnitPos), strconv.Itoa(r.SizeUnit), r.Owner, r.Counterparty,
 			r.ContractDoc, formatStorageSystemsDate(r.DateContractDoc), r.Anotation,

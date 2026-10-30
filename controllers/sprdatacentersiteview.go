@@ -137,10 +137,11 @@ func (this *MainController) SprDatacenterSiteView() {
 			}
 		}
 	}
-	// корзины и блейды в них (у корзин нет ItiliumStatus - показываем все с размещением в шкафу)
+	// корзины и блейды в них (списанные и «в пути» корзины не считаем)
 	var chassis []models.BladeSystems
 	chassisRack := map[int64]int64{}
 	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId__in", ids).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		All(&chassis, "Id", "RackCabinetId"); err == nil {
 		chIds := make([]int64, 0, len(chassis))
 		for _, c := range chassis {
@@ -175,9 +176,9 @@ func (this *MainController) SprDatacenterSiteView() {
 		stOK := map[int64]bool{}
 		var stRows []models.StorageSystems
 		if len(stIds) > 0 {
-			if _, e := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", stIds).Limit(-1).All(&stRows, "Id", "Status"); e == nil {
+			if _, e := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", stIds).Limit(-1).All(&stRows, "Id", "Status", "ItiliumStatus"); e == nil {
 				for _, st := range stRows {
-					stOK[st.Id] = st.Status != 6
+					stOK[st.Id] = st.Status != 6 && !models.ItiliumStatusHiddenFromPlans(st.ItiliumStatus)
 				}
 			}
 		}
@@ -299,6 +300,7 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 	}
 	var chassis []models.BladeSystems
 	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId", rackId).
+		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
 		Limit(-1).All(&chassis, "Id", "Vendor", "Model", "SizeUnit", "PowerState"); err == nil {
 		for _, c := range chassis {
 			items = append(items, dcShelfItem{Kind: "chassis", Vendor: c.Vendor + " " + c.Model, U: c.SizeUnit, Power: c.PowerState})
@@ -313,14 +315,14 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 		}
 		byId := map[int64]models.StorageSystems{}
 		var sts []models.StorageSystems
-		if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", ids).Limit(-1).All(&sts, "Id", "Vendor", "Model", "Status", "Power"); err == nil {
+		if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", ids).Limit(-1).All(&sts, "Id", "Vendor", "Model", "Status", "ItiliumStatus", "Power"); err == nil {
 			for _, st := range sts {
 				byId[st.Id] = st
 			}
 		}
 		for _, p := range pl {
 			st, ok := byId[p.StorageSystemsId]
-			if !ok || st.Status == 6 {
+			if !ok || st.Status == 6 || models.ItiliumStatusHiddenFromPlans(st.ItiliumStatus) {
 				continue
 			}
 			pw := 2

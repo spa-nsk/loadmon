@@ -32,14 +32,16 @@ type BladeSystemsFilter struct {
 	SerialNum         string `form:"SerialNum"`
 	TechnicalNumberIT string `form:"TechnicalNumberIT"`
 	Active            string `form:"Active"`
+	ItiliumStatus     string `form:"ItiliumStatus"`
 }
 
 // defaultBladeSystemsFilter - фильтр по умолчанию для свежей сессии
 // (см. keyFilter в SprBladeSystems). Active по умолчанию "1" (только
 // активные корзины) - по запросу пользователя, в отличие от остальных
-// текстовых полей (пустая строка - "без фильтра").
+// текстовых полей (пустая строка - "без фильтра"). ItiliumStatus - "all"
+// (поле новое, у старых записей часто 0).
 func defaultBladeSystemsFilter() *BladeSystemsFilter {
-	return &BladeSystemsFilter{Active: "1"}
+	return &BladeSystemsFilter{Active: "1", ItiliumStatus: "all"}
 }
 
 // SprBladeSystems отображает список записей справочника блейд-корзин
@@ -102,6 +104,7 @@ func (this *MainController) SprBladeSystems() {
 	}
 
 	this.Data[keyFilter] = filter
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 
 	o := orm.NewOrm()
 	qs := o.QueryTable("blade_systems")
@@ -127,6 +130,11 @@ func (this *MainController) SprBladeSystems() {
 	if filter.Active != "" && filter.Active != "all" {
 		if v, err := strconv.Atoi(filter.Active); err == nil {
 			qs = qs.Filter("Active", v)
+		}
+	}
+	if filter.ItiliumStatus != "" && filter.ItiliumStatus != "all" {
+		if v, err := strconv.Atoi(filter.ItiliumStatus); err == nil {
+			qs = qs.Filter("ItiliumStatus", v)
 		}
 	}
 
@@ -496,6 +504,7 @@ func (this *MainController) SprBladeSystemsEdit() {
 
 		rec.PowerState, _ = strconv.Atoi(this.GetString("PowerState"))
 		rec.Active, _ = strconv.Atoi(this.GetString("Active"))
+		rec.ItiliumStatus, _ = strconv.Atoi(this.GetString("ItiliumStatus"))
 		rec.TechnicalNumberIT = this.GetString("TechnicalNumberIT")
 
 		rec.InventoryNum = this.GetString("InventoryNum")
@@ -549,6 +558,7 @@ func (this *MainController) SprBladeSystemsEdit() {
 	this.Data["RackCabinets"] = racks
 
 	this.Data["BS"] = rec
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 	this.Data["DateContractDocStr"] = formatBladeSystemsDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatBladeSystemsDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatBladeSystemsDate(rec.DateService)

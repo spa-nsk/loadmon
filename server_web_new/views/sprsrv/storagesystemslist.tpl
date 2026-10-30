@@ -36,6 +36,15 @@
                 </select>
             </div>
             <div class="col-6 col-md-3">
+                <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
+                <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
+                    <option value="all" {{if eq .StorageSystemsFilter.ItiliumStatus "all"}}selected{{end}}>Все</option>
+                    {{range $s := .ItiliumStatuses}}
+                    <option value="{{$s.Value}}" {{if eq $.StorageSystemsFilter.ItiliumStatus (printf "%d" $s.Value)}}selected{{end}}>{{$s.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
                 <label for="Vendor" class="form-label">Производитель</label>
                 <input type="text" id="Vendor" name="Vendor" class="form-control" value="{{.StorageSystemsFilter.Vendor}}" placeholder="например, Huawei">
             </div>

@@ -47,6 +47,15 @@
                     <option value="2" {{if eq .BladeSystemsFilter.Active "2"}}selected{{end}}>Выведен из эксплуатации</option>
                 </select>
             </div>
+            <div class="col-6 col-md-3">
+                <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
+                <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
+                    <option value="all" {{if eq .BladeSystemsFilter.ItiliumStatus "all"}}selected{{end}}>Все</option>
+                    {{range $s := .ItiliumStatuses}}
+                    <option value="{{$s.Value}}" {{if eq $.BladeSystemsFilter.ItiliumStatus (printf "%d" $s.Value)}}selected{{end}}>{{$s.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
         </div>
         <div class="row mt-3">
             <div class="col-12 d-flex flex-wrap align-items-center gap-2">

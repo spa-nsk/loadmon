@@ -34,16 +34,9 @@
             <div class="col-3">
                 <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
                 <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
-                    <option value="0" {{if eq .SW.ItiliumStatus 0}}selected{{end}}>Не указано</option>
-                    <option value="1" {{if eq .SW.ItiliumStatus 1}}selected{{end}}>В работе</option>
-                    <option value="2" {{if eq .SW.ItiliumStatus 2}}selected{{end}}>Выведен</option>
-                    <option value="3" {{if eq .SW.ItiliumStatus 3}}selected{{end}}>Списан</option>
-                    <option value="4" {{if eq .SW.ItiliumStatus 4}}selected{{end}}>Свободно</option>
-                    <option value="5" {{if eq .SW.ItiliumStatus 5}}selected{{end}}>На складе</option>
-                    <option value="6" {{if eq .SW.ItiliumStatus 6}}selected{{end}}>Зарезервировано</option>
-                    <option value="7" {{if eq .SW.ItiliumStatus 7}}selected{{end}}>В ремонте</option>
-                    <option value="8" {{if eq .SW.ItiliumStatus 8}}selected{{end}}>В пути</option>
-                    <option value="9" {{if eq .SW.ItiliumStatus 9}}selected{{end}}>Черновик</option>
+                    {{range $s := .ItiliumStatuses}}
+                    <option value="{{$s.Value}}" {{if eq $.SW.ItiliumStatus $s.Value}}selected{{end}}>{{$s.Name}}</option>
+                    {{end}}
                 </select>
             </div>
             <div class="col-6">

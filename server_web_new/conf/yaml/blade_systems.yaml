@@ -152,3 +152,25 @@ composites:
       - "BladeSystems.EndUnitPos"
     params:
       separator: "|"
+
+  # Статус Итиллиум -> BladeSystems.ItiliumStatus (см. models.ItiliumStatusList).
+  # Колонка "Статус" в выгрузке корзин; если отсутствует - composite ничего не пишет.
+  - name: enum_multi
+    sources: ["Статус"]
+    targets:
+      - "BladeSystems.ItiliumStatus"
+    params:
+      enum: status
+
+# ItiliumStatus: см. models.ItiliumStatusList (0..9).
+enums:
+  status:
+    "В работе (эксплуатации)": "1"
+    "Выведен": "2"
+    "Списан": "3"
+    "Свободно": "4"
+    "На складе": "5"
+    "Зарезервировано": "6"
+    "В ремонте": "7"
+    "В пути": "8"
+    "Черновик": "9"

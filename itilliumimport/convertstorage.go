@@ -65,7 +65,7 @@ func ConvertRowStorage(cfg *Config, row map[string]string) *ResultStorage {
 	}
 
 	for _, c := range cfg.Composites {
-		applyCompositeStorage(res, row, c)
+		applyCompositeStorage(cfg, res, row, c)
 	}
 
 	return res
@@ -97,10 +97,9 @@ func setTargetStorage(res *ResultStorage, target, out string) error {
 	return setReflectField(v, parts[1], out)
 }
 
-// applyCompositeStorage - аналог applyCompositeBlade (convertblade.go),
-// набор составных преобразований, нужных для StorageSystems (местоположение,
-// размещение в стойке, "сырое" размещение целиком для Anotation).
-func applyCompositeStorage(res *ResultStorage, row map[string]string, c CompositeMapping) {
+// applyCompositeStorage - аналог applyCompositeBlade: местоположение,
+// размещение в стойке, сырое размещение для Anotation и enum_multi для ItiliumStatus.
+func applyCompositeStorage(cfg *Config, res *ResultStorage, row map[string]string, c CompositeMapping) {
 	switch c.Name {
 	case "location_split":
 		compositeLocationSplitStorage(res, row, c)
@@ -108,8 +107,42 @@ func applyCompositeStorage(res *ResultStorage, row map[string]string, c Composit
 		compositeRackUnitSplitStorage(res, row, c)
 	case "concat_extra":
 		compositeConcatExtraStorage(res, row, c)
+	case "enum_multi":
+		compositeEnumMultiStorage(cfg, res, row, c)
 	default:
 		res.warn("composite %q: неизвестное или неподдерживаемое для импорта СХД имя преобразования, пропущено", c.Name)
+	}
+}
+
+// compositeEnumMultiStorage - "Статус" -> StorageSystems.ItiliumStatus
+// (текстовый статус по-прежнему уходит в Anotation через extra.status).
+func compositeEnumMultiStorage(cfg *Config, res *ResultStorage, row map[string]string, c CompositeMapping) {
+	val, ok := sourceValue(row, c.Sources, 0)
+	if !ok || val == "" {
+		return
+	}
+	enumName := c.Params["enum"]
+	table := cfg.Enums[enumName]
+	if table == nil {
+		res.warn("enum_multi: словарь %q не найден (enums)", enumName)
+		return
+	}
+	mapped, ok := table[val]
+	if !ok {
+		res.warn("enum_multi: значение %q отсутствует в словаре %q", val, enumName)
+		res.Extra["status_raw"] = val
+		return
+	}
+	values := strings.Split(mapped, "|")
+	for i, target := range c.Targets {
+		if i >= len(values) {
+			break
+		}
+		if v := strings.TrimSpace(values[i]); v != "" {
+			if err := setTargetStorage(res, target, v); err != nil {
+				res.warn("enum_multi -> %s: %v", target, err)
+			}
+		}
 	}
 }
 

@@ -69,6 +69,14 @@
                             <option value="3" {{if eq .HW.Active 3}}selected{{end}}>Списан</option>
                         </select>
                     </div>
+                    <div class="col-6">
+                        <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
+                        <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
+                            {{range $s := .ItiliumStatuses}}
+                            <option value="{{$s.Value}}" {{if eq $.HW.ItiliumStatus $s.Value}}selected{{end}}>{{$s.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
                     <div class="col-12">
                         <label for="DeActivateInfo" class="form-label">Причина деактивации/списания</label>
                         <input type="text" id="DeActivateInfo" name="DeActivateInfo" class="form-control" value="{{.HW.DeActivateInfo}}" placeholder="Например: списан по акту №..., заменён на ...">

@@ -228,6 +228,7 @@ func runImportItiliumBlade(name string, job *ImportProgress) {
 			bs.RackCabinetId = r.Bs.RackCabinetId
 			bs.PowerState = r.Bs.PowerState
 			bs.Active = r.Bs.Active
+			bs.ItiliumStatus = r.Bs.ItiliumStatus
 			bs.Anotation = r.Bs.Anotation
 			bs.InventoryNum = r.Bs.InventoryNum
 			bs.InventoryNumBuh = r.Bs.InventoryNumBuh
@@ -241,7 +242,7 @@ func runImportItiliumBlade(name string, job *ImportProgress) {
 			bs.SizeUnit = r.Bs.SizeUnit
 			bs.Id_User = 9999
 			bs.Time_Mfy = time.Now().Local()
-			if _, err := trn.Update(&bs, "RackCabinetId", "PowerState", "Active", "Anotation", "StartUnitPos", "EndUnitPos", "SizeUnit", "InventoryNum", "InventoryNumBuh", "TechnicalNumberIT", "Id_User", "Time_Mfy"); err != nil {
+			if _, err := trn.Update(&bs, "RackCabinetId", "PowerState", "Active", "ItiliumStatus", "Anotation", "StartUnitPos", "EndUnitPos", "SizeUnit", "InventoryNum", "InventoryNumBuh", "TechnicalNumberIT", "Id_User", "Time_Mfy"); err != nil {
 				log.Println("itilliumimport: ImportItiliumBlade(", name, ") - ошибка обновления bs:", err)
 				trn.Rollback()
 				continue

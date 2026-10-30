@@ -238,17 +238,32 @@ composites:
       - "Память (2), кол."
     targets: ["ServerHardware.MemoryMb"]
 
-  # Статус Итиллиум -> (ServerSprRecords.Active, ServerSprRecords.Stat,
-  # ServerHardware.Active). Формат значения в enums.status - три числа через
-  # "|" в порядке targets. Если встретится статус, которого нет в этом
-  # словаре - все три поля останутся 0, а исходный текст попадёт в
-  # extra.status_raw (см. convert.go) для ручной донастройки словаря.
+  # Статус Итиллиум -> шесть полей (ИЗМЕНЕНО 2026-10-21, было три:
+  # Active/Stat/HwActive). Формат значения в enums.status - шесть чисел через
+  # "|" в порядке targets:
+  #   1. ServerSprRecords.Stat          - запись справочника используется
+  #   2. ServerSprRecords.PowerState    - НОВОЕ: 1 включен, 2 выключен
+  #   3. ServerSprRecords.Active        - 1 активен, 2 выведен из эксплуатации
+  #   4. ServerHardware.PowerState      - НОВОЕ: 1 включен, 2 выключен
+  #   5. ServerHardware.Active          - 1 активен, 2 выведен из эксплуатации
+  #   6. ServerHardware.ItiliumStatus   - НОВОЕ: реальный статус по Итиллиум,
+  #      0 не указано, 1 в работе, 2 выведен, 3 списан, 4 свободно,
+  #      5 на складе, 6 зарезервирован
+  # Раньше "Свободно" и "На складе" давали Active=1 и были неотличимы от
+  # "В работе"; теперь они помечаются как выключенные и не в эксплуатации
+  # (PowerState=2, Active=2), а различаются через ItiliumStatus. Добавлен
+  # статус "Зарезервировано" (как в выгрузке блейд-серверов). Если встретится
+  # статус, которого нет в словаре - все шесть полей останутся 0, а исходный
+  # текст попадёт в extra.status_raw (см. convert.go) для донастройки словаря.
   - name: enum_multi
     sources: ["Статус"]
     targets:
-      - "ServerSprRecords.Active"
       - "ServerSprRecords.Stat"
+      - "ServerSprRecords.PowerState"
+      - "ServerSprRecords.Active"
+      - "ServerHardware.PowerState"
       - "ServerHardware.Active"
+      - "ServerHardware.ItiliumStatus"
     params:
       enum: status
 
@@ -272,10 +287,20 @@ composites:
 # ServerSprRecords.Stat:   0 историческая запись, 1 используется,
 #                          2 помечено для удаления, 3 архивная запись.
 # ServerHardware.Active:   0 не указано, 1 активен, 2 выведен из эксплуатации.
+# PowerState (Spr и Hw):   0 не указано, 1 включен, 2 выключен.
+# ServerHardware.ItiliumStatus: см. models.ItiliumStatusList (0..9).
+# Ранее: 0 не указано, 1 в работе, 2 выведен, 3 списан,
+#                          4 свободно, 5 на складе, 6 зарезервирован.
+#
+# Кортеж: Spr.Stat | Spr.PowerState | Spr.Active | Hw.PowerState | Hw.Active | Hw.ItiliumStatus
 enums:
   status:
-    "В работе (эксплуатации)": "1|1|1"
-    "Выведен": "2|1|2"
-    "Списан": "2|2|2"
-    "Свободно": "1|1|1"
-    "На складе": "1|1|1"
+    "В работе (эксплуатации)": "1|1|1|1|1|1"  # включен, активен, ItiliumStatus=1 в работе
+    "Выведен": "1|2|2|2|2|2"                  # выключен, выведен из эксплуатации, запись остаётся, ItiliumStatus=2
+    "Списан": "2|2|2|2|2|3"                   # как "Выведен", но Spr.Stat=2 (на удаление), ItiliumStatus=3 списан
+    "Свободно": "1|2|2|2|2|4"                 # выключен, не в эксплуатации, ItiliumStatus=4 свободно
+    "На складе": "1|2|2|2|2|5"                # выключен, не в эксплуатации, ItiliumStatus=5 на складе
+    "Зарезервировано": "1|2|2|2|2|6"          # выключен, не в эксплуатации, ItiliumStatus=6 зарезервирован
+    "В ремонте": "1|2|2|2|2|7"               # выключен, не в эксплуатации, ItiliumStatus=7 в ремонте
+    "В пути": "1|2|2|2|2|8"                  # выключен, не в эксплуатации, ItiliumStatus=8 в пути
+    "Черновик": "1|2|2|2|2|9"                # выключен, не в эксплуатации, ItiliumStatus=9 черновик

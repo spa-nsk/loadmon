@@ -85,6 +85,14 @@
                         </select>
                     </div>
                     <div class="col-3">
+                        <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
+                        <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
+                            {{range $s := .ItiliumStatuses}}
+                            <option value="{{$s.Value}}" {{if eq $.BS.ItiliumStatus $s.Value}}selected{{end}}>{{$s.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                    <div class="col-3">
                         <label for="Size" class="form-label">Количество слотов</label>
                         <input type="number" id="Size" name="Size" class="form-control" value="{{.BS.Size}}">
                     </div>

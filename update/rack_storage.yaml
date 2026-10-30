@@ -31,15 +31,12 @@
 # (это ключевой физический идентификатор дискового массива), см.
 # importstorages.go:runImportItiliumStorage. Строки без S/N пропускаются.
 #
-# ⚠️ Колонка "Статус" НЕ мапится напрямую в StorageSystems.Status (числовое
-# перечисление 0-6 с другим набором значений, см. models_add.go) - текстовое
-# значение колонки ("Списан", "В работе (эксплуатации)" и т.п.) копируется в
-# extra.status и подставляется importstorages.go в НАЧАЛО StorageSystems.
-# Anotation (по прямому запросу пользователя выше) - перекладывать его в
-# Status можно было бы только по словарю соответствий текст->код, которого
-# Итиллиум не даёт в готовом виде, поэтому решение оставлено как есть -
-# текстовый статус виден в Anotation, а числовой Status правится вручную при
-# необходимости.
+# Колонка "Статус":
+#  1) текст по-прежнему в extra.status -> начало StorageSystems.Anotation
+#     (запрос пользователя "поле Статус копируй в начало Anotation");
+#  2) через composite enum_multi -> StorageSystems.ItiliumStatus
+#     (models.ItiliumStatusList). Числовой StorageSystems.Status (0..6
+#     «используется/демонтирован/…») из выгрузки не заполняется.
 
 source_sheet: export
 
@@ -168,3 +165,25 @@ composites:
     targets: ["extra.rack_placement_raw"]
     params:
       separator: "; "
+
+  # Статус Итиллиум -> StorageSystems.ItiliumStatus (текст статуса параллельно
+  # уходит в Anotation через fields/extra.status выше).
+  - name: enum_multi
+    sources: ["Статус"]
+    targets:
+      - "StorageSystems.ItiliumStatus"
+    params:
+      enum: status
+
+# ItiliumStatus: см. models.ItiliumStatusList (0..9).
+enums:
+  status:
+    "В работе (эксплуатации)": "1"
+    "Выведен": "2"
+    "Списан": "3"
+    "Свободно": "4"
+    "На складе": "5"
+    "Зарезервировано": "6"
+    "В ремонте": "7"
+    "В пути": "8"
+    "Черновик": "9"
