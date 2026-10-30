@@ -28,6 +28,7 @@ type rackViewKV struct {
 
 // rackViewBlade - блейд-сервер в слоте корзины (ServerHardware, FormFactor=2).
 type rackViewBlade struct {
+	Id    int64          `json:"id"` // ServerHardware.Id блейда (для подсветки по ?hw=)
 	Slot  int            `json:"slot"`
 	Name  string         `json:"name"`
 	Model string         `json:"model"`
@@ -401,7 +402,7 @@ func (this *MainController) SprRackCabinetView() {
 			brows, blinks, bname := serverRowsLinks(b)
 			brows = rackViewKVAdd(brows, "Учёт в мощности шкафа", "не суммируется отдельно (учтена в мощности корзины)")
 			blades = append(blades, rackViewBlade{
-				Slot: b.BladeNum, Name: bname, Model: firstNonEmpty(b.Model, b.ShortModel),
+				Id: b.Id, Slot: b.BladeNum, Name: bname, Model: firstNonEmpty(b.Model, b.ShortModel),
 				Power: rackViewPower(b.PowerState), Rows: brows, Links: blinks,
 			})
 		}

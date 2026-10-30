@@ -652,6 +652,7 @@ document.addEventListener('DOMContentLoaded', function () {
                          "Подробнее"/"Загрузка" и разделителя между ними - по запросу. -->
                     <a class="ctx-menu-item" href="/sprsrv/updatebase/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Редактировать</a>
                     {{if and (or (eq $record.S.Type 0) (eq $record.S.Type 2)) (ne $record.S.SerialNumber "") }}<a class="ctx-menu-item" href="/sprsrv/hwconfeditbysn/{{$record.S.SerialNumber}}" target="_blank">Конфигурация сервера</a>{{end}}
+                    <a class="ctx-menu-item" href="/sprsrv/location-uri/{{$record.S.Id}}" target="_blank">Расположение сервера на Площадке/ЦОД</a>
                     <!-- Пункты "Детали по виртуальной машине"/"Размещение виртуальной машины"
                          (controllers.SprSrvUpdateVM/SprSrvUpdateVMCluster) убраны - методы не
                          реализованы, маршруты закомментированы в routers/routers.go. -->
