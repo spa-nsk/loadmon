@@ -163,17 +163,74 @@
         var a = stops[i], b = stops[i + 1];
         return Math.round(a[0] + (b[0] - a[0]) * f) + ',' + Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f);
     }
-    // столб + светящееся "навершие" на крыше шкафа (cx, cy - центр крыши в экранных координатах)
-    function drawGlow(cx, cy, bw, bh, frac, dark, mode) {
-        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.32 : 0.5) + (dark ? 0.4 : 0.35) * frac;
+    // анимированный световой столб с языками пламени; высота/ширина по-прежнему от мощности (frac)
+    function drawGlow(cx, cy, bw, bh, frac, dark, mode, seed) {
+        var t = flowT, ph0 = (seed || 0) * 0.618;
+        var rgb = glowRGB(frac, dark);
+        var rgbHot = '255,244,200', rgbCool = '249,115,22';
+        var aBase = (dark ? 0.28 : 0.42) + (dark ? 0.35 : 0.3) * frac;
+        var flick = 0.92 + 0.08 * Math.sin(t * 3.1 + ph0) + 0.04 * Math.sin(t * 7.4 + ph0 * 2);
+        var H = bh * flick, W = bw * (0.92 + 0.08 * Math.sin(t * 2.2 + ph0));
         ctx.save();
         ctx.globalCompositeOperation = mode;
-        ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + rgb + ',' + a0.toFixed(2) + ')'], [1, 'rgba(' + rgb + ',0)']]);
-        ctx.fillRect(cx - bw / 2, cy - bh, bw, bh);
-        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, a0 + 0.3).toFixed(2) + ')';
-        ctx.beginPath(); ctx.ellipse(cx, cy, bw * 0.52, bw * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+        // мягкий столб-основание (конус вверх)
+        var g0 = ctx.createLinearGradient(0, cy, 0, cy - H);
+        g0.addColorStop(0, 'rgba(' + rgb + ',' + aBase.toFixed(2) + ')');
+        g0.addColorStop(0.55, 'rgba(' + rgb + ',' + (aBase * 0.45).toFixed(2) + ')');
+        g0.addColorStop(1, 'rgba(' + rgb + ',0)');
+        ctx.fillStyle = g0;
+        ctx.beginPath();
+        ctx.moveTo(cx - W * 0.48, cy);
+        ctx.quadraticCurveTo(cx - W * 0.22, cy - H * 0.55, cx + Math.sin(t * 2.6 + ph0) * W * 0.06, cy - H);
+        ctx.quadraticCurveTo(cx + W * 0.22, cy - H * 0.55, cx + W * 0.48, cy);
+        ctx.closePath();
+        ctx.fill();
+        // языки пламени: число и амплитуда растут с мощностью
+        var n = 3 + Math.round(frac * 3);
+        for (var i = 0; i < n; i++) {
+            var u = n <= 1 ? 0.5 : i / (n - 1);
+            var phase = t * (2.4 + i * 0.55) + ph0 + i * 1.7;
+            var sway = Math.sin(phase) * W * (0.1 + 0.08 * frac);
+            var lean = Math.sin(phase * 0.7 + 1.1) * W * 0.06;
+            var hMul = (0.45 + 0.55 * (0.35 + 0.65 * (1 - Math.abs(u - 0.5) * 1.2))) * (0.82 + 0.18 * Math.sin(phase * 1.3));
+            var h = H * hMul;
+            var w = W * (0.16 + 0.14 * (1 - Math.abs(u - 0.5)) + 0.06 * frac) * (0.85 + 0.15 * Math.sin(phase * 1.8));
+            var bx = cx + (u - 0.5) * W * 0.55 + sway * 0.35;
+            var tipX = bx + sway + lean;
+            var tipY = cy - h;
+            var g = ctx.createLinearGradient(bx, cy, tipX, tipY);
+            g.addColorStop(0, 'rgba(' + rgbCool + ',' + ((dark ? 0.55 : 0.48) * (0.5 + 0.5 * frac)).toFixed(2) + ')');
+            g.addColorStop(0.35, 'rgba(' + rgb + ',' + ((dark ? 0.7 : 0.62) * (0.55 + 0.45 * frac)).toFixed(2) + ')');
+            g.addColorStop(0.75, 'rgba(' + rgbHot + ',' + ((dark ? 0.55 : 0.5) * fadeSafe(0.4 + 0.4 * frac)).toFixed(2) + ')');
+            g.addColorStop(1, 'rgba(' + rgbHot + ',0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.moveTo(bx - w, cy);
+            ctx.bezierCurveTo(bx - w * 0.85, cy - h * 0.35, tipX - w * 0.25, cy - h * 0.72, tipX, tipY);
+            ctx.bezierCurveTo(tipX + w * 0.25, cy - h * 0.72, bx + w * 0.85, cy - h * 0.35, bx + w, cy);
+            ctx.closePath();
+            ctx.fill();
+        }
+        // яркое ядро
+        var coreH = H * (0.55 + 0.2 * frac) * (0.9 + 0.1 * Math.sin(t * 4.2 + ph0));
+        var coreW = W * (0.14 + 0.08 * frac);
+        var cg = ctx.createLinearGradient(0, cy, 0, cy - coreH);
+        cg.addColorStop(0, 'rgba(' + rgbHot + ',' + (dark ? 0.75 : 0.65) + ')');
+        cg.addColorStop(0.6, 'rgba(' + rgb + ',0.35)');
+        cg.addColorStop(1, 'rgba(' + rgbHot + ',0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.moveTo(cx - coreW, cy);
+        ctx.quadraticCurveTo(cx - coreW * 0.3, cy - coreH * 0.5, cx + Math.sin(t * 3.5 + ph0) * coreW * 0.4, cy - coreH);
+        ctx.quadraticCurveTo(cx + coreW * 0.3, cy - coreH * 0.5, cx + coreW, cy);
+        ctx.closePath();
+        ctx.fill();
+        // навершие на крыше
+        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, aBase + 0.28).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.52, W * 0.24, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
+    function fadeSafe(v) { return Math.max(0, Math.min(1, v)); }
     function setPal() {
         PAL = document.documentElement.getAttribute('data-bs-theme') === 'light' ? PALS.light : PALS.dark;
         stage.style.background = 'linear-gradient(' + PAL.bgTop + ',' + PAL.bgBot + ')';
@@ -239,6 +296,7 @@
     var PAD_L = 3;                                 // запас слева под подписи этажей и выдвижение ЦОД
     var siteCnt = 0, rackCnt = 0, bldCnt = 0;
     var shelfCnt = 0;
+    var hasPowerGlow = false;                      // есть шкафы с мощностью → анимация пламени
     var cities = DATA.map(function (c) {
         var bl = c.buildings.map(function (b) {
             var A = 0, B = 0, half = 0;
@@ -257,6 +315,7 @@
                     var shelfOff = 0;
                     s.shelves.forEach(function (r) { r.gi = s.shelfStart + shelfOff; r.gj = Math.floor((s.rows - 1) / 2); shelfOff += r.units; });
                     s.maxPower = 0; s.normal.forEach(function (r) { if (r.powerAvgW > s.maxPower) s.maxPower = r.powerAvgW; });
+                    if (s.maxPower > 0) hasPowerGlow = true;
                     s.sA = gridW + 0.6; s.sB = s.rows + 0.6;
                     s.aOff = x; x += s.sA + 0.8; bf = Math.max(bf, s.sB);
                     s.e = 0; s.tgt = 0; s.floor = f.floor; allSites.push(s);
@@ -416,12 +475,12 @@
         var elw = lw(isSel ? 3 : (isHov ? 2.4 : 1));
         poly(left, null, edge, elw); poly(right, null, edge, elw); poly(top, null, edge, elw);
 
-        // световой столб над шкафом пропорционально мощности (относительно самого мощного шкафа площадки)
+        // световой столб-пламя над шкафом пропорционально мощности (относительно самого мощного шкафа площадки)
         if (site.maxPower > 0 && r.powerAvgW > 0) {
             var frac = r.powerAvgW / site.maxPower;
             var pcx = (top[0][0] + top[2][0]) / 2, pcy = (top[0][1] + top[2][1]) / 2;
             var pbh = (H - z0) * U * (0.35 + 0.9 * frac), pbw = (a1 - a0) * U * 0.75;
-            drawGlow(pcx, pcy, pbw, pbh, frac, PAL === PALS.dark, PAL.glowMode);
+            drawGlow(pcx, pcy, pbw, pbh, frac, PAL === PALS.dark, PAL.glowMode, r.id || 0);
         }
 
         hits.push({ site: site, rack: r, pts: [P(so, a0, b1, z0), P(so, a1, b1, z0), P(so, a1, b0, z0), P(so, a1, b0, H), P(so, a0, b0, H), P(so, a0, b1, H)] });
@@ -999,7 +1058,7 @@
             }
         });
         render();
-        if (busy || FLOW_LINKS.length) redraw();   // непрерывная анимация импульсов
+        if (busy || FLOW_LINKS.length || hasPowerGlow) redraw();   // потоки и/или пламя над шкафами
     }
 
     // ---- камера ----
