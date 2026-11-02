@@ -395,6 +395,14 @@
         }
     })();
     var flowT = 0;
+    // мерцание светодиодов включённого оборудования на полках (спячка/выкл — статично)
+    function ledBright(seed) {
+        var t = flowT, s = (seed || 0) * 12.9898;
+        var a = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 2.15 + s));
+        var b = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(t * 5.4 + s * 1.73));
+        var dip = 1 - 0.12 * Math.max(0, Math.sin(t * 15.5 + s * 2.9));
+        return Math.min(1, Math.max(0.48, a * b * dip));
+    }
     document.getElementById('smSummary').innerHTML = 'Городов: <b>' + cities.length + '</b> &middot; зданий: <b>' + bldCnt + '</b> &middot; ЦОД: <b>' + siteCnt + '</b> &middot; шкафов: <b>' + rackCnt + '</b>' + (shelfCnt ? ' &middot; стеллажей: <b>' + shelfCnt + '</b>' : '') + (FLOW_LINKS.length ? ' &middot; потоков: <b>' + FLOW_LINKS.length + '</b> (площадка–здание ' + flowStats.siteBld + ', здание–город ' + flowStats.bldCity + ', город–город ' + flowStats.cityCity + ')' : '');
 
     // изометрия: a - вправо-вниз, b - влево-вниз, z - вверх (в клетках)
@@ -498,8 +506,16 @@
         for (q = 0; q < 20; q++) { var nn = (q + 1) % 20; poly([top[q], top[nn], bot[nn], bot[q]], q > 4 && q < 15 ? '#c4cad2' : '#9aa1ab'); }
         poly(top, '#eef0f3', 'rgba(0,0,0,0.3)', 0.7);
         var lc = P(so, cx, cb, z + hh);
+        ctx.save();
+        if (on) {
+            var abr = ledBright(cx * 17 + cb * 9 + (it.vd || '').length);
+            ctx.globalAlpha = 0.55 + 0.45 * abr;
+            ctx.shadowColor = round ? '#3aa0ff' : '#35e06a';
+            ctx.shadowBlur = Math.max(2, rad * U * 0.2 * abr);
+        }
         ctx.fillStyle = on ? (round ? '#3aa0ff' : '#35e06a') : '#8a919c';
         ctx.beginPath(); ctx.arc(lc[0], lc[1], Math.max(1.2, rad * U * 0.14), 0, TAU); ctx.fill();
+        ctx.restore();
     }
     function drawShelfItem(so, a0, a1, b0, b1, z, h, it, lit) {
         if (isAP(it)) { drawShelfAP(so, a0, a1, b0, b1, z, h, it, lit); return; }
@@ -527,6 +543,12 @@
                 else ctx.fillRect(8, 13, 62, 20);
             }
             if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
+            // p=1 включено — мерцает; p=2 спячка/выкл — статичный янтарь
+            if (on) {
+                var sbr = ledBright(a0 * 13 + b0 * 7 + (it.vd || '').length * 0.3);
+                ctx.globalAlpha = 0.55 + 0.45 * sbr;
+                ctx.shadowColor = '#35e06a'; ctx.shadowBlur = 3 + 4 * sbr;
+            }
             ctx.fillStyle = on ? '#35e06a' : (it.p === 2 ? '#ffab1a' : '#8a919c');
             ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
             ctx.restore();
@@ -1058,7 +1080,8 @@
             }
         });
         render();
-        if (busy || FLOW_LINKS.length || hasPowerGlow) redraw();   // потоки и/или пламя над шкафами
+        // потоки, пламя над шкафами и мерцание светодиодов включённого оборудования
+        redraw();
     }
 
     // ---- камера ----
