@@ -298,9 +298,13 @@
     var EMBED = {{if .Embed}}true{{else}}false{{end}};
     var fitUH = 40, userZoomed = false;
     if (EMBED) TOP = 16; // во фрейме ЦОД заголовок шкафа не рисуется - верхнюю панель сжимаем
-    // deep-link /sprsrv/location-uri → ?hw=ServerHardware.Id — закрепить подсветку устройства
-    var FOCUS_HW = 0;
-    try { FOCUS_HW = parseInt(new URLSearchParams(location.search).get('hw') || '0', 10) || 0; } catch (e) { FOCUS_HW = 0; }
+    // deep-link: ?hw= (сервер) или ?kind=&eq= (server|chassis|storage|switch|tape)
+    var FOCUS_EQ = 0, FOCUS_KIND = '';
+    try {
+        var _qs = new URLSearchParams(location.search);
+        FOCUS_EQ = parseInt(_qs.get('eq') || _qs.get('hw') || '0', 10) || 0;
+        FOCUS_KIND = (_qs.get('kind') || (_qs.get('hw') ? 'server' : '') || '').toLowerCase();
+    } catch (e) { FOCUS_EQ = 0; FOCUS_KIND = ''; }
 
     // ---------- стеллаж (площадка без шкафов: склады, рабочие комнаты) ----------
     // Секция стеллажа - габариты шкафа 42U (высота 42U, ширина 19" устройства), 5 полок. На полке
@@ -1322,18 +1326,23 @@
     document.getElementById('rvZoomOut').addEventListener('click', function () { setZoom(UH - 4); });
     document.getElementById('rvZoomReset').addEventListener('click', function () { setZoom(40); });
 
-    function regionForHw(id) {
+    function regionForEq(id, kind) {
         if (!id) return null;
+        kind = kind || 'server';
         for (var i = 0; i < regions.length; i++) {
             var r = regions[i];
-            if (r.blade && r.blade.id === id) return r;
-            if (!r.blade && r.it && r.it.id === id && r.it.kind === 'server') return r;
+            if (kind === 'server') {
+                if (r.blade && r.blade.id === id) return r;
+                if (!r.blade && r.it && r.it.id === id && r.it.kind === 'server') return r;
+            } else if (!r.blade && r.it && r.it.id === id && r.it.kind === kind) {
+                return r;
+            }
         }
         return null;
     }
-    function pinFocusHw() {
-        if (!FOCUS_HW) return;
-        var r = regionForHw(FOCUS_HW);
+    function pinFocusEq() {
+        if (!FOCUS_EQ) return;
+        var r = regionForEq(FOCUS_EQ, FOCUS_KIND);
         if (r) { pinned = true; showTip(r); }
     }
 
@@ -1341,7 +1350,7 @@
     zoomLabel();
     layout();
     drawAll();
-    pinFocusHw();
+    pinFocusEq();
 
     // Нет оборудования на позициях, но есть оборудование без позиции: пустой шкаф
     // не рисуем - иначе список "без позиции" уходит под высокий пустой шкаф и не виден.
