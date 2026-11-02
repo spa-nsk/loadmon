@@ -15,7 +15,7 @@
 
 <div class="sm-wrap">
     <div class="sm-bar d-flex align-items-center justify-content-between gap-2">
-        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Янтарные дуги - потоки данных между ЦОД разных городов. Колесо - масштаб, перетаскивание или полоса справа - прокрутка, клик по шкафу/стеллажу/ЦОД - детали и выбор, правая кнопка - переход к оборудованию площадки.</div>
+        <div class="sm-bar-text">Только ЦОД: города &rarr; здания &rarr; этажи. Потоки: площадка &harr; здание &harr; город &harr; города. Колесо - масштаб, перетаскивание или полоса справа - прокрутка, клик по шкафу/стеллажу/ЦОД - детали и выбор, правая кнопка - переход к оборудованию площадки.</div>
         <div class="btn-group flex-shrink-0" role="group" aria-label="Масштаб карты">
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomOut" title="Уменьшить">&minus;</button>
             <button type="button" class="btn btn-outline-secondary btn-sm py-0" id="smZoomFit" title="Вписать всю карту в окно" style="min-width:3.6rem">100%</button>
@@ -291,27 +291,52 @@
     })();
     var LW = 180;                                  // ширина левого списка городов (в пикселях экрана)
     var cityBoxes = [];
-    // потоки данных: полный граф между ЦОД из разных городов (как «сеть» в образце, но дугами поверх карты)
+    // иерархия потоков: площадка/ЦОД → узел здания → узел города → между городами
+    var FLOW_NODES = [];
     var FLOW_LINKS = [];
-    (function buildFlows() {
-        var seed = 0;
+    var flowStats = { siteBld: 0, bldCity: 0, cityCity: 0 };
+    (function buildFlowGraph() {
+        var seed = 1;
         function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
-        for (var i = 0; i < allSites.length; i++) {
-            for (var j = i + 1; j < allSites.length; j++) {
-                if (allSites[i].ct === allSites[j].ct) continue;
-                FLOW_LINKS.push({
-                    i: i, j: j,
-                    phase: rnd(),
-                    speed: 0.07 + rnd() * 0.11,
-                    dir: rnd() < 0.5 ? 1 : -1,
-                    pulses: 1 + ((rnd() * 2) | 0),
-                    bow: (rnd() - 0.5) * 0.22          // лёгкий боковой изгиб дуги
+        function addLink(a, b, kind) {
+            var lift = kind === 'city-city' ? 0.42 : (kind === 'bld-city' ? 0.26 : 0.14);
+            var speed = kind === 'city-city' ? (0.05 + rnd() * 0.06) : (kind === 'bld-city' ? (0.07 + rnd() * 0.08) : (0.1 + rnd() * 0.1));
+            FLOW_LINKS.push({
+                a: a, b: b, kind: kind,
+                phase: rnd(), speed: speed,
+                dir: rnd() < 0.5 ? 1 : -1,
+                pulses: kind === 'city-city' ? 2 + ((rnd() * 2) | 0) : (1 + ((rnd() * 2) | 0)),
+                bow: (rnd() - 0.5) * (kind === 'city-city' ? 0.18 : 0.12),
+                lift: lift
+            });
+            if (kind === 'site-bld') flowStats.siteBld++;
+            else if (kind === 'bld-city') flowStats.bldCity++;
+            else flowStats.cityCity++;
+        }
+        var cityIdx = [];
+        cities.forEach(function (ct) {
+            var cNode = FLOW_NODES.length;
+            FLOW_NODES.push({ kind: 'city', ct: ct });
+            cityIdx.push(cNode);
+            ct.blds.forEach(function (bl) {
+                var bNode = FLOW_NODES.length;
+                FLOW_NODES.push({ kind: 'bld', ct: ct, bl: bl });
+                addLink(bNode, cNode, 'bld-city');
+                bl.b.floors.forEach(function (fl) {
+                    fl.sites.forEach(function (s) {
+                        var sNode = FLOW_NODES.length;
+                        FLOW_NODES.push({ kind: 'site', site: s });
+                        addLink(sNode, bNode, 'site-bld');
+                    });
                 });
-            }
+            });
+        });
+        for (var i = 0; i < cityIdx.length; i++) {
+            for (var j = i + 1; j < cityIdx.length; j++) addLink(cityIdx[i], cityIdx[j], 'city-city');
         }
     })();
     var flowT = 0;
-    document.getElementById('smSummary').innerHTML = 'Городов: <b>' + cities.length + '</b> &middot; зданий: <b>' + bldCnt + '</b> &middot; ЦОД: <b>' + siteCnt + '</b> &middot; шкафов: <b>' + rackCnt + '</b>' + (shelfCnt ? ' &middot; стеллажей: <b>' + shelfCnt + '</b>' : '') + (FLOW_LINKS.length ? ' &middot; связей между городами: <b>' + FLOW_LINKS.length + '</b>' : '');
+    document.getElementById('smSummary').innerHTML = 'Городов: <b>' + cities.length + '</b> &middot; зданий: <b>' + bldCnt + '</b> &middot; ЦОД: <b>' + siteCnt + '</b> &middot; шкафов: <b>' + rackCnt + '</b>' + (shelfCnt ? ' &middot; стеллажей: <b>' + shelfCnt + '</b>' : '') + (FLOW_LINKS.length ? ' &middot; потоков: <b>' + FLOW_LINKS.length + '</b> (площадка–здание ' + flowStats.siteBld + ', здание–город ' + flowStats.bldCity + ', город–город ' + flowStats.cityCity + ')' : '');
 
     // изометрия: a - вправо-вниз, b - влево-вниз, z - вверх (в клетках)
     function P(o, a, b, z) { return [o.x + (a - b) * U, o.y + (a + b) * U / 2 - z * U]; }
@@ -773,25 +798,37 @@
         window.addEventListener('mouseup', function () { sbDrag = null; });
     }
 
-    // ---- потоки данных между ЦОД разных городов ----
-    // якорь = центр плиты площадки (мировые координаты, с учётом выдвижения)
+    // ---- потоки: площадка ↔ здание ↔ город ↔ города ----
+    function buildingOrigin(ct, bl) {
+        var bx = ct.x + bl.x, by = ct.y + bl.y;
+        return { x: bx + (bl.B + PAD_L) * U, y: by + (2.3 + bl.ztop) * U };
+    }
+    // центр плиты площадки/ЦОД (с учётом выдвижения)
     function siteAnchor(site) {
-        var bl = site.bl, bx = site.ct.x + bl.x, by = site.ct.y + bl.y;
-        var o = { x: bx + (bl.B + PAD_L) * U, y: by + (2.3 + bl.ztop) * U };
+        var bl = site.bl, o = buildingOrigin(site.ct, bl);
         var zf = bl.zs[site.k];
         var t = site.e * site.e * (3 - 2 * site.e) * 1.5;
         var p0 = P(o, site.aOff - t, t, zf);
         var so = { x: p0[0], y: p0[1] };
         return P(so, site.sA * 0.5, site.sB * 0.5, SLAB);
     }
-    // квадратичная Безье: подъём дуги + лёгкий боковой изгиб
-    function flowCtrl(a, b, bow) {
+    function flowNodePos(n) {
+        if (n.kind === 'site') return siteAnchor(n.site);
+        if (n.kind === 'bld') {
+            var o = buildingOrigin(n.ct, n.bl);
+            // узел здания - над стопкой этажей, у переднего края
+            return P(o, n.bl.A * 0.5, n.bl.B * 0.62, n.bl.ztop + SLAB + 2.1);
+        }
+        // узел города - сверху по центру строки города
+        return [n.ct.x + Math.max(n.ct.w, 4 * U) * 0.5, n.ct.y + 0.4 * U];
+    }
+    function flowCtrl(a, b, bow, liftK) {
         var mx = (a[0] + b[0]) * 0.5, my = (a[1] + b[1]) * 0.5;
         var dx = b[0] - a[0], dy = b[1] - a[1];
         var dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        var lift = Math.min(dist * 0.38, 10 * U) + dist * 0.04;
+        var lift = Math.min(dist * liftK, 11 * U) + dist * 0.03;
         var nx = -dy / dist, ny = dx / dist;
-        return [mx + nx * dist * bow, my - lift + ny * dist * bow * 0.35];
+        return [mx + nx * dist * bow, my - lift + ny * dist * bow * 0.3];
     }
     function flowPoint(a, c, b, t) {
         var u = 1 - t;
@@ -809,92 +846,111 @@
         }
         ctx.stroke();
     }
+    // визуальный вес уровня: внутри здания тоньше, между городами - ярче и шире
+    var FLOW_STYLE = {
+        'site-bld':  { glow: 5.5,  fiber: 1.5, core: 0.7,  aGlow: 0.08, aFiber: 0.28, aCore: 0.42, hub: 0, pulse: 5.5 },
+        'bld-city':  { glow: 8.5,  fiber: 2.0, core: 0.95, aGlow: 0.1,  aFiber: 0.34, aCore: 0.5,  hub: 0, pulse: 7 },
+        'city-city': { glow: 13,   fiber: 2.6, core: 1.25, aGlow: 0.12, aFiber: 0.4,  aCore: 0.58, hub: 0, pulse: 9 }
+    };
+    var HUB_STYLE = {
+        site: { r: 4.2, ring: 0 },
+        bld:  { r: 7.2, ring: 1.1 },
+        city: { r: 11.5, ring: 1.6 }
+    };
+    function drawFlowHub(p, kind, dark, gRGB, cRGB, hRGB) {
+        var hs = HUB_STYLE[kind] || HUB_STYLE.site;
+        var r = lw(hs.r);
+        var rg = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], r * 2.4);
+        var a0 = kind === 'city' ? (dark ? 0.62 : 0.5) : (kind === 'bld' ? (dark ? 0.5 : 0.4) : (dark ? 0.42 : 0.35));
+        rg.addColorStop(0, 'rgba(' + hRGB + ',' + a0.toFixed(2) + ')');
+        rg.addColorStop(0.4, 'rgba(' + gRGB + ',' + (a0 * 0.45).toFixed(2) + ')');
+        rg.addColorStop(1, 'rgba(' + gRGB + ',0)');
+        ctx.fillStyle = rg;
+        ctx.beginPath(); ctx.arc(p[0], p[1], r * 2.4, 0, TAU); ctx.fill();
+        if (hs.ring > 0) {
+            ctx.strokeStyle = 'rgba(' + cRGB + ',' + (dark ? 0.55 : 0.5) + ')';
+            ctx.lineWidth = lw(hs.ring);
+            ctx.beginPath(); ctx.arc(p[0], p[1], r * 0.95, 0, TAU); ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(' + cRGB + ',' + (dark ? 0.9 : 0.8) + ')';
+        ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(1.1, r * (kind === 'city' ? 0.32 : 0.26)), 0, TAU); ctx.fill();
+    }
     function drawFlows(vx0, vy0, vx1, vy1) {
         if (!FLOW_LINKS.length) return;
-        var anchors = new Array(allSites.length);
-        for (var i = 0; i < allSites.length; i++) anchors[i] = siteAnchor(allSites[i]);
-        var dens = Math.min(1, 48 / Math.max(1, FLOW_LINKS.length));
+        var pos = new Array(FLOW_NODES.length);
+        for (var i = 0; i < FLOW_NODES.length; i++) pos[i] = flowNodePos(FLOW_NODES[i]);
         var dark = PAL === PALS.dark;
-        var steps = FLOW_LINKS.length > 120 ? 20 : 28;
-        var margin = 6 * U;
+        var steps = FLOW_LINKS.length > 160 ? 18 : 26;
+        var margin = 7 * U;
         var gRGB = PAL.flowGlow, cRGB = PAL.flowCore, pRGB = PAL.flowPulse, hRGB = PAL.flowHub;
-        var hubSeen = {};
+        var order = ['site-bld', 'bld-city', 'city-city'];
+        var byKind = { 'site-bld': [], 'bld-city': [], 'city-city': [] };
+        FLOW_LINKS.forEach(function (L) { byKind[L.kind].push(L); });
 
         ctx.save();
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // 1) мягкое свечение трасс
-        FLOW_LINKS.forEach(function (L) {
-            var a = anchors[L.i], b = anchors[L.j], c = flowCtrl(a, b, L.bow);
-            if (!flowVisible(a, c, b, vx0, vy0, vx1, vy1, margin)) return;
-            hubSeen[L.i] = 1; hubSeen[L.j] = 1;
-            ctx.strokeStyle = 'rgba(' + gRGB + ',' + (0.07 * dens).toFixed(3) + ')';
-            ctx.lineWidth = lw(11);
-            strokeFlow(a, c, b, steps);
-        });
-        // 2) тонкое «волокно»
-        FLOW_LINKS.forEach(function (L) {
-            var a = anchors[L.i], b = anchors[L.j], c = flowCtrl(a, b, L.bow);
-            if (!flowVisible(a, c, b, vx0, vy0, vx1, vy1, margin)) return;
-            ctx.strokeStyle = 'rgba(' + gRGB + ',' + ((dark ? 0.22 : 0.28) * dens).toFixed(3) + ')';
-            ctx.lineWidth = lw(2.2);
-            strokeFlow(a, c, b, steps);
-            ctx.strokeStyle = 'rgba(' + cRGB + ',' + ((dark ? 0.38 : 0.42) * dens).toFixed(3) + ')';
-            ctx.lineWidth = lw(0.85);
-            strokeFlow(a, c, b, steps);
+        // трассы снизу вверх по уровню (городские поверх)
+        order.forEach(function (kind) {
+            var st = FLOW_STYLE[kind];
+            byKind[kind].forEach(function (L) {
+                var a = pos[L.a], b = pos[L.b], c = flowCtrl(a, b, L.bow, L.lift);
+                if (!flowVisible(a, c, b, vx0, vy0, vx1, vy1, margin)) return;
+                ctx.strokeStyle = 'rgba(' + gRGB + ',' + st.aGlow.toFixed(3) + ')';
+                ctx.lineWidth = lw(st.glow);
+                strokeFlow(a, c, b, steps);
+                ctx.strokeStyle = 'rgba(' + gRGB + ',' + ((dark ? 1 : 0.9) * st.aFiber).toFixed(3) + ')';
+                ctx.lineWidth = lw(st.fiber);
+                strokeFlow(a, c, b, steps);
+                ctx.strokeStyle = 'rgba(' + cRGB + ',' + ((dark ? 1 : 0.95) * st.aCore).toFixed(3) + ')';
+                ctx.lineWidth = lw(st.core);
+                strokeFlow(a, c, b, steps);
+            });
         });
 
-        // 3) узлы на площадках (лёгкое «гнездо» связи)
-        Object.keys(hubSeen).forEach(function (ki) {
-            var p = anchors[+ki];
-            if (p[0] < vx0 - U || p[0] > vx1 + U || p[1] < vy0 - U || p[1] > vy1 + U) return;
-            var r = lw(5.5);
-            var rg = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], r * 2.2);
-            rg.addColorStop(0, 'rgba(' + hRGB + ',' + (dark ? 0.55 : 0.45) + ')');
-            rg.addColorStop(0.45, 'rgba(' + gRGB + ',' + (dark ? 0.22 : 0.2) + ')');
-            rg.addColorStop(1, 'rgba(' + gRGB + ',0)');
-            ctx.fillStyle = rg;
-            ctx.beginPath(); ctx.arc(p[0], p[1], r * 2.2, 0, TAU); ctx.fill();
-            ctx.fillStyle = 'rgba(' + cRGB + ',' + (dark ? 0.85 : 0.75) + ')';
-            ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(1.2, r * 0.28), 0, TAU); ctx.fill();
+        // узлы: площадки, здания, города
+        FLOW_NODES.forEach(function (n, ni) {
+            var p = pos[ni];
+            if (p[0] < vx0 - 2 * U || p[0] > vx1 + 2 * U || p[1] < vy0 - 2 * U || p[1] > vy1 + 2 * U) return;
+            drawFlowHub(p, n.kind, dark, gRGB, cRGB, hRGB);
         });
 
-        // 4) бегущие импульсы (пакеты)
+        // импульсы
         if (dark) ctx.globalCompositeOperation = 'lighter';
-        FLOW_LINKS.forEach(function (L) {
-            var a = anchors[L.i], b = anchors[L.j], c = flowCtrl(a, b, L.bow);
-            if (!flowVisible(a, c, b, vx0, vy0, vx1, vy1, margin)) return;
-            for (var p = 0; p < L.pulses; p++) {
-                var tt = (flowT * L.speed * L.dir + L.phase + p / L.pulses) % 1;
-                if (tt < 0) tt += 1;
-                // плавное появление/затухание у концов
-                var fade = Math.min(1, Math.min(tt, 1 - tt) * 6);
-                if (fade < 0.04) continue;
-                var pt = flowPoint(a, c, b, tt);
-                var t2 = Math.max(0, Math.min(1, tt + 0.025 * L.dir));
-                if (Math.abs(t2 - tt) < 1e-4) t2 = Math.max(0, Math.min(1, tt - 0.025 * L.dir));
-                var ahead = flowPoint(a, c, b, t2);
-                // направление для вытянутого блика
-                var vx = (ahead[0] - pt[0]) * L.dir, vy = (ahead[1] - pt[1]) * L.dir;
-                var len = Math.sqrt(vx * vx + vy * vy) || 1;
-                vx /= len; vy /= len;
-                var pr = lw(7 + 3 * fade);
-                var rg = ctx.createRadialGradient(pt[0], pt[1], 0, pt[0], pt[1], pr);
-                rg.addColorStop(0, 'rgba(' + pRGB + ',' + (0.92 * fade).toFixed(3) + ')');
-                rg.addColorStop(0.28, 'rgba(' + cRGB + ',' + (0.65 * fade).toFixed(3) + ')');
-                rg.addColorStop(0.65, 'rgba(' + gRGB + ',' + (0.28 * fade).toFixed(3) + ')');
-                rg.addColorStop(1, 'rgba(' + gRGB + ',0)');
-                ctx.fillStyle = rg;
-                ctx.beginPath(); ctx.arc(pt[0], pt[1], pr, 0, TAU); ctx.fill();
-                // короткий «хвост» импульса вдоль дуги
-                ctx.strokeStyle = 'rgba(' + cRGB + ',' + (0.45 * fade).toFixed(3) + ')';
-                ctx.lineWidth = lw(1.6);
-                ctx.beginPath();
-                ctx.moveTo(pt[0] - vx * pr * 1.1, pt[1] - vy * pr * 1.1);
-                ctx.lineTo(pt[0] + vx * pr * 0.35, pt[1] + vy * pr * 0.35);
-                ctx.stroke();
-            }
+        order.forEach(function (kind) {
+            var st = FLOW_STYLE[kind];
+            byKind[kind].forEach(function (L) {
+                var a = pos[L.a], b = pos[L.b], c = flowCtrl(a, b, L.bow, L.lift);
+                if (!flowVisible(a, c, b, vx0, vy0, vx1, vy1, margin)) return;
+                for (var p = 0; p < L.pulses; p++) {
+                    var tt = (flowT * L.speed * L.dir + L.phase + p / L.pulses) % 1;
+                    if (tt < 0) tt += 1;
+                    var fade = Math.min(1, Math.min(tt, 1 - tt) * 6);
+                    if (fade < 0.04) continue;
+                    var pt = flowPoint(a, c, b, tt);
+                    var t2 = Math.max(0, Math.min(1, tt + 0.025 * L.dir));
+                    if (Math.abs(t2 - tt) < 1e-4) t2 = Math.max(0, Math.min(1, tt - 0.025 * L.dir));
+                    var ahead = flowPoint(a, c, b, t2);
+                    var vx = (ahead[0] - pt[0]) * L.dir, vy = (ahead[1] - pt[1]) * L.dir;
+                    var len = Math.sqrt(vx * vx + vy * vy) || 1;
+                    vx /= len; vy /= len;
+                    var pr = lw(st.pulse * (0.85 + 0.35 * fade));
+                    var rg = ctx.createRadialGradient(pt[0], pt[1], 0, pt[0], pt[1], pr);
+                    rg.addColorStop(0, 'rgba(' + pRGB + ',' + (0.92 * fade).toFixed(3) + ')');
+                    rg.addColorStop(0.28, 'rgba(' + cRGB + ',' + (0.65 * fade).toFixed(3) + ')');
+                    rg.addColorStop(0.65, 'rgba(' + gRGB + ',' + (0.28 * fade).toFixed(3) + ')');
+                    rg.addColorStop(1, 'rgba(' + gRGB + ',0)');
+                    ctx.fillStyle = rg;
+                    ctx.beginPath(); ctx.arc(pt[0], pt[1], pr, 0, TAU); ctx.fill();
+                    ctx.strokeStyle = 'rgba(' + cRGB + ',' + (0.45 * fade).toFixed(3) + ')';
+                    ctx.lineWidth = lw(kind === 'city-city' ? 2 : 1.5);
+                    ctx.beginPath();
+                    ctx.moveTo(pt[0] - vx * pr * 1.15, pt[1] - vy * pr * 1.15);
+                    ctx.lineTo(pt[0] + vx * pr * 0.35, pt[1] + vy * pr * 0.35);
+                    ctx.stroke();
+                }
+            });
         });
         ctx.restore();
     }
