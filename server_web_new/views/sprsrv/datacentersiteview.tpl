@@ -840,10 +840,11 @@
         tip.style.top = Math.max(4, py) + 'px';
     }
 
-    // deep-link из /sprsrv/location-uri/:id → ?rack=&hw=
+    // deep-link: ?rack=&hw= (сервер) или ?rack=&kind=&eq= (любой тип оборудования)
     var qsFocus = new URLSearchParams(location.search);
     var focusRackId = parseInt(qsFocus.get('rack') || '0', 10) || 0;
-    var focusHwId = parseInt(qsFocus.get('hw') || '0', 10) || 0;
+    var focusEqId = parseInt(qsFocus.get('eq') || qsFocus.get('hw') || '0', 10) || 0;
+    var focusKind = (qsFocus.get('kind') || (qsFocus.get('hw') ? 'server' : '') || '').toLowerCase();
 
     var selTimer = null;
     function selectHit(hit) {
@@ -853,11 +854,17 @@
         selected = hit;
         var r = hit.r, st = hit.u >= 0 ? unitStats(r, hit.u) : null;
         var title = r.shelf ? ('Стеллаж ' + (hit.u + 1)) : esc(r.name);
-        var pinHw = focusHwId > 0 && focusRackId === r.id ? focusHwId : 0;
-        // при подсветке конкретного сервера на стеллаже - все секции (иначе устройство может быть в другой секции)
-        var shelfQ = (r.shelf && !pinHw) ? ('shelfUnit=' + (hit.u + 1)) : '';
-        var url = '/sprsrv/rackcabinetview/' + r.id + (shelfQ || pinHw ? '?' : '') + shelfQ + (pinHw ? ((shelfQ ? '&' : '') + 'hw=' + pinHw) : '');
-        var emb = '/sprsrv/rackcabinetview/' + r.id + '?embed=1' + (shelfQ ? '&' + shelfQ : '') + (pinHw ? '&hw=' + pinHw : '');
+        var pinEq = focusEqId > 0 && focusRackId === r.id ? focusEqId : 0;
+        var pinKind = pinEq ? (focusKind || 'server') : '';
+        // при подсветке конкретного устройства на стеллаже - все секции (иначе может быть в другой секции)
+        var shelfQ = (r.shelf && !pinEq) ? ('shelfUnit=' + (hit.u + 1)) : '';
+        var pinQ = '';
+        if (pinEq) {
+            if (pinKind === 'server') pinQ = 'hw=' + pinEq;
+            else pinQ = 'kind=' + encodeURIComponent(pinKind) + '&eq=' + pinEq;
+        }
+        var url = '/sprsrv/rackcabinetview/' + r.id + (shelfQ || pinQ ? '?' : '') + shelfQ + (pinQ ? ((shelfQ ? '&' : '') + pinQ) : '');
+        var emb = '/sprsrv/rackcabinetview/' + r.id + '?embed=1' + (shelfQ ? '&' + shelfQ : '') + (pinQ ? '&' + pinQ : '');
         var sel = document.getElementById('dvSel');
         var t = '<b>' + title + '</b><span class="dv-sep">&middot;</span>' + r.uHeight + 'U';
         if (st) {

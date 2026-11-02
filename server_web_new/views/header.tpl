@@ -365,6 +365,10 @@
               <a href="/sprsrv/rackcabinetequipview/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Просмотр оборудования шкафа в ЦОД</a>
             </li>
+            <li>
+              <a href="/sprsrv/equipmentplacement"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Поиск размещения оборудования</a>
+            </li>
           </ul>
         </div>
       </li>
@@ -648,18 +652,11 @@
       &copy; 2019
     </p>
     <p class="text-muted mb-1">
-      <a href="http://www.bcs.ru">BCS</a> <a href="https://confluence.bcs.ru/pages/viewpage.action?pageId=670280406" target="_blank">ДАТИ ФГ БКС</a>
+      <a href="http://www.bcs.ru">BCS</a>
     </p>
     <p class="text-muted mb-1">
-      <a href="https://confluence.bcs.ru/display/~SemenovPA" target="_blank">Семенов Павел</a>
+      <a href="https://jira.bcs.ru/secure/insight/assets/CMDB-314527" target="_blank">Семенов Павел Анатольевич</a>
     </p>
-    <p class="text-muted mb-0 d-flex align-items-center justify-content-center gap-1">
-      <svg width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M12 1.5c.6 3.6 1.4 6.1 2.5 7.4 1.2 1.3 3.5 2.2 6.9 2.6-3.4.5-5.7 1.4-6.9 2.7-1.1 1.3-1.9 3.8-2.5 7.3-.6-3.5-1.4-6-2.5-7.3-1.2-1.3-3.5-2.2-6.9-2.7 3.4-.4 5.7-1.3 6.9-2.6 1.1-1.3 1.9-3.8 2.5-7.4z" fill="#D97757"/>
-      </svg>
-      <span style="color:#D97757;">Claude 2026</span>
-    </p>
-
     <div class="theme-toggle-wrap">
       <button
         type="button"
