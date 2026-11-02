@@ -26,12 +26,36 @@ import (
 // держим открытыми при ленивой подгрузке списка для фильтра view2.
 const clusterFilterLoadConcurrency = 16
 
+// view2Timer — простая трассировка спорных участков /sprsrv/view2
+// (grep по логу: "view2-timing"). step = с прошлого mark, total = с начала.
+type view2Timer struct {
+	total time.Time
+	step  time.Time
+}
+
+func newView2Timer() *view2Timer {
+	now := time.Now()
+	return &view2Timer{total: now, step: now}
+}
+
+func (t *view2Timer) mark(format string, args ...interface{}) {
+	if t == nil {
+		return
+	}
+	now := time.Now()
+	log.Printf("view2-timing: %-48s step=%s total=%s",
+		fmt.Sprintf(format, args...), now.Sub(t.step), now.Sub(t.total))
+	t.step = now
+}
+
 // loadClusterListForFilter грузит short-список кластеров и параллельно
 // добирает medium (чтобы отфильтровать HostFlag). Раньше это делалось
 // последовательно на каждый GET /sprsrv/view2 и давало десятки секунд
 // после входа; теперь вызывается только по чекбоксу / AJAX / POST-фильтру.
 func loadClusterListForFilter() []*vsphere.Cluster {
+	tr := newView2Timer()
 	shorts := grpcclient.LoadClusterList("all", "all")
+	tr.mark("clusters LoadClusterList shorts=%d", len(shorts))
 	if len(shorts) == 0 {
 		return []*vsphere.Cluster{}
 	}
@@ -56,6 +80,7 @@ func loadClusterListForFilter() []*vsphere.Cluster {
 		}(i, s)
 	}
 	wg.Wait()
+	tr.mark("clusters GetClusterMedium parallel workers=%d", clusterFilterLoadConcurrency)
 
 	list := make([]*vsphere.Cluster, 0, len(out))
 	for _, cl := range out {
@@ -64,6 +89,7 @@ func loadClusterListForFilter() []*vsphere.Cluster {
 		}
 	}
 	sort.Sort(vsphere.ClusterVcenter(list))
+	tr.mark("clusters done kept=%d (without HostFlag)", len(list))
 	return list
 }
 
@@ -71,8 +97,10 @@ func loadClusterListForFilter() []*vsphere.Cluster {
 // параллельно и кладёт в m["ClusterList"].
 func ensureSessionClusterList(m map[string]interface{}) []*vsphere.Cluster {
 	if list, ok := m["ClusterList"].([]*vsphere.Cluster); ok && len(list) > 0 {
+		log.Printf("view2-timing: clusters from session count=%d", len(list))
 		return list
 	}
+	log.Printf("view2-timing: clusters cache miss → loadClusterListForFilter")
 	list := loadClusterListForFilter()
 	m["ClusterList"] = list
 	return list
@@ -126,12 +154,15 @@ func enrichServerViews(o orm.Ormer, list []models.ServerSprView) {
 // просмотра): список с фильтрацией и постраничной навигацией, а также экспорт
 // данных в CSV/Excel в зависимости от режима Mode.
 func (this *MainController) SprSrvViewV2() {
+	tr := newView2Timer()
+	defer tr.mark("SprSrvViewV2 DONE method=%s", this.Ctx.Input.Method())
 
 	Mode := this.Ctx.Input.Param(":mode")
 	Id := this.Ctx.Input.Param(":id")
 	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	sess := this.GetSession("loadmon")
 	this.activeContent("sprsrv/view2")
+	tr.mark("activeContent+session")
 	this.Data["ListId"] = Id
 	this.Data["backmode"] = Mode
 
@@ -170,6 +201,7 @@ func (this *MainController) SprSrvViewV2() {
 	itSystemSpr = itsystem.ImportITSystemSpr()
 	//				sprITloaded <- true
 	//		}()
+	tr.mark("ImportITSystemSpr n=%d", len(itSystemSpr))
 
 	this.Data["ITSystemSpr"] = itSystemSpr //
 
@@ -181,6 +213,7 @@ func (this *MainController) SprSrvViewV2() {
 	appservice := make([]models.AppService, 0)
 	qs := o.QueryTable("app_service")
 	qs.All(&appservice)
+	tr.mark("app_service All n=%d", len(appservice))
 
 	this.Data["AppService"] = appservice
 
@@ -260,6 +293,7 @@ func (this *MainController) SprSrvViewV2() {
 		chClusters = v
 	}
 	this.Data["ChClusters"] = chClusters
+	tr.mark("session filters ready chClusters=%v clusterListCached=%d", chClusters, len(clusterList))
 
 	if isPost {
 		if err := this.ParseForm(record); err != nil {
@@ -376,6 +410,7 @@ func (this *MainController) SprSrvViewV2() {
 	var rackCabinets []models.RackCabinet
 	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&rackCabinets)
 	this.Data["RackCabinets"] = rackCabinets
+	tr.mark("placement selects dcSites=%d racks=%d", len(dcSites), len(rackCabinets))
 
 	id, err := strconv.Atoi(Id)
 	if err != nil {
@@ -399,8 +434,10 @@ func (this *MainController) SprSrvViewV2() {
 	}
 
 	if this.Data["ViewOn"] == 0 {
+		tr.mark("early return ViewOn=0 (form only, no list query)")
 		return
 	}
+	tr.mark("ViewOn=1 start list build baseFilter pending")
 	//
 	//	if this.GetString("add") == "add" {
 	//		if strings.TrimSpace(record.Name) == "" {
@@ -496,6 +533,7 @@ func (this *MainController) SprSrvViewV2() {
 		if rackCabinetId != "" && rackCabinetId != "0" {
 			if v, errRc := strconv.ParseInt(rackCabinetId, 10, 64); errRc == nil && v > 0 {
 				placementIds := placementServerSprIds(o, v)
+				tr.mark("placementServerSprIds rack=%d ids=%d", v, len(placementIds))
 				if len(placementIds) == 0 {
 					// ничего не размещено в выбранном шкафу - гарантированно
 					// пустой результат вместо некорректного "Id__in" с пустым
@@ -517,6 +555,7 @@ func (this *MainController) SprSrvViewV2() {
 					rackIds = append(rackIds, rc.Id)
 				}
 				placementIds := placementServerSprIdsByRacks(o, rackIds)
+				tr.mark("placementServerSprIdsByRacks site=%d racks=%d ids=%d", v, len(rackIds), len(placementIds))
 				if len(placementIds) == 0 {
 					cond = cond.And("Id", int64(-1))
 				} else {
@@ -635,6 +674,9 @@ func (this *MainController) SprSrvViewV2() {
 		qs = qs.SetCond(models.ExcludeDestroyedCond(cond))
 
 		num, err = qs.All(&records)
+		tr.mark("server_spr_records qs.All n=%d err=%v", num, err)
+	} else {
+		tr.mark("baseFilter=off skip qs.All")
 	}
 	//-------------------------------------------------------------------------
 	//rawSelect := "SELECT B.* FROM server_spr_records B JOIN spr_cfo_allocation C ON B.id = C.server_id WHERE B.stst != '666' "
@@ -670,6 +712,7 @@ func (this *MainController) SprSrvViewV2() {
 	if chClusters {
 		clusterList = ensureSessionClusterList(m)
 		this.Data["ClusterList"] = clusterList
+		tr.mark("chClusters ensure list n=%d", len(clusterList))
 		found := false
 		for idx, cl := range clusterList {
 			if clusterList[idx].ID == 1 {
@@ -686,10 +729,14 @@ func (this *MainController) SprSrvViewV2() {
 			rawVMSelect += ")"
 			rawVMSelect += " ;"
 			numVMAdd, errVMAdd = o.Raw(rawVMSelect).QueryRows(&recordsVMAdd)
+			tr.mark("chClusters rawVMSelect n=%d err=%v", numVMAdd, errVMAdd)
+		} else {
+			tr.mark("chClusters on but no cluster checkboxes selected")
 		}
 	}
 	//----------------------------------------------------------------------------
 	log.Println("Количество записей", len(records))
+	tr.mark("records raw counts base=%d add=%d vmAdd=%d", len(records), numAdd, numVMAdd)
 
 	// Построение list выполняется в лёгком режиме: без запросов CFO/Busines
 	// (эти поля - срезы spr_cfo_allocation/spr_busines_allocation - нигде не
@@ -776,6 +823,7 @@ func (this *MainController) SprSrvViewV2() {
 	// backing-массивом, поэтому изменения видны и в list (важно для экспорта
 	// ниже, если он запрошен для того же результата).
 	enrichServerViews(o, pagedList)
+	tr.mark("enrichServerViews page n=%d (of list=%d)", len(pagedList), totalRecords)
 
 	this.Data["records"] = pagedList
 	this.Data["CountRecords"] = totalRecords
@@ -795,6 +843,7 @@ func (this *MainController) SprSrvViewV2() {
 		// (для записей внутри диапазона текущей страницы это повторный, но
 		// безвредный запрос - основная часть list детализируется впервые)
 		enrichServerViews(o, list)
+		tr.mark("enrichServerViews export full list n=%d", len(list))
 	}
 
 	if exportxlsx {
@@ -966,6 +1015,9 @@ func (this *MainController) SprSrvViewV2() {
 // кластерам» на /sprsrv/view2. Список грузится параллельно по gRPC только
 // в этот момент (и кэшируется в сессии), а не при открытии страницы.
 func (this *MainController) SprSrvView2ClusterList() {
+	tr := newView2Timer()
+	defer tr.mark("SprSrvView2ClusterList DONE")
+
 	sess := this.GetSession("loadmon")
 	if sess == nil {
 		this.Ctx.Output.SetStatus(401)
@@ -975,6 +1027,7 @@ func (this *MainController) SprSrvView2ClusterList() {
 	}
 	m := sess.(models.LoadFilter).Map
 	list := ensureSessionClusterList(m)
+	tr.mark("AJAX clusters ready n=%d", len(list))
 
 	type clusterItem struct {
 		Name    string `json:"name"`
@@ -1095,6 +1148,9 @@ func placementServerSprIds(o orm.Ormer, rackCabinetId int64) []int64 {
 // корзине, VM по хосту) идентична placementServerSprIds, только сравнение
 // "RackCabinetId == искомый" заменено на "RackCabinetId в наборе".
 func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
+	tr := newView2Timer()
+	defer tr.mark("placementByRacks DONE racks=%d", len(rackCabinetIds))
+
 	if len(rackCabinetIds) == 0 {
 		return nil
 	}
@@ -1282,7 +1338,12 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 			continue
 		}
 		seenCluster[ck] = true
-		for _, vm := range grpcclient.LoadVMList(vc, dc, cl, "") {
+		liveStart := time.Now()
+		vmsLive := grpcclient.LoadVMList(vc, dc, cl, "")
+		log.Printf("view2-timing: %-48s step=%s",
+			fmt.Sprintf("placement LoadVMList %s/%s/%s n=%d", vc, dc, cl, len(vmsLive)),
+			time.Since(liveStart))
+		for _, vm := range vmsLive {
 			// ИСПРАВЛЕНО (2026-09-15, ошибку нашёл пользователь): vm.HostName -
 			// это ИМЯ ГОСТЕВОЙ ОС внутри VM (из VMware Tools, см.
 			// vspheremetrics/importdata.go: vmp.HostName = vm.Guest.HostName),
@@ -1301,6 +1362,7 @@ func placementServerSprIdsByRacks(o orm.Ormer, rackCabinetIds []int64) []int64 {
 			}
 		}
 	}
+	tr.mark("placement live gRPC clusters=%d liveKeys=%d", len(seenCluster), len(liveKeyNames))
 	if len(liveKeyNames) > 0 {
 		var liveVms []models.VMSprRecord
 		o.QueryTable(new(models.VMSprRecord)).Filter("KeyName__in", liveKeyNames).All(&liveVms, "Id")
