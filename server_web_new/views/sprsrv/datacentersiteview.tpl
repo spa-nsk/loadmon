@@ -1,9 +1,13 @@
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
-        <h2>Оборудование ЦОД {{.SiteName}}</h2>
-        <div class="text-muted" id="dvSummary">Шкафов: {{.RackCount}}</div>
+        <h2>{{if .ShowEquipFilters}}Оборудование площадки/ЦОД{{else}}Оборудование ЦОД {{.SiteName}}{{end}}</h2>
+        <div class="text-muted" id="dvSummary">{{if .SiteName}}{{.SiteName}} &middot; {{end}}Шкафов: {{.RackCount}}</div>
     </div>
+    {{if .ShowEquipFilters}}
+    <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/datacentersitemap">Карта площадок/ЦОД</a>
+    {{else}}
     <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/datacentersitelist/0">К справочнику площадок</a>
+    {{end}}
 </div>
 
 {{if .flash.error}}
@@ -13,7 +17,35 @@
 <blockquote class="blockquote">{{.flash.notice}}</blockquote>
 {{end}}
 
-<div class="dv-layout">
+{{if .ShowEquipFilters}}
+<div class="hw-filter-bar mb-3 p-3 rounded border">
+    <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-4 position-relative">
+            <label for="LocalitySearch" class="form-label">Населённый пункт</label>
+            <input type="text" id="LocalitySearch" class="form-control" autocomplete="off"
+                   placeholder="начните вводить название, например: Новосиб" value="{{.FilterLocalityName}}">
+            <input type="hidden" id="LocalityCode" name="LocalityCode" value="{{.FilterLocalityCode}}">
+            <div id="LocalityList" class="list-group position-absolute w-100 shadow d-none" style="z-index: 1050; max-height: 320px; overflow-y: auto;"></div>
+        </div>
+        <div class="col-12 col-md-5">
+            <label for="DatacenterSiteId" class="form-label">Площадка/ЦОД</label>
+            <select id="DatacenterSiteId" name="DatacenterSiteId" class="form-select">
+                <option value="0">Выберите площадку/ЦОД</option>
+                {{range $dc := .DatacenterSites}}
+                <option value="{{$dc.Id}}" data-locality="{{$dc.LocalityCode}}" {{if eq $.Id (printf "%d" $dc.Id)}}selected{{end}}>{{$dc.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="button" id="dvEquipApply" class="btn btn-primary rounded-pill px-3">Показать</button>
+            <button type="button" id="dvEquipReset" class="btn btn-outline-secondary rounded-pill px-3" title="Сбросить фильтр">Сброс</button>
+        </div>
+    </div>
+</div>
+{{end}}
+
+<div id="dvEquipRoot">
+<div class="dv-layout{{if .ShowEquipFilters}} dv-layout-filters{{end}}" id="dvLayout">
     <div class="dv-left">
         <div class="dv-sel d-flex align-items-center justify-content-between gap-2">
             <div id="dvSel" class="dv-sel-text">Наведите курсор на шкаф</div>
@@ -30,10 +62,16 @@
         <iframe id="dvFrame" class="dv-frame" title="Шкаф" src="about:blank"></iframe>
     </div>
 </div>
+{{if .ShowEquipFilters}}
+<div id="dvEmpty" class="dv-empty d-none">Выберите населённый пункт и площадку/ЦОД, затем нажмите «Показать»</div>
+{{end}}
+</div>
 
 <style>
     .dv-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0.75rem; height: calc(100vh - 170px); min-height: 520px; }
-    @media (max-width: 1100px) { .dv-layout { grid-template-columns: 1fr; height: auto; } .dv-left { height: 60vh; } .dv-frame { height: 80vh; } }
+    .dv-layout-filters { height: calc(100vh - 280px); }
+    @media (max-width: 1100px) { .dv-layout { grid-template-columns: 1fr; height: auto; } .dv-layout-filters { height: auto; } .dv-left { height: 60vh; } .dv-frame { height: 80vh; } }
+    .dv-empty { display: flex; align-items: center; justify-content: center; min-height: 280px; color: var(--bs-secondary-color); border: 1px dashed var(--bs-border-color); border-radius: 0.6rem; background: var(--bs-tertiary-bg); }
     .dv-left { display: flex; flex-direction: column; gap: 0.4rem; }
     .dv-left, .dv-right { min-height: 0; }
     .dv-sel-text { min-width: 0; }
@@ -72,12 +110,110 @@
 </style>
 
 <script>
+{{if .ShowEquipFilters}}
+(function () {
+    // Фильтр населённый пункт → площадка/ЦОД (как в справочнике шкафов / площадок)
+    var search = document.getElementById('LocalitySearch');
+    var list = document.getElementById('LocalityList');
+    var code = document.getElementById('LocalityCode');
+    var siteSelect = document.getElementById('DatacenterSiteId');
+    if (!search || !list || !code || !siteSelect) return;
+    var timer = null, seq = 0;
+    var allSiteOptions = Array.prototype.slice.call(siteSelect.options);
+
+    function filterSitesByLocality() {
+        var loc = code.value || '';
+        var cur = siteSelect.value;
+        siteSelect.innerHTML = '';
+        allSiteOptions.forEach(function (opt) {
+            if (opt.value === '0' || opt.value === '') {
+                siteSelect.appendChild(opt.cloneNode(true));
+                return;
+            }
+            if (!loc || opt.getAttribute('data-locality') === loc) {
+                siteSelect.appendChild(opt.cloneNode(true));
+            }
+        });
+        var still = false;
+        Array.prototype.forEach.call(siteSelect.options, function (o) { if (o.value === cur) still = true; });
+        siteSelect.value = still ? cur : '0';
+    }
+    function hide() { list.classList.add('d-none'); list.innerHTML = ''; }
+    function pick(item) {
+        code.value = item.oktmo;
+        search.value = item.label;
+        hide();
+        filterSitesByLocality();
+    }
+    function renderItems(items) {
+        list.innerHTML = '';
+        if (!items.length) {
+            var empty = document.createElement('div');
+            empty.className = 'list-group-item text-muted small';
+            empty.textContent = 'Ничего не найдено';
+            list.appendChild(empty);
+        }
+        items.forEach(function (it) {
+            var a = document.createElement('button');
+            a.type = 'button';
+            a.className = 'list-group-item list-group-item-action small';
+            a.textContent = it.label + '  [' + it.oktmo + ']';
+            a.addEventListener('mousedown', function (e) { e.preventDefault(); pick(it); });
+            list.appendChild(a);
+        });
+        list.classList.remove('d-none');
+    }
+    function query() {
+        var q = search.value.trim();
+        if (q.length < 2) { hide(); return; }
+        var my = ++seq;
+        fetch('/sprsrv/localitysearch?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (items) { if (my === seq) renderItems(items); })
+            .catch(function () { hide(); });
+    }
+    function go() {
+        var sid = siteSelect.value || '0';
+        var loc = code.value || '';
+        var url = '/sprsrv/datacenterequipview/' + sid;
+        if (loc) url += '?locality=' + encodeURIComponent(loc);
+        location.href = url;
+    }
+    search.addEventListener('input', function () {
+        if (search.value.trim() === '') { code.value = ''; filterSitesByLocality(); }
+        clearTimeout(timer);
+        timer = setTimeout(query, 200);
+    });
+    search.addEventListener('blur', function () { setTimeout(hide, 150); });
+    search.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') hide();
+        if (e.key === 'Enter') { e.preventDefault(); go(); }
+    });
+    siteSelect.addEventListener('change', go);
+    var applyBtn = document.getElementById('dvEquipApply');
+    var resetBtn = document.getElementById('dvEquipReset');
+    if (applyBtn) applyBtn.addEventListener('click', go);
+    if (resetBtn) resetBtn.addEventListener('click', function () { location.href = '/sprsrv/datacenterequipview/0'; });
+    filterSitesByLocality();
+})();
+{{end}}
 (function () {
     'use strict';
 
     var DATA = {{.DCJSON}};
     var canvas = document.getElementById('dvCanvas');
-    if (!DATA || !canvas || !DATA.racks || !DATA.racks.length) return;
+    var emptyEl = document.getElementById('dvEmpty');
+    var layoutEl = document.getElementById('dvLayout');
+    if (!DATA || !canvas || !DATA.racks || !DATA.racks.length) {
+        if (emptyEl && layoutEl) {
+            layoutEl.classList.add('d-none');
+            emptyEl.classList.remove('d-none');
+            if (DATA && DATA.siteName) emptyEl.textContent = 'В площадке «' + DATA.siteName + '» нет шкафов для отображения';
+        }
+        return;
+    }
+    if (emptyEl) emptyEl.classList.add('d-none');
+    if (layoutEl) layoutEl.classList.remove('d-none');
 
     var stage = document.getElementById('dvStage');
     var tip = document.getElementById('dvTip');

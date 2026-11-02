@@ -7,6 +7,7 @@ import (
 	"loadmon/rackpower"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/beego/beego/v2/client/orm"
 	beego "github.com/beego/beego/v2/server/web"
@@ -64,6 +65,7 @@ func (this *MainController) SprDatacenterSiteView() {
 	RegisterRequest(this, LogTypeViewLoadTable)
 	this.activeContent("sprsrv/datacentersiteview")
 
+	this.Data["ShowEquipFilters"] = false
 	this.Data["Id"] = idStr
 	this.Data["SiteName"] = ""
 	this.Data["RackCount"] = 0
@@ -81,14 +83,78 @@ func (this *MainController) SprDatacenterSiteView() {
 		flash.Error("Некорректный идентификатор площадки: %s", idStr)
 		return
 	}
-	o := orm.NewOrm()
+	fillDatacenterSiteViewPage(this, orm.NewOrm(), id, flash)
+}
 
+// SprDatacenterEquipView - визуализация оборудования площадки/ЦОД с фильтром
+// «Населённый пункт» + «Площадка/ЦОД» (как в справочнике площадок/шкафов).
+// Та же сцена, что /sprsrv/datacentersiteview/:id.
+//
+// Маршрут: /sprsrv/datacenterequipview/:id  (0 = площадка ещё не выбрана)
+func (this *MainController) SprDatacenterEquipView() {
+	idStr := this.Ctx.Input.Param(":id")
+
+	RegisterRequest(this, LogTypeViewLoadTable)
+	this.activeContent("sprsrv/datacentersiteview")
+
+	this.Data["ShowEquipFilters"] = true
+	this.Data["Id"] = idStr
+	this.Data["SiteName"] = ""
+	this.Data["RackCount"] = 0
+	this.Data["DCJSON"] = template.JS("null")
+	this.Data["FilterLocalityName"] = ""
+	this.Data["FilterLocalityCode"] = ""
+
+	flash := beego.NewFlash()
+	defer func() {
+		if len(flash.Data) > 0 {
+			flash.Store(&this.Controller)
+		}
+	}()
+
+	o := orm.NewOrm()
+	var sites []models.DatacenterSite
+	_, _ = o.QueryTable(new(models.DatacenterSite)).OrderBy("Name").Limit(-1).All(&sites, "Id", "Name", "LocalityCode")
+	this.Data["DatacenterSites"] = sites
+
+	localityCode := strings.TrimSpace(this.GetString("locality"))
+	if localityCode == "" {
+		localityCode = strings.TrimSpace(this.GetString("LocalityCode"))
+	}
+	this.Data["FilterLocalityCode"] = localityCode
+	if localityCode != "" {
+		this.Data["FilterLocalityName"] = localityNamesByCode(o, []models.DatacenterSite{{LocalityCode: localityCode}})[localityCode]
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id < 0 {
+		flash.Error("Некорректный идентификатор площадки: %s", idStr)
+		return
+	}
+	if id == 0 {
+		return
+	}
+	// если площадка выбрана, а населённый пункт в query пуст - подставить из записи
+	var site models.DatacenterSite
+	if err := o.QueryTable(new(models.DatacenterSite)).Filter("Id", id).One(&site, "Id", "Name", "LocalityCode"); err == nil {
+		if localityCode == "" && site.LocalityCode != "" {
+			this.Data["FilterLocalityCode"] = site.LocalityCode
+			this.Data["FilterLocalityName"] = localityNamesByCode(o, []models.DatacenterSite{site})[site.LocalityCode]
+		}
+	}
+	fillDatacenterSiteViewPage(this, o, id, flash)
+}
+
+// fillDatacenterSiteViewPage заполняет SiteName / RackCount / DCJSON для
+// просмотра оборудования выбранной площадки (общая логика siteview и equipview).
+func fillDatacenterSiteViewPage(this *MainController, o orm.Ormer, id int64, flash *beego.FlashData) {
 	var site models.DatacenterSite
 	if err := o.QueryTable(new(models.DatacenterSite)).Filter("Id", id).One(&site); err != nil {
 		flash.Error("Площадка Id=%d не найдена: %v", id, err)
 		return
 	}
 	this.Data["SiteName"] = site.Name
+	this.Data["Id"] = strconv.FormatInt(id, 10)
 
 	var racks []models.RackCabinet
 	if _, err := o.QueryTable(new(models.RackCabinet)).Filter("DatacenterSiteId", id).OrderBy("Name").All(&racks); err != nil {
