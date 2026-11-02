@@ -100,21 +100,75 @@
     var PAL = PALS.dark;
 
     // оттенки янтаря для световых столбов: от светло-янтарного (малая мощность) к насыщенно-оранжевому (максимум)
+    var glowT = 0;
     function glowRGB(frac, dark) {
         var stops = [[253, 224, 120], [251, 191, 36], [245, 158, 11]];     // один и тот же светлый янтарный ряд в обеих темах
         var t = Math.max(0, Math.min(1, frac)) * 2, i = Math.min(1, Math.floor(t)), f = t - i;
         var a = stops[i], b = stops[i + 1];
         return Math.round(a[0] + (b[0] - a[0]) * f) + ',' + Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f);
     }
-    // столб + светящееся "навершие" на крыше шкафа (cx, cy - центр крыши в экранных координатах)
-    function drawGlow(cx, cy, bw, bh, frac, dark, mode) {
-        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.32 : 0.5) + (dark ? 0.4 : 0.35) * frac;
+    function fadeSafe(v) { return Math.max(0, Math.min(1, v)); }
+    // анимированный световой столб с языками пламени; высота/ширина по-прежнему от мощности (frac)
+    function drawGlow(cx, cy, bw, bh, frac, dark, mode, seed) {
+        var t = glowT, ph0 = (seed || 0) * 0.618;
+        var rgb = glowRGB(frac, dark);
+        var rgbHot = '255,244,200', rgbCool = '249,115,22';
+        var aBase = (dark ? 0.28 : 0.42) + (dark ? 0.35 : 0.3) * frac;
+        var flick = 0.92 + 0.08 * Math.sin(t * 3.1 + ph0) + 0.04 * Math.sin(t * 7.4 + ph0 * 2);
+        var H = bh * flick, W = bw * (0.92 + 0.08 * Math.sin(t * 2.2 + ph0));
         ctx.save();
         ctx.globalCompositeOperation = mode;
-        ctx.fillStyle = lin(0, cy, 0, cy - bh, [[0, 'rgba(' + rgb + ',' + a0.toFixed(2) + ')'], [1, 'rgba(' + rgb + ',0)']]);
-        ctx.fillRect(cx - bw / 2, cy - bh, bw, bh);
-        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, a0 + 0.3).toFixed(2) + ')';
-        ctx.beginPath(); ctx.ellipse(cx, cy, bw * 0.52, bw * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+        var g0 = ctx.createLinearGradient(0, cy, 0, cy - H);
+        g0.addColorStop(0, 'rgba(' + rgb + ',' + aBase.toFixed(2) + ')');
+        g0.addColorStop(0.55, 'rgba(' + rgb + ',' + (aBase * 0.45).toFixed(2) + ')');
+        g0.addColorStop(1, 'rgba(' + rgb + ',0)');
+        ctx.fillStyle = g0;
+        ctx.beginPath();
+        ctx.moveTo(cx - W * 0.48, cy);
+        ctx.quadraticCurveTo(cx - W * 0.22, cy - H * 0.55, cx + Math.sin(t * 2.6 + ph0) * W * 0.06, cy - H);
+        ctx.quadraticCurveTo(cx + W * 0.22, cy - H * 0.55, cx + W * 0.48, cy);
+        ctx.closePath();
+        ctx.fill();
+        var n = 3 + Math.round(frac * 3);
+        for (var i = 0; i < n; i++) {
+            var u = n <= 1 ? 0.5 : i / (n - 1);
+            var phase = t * (2.4 + i * 0.55) + ph0 + i * 1.7;
+            var sway = Math.sin(phase) * W * (0.1 + 0.08 * frac);
+            var lean = Math.sin(phase * 0.7 + 1.1) * W * 0.06;
+            var hMul = (0.45 + 0.55 * (0.35 + 0.65 * (1 - Math.abs(u - 0.5) * 1.2))) * (0.82 + 0.18 * Math.sin(phase * 1.3));
+            var h = H * hMul;
+            var w = W * (0.16 + 0.14 * (1 - Math.abs(u - 0.5)) + 0.06 * frac) * (0.85 + 0.15 * Math.sin(phase * 1.8));
+            var bx = cx + (u - 0.5) * W * 0.55 + sway * 0.35;
+            var tipX = bx + sway + lean;
+            var tipY = cy - h;
+            var g = ctx.createLinearGradient(bx, cy, tipX, tipY);
+            g.addColorStop(0, 'rgba(' + rgbCool + ',' + ((dark ? 0.55 : 0.48) * (0.5 + 0.5 * frac)).toFixed(2) + ')');
+            g.addColorStop(0.35, 'rgba(' + rgb + ',' + ((dark ? 0.7 : 0.62) * (0.55 + 0.45 * frac)).toFixed(2) + ')');
+            g.addColorStop(0.75, 'rgba(' + rgbHot + ',' + ((dark ? 0.55 : 0.5) * fadeSafe(0.4 + 0.4 * frac)).toFixed(2) + ')');
+            g.addColorStop(1, 'rgba(' + rgbHot + ',0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.moveTo(bx - w, cy);
+            ctx.bezierCurveTo(bx - w * 0.85, cy - h * 0.35, tipX - w * 0.25, cy - h * 0.72, tipX, tipY);
+            ctx.bezierCurveTo(tipX + w * 0.25, cy - h * 0.72, bx + w * 0.85, cy - h * 0.35, bx + w, cy);
+            ctx.closePath();
+            ctx.fill();
+        }
+        var coreH = H * (0.55 + 0.2 * frac) * (0.9 + 0.1 * Math.sin(t * 4.2 + ph0));
+        var coreW = W * (0.14 + 0.08 * frac);
+        var cg = ctx.createLinearGradient(0, cy, 0, cy - coreH);
+        cg.addColorStop(0, 'rgba(' + rgbHot + ',' + (dark ? 0.75 : 0.65) + ')');
+        cg.addColorStop(0.6, 'rgba(' + rgb + ',0.35)');
+        cg.addColorStop(1, 'rgba(' + rgbHot + ',0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.moveTo(cx - coreW, cy);
+        ctx.quadraticCurveTo(cx - coreW * 0.3, cy - coreH * 0.5, cx + Math.sin(t * 3.5 + ph0) * coreW * 0.4, cy - coreH);
+        ctx.quadraticCurveTo(cx + coreW * 0.3, cy - coreH * 0.5, cx + coreW, cy);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, aBase + 0.28).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.52, W * 0.24, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
     function pushThemeToFrame() {                    // фрейм со шкафом - отдельная страница: передаём ей текущую тему
@@ -453,12 +507,12 @@
         var elw = isSel ? 2.4 : (isHov ? 2 : 1);
         poly(fb, null, edge, elw); poly(fa, null, edge, elw); poly(top, null, edge, elw);
 
-        // световой столб над шкафом пропорционально мощности
+        // световой столб-пламя над шкафом пропорционально мощности
         if (maxPower > 0 && r.powerAvgW > 0) {
             var frac = r.powerAvgW / maxPower;
             var cx = (top[0][0] + top[2][0]) / 2, cy = (top[0][1] + top[2][1]) / 2;
             var bh = H * CV.zk * (0.35 + 0.9 * frac), bw = (a1 - a0) * s * 0.75;
-            drawGlow(cx, cy, bw, bh, frac, PAL === PALS.dark, PAL.glowMode);
+            drawGlow(cx, cy, bw, bh, frac, PAL === PALS.dark, PAL.glowMode, r.id || 0);
         }
 
         polys.push({ r: r, u: -1, pts: boxHull(a0, a1, b0, b1, 0, H) });
@@ -803,9 +857,17 @@
     // масштаб шкафа в правой части меняется колесом мыши внутри фрейма; индикатор масштаба показывает сам фрейм (всплывающий)
 
     document.getElementById('dvFrame').addEventListener('load', pushThemeToFrame);
+    var glowRaf = 0, hasPowerGlow = maxPower > 0;
     function resize() { layout(); render(); }
     if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
-    layout(); render();
+    function glowFrame(now) {
+        glowRaf = 0;
+        glowT = (now || performance.now()) * 0.001;
+        render();
+        if (hasPowerGlow) glowRaf = requestAnimationFrame(glowFrame);
+    }
+    layout();
+    if (hasPowerGlow) requestAnimationFrame(glowFrame); else render();
 
     // deep-link ?rack= — выделить шкаф/стеллаж; иначе первый шкаф с оборудованием / секция стеллажа
     var focusCab = focusRackId > 0 ? allRacks.filter(function (r) { return r.id === focusRackId; })[0] : null;
