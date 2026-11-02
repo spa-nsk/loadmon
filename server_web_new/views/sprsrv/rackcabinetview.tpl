@@ -620,10 +620,12 @@
     }
 
     function drawChassis(c, it, x, y, w, h, regs) {
-        var syn = /synergy|sy12|12000/i.test((it.vendor + ' ' + it.model + ' ' + it.name));
+        var syn = /synergy|sy12|12000/i.test((it.vendor || '') + ' ' + (it.model || '') + ' ' + (it.name || ''));
         var p = it.power, on = (p === 1);
         var slots = it.slots > 0 ? it.slots : (syn ? 12 : 16);
         var cols = Math.ceil(slots / 2), rows = 2;
+        // blades может отсутствовать в JSON (omitempty на пустом слайсе) — без защиты рисовался только тёмный контур
+        var bladeList = it.blades || [];
         fillRR(c, x, y + 0.5, w, h - 1, 2, vg(c, y, h, [[0, syn ? '#2a2d34' : '#3a3d42'], [1, '#17181b']]));
         c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(x + 2, y + 1, w - 4, 1);
         if (syn) { c.fillStyle = '#00b5e2'; c.fillRect(x + 3, y + 2, w - 6, Math.max(1, UH * 0.04)); }
@@ -637,7 +639,7 @@
         var ay = y + h * 0.045, ah = h * 0.66;
         var sw = aw / cols, sh = ah / rows;
         var bySlot = {};
-        for (var i = 0; i < it.blades.length; i++) bySlot[it.blades[i].slot] = it.blades[i];
+        for (var i = 0; i < bladeList.length; i++) bySlot[bladeList[i].slot] = bladeList[i];
         for (var s = 1; s <= slots; s++) {
             var col = (s - 1) % cols, row = Math.floor((s - 1) / cols);
             var bx = ax + col * sw + 1, by = ay + row * sh + 1, bw = sw - 2, bh = sh - 2;
@@ -652,11 +654,13 @@
         var dispW = aw * 0.16;
         var total = psuW * 6 + dispW + gapx * 6;
         var px = ax + (aw - total) / 2;
+        var title = it.name || it.model || it.vendor || '';
         for (var k = 0; k < 7; k++) {
             if (k === 3) {
                 fillRR(c, px, py, dispW, ph, 2, '#0b0c0e');
                 fillRR(c, px + dispW * 0.1, py + ph * 0.18, dispW * 0.8, ph * 0.5, 1.5, on ? '#0c3d57' : '#10151a');
-                if (on && UH >= 28) txt(c, it.name, px + dispW / 2, py + ph * 0.43, Math.max(6, UH * 0.19), '#8fd8ff', '600', 'center');
+                // на стеллаже UH часто < 28 — показываем имя и при меньшей высоте
+                if (title && (on || UH >= 18)) txt(c, title, px + dispW / 2, py + ph * 0.43, Math.max(5.5, Math.min(UH * 0.19, dispW * 0.22)), on ? '#8fd8ff' : 'rgba(200,210,220,0.75)', '600', 'center');
                 led(c, px + dispW * 0.3, py + ph * 0.82, Math.max(1.2, UH * 0.04), '#2fd36a', on);
                 led(c, px + dispW * 0.5, py + ph * 0.82, Math.max(1.2, UH * 0.04), C_UID, false);
                 led(c, px + dispW * 0.7, py + ph * 0.82, Math.max(1.2, UH * 0.04), C_ERR, false);
@@ -670,7 +674,11 @@
             led(c, px + psuW * 0.5, py + ph * 0.86, Math.max(1.2, UH * 0.045), '#2fd36a', on);
             px += psuW + gapx;
         }
-        if (UH >= 26) txt(c, it.model, x + w * 0.5, y + h * 0.985 - UH * 0.04, Math.max(6, UH * 0.17), 'rgba(235,238,242,0.5)', '500', 'center');
+        var sub = it.model || it.vendor || '';
+        if (sub && UH >= 18) txt(c, sub, x + w * 0.5, y + h * 0.985 - UH * 0.04, Math.max(5.5, UH * 0.17), 'rgba(235,238,242,0.5)', '500', 'center');
+        if (bladeList.length === 0 && UH >= 16) {
+            txt(c, 'слотов: ' + slots + ' (пусто)', x + w * 0.5, ay + ah * 0.5, Math.max(6, UH * 0.2), 'rgba(235,238,242,0.35)', '500', 'center');
+        }
     }
 
     // ---------- СХД ----------

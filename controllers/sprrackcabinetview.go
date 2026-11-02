@@ -52,7 +52,7 @@ type rackViewItem struct {
 	Slots     int             `json:"slots,omitempty"`
 	Rows      []rackViewKV    `json:"rows"`
 	Links     []rackViewLink  `json:"links"`
-	Blades    []rackViewBlade `json:"blades,omitempty"`
+	Blades    []rackViewBlade `json:"blades"` // всегда массив (даже []); omitempty ломал отрисовку корзины на стеллаже
 	SizeGuess bool            `json:"sizeGuess,omitempty"`
 	Subtype   string          `json:"subtype,omitempty"` // тип сетевого оборудования (коммутатор, маршрутизатор, ...)
 }
@@ -454,7 +454,8 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 		if sizeU <= 0 && ch.EndUnitPos >= ch.StartUnitPos && ch.StartUnitPos > 0 {
 			sizeU = ch.EndUnitPos - ch.StartUnitPos + 1
 		}
-		if sizeU <= 0 && ch.StartUnitPos > 0 {
+		// без юнитов (типично для стеллажа «вне шкафа») — высота корзины по умолчанию 10U
+		if sizeU <= 0 {
 			sizeU = 10
 		}
 		var rows []rackViewKV

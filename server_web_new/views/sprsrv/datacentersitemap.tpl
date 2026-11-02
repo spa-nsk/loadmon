@@ -263,9 +263,15 @@
     function isAP(it) { return it.k === 'switch' && /aironet|\bair-|\bc91\d{2}|unifi|\buap|ubiquiti|точка доступа|access point|wi-?fi|\bwlan/i.test(it.vd || ''); }
     function shelfSize(it) { if (isAP(it)) return Math.max(2, it.u || 0); return it.u > 0 ? it.u : (it.k === 'chassis' ? 10 : (it.k === 'tape' ? 6 : (it.k === 'switch' ? 1 : 2))); }
     function packShelf(r) {
-        var list = (r.items || []).map(function (it) { return { k: it.k, vd: it.vd || '', p: it.p, u: it.u, su: Math.min(shelfSize(it), SH_CLEAR) }; });
+        var list = (r.items || []).map(function (it) {
+            return {
+                k: it.k, id: it.id || 0, nm: it.nm || '', vd: it.vd || '', p: it.p, u: it.u,
+                slots: it.slots || 0, blades: it.blades || [],
+                su: Math.min(shelfSize(it), SH_CLEAR)
+            };
+        });
         var rank = { storage: 0, tape: 1, chassis: 1, server: 2, 'switch': 3 };
-        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.k] || 9) - (rank[b.k] || 9)); });
+        list.sort(function (a, b) { return (b.su - a.su) || ((rank[a.k] || 9) - (rank[b.k] || 9)) || String(a.nm || a.vd).localeCompare(String(b.nm || b.vd)); });
         var units = [];
         function newUnit() { var lv = []; for (var k = 0; k < 5; k++) lv.push({ items: [], used: 0 }); units.push(lv); }
         newUnit();
@@ -533,19 +539,62 @@
             ctx.save();
             faceTransform(front[0], (ia1 - ia0) * U, (ia1 - ia0) * U / 2, 0, h * U, 100, 40);
             ctx.fillStyle = acc; ctx.fillRect(4, 3, 92, 4);
-            ctx.fillStyle = 'rgba(0,0,0,0.55)';
-            var rows3 = it.k === 'storage' ? 4 : ((it.k === 'chassis' || it.k === 'tape') ? 3 : 1);
-            for (var q = 0; q < rows3; q++) {
-                if (it.k === 'chassis') ctx.fillRect(8 + q * 29, 11, 27, 24);
-                else if (it.k === 'tape') { ctx.fillRect(8 + q * 22, 11, 20, 24); ctx.fillStyle = '#1f6fb5'; ctx.fillRect(74, 12, 18, 14); ctx.fillStyle = 'rgba(0,0,0,0.55)'; }
-                else if (it.k === 'storage') ctx.fillRect(8, 11 + q * 7, 70, 5);
-                else if (it.k === 'switch') { for (var pp = 0; pp < 16; pp++) ctx.fillRect(8 + pp * 5, 13 + (pp % 2) * 8, 4, 7); }
-                else ctx.fillRect(8, 13, 62, 20);
+            if (it.k === 'chassis') {
+                var slots = it.slots > 0 ? it.slots : 8;
+                var cols = slots > 8 ? 8 : Math.min(slots, 4);
+                var brow = Math.ceil(slots / cols);
+                var byMap = {};
+                (it.blades || []).forEach(function (bl) { if (bl && bl.s > 0) byMap[bl.s] = bl; });
+                var gapX = 1.2, gapY = 1.2, ox = 6, oy = 9, aw = 72, ah = 22;
+                var cw = (aw - gapX * (cols - 1)) / cols, chh = (ah - gapY * (brow - 1)) / brow;
+                for (var si = 0; si < slots; si++) {
+                    var col = si % cols, row = (si / cols) | 0;
+                    var bx = ox + col * (cw + gapX), by = oy + row * (chh + gapY);
+                    var bl = byMap[si + 1];
+                    if (bl) {
+                        ctx.fillStyle = bl.p === 1 ? '#3a4048' : '#2a2e34';
+                        ctx.fillRect(bx, by, cw, chh);
+                        ctx.fillStyle = bl.p === 1 ? '#35e06a' : (bl.p === 2 ? '#ffab1a' : '#6a7380');
+                        ctx.fillRect(bx + cw * 0.15, by + chh * 0.2, Math.max(1.2, cw * 0.22), Math.max(1.2, chh * 0.55));
+                    } else {
+                        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                        ctx.fillRect(bx, by, cw, chh);
+                        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+                        for (var g = 1; g < 3; g++) ctx.fillRect(bx + cw * g / 3 - 0.4, by + 1, 0.8, chh - 2);
+                    }
+                }
+                var label = (it.nm || it.vd || 'Корзина').replace(/\s+/g, ' ').trim();
+                ctx.fillStyle = 'rgba(230,233,238,0.72)';
+                ctx.font = '600 5.5px "Segoe UI", Arial, sans-serif';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                if (label.length > 18) label = label.slice(0, 17) + '…';
+                ctx.fillText(label, 6, 34);
+                var used = (it.blades || []).length;
+                ctx.fillStyle = 'rgba(230,233,238,0.45)';
+                ctx.font = '500 5px "Segoe UI", Arial, sans-serif';
+                ctx.fillText(used + '/' + slots, 78, 34);
+            } else {
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                var rows3 = it.k === 'storage' ? 4 : (it.k === 'tape' ? 3 : 1);
+                for (var q = 0; q < rows3; q++) {
+                    if (it.k === 'tape') { ctx.fillRect(8 + q * 22, 11, 20, 24); ctx.fillStyle = '#1f6fb5'; ctx.fillRect(74, 12, 18, 14); ctx.fillStyle = 'rgba(0,0,0,0.55)'; }
+                    else if (it.k === 'storage') ctx.fillRect(8, 11 + q * 7, 70, 5);
+                    else if (it.k === 'switch') { for (var pp = 0; pp < 16; pp++) ctx.fillRect(8 + pp * 5, 13 + (pp % 2) * 8, 4, 7); }
+                    else ctx.fillRect(8, 13, 62, 20);
+                }
+                if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
+                var nm = (it.nm || it.vd || '').replace(/\s+/g, ' ').trim();
+                if (nm) {
+                    ctx.fillStyle = 'rgba(230,233,238,0.55)';
+                    ctx.font = '500 5px "Segoe UI", Arial, sans-serif';
+                    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                    if (nm.length > 20) nm = nm.slice(0, 19) + '…';
+                    ctx.fillText(nm, 8, 34);
+                }
             }
-            if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
             // p=1 включено — мерцает; p=2 спячка/выкл — статичный янтарь
             if (on) {
-                var sbr = ledBright(a0 * 13 + b0 * 7 + (it.vd || '').length * 0.3);
+                var sbr = ledBright(a0 * 13 + b0 * 7 + (it.id || 0) * 0.3 + (it.vd || '').length * 0.3);
                 ctx.globalAlpha = 0.55 + 0.45 * sbr;
                 ctx.shadowColor = '#35e06a'; ctx.shadowBlur = 3 + 4 * sbr;
             }
