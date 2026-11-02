@@ -34,9 +34,8 @@ var (
 // после SSO-заголовка - экран authgate, иначе редирект на "/" (см. LoginBlockedRedirect).
 func (this *MainController) Login() {
 	m := make(map[string]interface{})
-	backParam := this.Ctx.Input.Param(":back")
-	target := authGateTargetFromBack(backParam)
-	log.Println("back is", strings.TrimPrefix(target, "/"))
+	target := this.resolveLoginReturnURL()
+	log.Println("login return is", target)
 
 	// Доменный SSO: Access-Denied / X-Loadmon-Auth (заголовки от spnegoFilter).
 	if applied, denied := this.applyDomainAuthFromHeader(); denied {
