@@ -237,6 +237,14 @@
 
     // оттенки янтаря для световых столбов: от светло-янтарного (малая мощность) к насыщенно-оранжевому (максимум)
     var glowT = 0;
+    // мерцание светодиодов включённого оборудования на полках (спячка/выкл — статично)
+    function ledBright(seed) {
+        var t = glowT, s = (seed || 0) * 12.9898;
+        var a = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 2.15 + s));
+        var b = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(t * 5.4 + s * 1.73));
+        var dip = 1 - 0.12 * Math.max(0, Math.sin(t * 15.5 + s * 2.9));
+        return Math.min(1, Math.max(0.48, a * b * dip));
+    }
     function glowRGB(frac, dark) {
         var stops = [[253, 224, 120], [251, 191, 36], [245, 158, 11]];     // один и тот же светлый янтарный ряд в обеих темах
         var t = Math.max(0, Math.min(1, frac)) * 2, i = Math.min(1, Math.floor(t)), f = t - i;
@@ -667,8 +675,16 @@
         for (q = 0; q < 20; q++) { var nn = (q + 1) % 20; poly([top[q], top[nn], bot[nn], bot[q]], '#b5bcc5'); }
         poly(top, lit ? '#ffffff' : '#eef0f3', 'rgba(0,0,0,0.3)', 0.7);
         var lc = P(cx, cb, z + hh);
+        ctx.save();
+        if (on) {
+            var abr = ledBright((it.id || 0) * 0.37 + cx + cb);
+            ctx.globalAlpha = 0.55 + 0.45 * abr;
+            ctx.shadowColor = round ? '#3aa0ff' : '#35e06a';
+            ctx.shadowBlur = Math.max(2, rad * G.s * 0.2 * abr);
+        }
         ctx.fillStyle = on ? (round ? '#3aa0ff' : '#35e06a') : '#8a919c';
         ctx.beginPath(); ctx.arc(lc[0], lc[1], Math.max(1.5, rad * G.s * 0.14), 0, TAU); ctx.fill();
+        ctx.restore();
     }
     function drawShelfItem(a0, a1, b0, b1, z, h, it, lit) {
         if (isAP(it)) { drawShelfAP(a0, a1, b0, b1, z, h, it, lit); return; }
@@ -697,6 +713,12 @@
                 else ctx.fillRect(8, 13, 62, 20);
             }
             if (it.k === 'server') { ctx.fillStyle = 'rgba(255,255,255,0.12)'; for (var d = 0; d < 6; d++) ctx.fillRect(12 + d * 10, 18, 6, 10); }
+            // p=1 включено — мерцает; p=2 спячка/выкл — статичный янтарь; иначе серый
+            if (on) {
+                var sbr = ledBright((it.id || 0) * 0.41 + a0 * 3 + b0);
+                ctx.globalAlpha = 0.55 + 0.45 * sbr;
+                ctx.shadowColor = '#35e06a'; ctx.shadowBlur = 3 + 4 * sbr;
+            }
             ctx.fillStyle = on ? '#35e06a' : (it.p === 2 ? '#ffab1a' : '#8a919c');
             ctx.beginPath(); ctx.arc(88, 24, 4, 0, TAU); ctx.fill();
             ctx.restore();
@@ -1007,10 +1029,11 @@
         glowRaf = 0;
         glowT = (now || performance.now()) * 0.001;
         render();
-        if (hasPowerGlow) glowRaf = requestAnimationFrame(glowFrame);
+        // столбы мощности и/или мерцание светодиодов на полках
+        glowRaf = requestAnimationFrame(glowFrame);
     }
     layout();
-    if (hasPowerGlow) requestAnimationFrame(glowFrame); else render();
+    requestAnimationFrame(glowFrame);
 
     // deep-link ?rack= — выделить шкаф/стеллаж; иначе первый шкаф с оборудованием / секция стеллажа
     var focusCab = focusRackId > 0 ? allRacks.filter(function (r) { return r.id === focusRackId; })[0] : null;

@@ -405,14 +405,31 @@
     }
     function fillRR(c, x, y, w, h, r, fill) { rr(c, x, y, w, h, r); c.fillStyle = fill; c.fill(); }
     function strokeRR(c, x, y, w, h, r, stroke, lw) { rr(c, x, y, w, h, r); c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); }
+    // мерцание «живых» светодиодов включённого оборудования; спячка/выкл (C_STBY) — статично
+    var ledPulseT = 0;
+    function ledIsLiveColor(color) {
+        return !!(color && color !== C_STBY && color !== C_ERR && color !== C_UID && color !== '#000' && color !== '#1e2126');
+    }
+    function ledBright(seed) {
+        var t = ledPulseT, s = (seed || 0) * 12.9898;
+        var a = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 2.15 + s));
+        var b = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(t * 5.4 + s * 1.73));
+        var dip = 1 - 0.12 * Math.max(0, Math.sin(t * 15.5 + s * 2.9));
+        return Math.min(1, Math.max(0.48, a * b * dip));
+    }
     function led(c, cx, cy, r, color, on) {
         if (on) {
+            var live = ledIsLiveColor(color), br = live ? ledBright(cx * 0.13 + cy * 0.71) : 1;
             c.save();
-            c.shadowColor = color; c.shadowBlur = r * 2.6;
+            if (live) c.globalAlpha = br;
+            c.shadowColor = color; c.shadowBlur = r * (2.2 + (live ? br * 1.1 : 0.4));
             c.fillStyle = color; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
             c.restore();
+            c.save();
+            if (live) c.globalAlpha = 0.4 + 0.45 * br;
             c.fillStyle = 'rgba(255,255,255,0.65)';
             c.beginPath(); c.arc(cx - r * 0.28, cy - r * 0.3, r * 0.34, 0, TAU); c.fill();
+            c.restore();
         } else {
             c.fillStyle = '#1e2126'; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
             c.strokeStyle = 'rgba(0,0,0,0.65)'; c.lineWidth = Math.max(0.5, r * 0.25); c.stroke();
@@ -428,10 +445,16 @@
 
     function powerButton(c, cx, cy, r, p) {
         var col = pwrColor(p);
-        // кольцо индикации
+        // кольцо индикации: при power=1 мерцает, при спячке/выкл (2) — статичный янтарь
         c.lineWidth = Math.max(1.4, r * 0.34);
-        if (col) { c.save(); c.shadowColor = col; c.shadowBlur = r * 1.8; c.strokeStyle = col; c.beginPath(); c.arc(cx, cy, r * 1.22, 0, TAU); c.stroke(); c.restore(); }
-        else { c.strokeStyle = '#2b2f35'; c.beginPath(); c.arc(cx, cy, r * 1.22, 0, TAU); c.stroke(); }
+        if (col) {
+            var live = p === 1, br = live ? ledBright(cx * 0.19 + cy * 0.53) : 1;
+            c.save();
+            if (live) c.globalAlpha = 0.55 + 0.45 * br;
+            c.shadowColor = col; c.shadowBlur = r * (live ? (1.4 + br * 1.2) : 1.8);
+            c.strokeStyle = col; c.beginPath(); c.arc(cx, cy, r * 1.22, 0, TAU); c.stroke();
+            c.restore();
+        } else { c.strokeStyle = '#2b2f35'; c.beginPath(); c.arc(cx, cy, r * 1.22, 0, TAU); c.stroke(); }
         var gr = c.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
         gr.addColorStop(0, '#f1f3f5'); gr.addColorStop(1, '#868c95');
         c.fillStyle = gr; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
@@ -743,7 +766,11 @@
             c.strokeStyle = 'rgba(0,0,0,0.12)'; c.beginPath(); c.arc(cx, cy, bh * 0.42, 0, TAU); c.stroke();
             if (kind === 'unifi') {
                 c.save();
-                if (on) { c.shadowColor = '#3aa0ff'; c.shadowBlur = bh * 0.25; }
+                if (on) {
+                    var ubr = ledBright(cx * 0.11 + cy * 0.67);
+                    c.globalAlpha = 0.55 + 0.45 * ubr;
+                    c.shadowColor = '#3aa0ff'; c.shadowBlur = bh * (0.18 + 0.2 * ubr);
+                }
                 c.strokeStyle = on ? '#3aa0ff' : '#9aa3ad'; c.lineWidth = Math.max(1.5, bh * 0.07);
                 c.beginPath(); c.arc(cx, cy, bh * 0.17, 0, TAU); c.stroke();
                 c.restore();
@@ -1351,6 +1378,17 @@
     layout();
     drawAll();
     pinFocusEq();
+
+    // лёгкое мерцание светодиодов включённого оборудования (~18 fps)
+    var ledRaf = 0, ledLast = 0;
+    function ledTick(now) {
+        ledRaf = requestAnimationFrame(ledTick);
+        if (now - ledLast < 55) return;
+        ledLast = now;
+        ledPulseT = now * 0.001;
+        drawAll();
+    }
+    requestAnimationFrame(ledTick);
 
     // Нет оборудования на позициях, но есть оборудование без позиции: пустой шкаф
     // не рисуем - иначе список "без позиции" уходит под высокий пустой шкаф и не виден.
