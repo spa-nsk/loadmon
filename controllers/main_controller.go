@@ -310,15 +310,9 @@ func TraceFilter(hdr string, filter models.LoadFilter) {
 // Get обрабатывает главную страницу приложения: проверяет наличие
 // сессии пользователя и перенаправляет на страницу входа или на список серверов.
 func (this *MainController) Get() {
-	// Цель после входа: ?next=/path или значение по умолчанию.
-	// next не должен указывать обратно на / или /login - иначе цикл с AuthFilter.
-	next := strings.TrimSpace(this.GetString("next"))
-	if next == "" || next == "/" || next == "/login" || strings.HasPrefix(next, "/user/login") {
-		next = "/sprsrv/view2/all/0"
-	}
-	if !strings.HasPrefix(next, "/") {
-		next = "/" + next
-	}
+	// Цель после входа: ?next=/path[?query]. sanitizeReturnURL отсекает
+	// циклы на /login и внешние URL.
+	next := sanitizeReturnURL(this.GetString("next"))
 
 	sess := this.GetSession("loadmon")
 	if sess != nil {

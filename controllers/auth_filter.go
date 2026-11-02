@@ -84,12 +84,11 @@ func isPublicPath(path string) bool {
 // beego/v2/server/web/router.go), поэтому в publicPaths их указывать не
 // нужно.
 //
-// Редирект без сессии:
-//   - локальная авторизация → "/user/login/<back>" (как раньше; back =
-//     путь с "_" вместо "/");
-//   - доменная авторизация → "/?next=<path>" (форма /login и /user/login
-//     заблокированы и сами редиректят на "/", поэтому уводить на login
-//     нельзя - получится цикл AuthFilter→login→/→AuthFilter…).
+// Редирект без сессии (цель в ?next= path[+?query], без кодировки через "_"):
+//   - локальная авторизация → "/user/login/back?next=...";
+//   - доменная авторизация → "/?next=..." (форма /login и /user/login
+//     заблокированы и сами редиректят на "/?next=...", поэтому уводить на
+//     login нельзя - получится цикл AuthFilter→login→/→AuthFilter…).
 // Путь "/" публичный (publicExactPaths), фильтр на нём не срабатывает.
 //
 // Обработчики, которые раньше сами делали проверку "sess == nil" и
@@ -105,18 +104,13 @@ func AuthFilter(ctx *beecontext.Context) {
 	}
 
 	if ctx.Input.CruSession == nil || ctx.Input.CruSession.Get(context.Background(), "loadmon") == nil {
+		// path + query исходного URL — иначе «прямая ссылка» с ?rack=&kind= теряет
+		// параметры, а кодировка через "_" ломает сегменты с подчёркиванием (404).
+		next := sanitizeReturnURL(requestReturnURL(path, ctx.Request.URL.RawQuery))
 		if config.ConfigData.IsDomainAuth() {
-			next := path
-			if next == "" || next == "/" {
-				next = "/sprsrv/view2/all/0"
-			}
 			ctx.Redirect(302, "/?next="+url.QueryEscape(next))
 			return
 		}
-		back := strings.ReplaceAll(strings.TrimPrefix(path, "/"), "/", "_")
-		if back == "" {
-			back = "filter" // на случай пути "/", который и так публичный (см. publicExactPaths) - защитная заглушка, а не рабочий путь
-		}
-		ctx.Redirect(302, "/user/login/"+back)
+		ctx.Redirect(302, "/user/login/back?next="+url.QueryEscape(next))
 	}
 }

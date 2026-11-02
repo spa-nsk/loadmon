@@ -41,13 +41,21 @@
     }
   </style>
 </head>
-<body>
+<body data-auth-target="{{.AuthGateTarget}}" data-auth-min-ms="{{.AuthGateMinMs}}">
   <canvas id="matrixRain" aria-hidden="true"></canvas>
   <div class="auth-caption">Авторизация…</div>
   <script>
 (function () {
-  var target = {{printf "%q" .AuthGateTarget}};
-  var minMs = {{.AuthGateMinMs}};
+  var body = document.body;
+  var target = body.getAttribute('data-auth-target') || '/sprsrv/view2/all/0';
+  // только относительный путь приложения — защита от битого/внешнего next
+  if (target.charAt(0) !== '/' || target.indexOf('//') === 0) {
+    target = '/sprsrv/view2/all/0';
+  }
+  var minMs = parseInt(body.getAttribute('data-auth-min-ms'), 10);
+  if (!minMs || minMs < 0) {
+    minMs = 15000;
+  }
   var started = Date.now();
 
   function go() {
@@ -125,17 +133,9 @@
 
   window.addEventListener('resize', resize);
   resize();
-  // стартовый фон без «следов»
   ctx.fillStyle = isDark() ? '#080600' : '#f4f4f2';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   requestAnimationFrame(frame);
-
-  // смена темы на лету (если localStorage уже задан — color-modes применил при загрузке)
-  try {
-    new MutationObserver(function () {
-      // цвет подхватывается в следующем кадре через isDark()
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
-  } catch (e) {}
 })();
   </script>
 </body>

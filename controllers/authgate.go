@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/base64"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -14,21 +15,42 @@ import (
 // authGateMinMs - минимальная длительность экрана «цифрового дождя» при входе.
 const authGateMinMs = 15000
 
+// defaultAuthReturnURL - куда вести после входа, если цель не задана или небезопасна.
+const defaultAuthReturnURL = "/sprsrv/view2/all/0"
+
+// sanitizeReturnURL - только относительный путь приложения (защита от open redirect
+// и от «кривых» next вроде //evil или /user/login/...).
+func sanitizeReturnURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "/" || raw == "/login" {
+		return defaultAuthReturnURL
+	}
+	if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+		return defaultAuthReturnURL
+	}
+	if strings.HasPrefix(raw, "/user/login") {
+		return defaultAuthReturnURL
+	}
+	return raw
+}
+
+// requestReturnURL собирает path[+?query] исходного запроса для возврата после входа.
+func requestReturnURL(path, rawQuery string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		path = "/"
+	}
+	if rawQuery != "" {
+		return path + "?" + rawQuery
+	}
+	return path
+}
+
 // showAuthGate показывает полноэкранную визуализацию входа (Matrix rain)
 // и через AuthGateMinMs перенаправляет браузер на target (клиентский JS).
 // Вызывается сразу после успешного создания сессии, до перехода в приложение.
 func (this *MainController) showAuthGate(target string) {
-	target = strings.TrimSpace(target)
-	if target == "" || target == "/" {
-		target = "/sprsrv/view2/all/0"
-	}
-	if !strings.HasPrefix(target, "/") {
-		target = "/" + target
-	}
-	// не уводить обратно на экраны входа - защита от зацикливания
-	if strings.HasPrefix(target, "/user/login") || target == "/login" {
-		target = "/sprsrv/view2/all/0"
-	}
+	target = sanitizeReturnURL(target)
 	this.Layout = ""
 	this.TplName = "user/authgate.tpl"
 	this.Data["AuthGateTarget"] = target
@@ -81,27 +103,36 @@ func (this *MainController) applyDomainAuthFromHeader() (applied, denied bool) {
 }
 
 // authGateTargetFromBack собирает целевой URL из параметра :back логина
-// (сегменты через "_") или query next.
+// (сегменты через "_" — устаревшая схема; предпочтителен query next).
 func authGateTargetFromBack(back string) string {
 	back = strings.ReplaceAll(back, "_", "/")
 	back = strings.ReplaceAll(back, "=", " ")
 	back = strings.TrimSpace(back)
-	if back == "" || back == "filter" {
-		return "/sprsrv/view2/all/0"
+	if back == "" || back == "filter" || back == "back" {
+		return defaultAuthReturnURL
 	}
 	if !strings.HasPrefix(back, "/") {
 		back = "/" + back
 	}
-	return back
+	return sanitizeReturnURL(back)
+}
+
+// resolveLoginReturnURL - цель после входа: ?next=... (предпочтительно) или :back.
+func (this *MainController) resolveLoginReturnURL() string {
+	if next := strings.TrimSpace(this.GetString("next")); next != "" {
+		return sanitizeReturnURL(next)
+	}
+	return authGateTargetFromBack(this.Ctx.Input.Param(":back"))
 }
 
 // LoginBlockedRedirect - при доменной авторизации форма /user/login и /login
-// не используются: редирект на "/" (там SPNEGO + экран входа). Возвращает
-// true, если редирект уже выполнен.
+// не используются: редирект на "/?next=..." (SPNEGO + экран входа), с сохранением
+// исходной цели. Возвращает true, если редирект уже выполнен.
 func (this *MainController) LoginBlockedRedirect() bool {
 	if config.ConfigData.IsLocalAuth() {
 		return false
 	}
-	this.Redirect("/", 302)
+	target := this.resolveLoginReturnURL()
+	this.Redirect("/?next="+url.QueryEscape(target), 302)
 	return true
 }
