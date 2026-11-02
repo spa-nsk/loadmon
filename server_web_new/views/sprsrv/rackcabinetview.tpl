@@ -12,9 +12,9 @@
 </style>{{end}}
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
-        <h2>Шкаф {{.CabinetName}}</h2>
+        <h2>{{if .ShowRackFilters}}Просмотр оборудования шкафа в ЦОД{{else}}Шкаф {{.CabinetName}}{{end}}</h2>
         <div class="text-muted">
-            {{if .SiteName}}<b>{{.SiteName}}</b> &middot; {{end}}высота {{.UHeight}}U &middot; оборудования: {{.ItemCount}}
+            {{if .ShowRackFilters}}{{if .CabinetName}}<b>{{.CabinetName}}</b>{{if .SiteName}} &middot; {{.SiteName}}{{end}} &middot; {{end}}{{end}}{{if .SiteName}}{{if not .ShowRackFilters}}<b>{{.SiteName}}</b> &middot; {{end}}{{end}}{{if .UHeight}}высота {{.UHeight}}U &middot; {{end}}оборудования: {{.ItemCount}}
         </div>
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -23,7 +23,9 @@
             <button type="button" class="btn btn-outline-secondary btn-sm" id="rvZoomReset" title="Масштаб по умолчанию">100%</button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="rvZoomIn" title="Увеличить">+</button>
         </div>
+        {{if and .Id (ne .Id "0")}}
         <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/rackcabinetedit/{{.Id}}" target="_blank">Редактировать шкаф</a>
+        {{end}}
     </div>
 </div>
 
@@ -34,8 +36,45 @@
 <blockquote class="blockquote">{{.flash.notice}}</blockquote>
 {{end}}
 
+{{if .ShowRackFilters}}
+<div class="hw-filter-bar mb-3 p-3 rounded border">
+    <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-3 position-relative">
+            <label for="LocalitySearch" class="form-label">Населённый пункт</label>
+            <input type="text" id="LocalitySearch" class="form-control" autocomplete="off"
+                   placeholder="начните вводить название, например: Новосиб" value="{{.FilterLocalityName}}">
+            <input type="hidden" id="LocalityCode" value="{{.FilterLocalityCode}}">
+            <div id="LocalityList" class="list-group position-absolute w-100 shadow d-none" style="z-index: 1050; max-height: 320px; overflow-y: auto;"></div>
+        </div>
+        <div class="col-12 col-md-4">
+            <label for="DatacenterSiteId" class="form-label">Площадка/ЦОД</label>
+            <select id="DatacenterSiteId" class="form-select">
+                <option value="0">Выберите площадку/ЦОД</option>
+                {{range $dc := .DatacenterSites}}
+                <option value="{{$dc.Id}}" data-locality="{{$dc.LocalityCode}}" {{if eq $.FilterSiteId $dc.Id}}selected{{end}}>{{$dc.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        <div class="col-12 col-md-3">
+            <label for="RackCabinetId" class="form-label">Шкаф</label>
+            <select id="RackCabinetId" class="form-select">
+                <option value="0">Выберите шкаф</option>
+                {{range $rc := .RackCabinets}}
+                <option value="{{$rc.Id}}" data-site="{{$rc.DatacenterSiteId}}" {{if eq $.Id (printf "%d" $rc.Id)}}selected{{end}}>{{$rc.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        <div class="col-12 col-md-2 d-flex gap-2">
+            <button type="button" id="rvEquipApply" class="btn btn-primary rounded-pill px-3">Показать</button>
+            <button type="button" id="rvEquipReset" class="btn btn-outline-secondary rounded-pill px-3" title="Сбросить фильтр">Сброс</button>
+        </div>
+    </div>
+</div>
+{{end}}
+
 <div id="rvZoomInd" class="rv-zoom-ind"></div>
-<div class="rv-layout">
+<div id="rvViewRoot">
+<div class="rv-layout" id="rvLayout">
     <aside class="rv-side">
         <div class="rv-card">
             <h6>Сводка</h6>
@@ -64,11 +103,16 @@
         </div>
     </div>
 </div>
+{{if .ShowRackFilters}}
+<div id="rvEmpty" class="rv-empty d-none">Выберите населённый пункт, площадку/ЦОД и шкаф, затем нажмите «Показать»</div>
+{{end}}
+</div>
 
 <style>
     .rv-zoom-ind { position: fixed; z-index: 60; top: 12px; left: 50%; transform: translateX(-50%); pointer-events: none; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
                    background: var(--bs-body-bg); color: var(--bs-body-color); border: 1px solid var(--bs-border-color); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); opacity: 0; transition: opacity 0.25s; }
     .rv-zoom-ind.rv-zi-on { opacity: 1; }
+    .rv-empty { display: flex; align-items: center; justify-content: center; min-height: 280px; color: var(--bs-secondary-color); border: 1px dashed var(--bs-border-color); border-radius: 0.6rem; background: var(--bs-tertiary-bg); }
     .rv-layout { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
     .rv-side { flex: 0 0 300px; max-width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
     .rv-main { flex: 1 1 auto; min-width: 0; padding-bottom: 1rem; }
@@ -120,12 +164,124 @@
 </style>
 
 <script>
+{{if .ShowRackFilters}}
+(function () {
+    // Фильтр: населённый пункт → площадка/ЦОД → шкаф
+    var search = document.getElementById('LocalitySearch');
+    var list = document.getElementById('LocalityList');
+    var code = document.getElementById('LocalityCode');
+    var siteSelect = document.getElementById('DatacenterSiteId');
+    var rackSelect = document.getElementById('RackCabinetId');
+    if (!search || !list || !code || !siteSelect || !rackSelect) return;
+    var timer = null, seq = 0;
+    var allSiteOptions = Array.prototype.slice.call(siteSelect.options);
+    var allRackOptions = Array.prototype.slice.call(rackSelect.options);
+
+    function filterSites() {
+        var loc = code.value || '';
+        var cur = siteSelect.value;
+        siteSelect.innerHTML = '';
+        allSiteOptions.forEach(function (opt) {
+            if (opt.value === '0' || opt.value === '') { siteSelect.appendChild(opt.cloneNode(true)); return; }
+            if (!loc || opt.getAttribute('data-locality') === loc) siteSelect.appendChild(opt.cloneNode(true));
+        });
+        var still = false;
+        Array.prototype.forEach.call(siteSelect.options, function (o) { if (o.value === cur) still = true; });
+        siteSelect.value = still ? cur : '0';
+        filterRacks();
+    }
+    function filterRacks() {
+        var sid = siteSelect.value || '0';
+        var cur = rackSelect.value;
+        rackSelect.innerHTML = '';
+        allRackOptions.forEach(function (opt) {
+            if (opt.value === '0' || opt.value === '') { rackSelect.appendChild(opt.cloneNode(true)); return; }
+            if (sid === '0' || opt.getAttribute('data-site') === sid) rackSelect.appendChild(opt.cloneNode(true));
+        });
+        var still = false;
+        Array.prototype.forEach.call(rackSelect.options, function (o) { if (o.value === cur) still = true; });
+        rackSelect.value = still ? cur : '0';
+    }
+    function hide() { list.classList.add('d-none'); list.innerHTML = ''; }
+    function pick(item) {
+        code.value = item.oktmo;
+        search.value = item.label;
+        hide();
+        filterSites();
+    }
+    function renderItems(items) {
+        list.innerHTML = '';
+        if (!items.length) {
+            var empty = document.createElement('div');
+            empty.className = 'list-group-item text-muted small';
+            empty.textContent = 'Ничего не найдено';
+            list.appendChild(empty);
+        }
+        items.forEach(function (it) {
+            var a = document.createElement('button');
+            a.type = 'button';
+            a.className = 'list-group-item list-group-item-action small';
+            a.textContent = it.label + '  [' + it.oktmo + ']';
+            a.addEventListener('mousedown', function (e) { e.preventDefault(); pick(it); });
+            list.appendChild(a);
+        });
+        list.classList.remove('d-none');
+    }
+    function query() {
+        var q = search.value.trim();
+        if (q.length < 2) { hide(); return; }
+        var my = ++seq;
+        fetch('/sprsrv/localitysearch?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (items) { if (my === seq) renderItems(items); })
+            .catch(function () { hide(); });
+    }
+    function go() {
+        var rid = rackSelect.value || '0';
+        var sid = siteSelect.value || '0';
+        var loc = code.value || '';
+        var url = '/sprsrv/rackcabinetequipview/' + rid;
+        var q = [];
+        if (loc) q.push('locality=' + encodeURIComponent(loc));
+        if (sid && sid !== '0') q.push('site=' + encodeURIComponent(sid));
+        if (q.length) url += '?' + q.join('&');
+        location.href = url;
+    }
+    search.addEventListener('input', function () {
+        if (search.value.trim() === '') { code.value = ''; filterSites(); }
+        clearTimeout(timer);
+        timer = setTimeout(query, 200);
+    });
+    search.addEventListener('blur', function () { setTimeout(hide, 150); });
+    search.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') hide();
+        if (e.key === 'Enter') { e.preventDefault(); go(); }
+    });
+    siteSelect.addEventListener('change', function () { filterRacks(); });
+    rackSelect.addEventListener('change', go);
+    var applyBtn = document.getElementById('rvEquipApply');
+    var resetBtn = document.getElementById('rvEquipReset');
+    if (applyBtn) applyBtn.addEventListener('click', go);
+    if (resetBtn) resetBtn.addEventListener('click', function () { location.href = '/sprsrv/rackcabinetequipview/0'; });
+    filterSites();
+})();
+{{end}}
 (function () {
     'use strict';
 
     var DATA = {{.RackJSON}};
     var base = document.getElementById('rvBase');
-    if (!DATA || !base) return;
+    var emptyEl = document.getElementById('rvEmpty');
+    var layoutEl = document.getElementById('rvLayout');
+    if (!DATA || !base) {
+        if (emptyEl && layoutEl) {
+            layoutEl.classList.add('d-none');
+            emptyEl.classList.remove('d-none');
+        }
+        return;
+    }
+    if (emptyEl) emptyEl.classList.add('d-none');
+    if (layoutEl) layoutEl.classList.remove('d-none');
 
     var over = document.getElementById('rvOver');
     var stage = document.getElementById('rvStage');

@@ -98,7 +98,9 @@ func init() {
 	beego.Router("/sprsrv/rackcabinetedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprRackCabinetEdit")
 	beego.Router("/sprsrv/datacentersitemap", &controllers.MainController{}, "get:SprDatacenterSiteMap")                // карта всех площадок/ЦОД: города -> здания -> этажи -> комнаты
 	beego.Router("/sprsrv/datacentersiteview/:id([0-9]+)", &controllers.MainController{}, "get:SprDatacenterSiteView") // просмотр оборудования ЦОД: изометрия зала + шкаф крупно
+	beego.Router("/sprsrv/datacenterequipview/:id([0-9]+)", &controllers.MainController{}, "get:SprDatacenterEquipView") // визуализация оборудования площадки с фильтром населённый пункт / ЦОД
 	beego.Router("/sprsrv/rackcabinetview/:id([0-9]+)", &controllers.MainController{}, "get:SprRackCabinetView") // вид шкафа с установленным оборудованием на canvas (серверы, блейд-корзины, СХД)
+	beego.Router("/sprsrv/rackcabinetequipview/:id([0-9]+)", &controllers.MainController{}, "get:SprRackCabinetEquipView") // визуализация шкафа с фильтром населённый пункт / ЦОД / шкаф
 	beego.Router("/sprsrv/location-uri/:id([0-9]+)", &controllers.MainController{}, "get:SprSrvLocationURI") // по ServerSprRecords.Id открыть план площадки с выделением шкафа и сервера (ВМ - через хост ESXi)
 
 	// Справочник сетей (models.NetworkSprRecords) для серверов и других компонент инфраструктуры.

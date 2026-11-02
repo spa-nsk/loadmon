@@ -348,6 +348,28 @@
 {{if .InSession}}
       <li class="mb-1">
         <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
+          data-bs-toggle="collapse" data-bs-target="#viz-collapse" aria-expanded="false">
+          Визуализация
+        </button>
+        <div class="collapse hide" id="viz-collapse">
+          <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+            <li>
+              <a href="/sprsrv/datacentersitemap"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Карта Площадок/ЦОД</a>
+            </li>
+            <li>
+              <a href="/sprsrv/datacenterequipview/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Оборудование площадки/ЦОД</a>
+            </li>
+            <li>
+              <a href="/sprsrv/rackcabinetequipview/0"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Просмотр оборудования шкафа в ЦОД</a>
+            </li>
+          </ul>
+        </div>
+      </li>
+      <li class="mb-1">
+        <button class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
           data-bs-toggle="collapse" data-bs-target="#dashboard-collapse" aria-expanded="false">
           Данные из Vmware
         </button>
@@ -464,10 +486,6 @@
             <li>
               <a href="/sprsrv/datacentersitelist/0"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Справочник Площадок/ЦОД</a>
-            </li>
-            <li>
-              <a href="/sprsrv/datacentersitemap"
-                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Карта Площадок/ЦОД</a>
             </li>
             <li>
               <a href="/sprsrv/rackcabinetlist/0"

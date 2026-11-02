@@ -150,7 +150,6 @@ func rackViewKVAdd(rows []rackViewKV, k, v string) []rackViewKV {
 //
 // Маршрут: /sprsrv/rackcabinetview/:id
 func (this *MainController) SprRackCabinetView() {
-
 	idStr := this.Ctx.Input.Param(":id")
 
 	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
@@ -158,6 +157,7 @@ func (this *MainController) SprRackCabinetView() {
 
 	this.activeContent("sprsrv/rackcabinetview")
 	this.Data["Embed"] = this.GetString("embed") == "1" // показ во фрейме просмотра ЦОД: без боковой панели
+	this.Data["ShowRackFilters"] = false
 
 	this.Data["Id"] = idStr
 	this.Data["CabinetName"] = ""
@@ -174,15 +174,87 @@ func (this *MainController) SprRackCabinetView() {
 		flash.Store(&this.Controller)
 		return
 	}
+	fillRackCabinetViewPage(this, orm.NewOrm(), id, flash)
+}
 
+// SprRackCabinetEquipView - просмотр оборудования шкафа с фильтром
+// населённый пункт → площадка/ЦОД → шкаф (меню «Визуализация»).
+//
+// Маршрут: /sprsrv/rackcabinetequipview/:id  (0 = шкаф ещё не выбран)
+func (this *MainController) SprRackCabinetEquipView() {
+	idStr := this.Ctx.Input.Param(":id")
+
+	RegisterRequest(this, LogTypeViewReference)
+	this.activeContent("sprsrv/rackcabinetview")
+	this.Data["Embed"] = false
+	this.Data["ShowRackFilters"] = true
+
+	this.Data["Id"] = idStr
+	this.Data["CabinetName"] = ""
+	this.Data["SiteName"] = ""
+	this.Data["UHeight"] = 0
+	this.Data["ItemCount"] = 0
+	this.Data["RackJSON"] = template.JS("null")
+	this.Data["FilterLocalityName"] = ""
+	this.Data["FilterLocalityCode"] = ""
+	this.Data["FilterSiteId"] = int64(0)
+
+	flash := beego.NewFlash()
 	o := orm.NewOrm()
 
+	var sites []models.DatacenterSite
+	_, _ = o.QueryTable(new(models.DatacenterSite)).OrderBy("Name").Limit(-1).All(&sites, "Id", "Name", "LocalityCode")
+	this.Data["DatacenterSites"] = sites
+
+	var racks []models.RackCabinet
+	_, _ = o.QueryTable(new(models.RackCabinet)).OrderBy("Name").Limit(-1).All(&racks, "Id", "Name", "DatacenterSiteId")
+	this.Data["RackCabinets"] = racks
+
+	localityCode := strings.TrimSpace(this.GetString("locality"))
+	if localityCode == "" {
+		localityCode = strings.TrimSpace(this.GetString("LocalityCode"))
+	}
+	this.Data["FilterLocalityCode"] = localityCode
+	if localityCode != "" {
+		this.Data["FilterLocalityName"] = localityNamesByCode(o, []models.DatacenterSite{{LocalityCode: localityCode}})[localityCode]
+	}
+	if sid, err := this.GetInt64("site"); err == nil && sid > 0 {
+		this.Data["FilterSiteId"] = sid
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id < 0 {
+		flash.Error("Некорректный идентификатор шкафа: %s", idStr)
+		flash.Store(&this.Controller)
+		return
+	}
+	if id == 0 {
+		return
+	}
+
+	var cab models.RackCabinet
+	if err := o.QueryTable(new(models.RackCabinet)).Filter("Id", id).One(&cab, "Id", "DatacenterSiteId"); err == nil {
+		this.Data["FilterSiteId"] = cab.DatacenterSiteId
+		if localityCode == "" && cab.DatacenterSiteId > 0 {
+			var site models.DatacenterSite
+			if err := o.QueryTable(new(models.DatacenterSite)).Filter("Id", cab.DatacenterSiteId).One(&site, "Id", "LocalityCode"); err == nil && site.LocalityCode != "" {
+				this.Data["FilterLocalityCode"] = site.LocalityCode
+				this.Data["FilterLocalityName"] = localityNamesByCode(o, []models.DatacenterSite{site})[site.LocalityCode]
+			}
+		}
+	}
+	fillRackCabinetViewPage(this, o, id, flash)
+}
+
+// fillRackCabinetViewPage заполняет CabinetName / SiteName / UHeight / ItemCount / RackJSON.
+func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash *beego.FlashData) {
 	var cab models.RackCabinet
 	if err := o.QueryTable(new(models.RackCabinet)).Filter("Id", id).One(&cab); err != nil {
 		flash.Error("Шкаф с Id=%d не найден: %v", id, err)
 		flash.Store(&this.Controller)
 		return
 	}
+	this.Data["Id"] = strconv.FormatInt(id, 10)
 
 	siteName := ""
 	if cab.DatacenterSiteId > 0 {
