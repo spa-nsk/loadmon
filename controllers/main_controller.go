@@ -310,13 +310,42 @@ func TraceFilter(hdr string, filter models.LoadFilter) {
 // Get обрабатывает главную страницу приложения: проверяет наличие
 // сессии пользователя и перенаправляет на страницу входа или на список серверов.
 func (this *MainController) Get() {
-	this.activeContent("index")
+	// Цель после входа: ?next=/path или значение по умолчанию.
+	// next не должен указывать обратно на / или /login - иначе цикл с AuthFilter.
+	next := strings.TrimSpace(this.GetString("next"))
+	if next == "" || next == "/" || next == "/login" || strings.HasPrefix(next, "/user/login") {
+		next = "/sprsrv/view2/all/0"
+	}
+	if !strings.HasPrefix(next, "/") {
+		next = "/" + next
+	}
+
 	sess := this.GetSession("loadmon")
-	if sess == nil {
-		this.Redirect("/user/login/sprsrv_view2_all_0", 302)
+	if sess != nil {
+		this.Redirect(next, 302)
 		return
 	}
-	this.Redirect("/sprsrv/view2/all/0", 302)
+
+	// Доменный вход: SPNEGO уже мог выставить X-Loadmon-Auth / Access-Denied
+	// (spnegoFilter, BeforeExec). Создаём сессию и показываем Matrix-экран
+	// (≥15 с), без редиректа на /user/login - там форма при domain заблокирована.
+	// Важно: без созданной сессии НЕльзя уводить JS на next (защищённый путь) -
+	// AuthFilter вернёт снова на /?next=... и получится цикл authgate↔фильтр.
+	if config.ConfigData.IsDomainAuth() {
+		if applied, denied := this.applyDomainAuthFromHeader(); denied {
+			this.activeContent("user/accessdenied")
+			this.Data["AccessRequestURL"] = config.ConfigData.AccessRequestURL
+			return
+		} else if applied {
+			this.showAuthGate(next)
+			return
+		}
+		this.activeContent("user/accessdenied")
+		this.Data["AccessRequestURL"] = config.ConfigData.AccessRequestURL
+		return
+	}
+
+	this.Redirect("/user/login/sprsrv_view2_all_0", 302)
 }
 
 // Notice отображает страницу с уведомлением (flash-сообщением).

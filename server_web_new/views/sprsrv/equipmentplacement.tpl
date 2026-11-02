@@ -35,6 +35,7 @@
         <tr>
             <th>Тип</th>
             <th>Наименование</th>
+            <th>Статус</th>
             <th>Совпадение</th>
             <th>Площадка/ЦОД</th>
             <th>Шкаф</th>
@@ -46,12 +47,29 @@
         <tr>
             <td>{{$h.KindLabel}}</td>
             <td>{{$h.Name}}</td>
+            <td>
+                {{if $h.NoVisualization}}
+                <span class="badge text-bg-warning">{{$h.StatusName}}</span>
+                {{else if $h.StatusName}}
+                <span class="text-muted">{{$h.StatusName}}</span>
+                {{else}}
+                <span class="text-muted">—</span>
+                {{end}}
+            </td>
             <td><span class="text-muted">{{$h.MatchField}}:</span> {{$h.MatchValue}}</td>
             <td>{{if $h.SiteName}}{{$h.SiteName}}{{else}}<span class="text-muted">—</span>{{end}}</td>
             <td>{{if $h.RackName}}{{$h.RackName}}{{else}}<span class="text-muted">—</span>{{end}}</td>
             <td class="text-end">
-                {{if $h.ViewURL}}
+                {{if $h.NoVisualization}}
+                {{if $h.CardURL}}
+                <a class="btn btn-sm btn-outline-secondary rounded-pill px-3" href="{{$h.CardURL}}">Карточка</a>
+                {{else}}
+                <span class="text-muted small">без визуализации</span>
+                {{end}}
+                {{else if $h.ViewURL}}
                 <a class="btn btn-sm btn-outline-primary rounded-pill px-3" href="{{$h.ViewURL}}">Показать на площадке</a>
+                {{else if $h.CardURL}}
+                <a class="btn btn-sm btn-outline-secondary rounded-pill px-3" href="{{$h.CardURL}}">Карточка</a>
                 {{else}}
                 <span class="text-muted small">нет размещения</span>
                 {{end}}
@@ -63,5 +81,5 @@
 {{else if .Query}}
 {{/* сообщение уже в flash.notice */}}
 {{else}}
-<div class="text-muted">Введите номер и нажмите «Найти». При единственном результате сразу откроется площадка с выделением шкафа и оборудования.</div>
+<div class="text-muted">Введите номер и нажмите «Найти». При единственном результате откроется площадка с выделением (или карточка, если оборудование списано / в пути).</div>
 {{end}}
