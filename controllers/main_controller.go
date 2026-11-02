@@ -320,22 +320,17 @@ func (this *MainController) Get() {
 		return
 	}
 
-	// Доменный вход: SPNEGO уже мог выставить X-Loadmon-Auth / Access-Denied
-	// (spnegoFilter, BeforeExec). Создаём сессию и показываем Matrix-экран
-	// (≥15 с), без редиректа на /user/login - там форма при domain заблокирована.
-	// Важно: без созданной сессии НЕльзя уводить JS на next (защищённый путь) -
-	// AuthFilter вернёт снова на /?next=... и получится цикл authgate↔фильтр.
+	// Доменный вход: сразу Matrix-экран; SPNEGO идёт параллельно через /sso
+	// (fetch из authgate), а не до показа дождя. Сессия появится после /sso —
+	// поэтому JS не уводит на next, пока SSO не завершится (иначе AuthFilter
+	// вернёт снова на /?next=... и получится цикл).
 	if config.ConfigData.IsDomainAuth() {
-		if applied, denied := this.applyDomainAuthFromHeader(); denied {
+		if this.GetString("access_denied") == "1" {
 			this.activeContent("user/accessdenied")
 			this.Data["AccessRequestURL"] = config.ConfigData.AccessRequestURL
 			return
-		} else if applied {
-			this.showAuthGate(next)
-			return
 		}
-		this.activeContent("user/accessdenied")
-		this.Data["AccessRequestURL"] = config.ConfigData.AccessRequestURL
+		this.showAuthGate(next)
 		return
 	}
 

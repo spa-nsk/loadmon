@@ -41,33 +41,83 @@
     }
   </style>
 </head>
-<body data-auth-target="{{.AuthGateTarget}}" data-auth-min-ms="{{.AuthGateMinMs}}">
+<body
+  data-auth-target="{{.AuthGateTarget}}"
+  data-auth-min-ms="{{.AuthGateMinMs}}"
+  data-auth-sso="{{if .AuthGateSSO}}1{{else}}0{{end}}"
+>
   <canvas id="matrixRain" aria-hidden="true"></canvas>
-  <div class="auth-caption">Авторизация…</div>
+  <div class="auth-caption" id="authCaption">Авторизация…</div>
   <script>
 (function () {
   var body = document.body;
+  var caption = document.getElementById('authCaption');
   var target = body.getAttribute('data-auth-target') || '/sprsrv/view2/all/0';
-  // только относительный путь приложения — защита от битого/внешнего next
   if (target.charAt(0) !== '/' || target.indexOf('//') === 0) {
     target = '/sprsrv/view2/all/0';
   }
   var minMs = parseInt(body.getAttribute('data-auth-min-ms'), 10);
   if (!minMs || minMs < 0) {
-    minMs = 15000;
+    minMs = 0;
   }
+  var needSSO = body.getAttribute('data-auth-sso') === '1';
   var started = Date.now();
+  var authDone = !needSSO;
+  var authOk = !needSSO;
+  var going = false;
 
-  function go() {
+  function finish() {
+    if (going) return;
+    going = true;
+    if (authOk) {
+      window.location.replace(target);
+      return;
+    }
+    window.location.replace('/?access_denied=1&next=' + encodeURIComponent(target));
+  }
+
+  function tryGo() {
+    if (!authDone) return;
     var left = minMs - (Date.now() - started);
     if (left > 0) {
-      setTimeout(function () { window.location.replace(target); }, left);
+      setTimeout(finish, left);
     } else {
-      window.location.replace(target);
+      finish();
     }
   }
-  // переход только после минимальной паузы (авторизация уже завершена на сервере)
-  go();
+
+  if (needSSO) {
+    // Дождь уже на экране; Negotiate идёт здесь же, а не до показа страницы.
+    fetch('/sso', {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function (r) {
+      if (r.status === 403) {
+        authOk = false;
+        return r.json().catch(function () { return {}; });
+      }
+      if (!r.ok) {
+        authOk = false;
+        return {};
+      }
+      return r.json().then(function (j) {
+        authOk = !!(j && j.ok);
+      }).catch(function () {
+        authOk = false;
+      });
+    }).catch(function () {
+      authOk = false;
+    }).then(function () {
+      authDone = true;
+      if (!authOk && caption) {
+        caption.textContent = 'Доступ ограничен…';
+      }
+      tryGo();
+    });
+  } else {
+    tryGo();
+  }
 
   var canvas = document.getElementById('matrixRain');
   var ctx = canvas.getContext('2d');
