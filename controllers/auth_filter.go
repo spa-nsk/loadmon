@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"context"
+	"net/url"
 	"strings"
+
+	"loadmon/config"
 
 	beecontext "github.com/beego/beego/v2/server/web/context"
 )
@@ -14,6 +17,7 @@ import (
 // схемы, логика редиректа (см. MainController.Get()). Точное совпадение пути.
 var publicExactPaths = map[string]bool{
 	"/":              true,
+	"/login":         true, // алиас входа; при domain сам редиректит на "/", без сессии
 	"/user/logout":   true,
 	"/user/register": true,
 	"/user/forgot":   true,
@@ -80,11 +84,13 @@ func isPublicPath(path string) bool {
 // beego/v2/server/web/router.go), поэтому в publicPaths их указывать не
 // нужно.
 //
-// Редирект-цель "/user/login/<back>" вычисляется из текущего пути запроса
-// (сегменты через "_" вместо "/") — та же кодировка, что и раньше
-// применялась вручную в каждом хендлере; controllers/user2.go:Login()
-// декодирует её обратно ("_" -> "/") и возвращает пользователя на
-// исходную страницу после успешного входа.
+// Редирект без сессии:
+//   - локальная авторизация → "/user/login/<back>" (как раньше; back =
+//     путь с "_" вместо "/");
+//   - доменная авторизация → "/?next=<path>" (форма /login и /user/login
+//     заблокированы и сами редиректят на "/", поэтому уводить на login
+//     нельзя - получится цикл AuthFilter→login→/→AuthFilter…).
+// Путь "/" публичный (publicExactPaths), фильтр на нём не срабатывает.
 //
 // Обработчики, которые раньше сами делали проверку "sess == nil" и
 // использовали sess дальше по коду (например, для чтения privilage),
@@ -99,6 +105,14 @@ func AuthFilter(ctx *beecontext.Context) {
 	}
 
 	if ctx.Input.CruSession == nil || ctx.Input.CruSession.Get(context.Background(), "loadmon") == nil {
+		if config.ConfigData.IsDomainAuth() {
+			next := path
+			if next == "" || next == "/" {
+				next = "/sprsrv/view2/all/0"
+			}
+			ctx.Redirect(302, "/?next="+url.QueryEscape(next))
+			return
+		}
 		back := strings.ReplaceAll(strings.TrimPrefix(path, "/"), "/", "_")
 		if back == "" {
 			back = "filter" // на случай пути "/", который и так публичный (см. publicExactPaths) - защитная заглушка, а не рабочий путь

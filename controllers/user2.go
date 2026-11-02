@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 
@@ -31,64 +30,27 @@ var (
 // Login отображает форму входа и обрабатывает аутентификацию пользователя
 // (в т.ч. поддерживает предварительно выставленный заголовок X-Loadmon-Auth от SSO)
 // с сохранением параметров пользователя и фильтра в сессии.
+// При доменной авторизации (AuthMode != local) форма /user/login блокируется:
+// после SSO-заголовка - экран authgate, иначе редирект на "/" (см. LoginBlockedRedirect).
 func (this *MainController) Login() {
-
 	m := make(map[string]interface{})
+	backParam := this.Ctx.Input.Param(":back")
+	target := authGateTargetFromBack(backParam)
+	log.Println("back is", strings.TrimPrefix(target, "/"))
 
-	back := strings.Replace(this.Ctx.Input.Param(":back"), "_", "/", -1) // заменяет подстроку URL l1_l2_l3 на l1/l2/l3
-	back = strings.Replace(back, "=", " ", -1)
-	log.Println("back is", back)
-
-	h := this.Ctx.ResponseWriter.Header()
-
-	// Доменный пользователь прошёл Kerberos/SPNEGO-аутентификацию, но ни
-	// одна из его групп AD не найдена в config.ConfigData.Auth (см.
-	// appHandler в server_web_new/main_web.go и ResolveDomainPrivilege в
-	// config/config.go) - вместо формы логина и вместо создания сессии
-	// показываем страницу с предложением подать заявку на доступ.
-	if h.Get("X-Loadmon-Access-Denied") == "1" {
+	// Доменный SSO: Access-Denied / X-Loadmon-Auth (заголовки от spnegoFilter).
+	if applied, denied := this.applyDomainAuthFromHeader(); denied {
 		this.activeContent("user/accessdenied")
 		this.Data["AccessRequestURL"] = config.ConfigData.AccessRequestURL
 		return
+	} else if applied {
+		this.showAuthGate(target)
+		return
 	}
 
-	xAuth, ok := h["X-Loadmon-Auth"]
-	if ok {
-		if xAuth[0] != "" {
-			auth, err := base64.StdEncoding.DecodeString(xAuth[0])
-			fmt.Println("X-Loadmon-Auth", string(auth))
-			if err == nil {
-				str := strings.Split((string)(auth), ":")
-				if len(str) == 5 {
-					m["timestamp"] = time.Now()
-					m["SprSearchString"] = "" //строка фильтра справочника
-					m["SprSearchField"] = "1" //тип строки для фильтра справочника
-					m["username"] = str[1]
-					m["first"] = str[0]
-					userid, err := strconv.ParseInt(str[2], 10, 64)
-					_ = err
-					m["user_id"] = int64(userid)
-
-					privilage, err := strconv.ParseInt(str[3], 10, 32)
-					_ = err
-					m["privilage"] = int(privilage)
-
-					podrazdelenie, err := strconv.ParseInt(str[4], 10, 32)
-					_ = err
-					m["podrazdelenie"] = int(podrazdelenie)
-					to := time.Now()
-					to = CorrectTimeFilter(to)
-					from := to.AddDate(0, 0, -7)
-					from = CorrectTimeFilter(from)
-					f := models.LoadFilter{FromTime: from, ToTime: to, Map: m}
-					this.SetSession("loadmon", f)
-					RegisterRequest(this, 1) //авторизация
-					this.Redirect("/"+back, 302)
-					return
-
-				}
-			}
-		}
+	// Доменная авторизация: форма логина не используется (вход через "/" + SPNEGO).
+	if this.LoginBlockedRedirect() {
+		return
 	}
 
 	this.activeContent("user/login")
@@ -191,24 +153,33 @@ func (this *MainController) Login() {
 		f := models.LoadFilter{FromTime: from, ToTime: to, Map: m}
 		this.SetSession("loadmon", f)
 		RegisterRequest(this, 1) //авторизация
-		//		if back == "view" {
-		//			back = "view/filter"
-		//		}
-		this.Redirect("/"+back, 302)
-		//this.Redirect(back, 302)
-
+		this.showAuthGate(target)
 	}
+}
 
+// LoginAlias обрабатывает короткий маршрут /login.
+// При доменной авторизации - редирект на "/" (форма входа заблокирована);
+// при локальной - на /user/login/... .
+func (this *MainController) LoginAlias() {
+	if config.ConfigData.IsDomainAuth() {
+		this.Redirect("/", 302)
+		return
+	}
+	this.Redirect("/user/login/sprsrv_view2_all_0", 302)
 }
 
 // Logout завершает сеанс пользователя (удаляет сессию) и перенаправляет
-// на страницу входа.
+// на страницу входа (локальный режим) или на "/" (доменный - без /login).
 func (this *MainController) Logout() {
 	//this.activeContent("logout") // logout.tpl отсутствует
 	if this != nil {
 		RegisterRequest(this, 2) // выход
 	}
 	this.DelSession("loadmon")
+	if config.ConfigData.IsDomainAuth() {
+		this.Redirect("/", 302)
+		return
+	}
 	this.Redirect("/user/login/filter", 302)
 }
 

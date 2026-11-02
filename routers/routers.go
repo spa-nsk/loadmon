@@ -23,6 +23,7 @@ func init() {
 
 	beego.Router("/", &controllers.MainController{})
 	beego.Handler("/metrics", promhttp.Handler())
+	beego.Router("/login", &controllers.MainController{}, "get,post:LoginAlias") // короткий алиас; при доменной авторизации → "/", иначе → /user/login/...
 	beego.Router("/user/login/:back", &controllers.MainController{}, "get,post:Login")
 	beego.Router("/user/logout", &controllers.MainController{}, "get:Logout")
 	beego.Router("/shutdown", &controllers.MainController{}, "post:Shutdown")
