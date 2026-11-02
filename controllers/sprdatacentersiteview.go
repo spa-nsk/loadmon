@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"loadmon/models"
 	"loadmon/rackpower"
@@ -34,13 +35,24 @@ type dcViewRack struct {
 	Items      []dcShelfItem `json:"items,omitempty"` // оборудование на стеллаже (для 3D-отрисовки)
 }
 
+// dcShelfBlade - занятый слот блейд-корзины на стеллаже (для отрисовки лицевой панели).
+type dcShelfBlade struct {
+	Slot  int `json:"s"` // номер слота (BladeNum, обычно 1..)
+	Power int `json:"p"` // 0/1/2
+}
+
 // dcShelfItem - единица оборудования на стеллаже: тип (server/chassis/storage/switch),
 // "вендор модель" (для выбора оформления), высота в юнитах (0 - не указана), питание (0/1/2).
+// Для корзин дополнительно: Id/Name/Slots/Blades - иначе на полке рисовался пустой контур без идентификации.
 type dcShelfItem struct {
-	Kind   string `json:"k"`
-	Vendor string `json:"vd"`
-	U      int    `json:"u"`
-	Power  int    `json:"p"`
+	Kind   string         `json:"k"`
+	Id     int64          `json:"id,omitempty"`
+	Name   string         `json:"nm,omitempty"`
+	Vendor string         `json:"vd"`
+	U      int            `json:"u"`
+	Power  int            `json:"p"`
+	Slots  int            `json:"slots,omitempty"` // число слотов корзины
+	Blades []dcShelfBlade `json:"blades"`          // всегда массив (даже []); иначе фронт рисовал пустой контур
 }
 
 type dcViewData struct {
@@ -356,20 +368,61 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 	var hws []models.ServerHardware
 	if _, err := o.QueryTable(new(models.ServerHardware)).Filter("RackCabinetId", rackId).
 		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
-		Limit(-1).All(&hws, "Id", "Vendor", "Model", "SizeUnit", "PowerState", "FormFactor", "BladeSystemId"); err == nil {
+		Limit(-1).All(&hws, "Id", "Vendor", "Model", "ShortModel", "SizeUnit", "PowerState", "FormFactor", "BladeSystemId"); err == nil {
 		for _, h := range hws {
 			if h.FormFactor == 2 && h.BladeSystemId > 0 {
 				continue
 			}
-			items = append(items, dcShelfItem{Kind: "server", Vendor: h.Vendor + " " + h.Model, U: h.SizeUnit, Power: h.PowerState})
+			vd := strings.TrimSpace(h.Vendor + " " + firstNonEmpty(h.Model, h.ShortModel))
+			items = append(items, dcShelfItem{
+				Kind: "server", Id: h.Id, Name: firstNonEmpty(vd, fmt.Sprintf("server-%d", h.Id)),
+				Vendor: vd, U: h.SizeUnit, Power: h.PowerState,
+			})
 		}
 	}
 	var chassis []models.BladeSystems
 	if _, err := o.QueryTable(new(models.BladeSystems)).Filter("RackCabinetId", rackId).
 		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
-		Limit(-1).All(&chassis, "Id", "Vendor", "Model", "SizeUnit", "PowerState"); err == nil {
+		Limit(-1).All(&chassis, "Id", "Name", "Vendor", "Model", "Type", "Size", "SizeUnit", "SerialNum", "PowerState"); err == nil {
+		chIds := make([]int64, 0, len(chassis))
 		for _, c := range chassis {
-			items = append(items, dcShelfItem{Kind: "chassis", Vendor: c.Vendor + " " + c.Model, U: c.SizeUnit, Power: c.PowerState})
+			chIds = append(chIds, c.Id)
+		}
+		bladesByCh := map[int64][]dcShelfBlade{}
+		if len(chIds) > 0 {
+			var blades []models.ServerHardware
+			if _, err := o.QueryTable(new(models.ServerHardware)).Filter("BladeSystemId__in", chIds).
+				Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
+				Limit(-1).All(&blades, "Id", "BladeSystemId", "BladeNum", "PowerState"); err == nil {
+				for _, b := range blades {
+					bladesByCh[b.BladeSystemId] = append(bladesByCh[b.BladeSystemId], dcShelfBlade{
+						Slot: b.BladeNum, Power: rackViewPower(b.PowerState),
+					})
+				}
+			}
+		}
+		for _, c := range chassis {
+			vd := strings.TrimSpace(c.Vendor + " " + firstNonEmpty(c.Model, c.Type))
+			name := firstNonEmpty(c.Name, vd, c.SerialNum, fmt.Sprintf("chassis-%d", c.Id))
+			if vd == "" {
+				vd = name
+			}
+			slots := c.Size
+			if slots <= 0 {
+				slots = 16
+			}
+			sizeU := c.SizeUnit
+			if sizeU <= 0 {
+				sizeU = 10
+			}
+			bls := bladesByCh[c.Id]
+			if bls == nil {
+				bls = []dcShelfBlade{}
+			}
+			items = append(items, dcShelfItem{
+				Kind: "chassis", Id: c.Id, Name: name, Vendor: vd,
+				U: sizeU, Power: c.PowerState, Slots: slots, Blades: bls,
+			})
 		}
 	}
 	var pl []models.StorageSystemPlacement
@@ -381,7 +434,8 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 		}
 		byId := map[int64]models.StorageSystems{}
 		var sts []models.StorageSystems
-		if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", ids).Limit(-1).All(&sts, "Id", "Vendor", "Model", "Status", "ItiliumStatus", "Power"); err == nil {
+		if _, err := o.QueryTable(new(models.StorageSystems)).Filter("Id__in", ids).Limit(-1).
+			All(&sts, "Id", "Vendor", "Model", "ShortName", "Status", "ItiliumStatus", "Power"); err == nil {
 			for _, st := range sts {
 				byId[st.Id] = st
 			}
@@ -395,7 +449,11 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 			if st.Power == 1 {
 				pw = 1
 			}
-			items = append(items, dcShelfItem{Kind: "storage", Vendor: st.Vendor + " " + st.Model, U: p.SizeUnit, Power: pw})
+			vd := strings.TrimSpace(st.Vendor + " " + st.Model)
+			items = append(items, dcShelfItem{
+				Kind: "storage", Id: st.Id, Name: firstNonEmpty(st.ShortName, vd, fmt.Sprintf("storage-%d", st.Id)),
+				Vendor: vd, U: p.SizeUnit, Power: pw,
+			})
 		}
 	}
 	var sws []models.SwitchSprRecords
@@ -407,15 +465,23 @@ func shelfItems(o orm.Ormer, rackId int64) []dcShelfItem {
 			if u <= 0 {
 				u = 1
 			}
-			items = append(items, dcShelfItem{Kind: "switch", Vendor: w.Vendor + " " + w.Model + " " + w.Name, U: u, Power: itiliumPower(w.ItiliumStatus)})
+			vd := strings.TrimSpace(w.Vendor + " " + w.Model + " " + w.Name)
+			items = append(items, dcShelfItem{
+				Kind: "switch", Id: w.Id, Name: firstNonEmpty(w.Name, vd, fmt.Sprintf("switch-%d", w.Id)),
+				Vendor: vd, U: u, Power: itiliumPower(w.ItiliumStatus),
+			})
 		}
 	}
 	var tps []models.TapeLibrary
 	if _, err := o.QueryTable(new(models.TapeLibrary)).Filter("RackCabinetId", rackId).
 		Exclude("ItiliumStatus__in", itiliumStatusWrittenOff, itiliumStatusInTransit).
-		Limit(-1).All(&tps, "Id", "Model", "SizeUnit", "ItiliumStatus"); err == nil {
+		Limit(-1).All(&tps, "Id", "Name", "Model", "SizeUnit", "ItiliumStatus"); err == nil {
 		for _, t := range tps {
-			items = append(items, dcShelfItem{Kind: "tape", Vendor: "HPE " + t.Model, U: t.SizeUnit, Power: itiliumPower(t.ItiliumStatus)})
+			vd := "HPE " + t.Model
+			items = append(items, dcShelfItem{
+				Kind: "tape", Id: t.Id, Name: firstNonEmpty(t.Name, vd, fmt.Sprintf("tape-%d", t.Id)),
+				Vendor: vd, U: t.SizeUnit, Power: itiliumPower(t.ItiliumStatus),
+			})
 		}
 	}
 	return items
