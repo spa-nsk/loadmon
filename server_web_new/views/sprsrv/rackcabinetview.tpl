@@ -515,6 +515,8 @@
         hpe: { bezel: ['#383b41', '#1a1c20'], ear: ['#2c2f34', '#16181b'], cage: '#0e0f11', logo: 'hpe', cols1: 4, rows1: 2, bayLed: '#3de08a' },
         dell: { bezel: ['#2e3034', '#16171a'], ear: ['#cfd3d9', '#8a9099'], cage: '#0c0d0f', logo: 'dell', cols1: 5, rows1: 2, bayLed: '#3da5ff' },
         lenovo: { bezel: ['#222428', '#0f1012'], ear: ['#2b2d31', '#141518'], cage: '#08080a', logo: 'lenovo', cols1: 5, rows1: 2, bayLed: '#ff6a3d', accent: '#e2231a' },
+        // DEPO Storm: тёмный OEM-шасси, фирменный акцент #6B67E9 (брендбук DEPO Computers)
+        depo: { bezel: ['#2a2d33', '#121418'], ear: ['#3a3e46', '#1c1e22'], cage: '#0b0c0e', logo: 'depo', cols1: 4, rows1: 2, bayLed: '#6b67e9', accent: '#6b67e9' },
         generic: { bezel: ['#50545b', '#2d3035'], ear: ['#a3a9b1', '#6c7179'], cage: '#15161a', logo: '', cols1: 4, rows1: 2, bayLed: '#3de08a' }
     };
 
@@ -532,6 +534,20 @@
             txt(c, 'DELL', x + r, y + r + 0.5, fs * 0.62, '#e8f1fb', '800', 'center');
         } else if (kind === 'lenovo') {
             txt(c, 'Lenovo', x, y + h / 2, fs * 1.05, '#f4f4f4', '800', 'left');
+        } else if (kind === 'depo') {
+            // знак DEPO: сегментированный круг (голубой / фиолетовый / зелёный / жёлтый) + надпись
+            var r = h * 0.42, cx = x + r, cy = y + h / 2;
+            var segs = ['#85cfff', '#6b67e9', '#7ac943', '#f5c518'];
+            for (var i = 0; i < 4; i++) {
+                c.beginPath();
+                c.moveTo(cx, cy);
+                c.arc(cx, cy, r, -Math.PI / 2 + i * Math.PI / 2, -Math.PI / 2 + (i + 1) * Math.PI / 2);
+                c.closePath();
+                c.fillStyle = segs[i];
+                c.fill();
+            }
+            c.beginPath(); c.arc(cx, cy, r * 0.38, 0, TAU); c.fillStyle = '#121418'; c.fill();
+            txt(c, 'DEPO', x + r * 2.15, y + h / 2, fs * 0.95, '#f2f4f8', '800', 'left');
         }
     }
 
@@ -590,7 +606,7 @@
         // USB-порты
         fillRR(c, vx + vw * 0.55, y + h * 0.9 - UH * 0.09, vw * 0.18, UH * 0.09, 1, '#0b0c0e');
         fillRR(c, vx + vw * 0.8, y + h * 0.9 - UH * 0.09, vw * 0.18, UH * 0.09, 1, '#0b0c0e');
-        if (UH >= 30) txt(c, (it.model || '').replace(/^(HPE?|Dell|Lenovo)\s+/i, ''), x + w * 0.955, y + h - UH * 0.13, Math.max(7, UH * 0.2), 'rgba(230,233,238,0.55)', '500', 'right');
+        if (UH >= 30) txt(c, (it.model || '').replace(/^(HPE?|Dell|Lenovo|DEPO)\s+/i, ''), x + w * 0.955, y + h - UH * 0.13, Math.max(7, UH * 0.2), 'rgba(230,233,238,0.55)', '500', 'right');
     }
 
     // ---------- блейд-корзины ----------
@@ -997,6 +1013,7 @@
         if (/hpe|hp |hewlett|proliant|\bdl\d|\bml\d|\bbl\d/.test(s)) return THEMES.hpe;
         if (/dell|poweredge|\br\d{3}/.test(s)) return THEMES.dell;
         if (/lenovo|thinksystem|\bsr\d{3}/.test(s)) return THEMES.lenovo;
+        if (/\bdepo\b|\bstorm\s*[345]\d{3}/.test(s)) return THEMES.depo;
         return THEMES.generic;
     }
 
