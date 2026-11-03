@@ -75,6 +75,8 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 	this.Data["HostName"] = ""
 	this.Data["HostNameFQDN"] = ""
 	this.Data["ServerId"] = int64(0)
+	this.Data["ServerTitleName"] = ""
+	this.Data["ServerResourcesText"] = ""
 	this.Data["ChartsJSON"] = template.JS("[]")
 	this.Data["PointCount"] = 0
 
@@ -96,6 +98,19 @@ func (this *MainController) SprSrvZabbixPerfPeriod() {
 	this.Data["HostName"] = host.Name
 	this.Data["HostNameFQDN"] = host.NameFQDN
 	this.Data["ServerId"] = host.ServerId
+
+	// Шапка как на /sprsrv/updatebase: FQDN/имя + CPU/RAM/DISK из ServerSprRecords
+	// (если хост привязан к справочнику). Иначе — имя из ZabbixHost.
+	if spr := loadServerSprByID(o, host.ServerId); spr != nil {
+		setUpdateBaseCardHeader(this, spr)
+	}
+	if title, _ := this.Data["ServerTitleName"].(string); strings.TrimSpace(title) == "" {
+		if fq := strings.TrimSpace(host.NameFQDN); fq != "" {
+			this.Data["ServerTitleName"] = fq
+		} else {
+			this.Data["ServerTitleName"] = strings.TrimSpace(host.Name)
+		}
+	}
 
 	var items []models.ZabbixItem
 	if _, err := o.QueryTable("zabbix_item").

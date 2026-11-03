@@ -1,7 +1,12 @@
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
-        <h2>Загрузка виртуальной машины за текущий день</h2>
-        <div class="text-muted">
+        <h2>Загрузка виртуальной машины за текущий день{{if .ServerTitleName}}
+            — <span class="fw-normal">{{.ServerTitleName}}</span>{{end}}
+        </h2>
+        {{if .ServerResourcesText}}
+        <div class="text-muted small mt-1">{{.ServerResourcesText}}</div>
+        {{end}}
+        <div class="text-muted small mt-1">
             <b>{{.CurVcenter}}</b> / <b>{{.CurDatacenter}}</b> / <b>{{.CurCluster}}</b> / <b>{{.VMName}}</b>
             {{if ne .VMHostName ""}}({{.VMHostName}}){{end}}
         </div>
@@ -196,7 +201,8 @@
 
             var meta = {
                 docTitle: 'Loadmon — загрузка виртуальной машины за текущий день',
-                subTitle: '{{.CurVcenter}} / {{.CurDatacenter}} / {{.CurCluster}} / {{.VMName}}{{if ne .VMHostName ""}} ({{.VMHostName}}){{end}}',
+                subTitle: '{{if .ServerTitleName}}{{.ServerTitleName}}{{else}}{{.CurVcenter}} / {{.CurDatacenter}} / {{.CurCluster}} / {{.VMName}}{{end}}',
+                resourcesLabel: '{{.ServerResourcesText}}',
                 periodLabel: 'Дата: ' + new Date().toLocaleDateString('ru-RU')
             };
 
@@ -207,6 +213,7 @@
                         return vmBuildPdfPage(pdf, {
                             docTitle: meta.docTitle,
                             subTitle: meta.subTitle,
+                            resourcesLabel: meta.resourcesLabel,
                             periodLabel: meta.periodLabel,
                             chartTitle: item.title,
                             chartImgURI: imgURI,

@@ -312,13 +312,46 @@ func (this *MainController) SprSrvUpdateBase() {
 
 // setUpdateBaseCardHeader кладёт в Data имя для заголовка карточки
 // (FQDN → Name → NameInfo) и краткую строку CPU/RAM/DISK — для HW и VM
-// одинаково, из полей models.ServerSprRecords.
+// одинаково, из полей models.ServerSprRecords. Используется и на страницах
+// метрик (zabbixperfperiod / vmperfperiod / vmperfday) + в PDF-экспорте.
 func setUpdateBaseCardHeader(c *MainController, record *models.ServerSprRecords) {
-	if c == nil || record == nil {
+	if c == nil {
+		return
+	}
+	if record == nil {
+		c.Data["ServerTitleName"] = ""
+		c.Data["ServerResourcesText"] = ""
 		return
 	}
 	c.Data["ServerTitleName"] = serverSprDisplayName(record)
 	c.Data["ServerResourcesText"] = serverSprResourcesText(record)
+}
+
+// loadServerSprByID читает ServerSprRecords по Id (для шапки метрик Zabbix).
+func loadServerSprByID(o orm.Ormer, id int64) *models.ServerSprRecords {
+	if id <= 0 {
+		return nil
+	}
+	rec := models.ServerSprRecords{Id: id}
+	if err := o.Read(&rec); err != nil {
+		return nil
+	}
+	if models.IsServerSprDestroyed(&rec) {
+		return nil
+	}
+	return &rec
+}
+
+// loadServerSprByVMSprID читает ServerSprRecords Type=1 по ссылке на vm_spr_record.
+func loadServerSprByVMSprID(o orm.Ormer, vmSprId int64) *models.ServerSprRecords {
+	if vmSprId <= 0 {
+		return nil
+	}
+	var rec models.ServerSprRecords
+	if err := models.ServerSprQS(o).Filter("VMSprId", vmSprId).Filter("Type", 1).One(&rec); err != nil {
+		return nil
+	}
+	return &rec
 }
 
 // serverSprDisplayName — предпочтительно FQDN, иначе короткое имя, иначе
