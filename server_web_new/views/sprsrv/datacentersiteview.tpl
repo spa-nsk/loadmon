@@ -431,6 +431,7 @@
         if (/dell|poweredge|emc|unity|vnx|powerstore|powervault/.test(s)) return '#2a8be0';
         if (/lenovo|thinksystem|\bsr\d{3}/.test(s)) return '#e2231a';
         if (/huawei|oceanstor|dorado/.test(s)) return '#e0334d';
+        if (/\bdepo\b|\bstorm\s*[345]\d{3}/.test(s)) return '#6b67e9';
         if (/ubiquiti|unifi|\buap/.test(s)) return '#006fff';
         if (/cisco|catalyst|nexus|\bisr|\basr|\bmds|\basa\b|aironet|\bair-|\bc91\d{2}/.test(s)) return '#049fd9';
         return '#8b95a5';
