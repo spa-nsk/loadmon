@@ -48,9 +48,14 @@ function zabbixPeriodNavigate() {
 
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
-        <h2>Загрузка аппаратного сервера за период (по данным Zabbix)</h2>
-        <div class="text-muted">
-            <b>{{.HostName}}</b>{{if ne .HostNameFQDN ""}} ({{.HostNameFQDN}}){{end}}
+        <h2>Загрузка аппаратного сервера за период (по данным Zabbix){{if .ServerTitleName}}
+            — <span class="fw-normal">{{.ServerTitleName}}</span>{{end}}
+        </h2>
+        {{if .ServerResourcesText}}
+        <div class="text-muted small mt-1">{{.ServerResourcesText}}</div>
+        {{end}}
+        <div class="text-muted small mt-1">
+            {{if and .HostName (ne .HostName .ServerTitleName)}}Zabbix: <b>{{.HostName}}</b>{{if ne .HostNameFQDN ""}} ({{.HostNameFQDN}}){{end}}{{end}}
             {{if gt .ServerId 0}}<a href="/sprsrv/updatebase/all/{{.ServerId}}" target="_blank" class="ms-2" title="Общие данные по серверу">Общие данные →</a>{{end}}
         </div>
     </div>
@@ -281,7 +286,8 @@ function zabbixPeriodNavigate() {
 
             var meta = {
                 docTitle: 'Loadmon — загрузка аппаратного сервера за период (Zabbix)',
-                subTitle: '{{.HostName}}{{if ne .HostNameFQDN ""}} ({{.HostNameFQDN}}){{end}}',
+                subTitle: '{{if .ServerTitleName}}{{.ServerTitleName}}{{else}}{{.HostName}}{{if ne .HostNameFQDN ""}} ({{.HostNameFQDN}}){{end}}{{end}}',
+                resourcesLabel: '{{.ServerResourcesText}}',
                 periodLabel: 'Период: {{.FromDate}} — {{.ToDate}}'
             };
 
@@ -292,6 +298,7 @@ function zabbixPeriodNavigate() {
                         return vmBuildPdfPage(pdf, {
                             docTitle: meta.docTitle,
                             subTitle: meta.subTitle,
+                            resourcesLabel: meta.resourcesLabel,
                             periodLabel: meta.periodLabel,
                             chartTitle: item.title,
                             chartImgURI: imgURI,

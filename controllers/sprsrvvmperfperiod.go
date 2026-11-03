@@ -60,6 +60,8 @@ func (this *MainController) SprSrvVMPerfPeriod() {
 	// класть в Data именно string, а не оставлять ключ незаполненным
 	this.Data["VMName"] = vmname
 	this.Data["VMHostName"] = ""
+	this.Data["ServerTitleName"] = ""
+	this.Data["ServerResourcesText"] = ""
 	this.Data["RecordCount"] = 0
 	this.Data["ChartsJSON"] = template.JS("[]")
 
@@ -108,6 +110,14 @@ func (this *MainController) SprSrvVMPerfPeriod() {
 	sprRecord := sprList[0]
 	this.Data["VMName"] = sprRecord.Vm_Name
 	this.Data["VMHostName"] = sprRecord.Vm_HostName
+
+	// Шапка: FQDN/имя + CPU/RAM/DISK из ServerSprRecords (Type=1), как на updatebase.
+	if spr := loadServerSprByVMSprID(o, sprRecord.Id); spr != nil {
+		setUpdateBaseCardHeader(this, spr)
+	}
+	if title, _ := this.Data["ServerTitleName"].(string); title == "" {
+		this.Data["ServerTitleName"] = sprRecord.Vm_Name
+	}
 
 	// 2) агрегаты min/avg/max за период (VMRecord.VMSprId = sprRecord.Id,
 	// Date в диапазоне [from, to] включительно)

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"html/template"
 	"loadmon/grpcclient"
+	"loadmon/models"
 	vsphere "loadmon/vspheremetrics"
 	"sort"
 	"time"
 
+	"github.com/beego/beego/v2/client/orm"
 	beego "github.com/beego/beego/v2/server/web"
 )
 
@@ -60,6 +62,8 @@ func (this *MainController) SprSrvVMPerfDay() {
 	// сравнении nil-интерфейса со строкой, если ключ не заполнен вовсе
 	this.Data["VMName"] = vmname
 	this.Data["VMHostName"] = ""
+	this.Data["ServerTitleName"] = ""
+	this.Data["ServerResourcesText"] = ""
 	this.Data["ChartsJSON"] = template.JS("[]")
 	this.Data["PerfCount"] = 0
 
@@ -76,6 +80,25 @@ func (this *MainController) SprSrvVMPerfDay() {
 
 	this.Data["VMName"] = vm.Name
 	this.Data["VMHostName"] = vm.HostName
+
+	// Шапка: FQDN/имя + CPU/RAM/DISK из ServerSprRecords, как на updatebase / vmperfperiod.
+	o := orm.NewOrm()
+	var vmSprRows []models.VMSprRecord
+	_, _ = o.QueryTable("vm_spr_record").
+		Filter("Vcenter", vcenter).
+		Filter("Datacenter", datacenter).
+		Filter("Cluster", cluster).
+		Filter("Vm_Name", vmname).
+		Limit(1).
+		All(&vmSprRows)
+	if len(vmSprRows) > 0 {
+		if spr := loadServerSprByVMSprID(o, vmSprRows[0].Id); spr != nil {
+			setUpdateBaseCardHeader(this, spr)
+		}
+	}
+	if title, _ := this.Data["ServerTitleName"].(string); title == "" {
+		this.Data["ServerTitleName"] = vm.Name
+	}
 
 	// оставляем только точки за текущий календарный день (по локальному
 	// времени сервера) и сортируем по времени - на случай, если Perf

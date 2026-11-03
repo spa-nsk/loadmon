@@ -123,18 +123,27 @@
         ctx.fillText(opts.generatedAt, PAGE_W - marginX, y);
         ctx.textAlign = "left";
 
-        // подзаголовок - путь ВМ (vCenter/датацентр/кластер/имя)
+        // подзаголовок - имя сервера / путь ВМ (vCenter/датацентр/кластер/имя)
         y += 44;
-        var fitted = fitText(ctx, opts.subTitle, PAGE_W - marginX * 2, 34, 18, "700");
+        var fitted = fitText(ctx, opts.subTitle || "", PAGE_W - marginX * 2, 34, 18, "700");
         ctx.fillStyle = COLOR_TEXT;
         ctx.font = "700 " + fitted.px + "px " + FONT_STACK;
         ctx.fillText(fitted.text, marginX, y);
+
+        // CPU/RAM/DISK (если передано) — та же справка, что в шапке страницы метрик
+        if (opts.resourcesLabel) {
+            y += 28;
+            var fittedRes = fitText(ctx, opts.resourcesLabel, PAGE_W - marginX * 2, 22, 16, "400");
+            ctx.fillStyle = COLOR_MUTED;
+            ctx.font = "400 " + fittedRes.px + "px " + FONT_STACK;
+            ctx.fillText(fittedRes.text, marginX, y);
+        }
 
         // период/дата отчёта
         y += 34;
         ctx.fillStyle = COLOR_MUTED;
         ctx.font = "22px " + FONT_STACK;
-        ctx.fillText(opts.periodLabel, marginX, y);
+        ctx.fillText(opts.periodLabel || "", marginX, y);
 
         // разделительная линия
         y += 22;
@@ -176,8 +185,8 @@
     // на canvas, вписывает туда изображение графика (по центру, с сохранением
     // пропорций) и добавляет получившееся изображение страницы в pdf.
     // opts: { docTitle (не используется напрямую, оставлено для вызывающего
-    // кода), subTitle, periodLabel, chartTitle, chartImgURI, pageNum,
-    // totalPages, isFirstPage }
+    // кода), subTitle, resourcesLabel (опц. CPU/RAM/DISK), periodLabel,
+    // chartTitle, chartImgURI, pageNum, totalPages, isFirstPage }
     window.vmBuildPdfPage = function (pdf, opts) {
         return new Promise(function (resolve) {
             var canvas = document.createElement("canvas");
@@ -191,6 +200,7 @@
 
             var area = drawHeaderFooter(ctx, {
                 subTitle: opts.subTitle,
+                resourcesLabel: opts.resourcesLabel,
                 periodLabel: opts.periodLabel,
                 chartTitle: opts.chartTitle,
                 pageNum: opts.pageNum,
