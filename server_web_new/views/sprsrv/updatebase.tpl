@@ -347,10 +347,11 @@
                         <option value="2" {{if eq .record.Type 2}}selected{{end}}>Гипервизор VMware</option>
                     </select>
                 </div>
-                <div class="col-sm-6 col-md-6">
+                <div class="col-sm-4 col-md-4">
                     <label for="SerialNumber" class="form-label">Серийный номер</label>
                     <input name="SerialNumber" id="SerialNumber" class="form-control" type="text" value="{{.record.SerialNumber}}" title="Заполняется для физического сервера и гипервизора" />
                 </div>
+                {{if ne .record.Type 0}} 
                 <div class="col-sm-6 col-md-4">
                     <label for="Vcenter" class="form-label">vCenter</label>
                     <input name="Vcenter" id="Vcenter" class="form-control" type="text" value="{{.record.Vcenter}}" title="Заполняется для виртуальной машины и гипервизора" />
@@ -363,14 +364,30 @@
                     <label for="Cluster" class="form-label">Кластер</label>
                     <input name="Cluster" id="Cluster" class="form-control" type="text" value="{{.record.Cluster}}" />
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">Классификация</div>
-        <div class="card-body">
-            <div class="row g-3">
+		{{end}}
+                <div class="col-sm-6 col-md-4">
+                    <label for="Name" class="form-label">Имя сервера</label>
+                    <input name="Name" id="Name" class="form-control" type="text" value="{{.record.Name}}" />
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <label for="NameFQDN" class="form-label">Полное имя (FQDN)</label>
+                    <input name="NameFQDN" id="NameFQDN" class="form-control" type="text" value="{{.record.NameFQDN}}" />
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <label for="NameInfo" class="form-label">Альтернативное имя</label>
+                    <input name="NameInfo" id="NameInfo" class="form-control" type="text" value="{{.record.NameInfo}}" />
+                </div>
+                <div class="col-sm-6 col-md-4">
+                    <label for="IPAddress" class="form-label">IP адрес(а)</label>
+                    <input name="IPAddress" id="IPAddress" class="form-control" type="text" value="{{.record.IPAddress}}" title="Список через разделитель ;" />
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <label for="Active" class="form-label">Состояние</label>
+                    <select name="Active" id="Active" class="form-select">
+                        <option value="1" {{if eq .record.Active 1}}selected{{end}}>Активен</option>
+                        <option value="2" {{if eq .record.Active 2}}selected{{end}}>Выведен из эксплуатации</option>
+                    </select>
+                </div>
                 <div class="col-sm-6 col-md-3">
                     <label for="TypeMicroservice" class="form-label">Роль в микросервисах</label>
                     <select name="TypeMicroservice" id="TypeMicroservice" class="form-select">
@@ -408,13 +425,6 @@
                     </select>
                 </div>
                 <div class="col-sm-6 col-md-3">
-                    <label for="Active" class="form-label">Состояние</label>
-                    <select name="Active" id="Active" class="form-select">
-                        <option value="1" {{if eq .record.Active 1}}selected{{end}}>Активен</option>
-                        <option value="2" {{if eq .record.Active 2}}selected{{end}}>Выведен из эксплуатации</option>
-                    </select>
-                </div>
-                <div class="col-sm-6 col-md-3">
                     <label for="Monitoring" class="form-label">Мониторинг</label>
                     <select name="Monitoring" id="Monitoring" class="form-select">
                         <option value="0" {{if eq .record.Monitoring 0}}selected{{end}}>не указано</option>
@@ -435,29 +445,7 @@
                     </select>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">Идентификация и сеть</div>
-        <div class="card-body">
             <div class="row g-3">
-                <div class="col-sm-6 col-md-4">
-                    <label for="Name" class="form-label">Имя сервера</label>
-                    <input name="Name" id="Name" class="form-control" type="text" value="{{.record.Name}}" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="NameFQDN" class="form-label">Полное имя (FQDN)</label>
-                    <input name="NameFQDN" id="NameFQDN" class="form-control" type="text" value="{{.record.NameFQDN}}" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="NameInfo" class="form-label">Альтернативное имя</label>
-                    <input name="NameInfo" id="NameInfo" class="form-control" type="text" value="{{.record.NameInfo}}" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="IPAddress" class="form-label">IP адрес(а)</label>
-                    <input name="IPAddress" id="IPAddress" class="form-control" type="text" value="{{.record.IPAddress}}" title="Список через разделитель ;" />
-                </div>
                 <div class="col-sm-6 col-md-4">
                     <label for="MacAddress" class="form-label">MAC адрес(а)</label>
                     <input name="MacAddress" id="MacAddress" class="form-control" type="text" value="{{.record.MacAddress}}" title="Список через разделитель ;" />
@@ -470,6 +458,7 @@
                     <label for="NetworkName" class="form-label">Наименование сети</label>
                     <input name="NetworkName" id="NetworkName" class="form-control" type="text" value="{{.record.NetworkName}}" title="Например: DMZ, Prom" />
                 </div>
+
             </div>
         </div>
     </div>
@@ -578,6 +567,10 @@
                     <textarea name="Details" id="Details" class="form-control" rows="2">{{.record.Details}}</textarea>
                 </div>
                 <div class="col-12">
+                    <label for="SZHistory" class="form-label">Номера СЗ</label>
+                    <input name="SZHistory" id="SZHistory" class="form-control" type="text" value="{{.record.SZHistory}}" title="Через пробел, в хронологическом порядке" />
+                </div>
+                <div class="col-12">
                     <label class="form-label">Источник последнего обновления</label>
                     <div>
                         <span class="badge {{if eq .record.SourceUpdateType 1}}text-bg-secondary{{else if eq .record.SourceUpdateType 2}}text-bg-info{{else if eq .record.SourceUpdateType 3}}text-bg-primary{{else if eq .record.SourceUpdateType 4}}text-bg-warning{{else}}text-bg-light{{end}}">
@@ -628,10 +621,6 @@
                     </div>
                 </div>
                 {{end}}
-                <div class="col-sm-4 col-md-6">
-                    <label for="SZHistory" class="form-label">Номера СЗ</label>
-                    <input name="SZHistory" id="SZHistory" class="form-control" type="text" value="{{.record.SZHistory}}" title="Через пробел, в хронологическом порядке" />
-                </div>
             </div>
         </div>
     </div>
