@@ -9,10 +9,11 @@ import (
 	"io"
 	"io/ioutil"
 	"loadmon/models"
+	"loadmon/utilities"
+	"log"
 	"net/http"
 	"sync"
 	"time"
-	"loadmon/utilities"
 )
 
 var it_system_spr map[string]*models.ItSystemRecord
@@ -768,18 +769,32 @@ func setFiledObjectAttrib(rec *models.ItSystemRecord, obj *ObjectEntries, attr m
 
 // LoadITSystemSpr загружает из Jira Assets полный перечень ИТ-систем и строит
 // локальный справочник, индексированный по ключу объекта.
+//
+// ВАЖНО: GetAllItSystem (сеть/Jira, минуты) выполняется БЕЗ мьютекса.
+// Раньше Lock() держался на всё время HTTP — из‑за этого ImportITSystemSpr /
+// GetITSystemRec на /sprsrv/view2 блокировались на ~1+ мин после старта
+// сервера (go LoadITSystemSpr в main_web), хотя копирование 887 записей
+// само по себе мгновенное. Под lock только атомарная подмена среза/карты.
 func LoadITSystemSpr() error {
-	var err error
-	it_system_spr = make(map[string]*models.ItSystemRecord)
-	itSystemMutex.Lock()
-	it_system, err = GetAllItSystem()
-	itSystemMutex.Unlock()
-	if err == nil {
-		for i := range it_system {
-			it_system_spr[it_system[i].ObjectKey] = &it_system[i]
-		}
+	log.Println("itsystem.LoadITSystemSpr: загрузка из Jira…")
+	t0 := time.Now()
+	loaded, err := GetAllItSystem()
+	log.Printf("itsystem.LoadITSystemSpr: GetAllItSystem n=%d err=%v elapsed=%s", len(loaded), err, time.Since(t0))
+	if err != nil {
+		return err
 	}
-	return err
+
+	spr := make(map[string]*models.ItSystemRecord, len(loaded))
+	for i := range loaded {
+		spr[loaded[i].ObjectKey] = &loaded[i]
+	}
+
+	itSystemMutex.Lock()
+	it_system = loaded
+	it_system_spr = spr
+	itSystemMutex.Unlock()
+	log.Printf("itsystem.LoadITSystemSpr: справочник обновлён n=%d total=%s", len(loaded), time.Since(t0))
+	return nil
 }
 
 // GetITSystemRec возвращает запись ИТ-системы из локального справочника по ключу key
@@ -797,13 +812,13 @@ func GetITSystemRec(key string) (models.ItSystemRecord, bool) {
 
 // ImportITSystemSpr возвращает копию всех записей ИТ-систем из локального справочника.
 func ImportITSystemSpr() []models.ItSystemRecord {
-	var spr []models.ItSystemRecord
 	itSystemMutex.RLock()
-	for i := range it_system {
-		rec := it_system[i]
-		spr = append(spr, rec)
+	defer itSystemMutex.RUnlock()
+	if len(it_system) == 0 {
+		return nil
 	}
-	itSystemMutex.RUnlock()
+	spr := make([]models.ItSystemRecord, len(it_system))
+	copy(spr, it_system)
 	return spr
 }
 
