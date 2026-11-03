@@ -158,6 +158,7 @@ func (this *MainController) SprSrvUpdateBase() {
 
 		if !this.RequireEditReference() {
 			this.Data["record"] = record
+			setUpdateBaseCardHeader(this, &record)
 			return
 		}
 
@@ -166,6 +167,7 @@ func (this *MainController) SprSrvUpdateBase() {
 			flash.Error("Ошибка распознавания формы: %v", err)
 			flash.Store(&this.Controller)
 			this.Data["record"] = record
+			setUpdateBaseCardHeader(this, &record)
 			return
 		}
 
@@ -305,6 +307,68 @@ func (this *MainController) SprSrvUpdateBase() {
 	}
 
 	this.Data["record"] = record
+	setUpdateBaseCardHeader(this, &record)
+}
+
+// setUpdateBaseCardHeader кладёт в Data имя для заголовка карточки
+// (FQDN → Name → NameInfo) и краткую строку CPU/RAM/DISK — для HW и VM
+// одинаково, из полей models.ServerSprRecords.
+func setUpdateBaseCardHeader(c *MainController, record *models.ServerSprRecords) {
+	if c == nil || record == nil {
+		return
+	}
+	c.Data["ServerTitleName"] = serverSprDisplayName(record)
+	c.Data["ServerResourcesText"] = serverSprResourcesText(record)
+}
+
+// serverSprDisplayName — предпочтительно FQDN, иначе короткое имя, иначе
+// альтернативное (NameInfo).
+func serverSprDisplayName(r *models.ServerSprRecords) string {
+	if r == nil {
+		return ""
+	}
+	if s := strings.TrimSpace(r.NameFQDN); s != "" {
+		return s
+	}
+	if s := strings.TrimSpace(r.Name); s != "" {
+		return s
+	}
+	return strings.TrimSpace(r.NameInfo)
+}
+
+// serverSprResourcesText — «CPU: N ядер / RAM: X ГБ / DISK: Y ГБ» для шапки
+// карточки. Ядра: CPULogical (логич./ядра), иначе CPUCount; память и диск в ГБ
+// (как заполняется в cmdb/initrec из VMware/OneView).
+func serverSprResourcesText(r *models.ServerSprRecords) string {
+	if r == nil {
+		return ""
+	}
+	cpu := r.CPULogical
+	if cpu <= 0 {
+		cpu = r.CPUCount
+	}
+	return fmt.Sprintf("CPU: %s / RAM: %s / DISK: %s",
+		formatCPUCores(cpu), formatSizeGB(r.MemSize), formatSizeGB(r.DiskSize))
+}
+
+func formatCPUCores(v float64) string {
+	if v <= 0 {
+		return "—"
+	}
+	if v == float64(int64(v)) {
+		return fmt.Sprintf("%.0f ядер", v)
+	}
+	return fmt.Sprintf("%.1f ядер", v)
+}
+
+func formatSizeGB(v float64) string {
+	if v <= 0 {
+		return "—"
+	}
+	if v == float64(int64(v)) {
+		return fmt.Sprintf("%.0f ГБ", v)
+	}
+	return fmt.Sprintf("%.1f ГБ", v)
 }
 
 // resolveServerPlacementText возвращает read-only текст размещения
