@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -122,6 +123,13 @@ type JsonConfig struct {
 	ORMdebug   bool
 	WorkMode   string
 	AuthMode   string // режим авторизации пользователей веб-интерфейса: "domain" - Kerberos/SPNEGO (Active Directory), "local" - логин/пароль по локальной таблице models.AuthUser. Пусто или неизвестное значение трактуется как "domain" (поведение по умолчанию, сохраняет совместимость)
+	// PowerLight - вариант световых столбов мощности над шкафами на
+	// /sprsrv/datacentersiteview и /sprsrv/datacentersitemap:
+	//   "AnimatedFire"  - анимированное пламя (поведение по умолчанию);
+	//   "AnimatedLight" - анимированный световой столб без языков пламени;
+	//   "StaticLight"   - исходный статический световой столб.
+	// Пусто / неизвестное значение → AnimatedFire (см. PowerLightMode).
+	PowerLight string
 	// Auth - соответствие групп MS Active Directory уровням привилегий
 	// loadmon, используется при доменной (Kerberos/SPNEGO) аутентификации
 	// (см. AuthenticationGroup и ResolveDomainPrivilege ниже). Если ни одна
@@ -504,6 +512,28 @@ func (s *JsonConfig) IsLocalAuth() bool {
 // с конфигурациями, где параметр ещё не указан.
 func (s *JsonConfig) IsDomainAuth() bool {
 	return !s.IsLocalAuth()
+}
+
+// Значения PowerLight в app2.json (регистр не важен при разборе).
+const (
+	PowerLightAnimatedFire  = "AnimatedFire"
+	PowerLightAnimatedLight = "AnimatedLight"
+	PowerLightStaticLight   = "StaticLight"
+)
+
+// PowerLightMode возвращает нормализованный режим световых столбов мощности.
+// Пустое или неизвестное значение → AnimatedFire (текущее поведение по умолчанию).
+func (s *JsonConfig) PowerLightMode() string {
+	switch strings.ToLower(strings.TrimSpace(s.PowerLight)) {
+	case "animatedlight":
+		return PowerLightAnimatedLight
+	case "staticlight":
+		return PowerLightStaticLight
+	case "animatedfire", "":
+		return PowerLightAnimatedFire
+	default:
+		return PowerLightAnimatedFire
+	}
 }
 
 // ResolveDomainPrivilege сопоставляет список SID групп Active Directory

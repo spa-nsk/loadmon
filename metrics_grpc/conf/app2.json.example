@@ -12,6 +12,7 @@
 	"ORMdebug": false,
 	"WorkMode": "api",
 	"AuthMode": "local",
+	"PowerLight": "AnimatedFire",
 	"HttpKey": "http_proxy",
 	"HttpsKey": "https_proxy",
 	"GRPCSrvDBAddr": "127.0.0.1",

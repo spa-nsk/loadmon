@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"html/template"
+	"loadmon/config"
 	"loadmon/models"
 	"loadmon/rackpower"
 	"regexp"
@@ -118,6 +119,7 @@ func (this *MainController) SprDatacenterSiteMap() {
 	RegisterRequest(this, LogTypeViewLoadTable)
 	this.activeContent("sprsrv/datacentersitemap")
 	this.Data["MapJSON"] = template.JS("null")
+	this.Data["PowerLight"] = config.ConfigData.PowerLightMode()
 
 	flash := beego.NewFlash()
 	defer func() {
