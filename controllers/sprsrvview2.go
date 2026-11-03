@@ -14,12 +14,69 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
 	beego "github.com/beego/beego/v2/server/web"
 	"github.com/xuri/excelize/v2"
 )
+
+// clusterFilterLoadConcurrency — сколько параллельных GetClusterMedium
+// держим открытыми при ленивой подгрузке списка для фильтра view2.
+const clusterFilterLoadConcurrency = 16
+
+// loadClusterListForFilter грузит short-список кластеров и параллельно
+// добирает medium (чтобы отфильтровать HostFlag). Раньше это делалось
+// последовательно на каждый GET /sprsrv/view2 и давало десятки секунд
+// после входа; теперь вызывается только по чекбоксу / AJAX / POST-фильтру.
+func loadClusterListForFilter() []*vsphere.Cluster {
+	shorts := grpcclient.LoadClusterList("all", "all")
+	if len(shorts) == 0 {
+		return []*vsphere.Cluster{}
+	}
+
+	out := make([]*vsphere.Cluster, len(shorts))
+	sem := make(chan struct{}, clusterFilterLoadConcurrency)
+	var wg sync.WaitGroup
+	for i, s := range shorts {
+		wg.Add(1)
+		go func(i int, s *vsphere.ClusterShort) {
+			defer wg.Done()
+			if s == nil {
+				return
+			}
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			cl := grpcclient.GetClusterMedium(s.Vcenter, s.Datacenter, s.Name)
+			if cl == nil || cl.HostFlag {
+				return
+			}
+			out[i] = cl
+		}(i, s)
+	}
+	wg.Wait()
+
+	list := make([]*vsphere.Cluster, 0, len(out))
+	for _, cl := range out {
+		if cl != nil {
+			list = append(list, cl)
+		}
+	}
+	sort.Sort(vsphere.ClusterVcenter(list))
+	return list
+}
+
+// ensureSessionClusterList возвращает ClusterList из сессии или грузит
+// параллельно и кладёт в m["ClusterList"].
+func ensureSessionClusterList(m map[string]interface{}) []*vsphere.Cluster {
+	if list, ok := m["ClusterList"].([]*vsphere.Cluster); ok && len(list) > 0 {
+		return list
+	}
+	list := loadClusterListForFilter()
+	m["ClusterList"] = list
+	return list
+}
 
 // newLightServerView строит "лёгкую" запись models.ServerSprView по одной
 // записи справочника rec: заполняет только r.S и вычисляет
@@ -182,32 +239,28 @@ func (this *MainController) SprSrvViewV2() {
 
 	this.Data["record"] = record
 
-	clusterList, ok := m["ClusterList"].([]*vsphere.Cluster)
-	if !ok {
-		/*
-			clusterList = grpcclient.LoadClusterListFull("all", "all", "all")
-			m["ClusterList"] = clusterList
-		*/
-		clList := grpcclient.LoadClusterList("all", "all")
-
-		for _, clShort := range clList {
-			cl := grpcclient.GetClusterMedium(clShort.Vcenter, clShort.Datacenter, clShort.Name)
-			if cl.HostFlag {
-				continue
-			}
-			clusterList = append(clusterList, cl)
-		}
-		sort.Sort(vsphere.ClusterVcenter(clusterList))
-		this.Data["ClusterListData"] = clusterList
-		m["ClusterList"] = clusterList
+	// Список кластеров для чекбоксов фильтра НЕ грузим на каждый заход —
+	// только из сессии (после AJAX по чекбоксу) или ниже при POST с
+	// chClusters. Иначе первый /sprsrv/view2 после логина ждал ~1 мин gRPC.
+	clusterList, _ := m["ClusterList"].([]*vsphere.Cluster)
+	if clusterList == nil {
+		clusterList = []*vsphere.Cluster{}
 	}
 
-	this.Data["ClusterList"] = clusterList
+	chClusters := false
 	baseBtn := ""
 	allocationBtn := ""
 
 	flash := beego.NewFlash()
 	isPost := this.Ctx.Input.Method() == "POST"
+	if isPost {
+		chClusters = this.GetString("chClusters") == "on"
+		m["ChClusters"] = chClusters
+	} else if v, ok := m["ChClusters"].(bool); ok {
+		chClusters = v
+	}
+	this.Data["ChClusters"] = chClusters
+
 	if isPost {
 		if err := this.ParseForm(record); err != nil {
 			//beego.Error("Ошибка распознавания формы:", err)
@@ -261,10 +314,13 @@ func (this *MainController) SprSrvViewV2() {
 		// просмотра деталей или группового редактирования) снова показать
 		// список с учётом внесённых изменений без повторного нажатия "Просмотр"
 		m["ViewOnFlag"] = true
-		for idx, cl := range clusterList {
-			clusterList[idx].ID = 0
-			if this.GetString("ch"+cl.Name) == "on" {
-				clusterList[idx].ID = 1
+		if chClusters {
+			clusterList = ensureSessionClusterList(m)
+			for idx, cl := range clusterList {
+				clusterList[idx].ID = 0
+				if this.GetString("ch"+cl.Name) == "on" {
+					clusterList[idx].ID = 1
+				}
 			}
 		}
 		baseBtn = this.GetString("SetBaseBTN")
@@ -272,6 +328,8 @@ func (this *MainController) SprSrvViewV2() {
 		allocationBtn = this.GetString("SetAllocateBTN")
 
 	}
+
+	this.Data["ClusterList"] = clusterList
 
 	// Фильтр размещения "ЦОД -> Шкаф" (2026-09-08, по запросу пользователя
 	// "замени в форме /sprsrv/view2 ... схему с выбором ЦОД и Шкафа вместо
@@ -609,14 +667,9 @@ func (this *MainController) SprSrvViewV2() {
 			numAdd, errAdd = o.Raw(rawSelect).QueryRows(&recordsAdd)
 		}
 	*/
-	chClusters := false
-	if isPost {
-		chClusters = this.GetString("chClusters") == "on"
-		m["ChClusters"] = chClusters
-	} else if v, ok := m["ChClusters"].(bool); ok {
-		chClusters = v
-	}
 	if chClusters {
+		clusterList = ensureSessionClusterList(m)
+		this.Data["ClusterList"] = clusterList
 		found := false
 		for idx, cl := range clusterList {
 			if clusterList[idx].ID == 1 {
@@ -907,6 +960,35 @@ func (this *MainController) SprSrvViewV2() {
 
 	RegisterRequest(this, 5)
 
+}
+
+// SprSrvView2ClusterList — JSON для чекбоксов «Дополнительные фильтры по
+// кластерам» на /sprsrv/view2. Список грузится параллельно по gRPC только
+// в этот момент (и кэшируется в сессии), а не при открытии страницы.
+func (this *MainController) SprSrvView2ClusterList() {
+	sess := this.GetSession("loadmon")
+	if sess == nil {
+		this.Ctx.Output.SetStatus(401)
+		this.Data["json"] = map[string]interface{}{"ok": false, "error": "unauthorized"}
+		_ = this.ServeJSON()
+		return
+	}
+	m := sess.(models.LoadFilter).Map
+	list := ensureSessionClusterList(m)
+
+	type clusterItem struct {
+		Name    string `json:"name"`
+		Checked bool   `json:"checked"`
+	}
+	items := make([]clusterItem, 0, len(list))
+	for _, cl := range list {
+		if cl == nil {
+			continue
+		}
+		items = append(items, clusterItem{Name: cl.Name, Checked: cl.ID == 1})
+	}
+	this.Data["json"] = map[string]interface{}{"ok": true, "clusters": items}
+	_ = this.ServeJSON()
 }
 
 /*

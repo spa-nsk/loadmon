@@ -519,12 +519,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         <div class="row">
             <div class="form-group col-sm-6">
-                <input id="chClusters" name="chClusters" class="form-check-input" type="checkbox" value="on" onchange="toggleClusterList()">
+                <input id="chClusters" name="chClusters" class="form-check-input" type="checkbox" value="on" {{if .ChClusters}}checked{{end}} onchange="toggleClusterList()">
                 <label style="color:#800000;" class="form-check-label" for="chClusters">Дополнительные фильтры по кластерам</label>
             </div>
         </div>
 
-        <div class="row" id="clusterListRow" style="display:none;">
+        <div class="row" id="clusterListRow" style="display:none;" {{if .ClusterList}}data-loaded="1"{{end}}>
             {{range $cluster := .ClusterList}}
             <div class="form-group col-sm-3">
                 <input id="ch{{$cluster.Name}}" name="ch{{$cluster.Name}}" class="form-check-input" type="checkbox" value="on" {{if eq $cluster.ID 1}}checked{{end}}>
@@ -533,12 +533,55 @@ document.addEventListener('DOMContentLoaded', function () {
             {{end}}
         </div>
         <script>
+            function renderClusterCheckboxes(row, clusters) {
+                row.innerHTML = '';
+                (clusters || []).forEach(function (cl) {
+                    var name = cl.name || '';
+                    var wrap = document.createElement('div');
+                    wrap.className = 'form-group col-sm-3';
+                    var id = 'ch' + name;
+                    var input = document.createElement('input');
+                    input.id = id;
+                    input.name = id;
+                    input.className = 'form-check-input';
+                    input.type = 'checkbox';
+                    input.value = 'on';
+                    if (cl.checked) input.checked = true;
+                    var label = document.createElement('label');
+                    label.className = 'form-check-label';
+                    label.htmlFor = id;
+                    label.textContent = name;
+                    wrap.appendChild(input);
+                    wrap.appendChild(label);
+                    row.appendChild(wrap);
+                });
+                row.setAttribute('data-loaded', '1');
+            }
             function toggleClusterList() {
                 var ch = document.getElementById('chClusters');
                 var row = document.getElementById('clusterListRow');
-                if (ch && row) {
-                    row.style.display = ch.checked ? '' : 'none';
+                if (!ch || !row) return;
+                if (!ch.checked) {
+                    row.style.display = 'none';
+                    return;
                 }
+                row.style.display = '';
+                if (row.getAttribute('data-loaded') === '1') return;
+                row.innerHTML = '<div class="col-12 text-muted">Загрузка списка кластеров…</div>';
+                fetch('/sprsrv/view2clusters', {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                }).then(function (data) {
+                    if (!data || !data.ok) throw new Error('bad payload');
+                    renderClusterCheckboxes(row, data.clusters);
+                }).catch(function () {
+                    row.innerHTML = '<div class="col-12 text-danger">Не удалось загрузить список кластеров</div>';
+                    row.removeAttribute('data-loaded');
+                });
             }
             document.addEventListener('DOMContentLoaded', toggleClusterList);
         </script>
