@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"loadmon/config"
 	"loadmon/models"
 	"loadmon/rackpower"
 	"sort"
@@ -82,6 +83,7 @@ func (this *MainController) SprDatacenterSiteView() {
 	this.Data["SiteName"] = ""
 	this.Data["RackCount"] = 0
 	this.Data["DCJSON"] = template.JS("null")
+	this.Data["PowerLight"] = config.ConfigData.PowerLightMode()
 
 	flash := beego.NewFlash()
 	defer func() {
@@ -114,6 +116,7 @@ func (this *MainController) SprDatacenterEquipView() {
 	this.Data["SiteName"] = ""
 	this.Data["RackCount"] = 0
 	this.Data["DCJSON"] = template.JS("null")
+	this.Data["PowerLight"] = config.ConfigData.PowerLightMode()
 	this.Data["FilterLocalityName"] = ""
 	this.Data["FilterLocalityCode"] = ""
 

@@ -157,14 +157,69 @@
     var PAL = PALS.dark;
 
     // оттенки янтаря для световых столбов: от светло-янтарного (малая мощность) к насыщенно-оранжевому (максимум)
+    // PowerLight из app2.json: AnimatedFire | AnimatedLight | StaticLight
+    var POWER_LIGHT = "{{.PowerLight}}";
     function glowRGB(frac, dark) {
         var stops = [[253, 224, 120], [251, 191, 36], [245, 158, 11]];     // один и тот же светлый янтарный ряд в обеих темах
         var t = Math.max(0, Math.min(1, frac)) * 2, i = Math.min(1, Math.floor(t)), f = t - i;
         var a = stops[i], b = stops[i + 1];
         return Math.round(a[0] + (b[0] - a[0]) * f) + ',' + Math.round(a[1] + (b[1] - a[1]) * f) + ',' + Math.round(a[2] + (b[2] - a[2]) * f);
     }
+    function fadeSafe(v) { return Math.max(0, Math.min(1, v)); }
+    // исходный статический световой столб (прямоугольник + навершие)
+    function drawGlowStatic(cx, cy, bw, bh, frac, dark, mode) {
+        var rgb = glowRGB(frac, dark), a0 = (dark ? 0.32 : 0.5) + (dark ? 0.4 : 0.35) * frac;
+        ctx.save();
+        ctx.globalCompositeOperation = mode;
+        var g = ctx.createLinearGradient(0, cy, 0, cy - bh);
+        g.addColorStop(0, 'rgba(' + rgb + ',' + a0.toFixed(2) + ')');
+        g.addColorStop(1, 'rgba(' + rgb + ',0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(cx - bw / 2, cy - bh, bw, bh);
+        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, a0 + 0.3).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(cx, cy, bw * 0.52, bw * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+    // анимированный световой столб без языков пламени (пульс яркости/высоты)
+    function drawGlowAnimatedLight(cx, cy, bw, bh, frac, dark, mode, seed) {
+        var t = flowT, ph0 = (seed || 0) * 0.618;
+        var rgb = glowRGB(frac, dark), rgbHot = '255,244,200';
+        var aBase = (dark ? 0.28 : 0.42) + (dark ? 0.35 : 0.3) * frac;
+        var pulse = 0.94 + 0.06 * Math.sin(t * 2.1 + ph0);
+        var H = bh * pulse, W = bw * (0.96 + 0.04 * Math.sin(t * 1.4 + ph0 * 1.3));
+        var aMul = 0.88 + 0.12 * Math.sin(t * 2.6 + ph0);
+        ctx.save();
+        ctx.globalCompositeOperation = mode;
+        var g0 = ctx.createLinearGradient(0, cy, 0, cy - H);
+        g0.addColorStop(0, 'rgba(' + rgb + ',' + (aBase * aMul).toFixed(2) + ')');
+        g0.addColorStop(0.55, 'rgba(' + rgb + ',' + (aBase * 0.45 * aMul).toFixed(2) + ')');
+        g0.addColorStop(1, 'rgba(' + rgb + ',0)');
+        ctx.fillStyle = g0;
+        ctx.beginPath();
+        ctx.moveTo(cx - W * 0.5, cy);
+        ctx.quadraticCurveTo(cx - W * 0.18, cy - H * 0.55, cx, cy - H);
+        ctx.quadraticCurveTo(cx + W * 0.18, cy - H * 0.55, cx + W * 0.5, cy);
+        ctx.closePath();
+        ctx.fill();
+        var coreH = H * (0.6 + 0.15 * frac) * (0.94 + 0.06 * Math.sin(t * 3.2 + ph0));
+        var coreW = W * (0.16 + 0.06 * frac);
+        var cg = ctx.createLinearGradient(0, cy, 0, cy - coreH);
+        cg.addColorStop(0, 'rgba(' + rgbHot + ',' + ((dark ? 0.7 : 0.6) * aMul).toFixed(2) + ')');
+        cg.addColorStop(0.65, 'rgba(' + rgb + ',' + (0.32 * aMul).toFixed(2) + ')');
+        cg.addColorStop(1, 'rgba(' + rgbHot + ',0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.moveTo(cx - coreW, cy);
+        ctx.quadraticCurveTo(cx - coreW * 0.25, cy - coreH * 0.5, cx, cy - coreH);
+        ctx.quadraticCurveTo(cx + coreW * 0.25, cy - coreH * 0.5, cx + coreW, cy);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(' + rgb + ',' + Math.min(0.95, aBase * aMul + 0.28).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.52, W * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
     // анимированный световой столб с языками пламени; высота/ширина по-прежнему от мощности (frac)
-    function drawGlow(cx, cy, bw, bh, frac, dark, mode, seed) {
+    function drawGlowAnimatedFire(cx, cy, bw, bh, frac, dark, mode, seed) {
         var t = flowT, ph0 = (seed || 0) * 0.618;
         var rgb = glowRGB(frac, dark);
         var rgbHot = '255,244,200', rgbCool = '249,115,22';
@@ -230,7 +285,11 @@
         ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.52, W * 0.24, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
-    function fadeSafe(v) { return Math.max(0, Math.min(1, v)); }
+    function drawGlow(cx, cy, bw, bh, frac, dark, mode, seed) {
+        if (POWER_LIGHT === 'StaticLight') { drawGlowStatic(cx, cy, bw, bh, frac, dark, mode); return; }
+        if (POWER_LIGHT === 'AnimatedLight') { drawGlowAnimatedLight(cx, cy, bw, bh, frac, dark, mode, seed); return; }
+        drawGlowAnimatedFire(cx, cy, bw, bh, frac, dark, mode, seed);
+    }
     function setPal() {
         PAL = document.documentElement.getAttribute('data-bs-theme') === 'light' ? PALS.light : PALS.dark;
         stage.style.background = 'linear-gradient(' + PAL.bgTop + ',' + PAL.bgBot + ')';
