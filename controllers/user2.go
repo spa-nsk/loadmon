@@ -27,27 +27,17 @@ var (
 	guestIDLock sync.Mutex
 )
 
-// Login отображает форму входа и обрабатывает аутентификацию пользователя
-// (в т.ч. поддерживает предварительно выставленный заголовок X-Loadmon-Auth от SSO)
-// с сохранением параметров пользователя и фильтра в сессии.
-// При доменной авторизации (AuthMode != local) форма /user/login блокируется:
-// после SSO-заголовка - экран authgate, иначе редирект на "/" (см. LoginBlockedRedirect).
+// Login отображает форму локального входа и обрабатывает POST логин/пароль.
+// При доменной авторизации (AuthMode != local) форма блокируется редиректом
+// на "/" (см. LoginBlockedRedirect) — SSO идёт через authgate + /sso.
 func (this *MainController) Login() {
 	m := make(map[string]interface{})
 	target := this.resolveLoginReturnURL()
 	log.Println("login return is", target)
 
-	// Доменный SSO: Access-Denied / X-Loadmon-Auth (заголовки от spnegoFilter).
-	if applied, denied := this.applyDomainAuthFromHeader(); denied {
-		this.activeContent("user/accessdenied")
-		this.Data["AccessRequestURL"] = config.ConfigData.AccessRequestURL
-		return
-	} else if applied {
-		this.showAuthGate(target)
-		return
-	}
-
-	// Доменная авторизация: форма логина не используется (вход через "/" + SPNEGO).
+	// Доменная авторизация: форма /user/login не используется — вход через
+	// "/" (authgate) + /sso (SPNEGO). Старый путь с X-Loadmon-Auth на login
+	// больше не актуален (Negotiate только на /sso).
 	if this.LoginBlockedRedirect() {
 		return
 	}
@@ -152,7 +142,9 @@ func (this *MainController) Login() {
 		f := models.LoadFilter{FromTime: from, ToTime: to, Map: m}
 		this.SetSession("loadmon", f)
 		RegisterRequest(this, 1) //авторизация
-		this.showAuthGate(target)
+		// Локальный вход уже завершён — без доп. паузы authgate (дождь только
+		// на период доменного SSO, см. showAuthGate /authgate.tpl).
+		this.Redirect(target, 302)
 	}
 }
 

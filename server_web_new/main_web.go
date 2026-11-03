@@ -49,6 +49,12 @@ var baseLock sync.RWMutex
 var baseLocked bool = false
 var kt *keytab.Keytab
 
+// spnegoHTTP — один раз созданный SPNEGO-wrapper вокруг appHandler.
+// Раньше handler собирался на каждый запрос без сессии (InsertFilter "/*"),
+// из‑за чего любой параллельный hit (/, favicon, публичные пути) получал
+// свой 401 Negotiate. Теперь фильтр висит только на /sso, а wrapper общий.
+var spnegoHTTP http.Handler
+
 // IsBaseLocked возвращает признак блокировки базы данных (используется для
 // защиты от параллельных операций конвертации/обслуживания базы).
 func IsBaseLocked() bool {
@@ -105,92 +111,50 @@ func init() {
 			log.Fatalf("Ошибка загрузки keytab: %v. Проверьте путь и права доступа. Если Kerberos-авторизация не нужна, укажите \"AuthMode\": \"local\" в conf/app2.json.", err)
 		}
 
-		// Настройка логгера Beego
-		logs.SetLogger(logs.AdapterFile, `{"filename": "beego_krb5.log", "level": 7, "maxlines": 0}`)
-		//logs.SetDefaultLogger(logs.NewLogger(1000))
+		// level 4 = Warning; раньше 7=Debug заливал диск на каждый Negotiate
+		logs.SetLogger(logs.AdapterFile, `{"filename": "beego_krb5.log", "level": 4, "maxlines": 0}`)
 
-		// Регистрация фильтров Beego
-		// Мы создаем фильтр, который обрабатывает SPNEGO аутентификацию
-		//web.Filter("krb5_auth", spnegoFilter)
-		beego.InsertFilter("/*", beego.BeforeExec, spnegoFilter)
-		// Регистрация контроллера
-		//web.Router("/", &AuthController{})
-		log.Println("Авторизация: режим domain (Kerberos/SPNEGO)")
+		l := log.New(os.Stdout, "GOKRB5 Service: ", log.Ldate|log.Ltime|log.Lshortfile)
+		spnegoHTTP = spnego.SPNEGOKRB5Authenticate(
+			http.HandlerFunc(appHandler),
+			kt,
+			service.Logger(l),
+		)
+		// Только /sso: единая точка Negotiate. "/" отдаёт authgate без 401,
+		// остальные пути без сессии уводит AuthFilter на /?next=... —
+		// параллельные favicon/public больше не поднимают шторм 401.
+		beego.InsertFilter("/sso", beego.BeforeExec, spnegoFilter)
+		log.Println("Авторизация: режим domain (Kerberos/SPNEGO), Negotiate только на /sso")
 	} else {
 		log.Println("Авторизация: режим local (логин/пароль)")
 	}
 }
 
-// spnegoFilter - Middleware для обработки аутентификации
+// spnegoFilter — Negotiate только для /sso (см. InsertFilter в init).
+// При уже существующей сессии loadmon пропускает запрос; без Authorization
+// отвечает 401 WWW-Authenticate: Negotiate; с токеном валидирует через
+// общий spnegoHTTP и даёт appHandler выставить X-Loadmon-Auth.
 func spnegoFilter(ctx *begocont.Context) {
-
-	session, err := ctx.Session() //("loadmon", f) это работало
+	session, err := ctx.Session()
 	if err == nil {
-		s := session.Get(context.Background(), "loadmon")
-		if s != nil {
+		if s := session.Get(context.Background(), "loadmon"); s != nil {
 			return
 		}
 	}
 
-	authHeader := ctx.Input.Header("Authorization")
-	if authHeader == "" {
+	if ctx.Input.Header("Authorization") == "" {
 		ctx.Output.Header("WWW-Authenticate", "Negotiate")
 		ctx.ResponseWriter.WriteHeader(401)
-		ctx.ResponseWriter.Write([]byte("401 Unauthorized\n"))
+		_, _ = ctx.ResponseWriter.Write([]byte("401 Unauthorized\n"))
 		return
 	}
-	//fmt.Println("Authorization: ", authHeader)
 
-	// Создаем логгер для service (используем стандартный Go log или beego logger)
-
-	//l := log.New(ctx.ResponseWriter, "GOKRB5 Service: ", log.Ldate|log.Ltime|log.Lshortfile)
-
-	l := log.New(os.Stdout, "GOKRB5 Service: ", log.Ldate|log.Ltime|log.Lshortfile)
-	// Создаем объект service с логгером
-	// Важно: мы передаем *kt, но spnego требует *keytab.Keytab
-	// В данном случае мы передаем указатель на глобальную переменную
-
-	// Создаем прокси для http.ResponseWriter и Request
-	// Beego context уже содержит оригинальные http.ResponseWriter и Request
-	// Нам нужно передать их в spnego
-
-	// Простой способ: создать обертку, так как spnego ожидает стандартные http handlers
-	// Но так как мы внутри фильтра, мы можем вызвать spnego напрямую, передав контекст
-
-	// SPNEGO требует http.Handler. Мы создадим временный handler, который вызывает appHandler
-	// Но так как мы внутри фильтра, мы можем просто передать вызов дальше, если аутентификация прошла,
-	// или завершить ответ, если нет.
-
-	// Лучший подход для Beego: использовать spnego как middleware, который выполняет аутентификацию
-	// и сохраняет данные в контекст.
-
-	// Создаем тестовый request/response для вызова SPNEGO, если он не работает с фильтром напрямую.
-	// Однако, spnego.SPNEGOKRB5Authenticate возвращает http.Handler.
-	// Мы можем использовать его как фильтр.
-
-	// Создаем "пустой" handler для передачи в spnego, который просто вызовет appHandler
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		appHandler(w, r)
-	})
-
-	// Обертываем в SPNEGO
-	snegoHandler := spnego.SPNEGOKRB5Authenticate(handler, kt, service.Logger(l))
-
-	// Вызываем обработчик SPNEGO
-	snegoHandler.ServeHTTP(ctx.ResponseWriter, ctx.Request)
-
-	// После вызова SPNEGO, если аутентификация прошла успешно, SPNEGO уже отправил ответ или установил контекст.
-	// Если аутентификация прошла и был вызван appHandler, то он сам отправит ответ.
-	// Если аутентификация не прошла, SPNEGO вернет 401.
-	// В этом случае мы не должны вызывать ctx.Next(), так как ответ уже отправлен.
-
-	// Важно: Если SPNEGO вернул 401, он завершил запрос.
-	// Если он вернул 200 и вызвал appHandler, то appHandler сам завершил запрос.
-	// В Beego v2 Filter API, если вы не вызываете ctx.Next(), запрос считается обработанным.
-	// SPNEGO делает это сам, поэтому мы просто возвращаемся.
-	//key := "github.com/jcmturner/gokrb5/v8/sessionCredentials"
-	//cr, err := sessionMgr.Get(ctx.Request, key)
-
+	if spnegoHTTP == nil {
+		ctx.ResponseWriter.WriteHeader(500)
+		_, _ = ctx.ResponseWriter.Write([]byte("SPNEGO not initialized\n"))
+		return
+	}
+	spnegoHTTP.ServeHTTP(ctx.ResponseWriter, ctx.Request)
 }
 
 // AppHandler - основная логика отображения информации о пользователе

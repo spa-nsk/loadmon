@@ -1,32 +1,47 @@
 package controllers
 
 import (
-	"fmt"
-	"strings"
+	"loadmon/config"
 )
 
-// GetSSO обрабатывает SSO-аутентификацию по протоколу Kerberos/Negotiate:
-// при отсутствии заголовка Authorization с токеном Negotiate запрашивает
-// у клиента повторную аутентификацию (HTTP 401 WWW-Authenticate: Kerberos).
-func (my *MainController) GetSSO() {
-	if my.Ctx.Input.Method() == "GET" {
-		wwwAuth := my.Ctx.Input.Header("WWW-Authenticate")
-		fmt.Println(wwwAuth)
-		s := strings.SplitN(my.Ctx.Input.Header("Authorization"), " ", 2)
-		if len(s) != 2 || s[0] != "Negotiate" {
-			//ошибка не тот запрос
-			my.Ctx.ResponseWriter.Header().Set("WWW-Authenticate", "Kerberos realm=GLOBAL.BCS")
-			my.Ctx.ResponseWriter.WriteHeader(401)
-			my.Ctx.ResponseWriter.Write([]byte("401 Unauthorized\n"))
-			return
-		}
-		fmt.Println("Token: ", s[1])
+// GetSSO — единственная точка Kerberos/SPNEGO при доменной авторизации.
+// Вызывается с authgate (fetch credentials:same-origin) пока крутится «дождь».
+// spnegoFilter (BeforeExec на /sso) выставляет X-Loadmon-Auth / Access-Denied;
+// здесь создаём сессию и отвечаем JSON для клиента.
+func (this *MainController) GetSSO() {
+	if !config.ConfigData.IsDomainAuth() {
+		this.Ctx.Output.SetStatus(404)
+		this.Data["json"] = map[string]interface{}{"ok": false, "error": "not domain auth"}
+		_ = this.ServeJSON()
 		return
 	}
 
-	//b, err := base64.StdEncoding.DecodeString(s[1])
-	//if err != nil {
-	//    return
-	//}
-	my.Ctx.ResponseWriter.Write([]byte{})
+	// Повторный /sso при уже живой сессии (повторный fetch / гонка) — успех без Negotiate.
+	if this.GetSession("loadmon") != nil {
+		this.Data["json"] = map[string]interface{}{"ok": true}
+		_ = this.ServeJSON()
+		return
+	}
+
+	if applied, denied := this.applyDomainAuthFromHeader(); denied {
+		this.Ctx.Output.SetStatus(403)
+		this.Data["json"] = map[string]interface{}{
+			"ok":               false,
+			"denied":           true,
+			"accessRequestURL": config.ConfigData.AccessRequestURL,
+		}
+		_ = this.ServeJSON()
+		return
+	} else if applied {
+		this.Data["json"] = map[string]interface{}{"ok": true}
+		_ = this.ServeJSON()
+		return
+	}
+
+	// Нет заголовков после SPNEGO — не должны сюда попадать при штатном
+	// Negotiate (фильтр уже отдал 401 или Reject). На всякий случай.
+	this.Ctx.Output.SetStatus(401)
+	this.Ctx.Output.Header("WWW-Authenticate", "Negotiate")
+	this.Data["json"] = map[string]interface{}{"ok": false, "error": "negotiate required"}
+	_ = this.ServeJSON()
 }

@@ -12,8 +12,9 @@ import (
 	"loadmon/models"
 )
 
-// authGateMinMs - минимальная длительность экрана «цифрового дождя» при входе.
-const authGateMinMs = 15000
+// authGateMinMs — минимум показа дождя от старта SSO (перекрывает авторизацию,
+// не добавляется после уже успешного входа).
+const authGateMinMs = 4000
 
 // defaultAuthReturnURL - куда вести после входа, если цель не задана или небезопасна.
 const defaultAuthReturnURL = "/sprsrv/view2/all/0"
@@ -46,16 +47,24 @@ func requestReturnURL(path, rawQuery string) string {
 	return path
 }
 
-// showAuthGate показывает полноэкранную визуализацию входа (Matrix rain)
-// и через AuthGateMinMs перенаправляет браузер на target (клиентский JS).
-// Вызывается сразу после успешного создания сессии, до перехода в приложение.
+// showAuthGate показывает полноэкранную визуализацию входа (Matrix rain).
+// При доменной авторизации страница сразу стартует fetch(/sso): дождь идёт
+// параллельно Negotiate, переход на target — когда SSO готов и прошло ≥authGateMinMs
+// с момента открытия (не дополнительная пауза после входа).
+// При локальном входе сессия уже создана — сразу уходим на target (minMs=0).
 func (this *MainController) showAuthGate(target string) {
 	target = sanitizeReturnURL(target)
 	this.Layout = ""
 	this.TplName = "user/authgate.tpl"
 	this.Data["AuthGateTarget"] = target
-	this.Data["AuthGateMinMs"] = authGateMinMs
 	this.Data["StaticVer"] = staticAssetVersion
+	domain := config.ConfigData.IsDomainAuth()
+	this.Data["AuthGateSSO"] = domain
+	if domain {
+		this.Data["AuthGateMinMs"] = authGateMinMs
+	} else {
+		this.Data["AuthGateMinMs"] = 0
+	}
 }
 
 // applyDomainAuthFromHeader читает X-Loadmon-Auth / X-Loadmon-Access-Denied,
