@@ -339,7 +339,7 @@
         <div class="card-header fw-semibold">Общие данные</div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-sm-6 col-md-6">
+                <div class="col-sm-4 col-md-4">
                     <label for="Type" class="form-label">Тип сервера</label>
                     <select name="Type" id="Type" class="form-select">
                         <option value="0" {{if eq .record.Type 0}}selected{{end}}>Физический сервер</option>
@@ -348,47 +348,6 @@
                     </select>
                 </div>
                 <div class="col-sm-4 col-md-4">
-                    <label for="SerialNumber" class="form-label">Серийный номер</label>
-                    <input name="SerialNumber" id="SerialNumber" class="form-control" type="text" value="{{.record.SerialNumber}}" title="Заполняется для физического сервера и гипервизора" />
-                </div>
-                {{if ne .record.Type 0}} 
-                <div class="col-sm-6 col-md-4">
-                    <label for="Vcenter" class="form-label">vCenter</label>
-                    <input name="Vcenter" id="Vcenter" class="form-control" type="text" value="{{.record.Vcenter}}" title="Заполняется для виртуальной машины и гипервизора" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="Datacenter" class="form-label">Датацентр</label>
-                    <input name="Datacenter" id="Datacenter" class="form-control" type="text" value="{{.record.Datacenter}}" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="Cluster" class="form-label">Кластер</label>
-                    <input name="Cluster" id="Cluster" class="form-control" type="text" value="{{.record.Cluster}}" />
-                </div>
-		{{end}}
-                <div class="col-sm-6 col-md-4">
-                    <label for="Name" class="form-label">Имя сервера</label>
-                    <input name="Name" id="Name" class="form-control" type="text" value="{{.record.Name}}" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="NameFQDN" class="form-label">Полное имя (FQDN)</label>
-                    <input name="NameFQDN" id="NameFQDN" class="form-control" type="text" value="{{.record.NameFQDN}}" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="NameInfo" class="form-label">Альтернативное имя</label>
-                    <input name="NameInfo" id="NameInfo" class="form-control" type="text" value="{{.record.NameInfo}}" />
-                </div>
-                <div class="col-sm-6 col-md-4">
-                    <label for="IPAddress" class="form-label">IP адрес(а)</label>
-                    <input name="IPAddress" id="IPAddress" class="form-control" type="text" value="{{.record.IPAddress}}" title="Список через разделитель ;" />
-                </div>
-                <div class="col-sm-6 col-md-3">
-                    <label for="Active" class="form-label">Состояние</label>
-                    <select name="Active" id="Active" class="form-select">
-                        <option value="1" {{if eq .record.Active 1}}selected{{end}}>Активен</option>
-                        <option value="2" {{if eq .record.Active 2}}selected{{end}}>Выведен из эксплуатации</option>
-                    </select>
-                </div>
-                <div class="col-sm-6 col-md-3">
                     <label for="TypeMicroservice" class="form-label">Роль в микросервисах</label>
                     <select name="TypeMicroservice" id="TypeMicroservice" class="form-select">
                         <option value="0" {{if eq .record.TypeMicroservice 0}}selected{{end}}>не микросервис</option>
@@ -396,7 +355,7 @@
                         <option value="2" {{if eq .record.TypeMicroservice 2}}selected{{end}}>Kubernetes</option>
                     </select>
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-4 col-md-4">
                     <label for="RoleType" class="form-label">APP/DB сервер</label>
                     <select name="RoleType" id="RoleType" class="form-select">
                         <option value="0" {{if eq .record.RoleType 0}}selected{{end}}>не указано</option>
@@ -405,7 +364,31 @@
                         <option value="3" {{if eq .record.RoleType 3}}selected{{end}}>DB+APP сервер</option>
                     </select>
                 </div>
-                <div class="col-sm-6 col-md-3">
+            </div>
+            <div class="row g-3">
+                {{if ne .record.Type 1}}
+                <div class="col-sm-3 col-md-3">
+                    <label for="SerialNumber" class="form-label">Серийный номер</label>
+                    <input name="SerialNumber" id="SerialNumber" class="form-control" type="text" value="{{.record.SerialNumber}}" title="Заполняется для физического сервера и гипервизора" />
+                </div>
+                {{end}}
+                {{if ne .record.Type 0}} 
+                <div class="col-sm-3 col-md-3">
+                    <label for="Vcenter" class="form-label">vCenter</label>
+                    <input name="Vcenter" id="Vcenter" class="form-control" type="text" value="{{.record.Vcenter}}" title="Заполняется для виртуальной машины и гипервизора" />
+                </div>
+                <div class="col-sm-3 col-md-3">
+                    <label for="Datacenter" class="form-label">Датацентр</label>
+                    <input name="Datacenter" id="Datacenter" class="form-control" type="text" value="{{.record.Datacenter}}" />
+                </div>
+                <div class="col-sm-3 col-md-3">
+                    <label for="Cluster" class="form-label">Кластер</label>
+                    <input name="Cluster" id="Cluster" class="form-control" type="text" value="{{.record.Cluster}}" />
+                </div>
+		{{end}}
+            </div>
+            <div class="row g-3">
+                <div class="col-sm-4 col-md-4">
                     <label for="TypeWork" class="form-label">Тип среды</label>
                     <select name="TypeWork" id="TypeWork" class="form-select">
                         <option value="0" {{if eq .record.TypeWork 0}}selected{{end}}>не указано</option>
@@ -414,7 +397,7 @@
                         <option value="3" {{if eq .record.TypeWork 3}}selected{{end}}>Внешний тест</option>
                     </select>
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-4 col-md-4">
                     <label for="CriticalLevel" class="form-label">Уровень критичности</label>
                     <select name="CriticalLevel" id="CriticalLevel" class="form-select">
                         <option value="0" {{if eq .record.CriticalLevel 0}}selected{{end}}>не указано</option>
@@ -424,7 +407,16 @@
                         <option value="4" {{if eq .record.CriticalLevel 4}}selected{{end}}>Non Priority</option>
                     </select>
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-4 col-md-4">
+                    <label for="Active" class="form-label">Состояние</label>
+                    <select name="Active" id="Active" class="form-select">
+                        <option value="1" {{if eq .record.Active 1}}selected{{end}}>Активен</option>
+                        <option value="2" {{if eq .record.Active 2}}selected{{end}}>Выведен из эксплуатации</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-sm-4 col-md-4">
                     <label for="Monitoring" class="form-label">Мониторинг</label>
                     <select name="Monitoring" id="Monitoring" class="form-select">
                         <option value="0" {{if eq .record.Monitoring 0}}selected{{end}}>не указано</option>
@@ -432,11 +424,11 @@
                         <option value="2" {{if eq .record.Monitoring 2}}selected{{end}}>отключен</option>
                     </select>
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-4 col-md-4">
                     <label for="MonitoringSZ" class="form-label">Основание постановки на мониторинг</label>
                     <input name="MonitoringSZ" id="MonitoringSZ" class="form-control" type="text" value="{{.record.MonitoringSZ}}" />
                 </div>
-                <div class="col-sm-6 col-md-3">
+                <div class="col-sm-4 col-md-4">
                     <label for="Backuped" class="form-label">Резервное копирование</label>
                     <select name="Backuped" id="Backuped" class="form-select">
                         <option value="0" {{if eq .record.Backuped 0}}selected{{end}}>не указано</option>
@@ -446,23 +438,72 @@
                 </div>
             </div>
             <div class="row g-3">
-                <div class="col-sm-6 col-md-4">
-                    <label for="MacAddress" class="form-label">MAC адрес(а)</label>
-                    <input name="MacAddress" id="MacAddress" class="form-control" type="text" value="{{.record.MacAddress}}" title="Список через разделитель ;" />
+                <div class="col-sm-4 col-md-4">
+                    <label for="Name" class="form-label">Имя сервера</label>
+                    <input name="Name" id="Name" class="form-control" type="text" value="{{.record.Name}}" />
                 </div>
-                <div class="col-sm-6 col-md-2">
+                <div class="col-sm-4 col-md-4">
+                    <label for="NameFQDN" class="form-label">Полное имя (FQDN)</label>
+                    <input name="NameFQDN" id="NameFQDN" class="form-control" type="text" value="{{.record.NameFQDN}}" />
+                </div>
+                <div class="col-sm-4 col-md-4">
+                    <label for="NameInfo" class="form-label">Альтернативное имя</label>
+                    <input name="NameInfo" id="NameInfo" class="form-control" type="text" value="{{.record.NameInfo}}" />
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-sm-3 col-md-3">
                     <label for="Network" class="form-label">Сеть</label>
                     <input name="Network" id="Network" class="form-control" type="text" value="{{.record.Network}}" title="Например: vlan144" />
                 </div>
-                <div class="col-sm-6 col-md-2">
+                <div class="col-sm-3 col-md-3">
                     <label for="NetworkName" class="form-label">Наименование сети</label>
                     <input name="NetworkName" id="NetworkName" class="form-control" type="text" value="{{.record.NetworkName}}" title="Например: DMZ, Prom" />
                 </div>
-
+                <div class="col-sm-3 col-md-3">
+                    <label for="IPAddress" class="form-label">IP адрес(а)</label>
+                    <input name="IPAddress" id="IPAddress" class="form-control" type="text" value="{{.record.IPAddress}}" title="Список через разделитель ;" />
+                </div>
+                <div class="col-sm-3 col-md-3">
+                    <label for="MacAddress" class="form-label">MAC адрес(а)</label>
+                    <input name="MacAddress" id="MacAddress" class="form-control" type="text" value="{{.record.MacAddress}}" title="Список через разделитель ;" />
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">ИТ система</label>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" name="ITSystemKey" id="ITSystemKey" class="form-control"
+                                value="{{.record.ITSystemKey}}" placeholder="CMDB-" autocomplete="off">
+                            <div id="ITSystemKeyHint" class="form-text"></div>
+                        </div>
+                        <div class="col-md-8 position-relative">
+                            <input type="text" id="ITSystemSearch" class="form-control"
+                                placeholder="Поиск по справочнику: код, название, статус..." autocomplete="off">
+                            <div id="ITSystemSearchResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
+                        </div>
+                    </div>
+                    <!-- источник данных справочника ИТ-систем для поиска на клиенте - сами
+                         элементы скрыты, JS читает их data-атрибуты один раз при загрузке
+                         страницы (см. скрипт ниже); html/template экранирует значения, что
+                         избавляет от ручного экранирования при встраивании в JSON/JS -->
+                    <div id="ITSystemDataList" class="d-none">
+                        {{range $its := .ITSystemSpr}}
+                        <div class="it-system-item"
+                            data-key="{{$its.ObjectKey}}"
+                            data-label="{{$its.Label}}"
+                            data-full="{{$its.FullName}}"
+                            data-status="{{$its.Status}}"
+                            data-type="{{$its.SystemType}}"
+                            data-biz="{{$its.BusinessColumn}}"
+                            data-cfo="{{$its.CFO}}"></div>
+                        {{end}}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-
     <div class="card mb-3">
         <div class="card-header fw-semibold">Ответственные</div>
         <div class="card-body">
@@ -499,37 +540,6 @@
         <div class="card-header fw-semibold">Система и назначение</div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">ИТ система</label>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <input type="text" name="ITSystemKey" id="ITSystemKey" class="form-control"
-                                value="{{.record.ITSystemKey}}" placeholder="CMDB-" autocomplete="off">
-                            <div id="ITSystemKeyHint" class="form-text"></div>
-                        </div>
-                        <div class="col-md-8 position-relative">
-                            <input type="text" id="ITSystemSearch" class="form-control"
-                                placeholder="Поиск по справочнику: код, название, статус..." autocomplete="off">
-                            <div id="ITSystemSearchResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
-                        </div>
-                    </div>
-                    <!-- источник данных справочника ИТ-систем для поиска на клиенте - сами
-                         элементы скрыты, JS читает их data-атрибуты один раз при загрузке
-                         страницы (см. скрипт ниже); html/template экранирует значения, что
-                         избавляет от ручного экранирования при встраивании в JSON/JS -->
-                    <div id="ITSystemDataList" class="d-none">
-                        {{range $its := .ITSystemSpr}}
-                        <div class="it-system-item"
-                            data-key="{{$its.ObjectKey}}"
-                            data-label="{{$its.Label}}"
-                            data-full="{{$its.FullName}}"
-                            data-status="{{$its.Status}}"
-                            data-type="{{$its.SystemType}}"
-                            data-biz="{{$its.BusinessColumn}}"
-                            data-cfo="{{$its.CFO}}"></div>
-                        {{end}}
-                    </div>
-                </div>
                 <div class="col-sm-6 col-md-3">
                     <label for="OS" class="form-label">Операционная система</label>
                     <input name="OS" id="OS" class="form-control" type="text" value="{{.record.OS}}" />
