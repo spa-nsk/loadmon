@@ -366,13 +366,24 @@
                 </div>
             </div>
             <div class="row g-3">
-                {{if ne .record.Type 1}}
+                <div class="col-sm-4 col-md-4">
+                    <label for="Name" class="form-label">Имя сервера</label>
+                    <input name="Name" id="Name" class="form-control" type="text" value="{{.record.Name}}" />
+                </div>
+                <div class="col-sm-4 col-md-4">
+                    <label for="NameFQDN" class="form-label">Полное имя (FQDN)</label>
+                    <input name="NameFQDN" id="NameFQDN" class="form-control" type="text" value="{{.record.NameFQDN}}" />
+                </div>
+                <div class="col-sm-4 col-md-4">
+                    <label for="NameInfo" class="form-label">Альтернативное имя</label>
+                    <input name="NameInfo" id="NameInfo" class="form-control" type="text" value="{{.record.NameInfo}}" />
+                </div>
+            </div>
+            <div class="row g-3">
                 <div class="col-sm-3 col-md-3">
                     <label for="SerialNumber" class="form-label">Серийный номер</label>
                     <input name="SerialNumber" id="SerialNumber" class="form-control" type="text" value="{{.record.SerialNumber}}" title="Заполняется для физического сервера и гипервизора" />
                 </div>
-                {{end}}
-                {{if ne .record.Type 0}} 
                 <div class="col-sm-3 col-md-3">
                     <label for="Vcenter" class="form-label">vCenter</label>
                     <input name="Vcenter" id="Vcenter" class="form-control" type="text" value="{{.record.Vcenter}}" title="Заполняется для виртуальной машины и гипервизора" />
@@ -385,7 +396,6 @@
                     <label for="Cluster" class="form-label">Кластер</label>
                     <input name="Cluster" id="Cluster" class="form-control" type="text" value="{{.record.Cluster}}" />
                 </div>
-		{{end}}
             </div>
             <div class="row g-3">
                 <div class="col-sm-4 col-md-4">
@@ -435,20 +445,6 @@
                         <option value="1" {{if eq .record.Backuped 1}}selected{{end}}>включено</option>
                         <option value="2" {{if eq .record.Backuped 2}}selected{{end}}>отключено</option>
                     </select>
-                </div>
-            </div>
-            <div class="row g-3">
-                <div class="col-sm-4 col-md-4">
-                    <label for="Name" class="form-label">Имя сервера</label>
-                    <input name="Name" id="Name" class="form-control" type="text" value="{{.record.Name}}" />
-                </div>
-                <div class="col-sm-4 col-md-4">
-                    <label for="NameFQDN" class="form-label">Полное имя (FQDN)</label>
-                    <input name="NameFQDN" id="NameFQDN" class="form-control" type="text" value="{{.record.NameFQDN}}" />
-                </div>
-                <div class="col-sm-4 col-md-4">
-                    <label for="NameInfo" class="form-label">Альтернативное имя</label>
-                    <input name="NameInfo" id="NameInfo" class="form-control" type="text" value="{{.record.NameInfo}}" />
                 </div>
             </div>
             <div class="row g-3">
@@ -502,11 +498,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">Ответственные</div>
-        <div class="card-body">
             <div class="row g-3">
                 <div class="col-sm-6 col-md-4">
                     <label for="Owner" class="form-label">Ответственный</label>
@@ -533,12 +524,6 @@
                     <input name="SupportTeam" id="SupportTeam" class="form-control" type="text" value="{{.record.SupportTeam}}" />
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div class="card mb-3">
-        <div class="card-header fw-semibold">Система и назначение</div>
-        <div class="card-body">
             <div class="row g-3">
                 <div class="col-sm-6 col-md-3">
                     <label for="OS" class="form-label">Операционная система</label>
@@ -590,9 +575,9 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
-
     <div class="card mb-3">
         <div class="card-header fw-semibold">Расположение и обслуживание</div>
         <div class="card-body">
