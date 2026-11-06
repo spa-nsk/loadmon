@@ -56,14 +56,27 @@ func (this *MainController) SprSrvUpdateBaseByVMName() {
 // :backmode - зарезервирован, текущее значение всегда "all"
 // :id - models.ServerSprRecords.Id редактируемой записи
 func (this *MainController) SprSrvUpdateBase() {
+	sprSrvUpdateBasePage(this, "sprsrv/updatebase", this.Ctx.Input.Param(":backmode"), this.Ctx.Input.Param(":id"))
+}
 
-	backmode := this.Ctx.Input.Param(":backmode")
-	idStr := this.Ctx.Input.Param(":id")
+// SprSrvUpdateBaseTab - та же карточка справочника серверов, что
+// SprSrvUpdateBase, но с формой на закладках (шаблон updatebase_tab.tpl).
+// Отдельный маршрут для пробного UI, никуда в меню/ссылки не вставляется.
+//
+// Маршрут: /sprsrv/updatebase-tab/:id([0-9]+)
+func (this *MainController) SprSrvUpdateBaseTab() {
+	sprSrvUpdateBasePage(this, "sprsrv/updatebase_tab", "all", this.Ctx.Input.Param(":id"))
+}
+
+// sprSrvUpdateBasePage - общая логика GET/POST формы общих данных
+// ServerSprRecords. tpl - имя шаблона (sprsrv/updatebase или
+// sprsrv/updatebase_tab), backmode - для ссылки «Отмена» на view2.
+func sprSrvUpdateBasePage(this *MainController, tpl, backmode, idStr string) {
 
 	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки записи справочника - отдельная запись типа "изменение" пишется ниже при сохранении
 
-	this.activeContent("sprsrv/updatebase")
+	this.activeContent(tpl)
 	this.Data["backmode"] = backmode
 
 	flash := beego.NewFlash()

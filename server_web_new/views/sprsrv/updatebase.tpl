@@ -307,11 +307,7 @@
 
 <div class="hero-text mb-3">
     <h2>
-        {{if .IsNew}}Новый сервер{{else}}Общие данные сервера{{if .ServerTitleName}}
-        — <span class="fw-normal">{{.ServerTitleName}}</span>{{end}}{{end}}
-    {{if and (not .IsNew) .ServerResourcesText}}
-    <div class="text-muted small mt-1">{{.ServerResourcesText}}</div>
-    {{end}}
+        {{if .IsNew}}Новый сервер{{else}}Общие данные сервера{{if .ServerTitleName}} : {{.ServerTitleName}} {{if .ServerResourcesText}} ({{.ServerResourcesText}}){{end}}{{end}}{{end}}
     </h2>
     {{if .flash.error}}
     <blockquote class="blockquote text-danger">{{.flash.error}}</blockquote>
