@@ -53,9 +53,9 @@
 <div class="bcv-layout" id="bcvLayout">
     <aside class="bcv-side">
         <div class="bcv-card">
-            <h6>Выделенный блейд</h6>
+            <h6>Выделенный элемент</h6>
             <div id="bcvDetail" class="bcv-detail">
-                <div class="bcv-empty-hint">Кликните по слоту блейда на рисунке корзины — справа появятся его параметры. Клик по корпусу корзины показывает данные корзины.</div>
+                <div class="bcv-empty-hint">Кликните по блейду или блоку питания — справа появятся параметры. Клик по корпусу корзины показывает данные корзины.</div>
             </div>
         </div>
         <div class="bcv-card">
@@ -87,6 +87,7 @@
     if (!DATA || !DATA.chassis || !base || !over) return;
 
     var it = DATA.chassis;
+    var psuList = DATA.powerSupplies || [];
     var bctx = base.getContext('2d');
     var octx = over.getContext('2d');
     var TAU = Math.PI * 2;
@@ -97,6 +98,19 @@
     var regions = [];
     var hovered = null, selected = null;
     var ledPulseT = 0;
+
+    // Сопоставление нарисованного слота БП (0..5 слева направо) с записью из БД.
+    function psuForDrawSlot(drawIdx) {
+        for (var i = 0; i < psuList.length; i++) {
+            if (psuList[i].bay === drawIdx + 1) return psuList[i];
+        }
+        if (drawIdx < psuList.length && !(psuList[drawIdx].bay > 0)) return psuList[drawIdx];
+        // если у всех задан bay, но номера не 1..6 — берём по порядку
+        var ordered = psuList.slice().sort(function (a, b) {
+            return (a.bay || a.index + 1) - (b.bay || b.index + 1);
+        });
+        return ordered[drawIdx] || null;
+    }
 
     function rr(c, x, y, w, h, r) {
         r = Math.max(0, Math.min(r, w / 2, h / 2));
@@ -237,6 +251,7 @@
         var total = psuW * 6 + dispW + gapx * 6;
         var px = ax + (aw - total) / 2;
         var title = chassis.name || chassis.model || chassis.vendor || '';
+        var psuDraw = 0; // 0..5 слева направо (без дисплея)
         for (var k = 0; k < 7; k++) {
             if (k === 3) {
                 fillRR(c, px, py, dispW, ph, 2, '#0b0c0e');
@@ -248,11 +263,23 @@
                 px += dispW + gapx;
                 continue;
             }
-            fillRR(c, px, py, psuW, ph, 2, vg(c, py, ph, [[0, '#2f3237'], [1, '#17191c']]));
+            var psu = psuForDrawSlot(psuDraw);
+            var psuOn = psu ? (psu.power === 1) : on;
+            var psuAbsent = psu && psu.power === 2;
+            fillRR(c, px, py, psuW, ph, 2, vg(c, py, ph, [[0, psuAbsent ? '#25272b' : '#2f3237'], [1, '#17191c']]));
             strokeRR(c, px + 0.5, py + 0.5, psuW - 1, ph - 1, 2, 'rgba(0,0,0,0.8)', 1);
             c.fillStyle = 'rgba(0,0,0,0.55)';
             for (var v = 0; v < 6; v++) c.fillRect(px + psuW * 0.12, py + ph * (0.14 + v * 0.1), psuW * 0.76, Math.max(1, ph * 0.04));
-            led(c, px + psuW * 0.5, py + ph * 0.86, Math.max(1.2, UH * 0.045), '#2fd36a', on);
+            led(c, px + psuW * 0.5, py + ph * 0.86, Math.max(1.2, UH * 0.045), psuAbsent ? C_ERR : '#2fd36a', psu ? psuOn : on);
+            if (UH >= 30) {
+                var bayLbl = psu && psu.bay ? String(psu.bay) : String(psuDraw + 1);
+                txt(c, bayLbl, px + psuW / 2, py + ph * 0.08, Math.max(6, UH * 0.16), 'rgba(235,238,242,0.4)', '600', 'center');
+            }
+            regs.push({
+                x: px, y: py, w: psuW, h: ph,
+                chassis: chassis, psu: psu || null, psuSlot: psuDraw + 1, psuEmpty: !psu
+            });
+            psuDraw++;
             px += psuW + gapx;
         }
         var sub = chassis.model || chassis.vendor || '';
@@ -290,11 +317,16 @@
         bctx.fillStyle = '#0e1014';
         fillRR(bctx, 0, 0, g.W, g.H, 8, '#0e1014');
         drawChassis(bctx, it, g.x, g.y, g.w, g.h, regions);
-        // блейды выше body в hit-тесте
+        // блейды и БП выше пустых слотов и корпуса
         regions.sort(function (a, b) {
-            var pa = a.body ? 2 : (a.empty ? 1 : 0);
-            var pb = b.body ? 2 : (b.empty ? 1 : 0);
-            return pa - pb;
+            function pri(r) {
+                if (r.body) return 3;
+                if (r.empty || r.psuEmpty) return 2;
+                if (r.psu) return 0;
+                if (r.blade) return 0;
+                return 1;
+            }
+            return pri(a) - pri(b);
         });
         drawOver();
     }
@@ -324,10 +356,34 @@
 
     function renderDetail(r) {
         if (!r) {
-            detail.innerHTML = '<div class="bcv-empty-hint">Кликните по слоту блейда на рисунке корзины — справа появятся его параметры. Клик по корпусу корзины показывает данные корзины.</div>';
+            detail.innerHTML = '<div class="bcv-empty-hint">Кликните по блейду или блоку питания — справа появятся параметры. Клик по корпусу корзины показывает данные корзины.</div>';
             return;
         }
-        var b = r.blade, ch = r.chassis || it;
+        var b = r.blade, ch = r.chassis || it, psu = r.psu;
+        if (r.psuEmpty || (r.psuSlot && !psu)) {
+            detail.innerHTML = '<div class="bcv-detail-title">Блок питания, отсек ' + esc(r.psuSlot) + '</div>' +
+                '<div class="bcv-detail-sub">Нет данных о БП в этом отсеке для корзины «' + esc(ch.name) + '»</div>';
+            return;
+        }
+        if (psu) {
+            var ph = '<div class="bcv-detail-title">' + esc(psu.name) + '</div>';
+            ph += '<div class="bcv-detail-sub">Блок питания' + (psu.model ? ' &middot; ' + esc(psu.model) : '') + '</div>';
+            ph += '<table><tr><td>Состояние</td><td>' + powerText(psu.power) + '</td></tr>';
+            ph += '<tr><td>Положение</td><td>Корзина «' + esc(ch.name) + '», отсек ' + esc(psu.bay || r.psuSlot) + '</td></tr>';
+            (psu.rows || []).forEach(function (kv) {
+                ph += '<tr><td>' + esc(kv.k) + '</td><td>' + esc(kv.v) + '</td></tr>';
+            });
+            ph += '</table>';
+            if (psu.links && psu.links.length) {
+                ph += '<div class="bcv-links">';
+                psu.links.forEach(function (l) {
+                    ph += '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.title) + ' &rarr;</a>';
+                });
+                ph += '</div>';
+            }
+            detail.innerHTML = ph;
+            return;
+        }
         if (r.empty) {
             detail.innerHTML = '<div class="bcv-detail-title">Слот ' + esc(r.slot) + '</div>' +
                 '<div class="bcv-detail-sub">Пустой слот корзины «' + esc(ch.name) + '»</div>';

@@ -25,6 +25,14 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-bs-contract-btn" data-bs-toggle="tab" data-bs-target="#tab-bs-contract" type="button" role="tab" aria-controls="tab-bs-contract" aria-selected="false">Учёт и договор</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-bs-modules-btn" data-bs-toggle="tab" data-bs-target="#tab-bs-modules" type="button" role="tab" aria-controls="tab-bs-modules" aria-selected="false">Модули</button>
+        </li>
+        {{range $tab := .BsComponentTabs}}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-bs-comp-{{$tab.Type}}-btn" data-bs-toggle="tab" data-bs-target="#tab-bs-comp-{{$tab.Type}}" type="button" role="tab" aria-controls="tab-bs-comp-{{$tab.Type}}" aria-selected="false">{{$tab.Name}}{{if $tab.Items}} <span class="badge text-bg-secondary">{{len $tab.Items}}</span>{{end}}</button>
+        </li>
+        {{end}}
     </ul>
 
     <div class="tab-content border border-top-0 rounded-bottom p-3 mb-3" id="bsEditTabContent">
@@ -186,6 +194,123 @@
             </div>
         </div>
 
+        <div class="tab-pane fade" id="tab-bs-modules" role="tabpanel" aria-labelledby="tab-bs-modules-btn" tabindex="0">
+            <div class="mb-2">
+                <h6 class="mb-1">Добавить модуль корзины</h6>
+                <div class="text-muted small">Interconnect, OA/management, блоки питания, вентиляторы (и прочие). После «Добавить» строка попадёт на закладку своего типа; сохранение формы запишет весь набор модулей.</div>
+            </div>
+            <div class="row g-2 align-items-end" id="bsCompAddPanel">
+                <div class="col-6 col-lg-2">
+                    <label for="newCompType" class="form-label">Тип</label>
+                    <select id="newCompType" class="form-select form-select-sm">
+                        <option value="0">-</option>
+                        {{range $t := .BsComponentTypes}}
+                        <option value="{{$t.Value}}">{{$t.Name}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label for="newCompSlot" class="form-label">Отсек / слот</label>
+                    <input type="text" id="newCompSlot" class="form-control form-control-sm" value="" placeholder="Bay 1, OK">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label for="newCompVendor" class="form-label">Производитель</label>
+                    <input type="text" id="newCompVendor" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-6 col-lg-3">
+                    <label for="newCompModel" class="form-label">Модель</label>
+                    <input type="text" id="newCompModel" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label for="newCompSerial" class="form-label">Серийный №</label>
+                    <input type="text" id="newCompSerial" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-12 col-lg-auto">
+                    <button type="button" id="bsCompAddSubmit" class="btn btn-outline-secondary btn-sm">Добавить</button>
+                </div>
+            </div>
+            <div id="bsCompAddError" class="text-danger small mt-2 d-none"></div>
+        </div>
+
+        {{range $tab := .BsComponentTabs}}
+        <div class="tab-pane fade" id="tab-bs-comp-{{$tab.Type}}" role="tabpanel" aria-labelledby="tab-bs-comp-{{$tab.Type}}-btn" tabindex="0">
+            <div class="text-muted small mb-2">Модули типа «{{$tab.Name}}». Удаление строки действует после сохранения формы. Данные обычно приходят из OneView.</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            {{if eq $tab.Type 0}}<th style="min-width:9rem">Тип</th>{{end}}
+                            <th style="min-width:8rem">Отсек / слот</th>
+                            <th style="min-width:7rem">Производитель</th>
+                            <th style="min-width:10rem">Модель</th>
+                            <th style="min-width:8rem">Серийный №</th>
+                            {{if $tab.ShowCapacity}}<th style="min-width:6rem">Ёмкость, ГБ</th>{{end}}
+                            {{if $tab.ShowSubType}}<th style="min-width:6rem">Подтип</th>{{end}}
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="bsCompRows-{{$tab.Type}}" data-comp-type="{{$tab.Type}}" data-show-capacity="{{if $tab.ShowCapacity}}1{{else}}0{{end}}" data-show-subtype="{{if $tab.ShowSubType}}1{{else}}0{{end}}">
+                        {{range $c := $tab.Items}}
+                        <tr class="bs-comp-row">
+                            {{if eq $tab.Type 0}}
+                            <td>
+                                <select name="CompType" class="form-select form-select-sm">
+                                    <option value="0">-</option>
+                                    {{range $t := $.BsComponentTypes}}
+                                    <option value="{{$t.Value}}" {{if eq $c.Type $t.Value}}selected{{end}}>{{$t.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </td>
+                            <td><input type="text" name="CompSlot" class="form-control form-control-sm" value="{{$c.Slot}}"></td>
+                            {{else}}
+                            <td>
+                                <input type="hidden" name="CompType" value="{{$tab.Type}}">
+                                <input type="text" name="CompSlot" class="form-control form-control-sm" value="{{$c.Slot}}">
+                            </td>
+                            {{end}}
+                            <td><input type="text" name="CompVendor" class="form-control form-control-sm" value="{{$c.Vendor}}"></td>
+                            <td><input type="text" name="CompModel" class="form-control form-control-sm" value="{{$c.Model}}"></td>
+                            <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value="{{$c.SerialNum}}"></td>
+                            {{if $tab.ShowCapacity}}
+                            <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value="{{printf "%.2f" $c.CapacityGb}}"></td>
+                            {{else}}
+                            <td class="d-none"><input type="hidden" name="CompCapacityGb" value="{{printf "%.2f" $c.CapacityGb}}"></td>
+                            {{end}}
+                            {{if $tab.ShowSubType}}
+                            <td>
+                                <select name="CompSubType" class="form-select form-select-sm">
+                                    {{range $s := $.HwComponentDiskSubTypes}}
+                                    <option value="{{$s.Value}}" {{if eq $c.SubType $s.Value}}selected{{end}}>{{$s.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </td>
+                            {{else}}
+                            <td class="d-none"><input type="hidden" name="CompSubType" value="{{$c.SubType}}"></td>
+                            {{end}}
+                            <td><button type="button" class="btn btn-outline-danger btn-sm bs-comp-remove-row">Удалить</button></td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{end}}
+
+        <template id="bsCompRowTemplate">
+            <tr class="bs-comp-row">
+                <td>
+                    <input type="hidden" name="CompType" value="">
+                    <input type="text" name="CompSlot" class="form-control form-control-sm" value="">
+                </td>
+                <td><input type="text" name="CompVendor" class="form-control form-control-sm" value=""></td>
+                <td><input type="text" name="CompModel" class="form-control form-control-sm" value=""></td>
+                <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value=""></td>
+                <td class="d-none"><input type="hidden" name="CompCapacityGb" value="0"></td>
+                <td class="d-none"><input type="hidden" name="CompSubType" value="0"></td>
+                <td><button type="button" class="btn btn-outline-danger btn-sm bs-comp-remove-row">Удалить</button></td>
+            </tr>
+        </template>
+
     </div>
 
     <div class="d-flex gap-2">
@@ -229,5 +354,66 @@
         applyFilter(true);
 
         dcSelect.addEventListener('change', function () { applyFilter(true); });
+    })();
+
+    // Ручное добавление модулей корзины с раскладкой по закладкам типов.
+    (function () {
+        var tpl = document.getElementById('bsCompRowTemplate');
+        var addBtn = document.getElementById('bsCompAddSubmit');
+        var typeSelect = document.getElementById('newCompType');
+        var errBox = document.getElementById('bsCompAddError');
+        if (!tpl || !addBtn || !typeSelect) return;
+
+        function bindRemove(row) {
+            var btn = row.querySelector('.bs-comp-remove-row');
+            if (!btn) return;
+            btn.addEventListener('click', function () { row.remove(); });
+        }
+        Array.prototype.forEach.call(document.querySelectorAll('.bs-comp-row'), bindRemove);
+
+        function showError(msg) {
+            if (!errBox) return;
+            if (!msg) { errBox.classList.add('d-none'); errBox.textContent = ''; return; }
+            errBox.textContent = msg;
+            errBox.classList.remove('d-none');
+        }
+
+        function clearAddForm() {
+            typeSelect.value = '0';
+            ['newCompSlot', 'newCompVendor', 'newCompModel', 'newCompSerial'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+        }
+
+        addBtn.addEventListener('click', function () {
+            showError('');
+            var type = typeSelect.value;
+            if (!type || type === '0') {
+                showError('Выберите тип модуля.');
+                return;
+            }
+            var tbody = document.getElementById('bsCompRows-' + type);
+            if (!tbody) {
+                showError('Для выбранного типа нет закладки.');
+                return;
+            }
+            var node = tpl.content.cloneNode(true);
+            var row = node.querySelector('.bs-comp-row');
+            if (!row) return;
+            var typeInput = row.querySelector('input[name="CompType"]');
+            if (typeInput) typeInput.value = type;
+            row.querySelector('input[name="CompSlot"]').value = (document.getElementById('newCompSlot') || {}).value || '';
+            row.querySelector('input[name="CompVendor"]').value = (document.getElementById('newCompVendor') || {}).value || '';
+            row.querySelector('input[name="CompModel"]').value = (document.getElementById('newCompModel') || {}).value || '';
+            row.querySelector('input[name="CompSerialNum"]').value = (document.getElementById('newCompSerial') || {}).value || '';
+            bindRemove(row);
+            tbody.appendChild(node);
+            clearAddForm();
+            var tabBtn = document.getElementById('tab-bs-comp-' + type + '-btn');
+            if (tabBtn && window.bootstrap && bootstrap.Tab) {
+                bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+            }
+        });
     })();
 </script>
