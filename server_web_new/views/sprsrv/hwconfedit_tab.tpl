@@ -249,7 +249,7 @@
                     <label for="newCompSerial" class="form-label">Серийный №</label>
                     <input type="text" id="newCompSerial" class="form-control form-control-sm" value="">
                 </div>
-                <div class="col-6 col-lg-1">
+                <div class="col-6 col-lg-1" id="newCompCapacityWrap" style="display:none;">
                     <label for="newCompCapacity" class="form-label">Ёмкость, ГБ</label>
                     <input type="number" step="0.01" id="newCompCapacity" class="form-control form-control-sm" value="">
                 </div>
@@ -293,12 +293,12 @@
                             <th style="min-width:7rem">Производитель</th>
                             <th style="min-width:10rem">Модель</th>
                             <th style="min-width:8rem">Серийный №</th>
-                            <th style="min-width:6rem">Ёмкость, ГБ</th>
-                            {{if or (eq $tab.Type 2) (eq $tab.Type 0)}}<th style="min-width:6rem">Подтип диска</th>{{end}}
+                            {{if $tab.ShowCapacity}}<th style="min-width:6rem">Ёмкость, ГБ</th>{{end}}
+                            {{if $tab.ShowSubType}}<th style="min-width:6rem">Подтип диска</th>{{end}}
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody id="hwCompRows-{{$tab.Type}}" data-comp-type="{{$tab.Type}}">
+                    <tbody id="hwCompRows-{{$tab.Type}}" data-comp-type="{{$tab.Type}}" data-show-capacity="{{if $tab.ShowCapacity}}1{{else}}0{{end}}" data-show-subtype="{{if $tab.ShowSubType}}1{{else}}0{{end}}">
                         {{range $c := $tab.Items}}
                         <tr class="hw-comp-row">
                             {{if eq $tab.Type 0}}
@@ -320,16 +320,12 @@
                             <td><input type="text" name="CompVendor" class="form-control form-control-sm" value="{{$c.Vendor}}"></td>
                             <td><input type="text" name="CompModel" class="form-control form-control-sm" value="{{$c.Model}}"></td>
                             <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value="{{$c.SerialNum}}"></td>
+                            {{if $tab.ShowCapacity}}
                             <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value="{{printf "%.2f" $c.CapacityGb}}"></td>
-                            {{if eq $tab.Type 2}}
-                            <td>
-                                <select name="CompSubType" class="form-select form-select-sm">
-                                    {{range $s := $.HwComponentDiskSubTypes}}
-                                    <option value="{{$s.Value}}" {{if eq $c.SubType $s.Value}}selected{{end}}>{{$s.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            {{else if eq $tab.Type 0}}
+                            {{else}}
+                            <td class="d-none"><input type="hidden" name="CompCapacityGb" value="{{printf "%.2f" $c.CapacityGb}}"></td>
+                            {{end}}
+                            {{if $tab.ShowSubType}}
                             <td>
                                 <select name="CompSubType" class="form-select form-select-sm">
                                     {{range $s := $.HwComponentDiskSubTypes}}
@@ -358,7 +354,10 @@
                 <td><input type="text" name="CompVendor" class="form-control form-control-sm" value=""></td>
                 <td><input type="text" name="CompModel" class="form-control form-control-sm" value=""></td>
                 <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value=""></td>
-                <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value=""></td>
+                <td class="hw-comp-capacity-cell">
+                    <input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value="">
+                </td>
+                <td class="d-none hw-comp-capacity-hidden-cell"><input type="hidden" name="CompCapacityGb" value="0" class="hw-comp-capacity-hidden"></td>
                 <td class="hw-comp-subtype-cell">
                     <select name="CompSubType" class="form-select form-select-sm">
                         {{range $s := .HwComponentDiskSubTypes}}
@@ -422,9 +421,14 @@
         var tpl = document.getElementById('hwCompRowTemplate');
         var addBtn = document.getElementById('hwCompAddSubmit');
         var typeSelect = document.getElementById('newCompType');
+        var capWrap = document.getElementById('newCompCapacityWrap');
         var subWrap = document.getElementById('newCompSubTypeWrap');
         var errBox = document.getElementById('hwCompAddError');
         if (!tpl || !addBtn || !typeSelect) return;
+
+        // Типы с ёмкостью ГБ: 1 память, 2 диск, 5 RAID (кэш). Подтип - только диск (2).
+        function typeShowsCapacity(t) { return t === '1' || t === '2' || t === '5'; }
+        function typeShowsSubType(t) { return t === '2'; }
 
         function bindRemove(row) {
             var btn = row.querySelector('.hw-comp-remove-row');
@@ -434,12 +438,13 @@
 
         Array.prototype.forEach.call(document.querySelectorAll('.hw-comp-row'), bindRemove);
 
-        function toggleSubType() {
-            if (!subWrap) return;
-            subWrap.style.display = typeSelect.value === '2' ? '' : 'none';
+        function toggleAddFields() {
+            var t = typeSelect.value;
+            if (capWrap) capWrap.style.display = typeShowsCapacity(t) ? '' : 'none';
+            if (subWrap) subWrap.style.display = typeShowsSubType(t) ? '' : 'none';
         }
-        typeSelect.addEventListener('change', toggleSubType);
-        toggleSubType();
+        typeSelect.addEventListener('change', toggleAddFields);
+        toggleAddFields();
 
         function showError(msg) {
             if (!errBox) return;
@@ -460,7 +465,7 @@
             });
             var sub = document.getElementById('newCompSubType');
             if (sub) sub.value = '0';
-            toggleSubType();
+            toggleAddFields();
         }
 
         addBtn.addEventListener('click', function () {
@@ -476,6 +481,9 @@
                 return;
             }
 
+            var showCap = tbody.getAttribute('data-show-capacity') === '1';
+            var showSub = tbody.getAttribute('data-show-subtype') === '1';
+
             var node = tpl.content.cloneNode(true);
             var row = node.querySelector('.hw-comp-row');
             if (!row) return;
@@ -487,15 +495,32 @@
             row.querySelector('input[name="CompVendor"]').value = (document.getElementById('newCompVendor') || {}).value || '';
             row.querySelector('input[name="CompModel"]').value = (document.getElementById('newCompModel') || {}).value || '';
             row.querySelector('input[name="CompSerialNum"]').value = (document.getElementById('newCompSerial') || {}).value || '';
-            row.querySelector('input[name="CompCapacityGb"]').value = (document.getElementById('newCompCapacity') || {}).value || '';
+
+            var capCell = row.querySelector('.hw-comp-capacity-cell');
+            var capHiddenCell = row.querySelector('.hw-comp-capacity-hidden-cell');
+            var capVal = (document.getElementById('newCompCapacity') || {}).value || '';
+            // Ровно одно поле CompCapacityGb на строку.
+            if (showCap) {
+                if (capHiddenCell) capHiddenCell.remove();
+                if (capCell) {
+                    var capInput = capCell.querySelector('input[name="CompCapacityGb"]');
+                    if (capInput) capInput.value = capVal;
+                }
+            } else {
+                if (capCell) capCell.remove();
+                if (capHiddenCell) {
+                    var capHidden = capHiddenCell.querySelector('.hw-comp-capacity-hidden');
+                    if (capHidden) capHidden.value = '0';
+                }
+            }
 
             var subtypeCell = row.querySelector('.hw-comp-subtype-cell');
             var subtypeHiddenCell = row.querySelector('.hw-comp-subtype-hidden-cell');
             var subtypeHidden = row.querySelector('.hw-comp-subtype-hidden');
             var newSub = document.getElementById('newCompSubType');
             var subVal = newSub ? newSub.value : '0';
-            // В каждой строке должен остаться ровно один CompSubType (select или hidden).
-            if (type === '2') {
+            // Ровно одно поле CompSubType на строку.
+            if (showSub) {
                 if (subtypeHiddenCell) subtypeHiddenCell.remove();
                 if (subtypeCell) {
                     var sel = subtypeCell.querySelector('select[name="CompSubType"]');
