@@ -668,23 +668,35 @@ type hwComponentTypeOption struct {
 	Name  string
 }
 
-// hwComponentTypes - типы компонентов, доступные в форме hwconfedit-tab.
-// Значения совпадают с константами cmdb.ServerHWComponent* (дублируем здесь,
-// чтобы controllers не импортировали cmdb ради подписей UI).
+// hwComponentTypes - типы компонентов для ручного добавления на закладке
+// "Базовая конфигурация" hwconfedit-tab. Значения совпадают с константами
+// cmdb.ServerHWComponent* (дублируем здесь, чтобы controllers не импортировали
+// cmdb ради подписей UI). Blade-специфичные типы (6/7/12/13) в ручном
+// добавлении для карточки сервера не предлагаются.
 func hwComponentTypes() []hwComponentTypeOption {
 	return []hwComponentTypeOption{
+		{11, "Процессор"},
 		{1, "Память"},
 		{2, "Диск"},
+		{5, "RAID контроллер"},
 		{3, "Сетевой контроллер"},
 		{4, "FC контроллер"},
-		{5, "RAID контроллер"},
 		{9, "PCI-устройство"},
 		{10, "Прошивка"},
-		{11, "Процессор"},
-		{6, "Interconnect (blade)"},
-		{7, "Management (blade)"},
-		{12, "Блок питания (blade)"},
-		{13, "Вентилятор (blade)"},
+	}
+}
+
+// hwComponentTabDefs - закладки по типам компонентов (порядок на форме).
+func hwComponentTabDefs() []hwComponentTypeOption {
+	return []hwComponentTypeOption{
+		{11, "Процессоры"},
+		{1, "Память"},
+		{2, "Диски"},
+		{5, "RAID"},
+		{3, "Сеть"},
+		{4, "FC"},
+		{9, "PCI"},
+		{10, "Прошивки"},
 	}
 }
 
@@ -698,6 +710,13 @@ func hwComponentDiskSubTypes() []hwComponentTypeOption {
 	}
 }
 
+// hwComponentTab - одна закладка типа компонентов на hwconfedit-tab.
+type hwComponentTab struct {
+	Type  int
+	Name  string
+	Items []models.ServerHardwareComponents
+}
+
 // loadHwComponents читает компоненты сервера (ServerId = ServerHardware.Id).
 func loadHwComponents(o orm.Ormer, hwId int64) []models.ServerHardwareComponents {
 	var comps []models.ServerHardwareComponents
@@ -709,6 +728,45 @@ func loadHwComponents(o orm.Ormer, hwId int64) []models.ServerHardwareComponents
 		OrderBy("Type", "Slot", "Id").
 		All(&comps)
 	return comps
+}
+
+// buildHwComponentTabs раскладывает компоненты по закладкам типов.
+// Неизвестные/blade-типы, если встретились в данных, попадают на закладку
+// "Прочие" (Type=0), иначе только стандартные серверные закладки.
+func buildHwComponentTabs(comps []models.ServerHardwareComponents) []hwComponentTab {
+	byType := map[int][]models.ServerHardwareComponents{}
+	for _, c := range comps {
+		byType[c.Type] = append(byType[c.Type], c)
+	}
+	defs := hwComponentTabDefs()
+	known := make(map[int]bool, len(defs))
+	tabs := make([]hwComponentTab, 0, len(defs)+1)
+	for _, d := range defs {
+		known[d.Value] = true
+		items := byType[d.Value]
+		if items == nil {
+			items = []models.ServerHardwareComponents{}
+		}
+		tabs = append(tabs, hwComponentTab{Type: d.Value, Name: d.Name, Items: items})
+	}
+	var other []models.ServerHardwareComponents
+	for t, items := range byType {
+		if !known[t] {
+			other = append(other, items...)
+		}
+	}
+	if len(other) > 0 {
+		tabs = append(tabs, hwComponentTab{Type: 0, Name: "Прочие", Items: other})
+	}
+	return tabs
+}
+
+// setHwComponentFormData кладёт в Data списки типов/подтипов и закладки
+// компонентов для шаблона hwconfedit_tab.tpl.
+func setHwComponentFormData(this *MainController, comps []models.ServerHardwareComponents) {
+	this.Data["HwComponentTypes"] = hwComponentTypes()
+	this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+	this.Data["HwComponentTabs"] = buildHwComponentTabs(comps)
 }
 
 // saveHwComponents сохраняет набор models.ServerHardwareComponents для
@@ -840,9 +898,7 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 			this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 			this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
 			if isTab {
-				this.Data["HwComponents"] = loadHwComponents(o, rec.Id)
-				this.Data["HwComponentTypes"] = hwComponentTypes()
-				this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+				setHwComponentFormData(this, loadHwComponents(o, rec.Id))
 			}
 			return
 		}
@@ -923,9 +979,7 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 				flash.Store(&this.Controller)
 				this.Data["HW"] = rec
 				if isTab {
-					this.Data["HwComponents"] = []models.ServerHardwareComponents{}
-					this.Data["HwComponentTypes"] = hwComponentTypes()
-					this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+					setHwComponentFormData(this, nil)
 				}
 				return
 			}
@@ -949,9 +1003,7 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 			flash.Store(&this.Controller)
 			this.Data["HW"] = rec
 			if isTab {
-				this.Data["HwComponents"] = loadHwComponents(o, rec.Id)
-				this.Data["HwComponentTypes"] = hwComponentTypes()
-				this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+				setHwComponentFormData(this, loadHwComponents(o, rec.Id))
 			}
 			return
 		}
@@ -994,9 +1046,7 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 	this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
 	if isTab {
-		this.Data["HwComponents"] = loadHwComponents(o, rec.Id)
-		this.Data["HwComponentTypes"] = hwComponentTypes()
-		this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+		setHwComponentFormData(this, loadHwComponents(o, rec.Id))
 	}
 }
 
