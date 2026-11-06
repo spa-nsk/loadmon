@@ -555,14 +555,30 @@ func parseStorageSystemsDate(s string) time.Time {
 //
 // Маршрут: /sprsrv/storagesystemsedit/:id
 func (this *MainController) SprStorageSystemsEdit() {
+	sprStorageSystemsEditPage(this, "sprsrv/storagesystemsedit", this.Ctx.Input.Param(":id"))
+}
 
-	idStr := this.Ctx.Input.Param(":id")
+// SprStorageSystemsEditTab - та же карточка СХД, что SprStorageSystemsEdit,
+// но с формой на закладках (шаблон storagesystemsedit_tab.tpl).
+//
+// Маршрут: /sprsrv/storagesystemsedit-tab/:id([0-9]+)
+func (this *MainController) SprStorageSystemsEditTab() {
+	sprStorageSystemsEditPage(this, "sprsrv/storagesystemsedit_tab", this.Ctx.Input.Param(":id"))
+}
+
+// sprStorageSystemsEditPage - общая логика GET/POST формы StorageSystems.
+// tpl - sprsrv/storagesystemsedit или sprsrv/storagesystemsedit_tab.
+func sprStorageSystemsEditPage(this *MainController, tpl, idStr string) {
 
 	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки СХД - отдельная запись типа "изменение" пишется ниже при сохранении
 
-	this.activeContent("sprsrv/storagesystemsedit")
+	this.activeContent(tpl)
 	this.Data["Id"] = idStr
+	this.Data["StorageEditBasePath"] = "/sprsrv/storagesystemsedit"
+	if strings.Contains(tpl, "storagesystemsedit_tab") {
+		this.Data["StorageEditBasePath"] = "/sprsrv/storagesystemsedit-tab"
+	}
 
 	flash := beego.NewFlash()
 
@@ -694,7 +710,11 @@ func (this *MainController) SprStorageSystemsEdit() {
 				flash.Store(&this.Controller)
 			}
 			RegisterRequest(this, LogTypeEditReference) // создание записи справочника СХД
-			this.Redirect(fmt.Sprintf("/sprsrv/storagesystemsedit/%d", rec.Id), 302)
+			basePath, _ := this.Data["StorageEditBasePath"].(string)
+			if basePath == "" {
+				basePath = "/sprsrv/storagesystemsedit"
+			}
+			this.Redirect(fmt.Sprintf("%s/%d", basePath, rec.Id), 302)
 			return
 		}
 
