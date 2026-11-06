@@ -67,7 +67,7 @@
                 <button type="submit" name="ViewBTN" value="Просмотр" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Просмотр</button>
                 <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель |)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
                 <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
-                <a href="/sprsrv/tapelibrariesedit/0" title="Добавить новую ленточную библиотеку" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
+                <a href="/sprsrv/tapelibrariesedit-tab/0" title="Добавить новую ленточную библиотеку" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
         <div class="row mt-2">
@@ -101,7 +101,7 @@
                         {{if eq $tl.ItiliumStatus 1}}В работе{{else if eq $tl.ItiliumStatus 2}}Выведен{{else if eq $tl.ItiliumStatus 3}}Списан{{else if eq $tl.ItiliumStatus 4}}Свободно{{else if eq $tl.ItiliumStatus 5}}На складе{{else if eq $tl.ItiliumStatus 6}}Зарезервировано{{else if eq $tl.ItiliumStatus 7}}В ремонте{{else if eq $tl.ItiliumStatus 8}}В пути{{else if eq $tl.ItiliumStatus 9}}Черновик{{else}}Не указано{{end}}
                     </span>
                 </td>
-                <td><a href="/sprsrv/tapelibrariesedit/{{$tl.Id}}" target="_blank">{{if $tl.Name}}{{$tl.Name}}{{else}}{{$tl.TechnicalNumberIT}}{{end}}</a></td>
+                <td><a href="/sprsrv/tapelibrariesedit-tab/{{$tl.Id}}" target="_blank">{{if $tl.Name}}{{$tl.Name}}{{else}}{{$tl.TechnicalNumberIT}}{{end}}</a></td>
                 <td>{{$tl.Model}}</td>
                 <td>{{$tl.SerialNum}}</td>
                 <td>{{$tl.InventoryNum}}</td>
@@ -112,7 +112,7 @@
                 <td>{{$tl.Placement}}</td>
                 <td class="text-end">{{if gt $tl.SizeUnit 0}}{{$tl.SizeUnit}}{{end}}</td>
                 <td id="tlRowMenu{{$tl.Id}}" class="d-none">
-                    <a class="ctx-menu-item" href="/sprsrv/tapelibrariesedit/{{$tl.Id}}" target="_blank">Редактировать</a>
+                    <a class="ctx-menu-item" href="/sprsrv/tapelibrariesedit-tab/{{$tl.Id}}" target="_blank">Редактировать</a>
                 </td>
             </tr>
             {{else}}

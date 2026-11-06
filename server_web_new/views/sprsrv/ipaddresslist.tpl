@@ -2,8 +2,8 @@
     <h2>Справочник IP-адресов</h2>
     <p class="text-muted small mb-0">
         Строится автоматически по данным справочника серверов (поля "IP-адрес"/"MAC-адрес"/"Сеть") -
-        раз в сутки и сразу при запуске приложения. Раздел только для просмотра, редактирование
-        недоступно - чтобы изменить IP/MAC/сеть сервера, откройте его карточку.
+        раз в сутки и сразу при запуске приложения. Ручное редактирование доступно по правому клику;
+        учтите, что автосинхронизация может перезаписать правки.
     </p>
 </div>
 
@@ -46,6 +46,7 @@
                 <button type="submit" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Просмотр</button>
                 <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель |)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
                 <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
+                <a href="/sprsrv/ipaddressedit/0" title="Добавить запись IP-адреса" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
         <div class="row mt-2">
@@ -72,13 +73,17 @@
         </thead>
         <tbody>
             {{range $ip := .IPList}}
-            <tr>
+            <tr class="row-context-target" data-menu-id="ipRowMenu{{$ip.Id}}">
                 <td class="text-end">{{$ip.Id}}</td>
-                <td>{{$ip.IPAddress}}</td>
+                <td><a href="/sprsrv/ipaddressedit/{{$ip.Id}}" target="_blank">{{$ip.IPAddress}}</a></td>
                 <td>{{if $ip.MacAddress}}{{$ip.MacAddress}}{{else}}&mdash;{{end}}</td>
                 <td>{{if $ip.NetworkId}}{{index $.NetworkNameById $ip.NetworkId}}{{else}}&mdash;{{end}}</td>
-                <td><a href="/sprsrv/updatebase-tab/{{$ip.ServerSprId}}" target="_blank">{{$ip.ServerName}}</a></td>
+                <td>{{if $ip.ServerSprId}}<a href="/sprsrv/updatebase-tab/{{$ip.ServerSprId}}" target="_blank">{{$ip.ServerName}}</a>{{else}}{{if $ip.ServerName}}{{$ip.ServerName}}{{else}}&mdash;{{end}}{{end}}</td>
                 <td>{{$ip.Time_Mfy.Format "2006-01-02 15:04"}}</td>
+                <td id="ipRowMenu{{$ip.Id}}" class="d-none">
+                    <a class="ctx-menu-item" href="/sprsrv/ipaddressedit/{{$ip.Id}}" target="_blank">Редактировать</a>
+                    {{if $ip.ServerSprId}}<a class="ctx-menu-item" href="/sprsrv/updatebase-tab/{{$ip.ServerSprId}}" target="_blank">Карточка сервера</a>{{end}}
+                </td>
             </tr>
             {{else}}
             <tr>
@@ -110,6 +115,8 @@
         </div>
     </div>
 </form>
+
+<div id="ipRowContextMenu" class="ctx-menu d-none"></div>
 
 <script>
     (function () {
@@ -164,4 +171,40 @@
         if (field) field.value = 1;
         form.submit();
     }
+
+    (function () {
+        var menu = document.getElementById('ipRowContextMenu');
+        if (!menu) return;
+
+        function hideMenu() {
+            menu.classList.add('d-none');
+            menu.innerHTML = '';
+        }
+
+        document.querySelectorAll('.row-context-target').forEach(function (row) {
+            row.addEventListener('contextmenu', function (evt) {
+                var menuId = row.getAttribute('data-menu-id');
+                var source = menuId ? document.getElementById(menuId) : null;
+                if (!source) return;
+                evt.preventDefault();
+                menu.innerHTML = source.innerHTML;
+                menu.classList.remove('d-none');
+
+                var x = evt.clientX;
+                var y = evt.clientY;
+                var maxX = window.innerWidth - menu.offsetWidth - 8;
+                var maxY = window.innerHeight - menu.offsetHeight - 8;
+                if (x > maxX) x = Math.max(8, maxX);
+                if (y > maxY) y = Math.max(8, maxY);
+                menu.style.left = x + 'px';
+                menu.style.top = y + 'px';
+            });
+        });
+
+        document.addEventListener('click', function (evt) {
+            if (!menu.contains(evt.target)) hideMenu();
+        });
+        document.addEventListener('scroll', hideMenu, true);
+        window.addEventListener('resize', hideMenu);
+    })();
 </script>

@@ -82,7 +82,7 @@ func storageSystemLabel(shd *models.StorageSystems) string {
 // controllers/adminstorageeventlog.go).
 //
 // По правому клику на строке - переход на карточку детального просмотра
-// /sprsrv/storagevolumeview/:Id (без возможности редактирования - у
+// /sprsrv/storagevolumeview-tab/:Id (без возможности редактирования - у
 // StorageVolumes нет CRUD-формы, запись полностью заполняется
 // автосинхронизацией, см. kontext/05-conventions-and-gotchas.md).
 //
@@ -413,13 +413,26 @@ func (this *MainController) exportStorageVolumesCSV(rows []models.StorageVolumes
 //
 // Маршрут: /sprsrv/storagevolumeview/:id
 func (this *MainController) SprStorageVolumeView() {
+	sprStorageVolumeViewPage(this, "sprsrv/storagevolumeview", this.Ctx.Input.Param(":id"))
+}
 
-	idStr := this.Ctx.Input.Param(":id")
+// SprStorageVolumeViewTab - та же read-only карточка тома СХД, что
+// SprStorageVolumeView, но с раскладкой на закладках
+// (шаблон storagevolumeview_tab.tpl).
+//
+// Маршрут: /sprsrv/storagevolumeview-tab/:id([0-9]+)
+func (this *MainController) SprStorageVolumeViewTab() {
+	sprStorageVolumeViewPage(this, "sprsrv/storagevolumeview_tab", this.Ctx.Input.Param(":id"))
+}
+
+// sprStorageVolumeViewPage - общая логика GET карточки StorageVolumes.
+// tpl - sprsrv/storagevolumeview или sprsrv/storagevolumeview_tab.
+func sprStorageVolumeViewPage(this *MainController, tpl, idStr string) {
 
 	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки тома СХД
 
-	this.activeContent("sprsrv/storagevolumeview")
+	this.activeContent(tpl)
 	this.Data["Id"] = idStr
 
 	flash := beego.NewFlash()

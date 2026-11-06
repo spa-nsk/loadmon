@@ -227,11 +227,28 @@ func tapeLibraryServerNames(o orm.Ormer, ids []int64) map[int64]string {
 // SprTapeLibrariesEdit - просмотр/редактирование/добавление одной записи
 // models.TapeLibrary (Id=0 - новая). Маршрут: /sprsrv/tapelibrariesedit/:id
 func (this *MainController) SprTapeLibrariesEdit() {
-	idStr := this.Ctx.Input.Param(":id")
+	sprTapeLibrariesEditPage(this, "sprsrv/tapelibrariesedit", this.Ctx.Input.Param(":id"))
+}
+
+// SprTapeLibrariesEditTab - та же карточка ленточной библиотеки, что
+// SprTapeLibrariesEdit, но с формой на закладках (tapelibrariesedit_tab.tpl).
+//
+// Маршрут: /sprsrv/tapelibrariesedit-tab/:id([0-9]+)
+func (this *MainController) SprTapeLibrariesEditTab() {
+	sprTapeLibrariesEditPage(this, "sprsrv/tapelibrariesedit_tab", this.Ctx.Input.Param(":id"))
+}
+
+// sprTapeLibrariesEditPage - общая логика GET/POST формы TapeLibrary.
+// tpl - sprsrv/tapelibrariesedit или sprsrv/tapelibrariesedit_tab.
+func sprTapeLibrariesEditPage(this *MainController, tpl, idStr string) {
 	RegisterRequest(this, LogTypeViewReference)
 
-	this.activeContent("sprsrv/tapelibrariesedit")
+	this.activeContent(tpl)
 	this.Data["Id"] = idStr
+	this.Data["TapeEditBasePath"] = "/sprsrv/tapelibrariesedit"
+	if strings.Contains(tpl, "tapelibrariesedit_tab") {
+		this.Data["TapeEditBasePath"] = "/sprsrv/tapelibrariesedit-tab"
+	}
 	flash := beego.NewFlash()
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -319,7 +336,11 @@ func (this *MainController) SprTapeLibrariesEdit() {
 				return
 			}
 			RegisterRequest(this, LogTypeEditReference)
-			this.Redirect(fmt.Sprintf("/sprsrv/tapelibrariesedit/%d", rec.Id), 302)
+			basePath, _ := this.Data["TapeEditBasePath"].(string)
+			if basePath == "" {
+				basePath = "/sprsrv/tapelibrariesedit"
+			}
+			this.Redirect(fmt.Sprintf("%s/%d", basePath, rec.Id), 302)
 			return
 		}
 		if _, err := o.Update(&rec); err != nil {

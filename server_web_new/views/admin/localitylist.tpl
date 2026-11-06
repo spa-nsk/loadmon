@@ -55,14 +55,17 @@
         </thead>
         <tbody>
             {{range $l := .LocalityList}}
-            <tr>
+            <tr class="row-context-target" data-menu-id="locRowMenu{{$l.Id}}">
                 <td class="text-end">{{$l.Id}}</td>
-                <td><a href="/admin/localityedit/{{$l.Id}}">{{$l.Oktmo}}</a></td>
+                <td><a href="/admin/localityedit/{{$l.Id}}" target="_blank">{{$l.Oktmo}}</a></td>
                 <td>{{$l.TypeShort}}</td>
                 <td>{{$l.Name}}</td>
                 <td>{{$l.Municipality}}</td>
                 <td>{{$l.RegionName}}</td>
                 <td class="text-center">{{$l.RegionCode}}</td>
+                <td id="locRowMenu{{$l.Id}}" class="d-none">
+                    <a class="ctx-menu-item" href="/admin/localityedit/{{$l.Id}}" target="_blank">Редактировать</a>
+                </td>
             </tr>
             {{else}}
             <tr>
@@ -95,6 +98,8 @@
     </div>
 </form>
 
+<div id="locRowContextMenu" class="ctx-menu d-none"></div>
+
 <script>
     function locPagerGoTo(page) {
         var field = document.getElementById('pageField');
@@ -115,4 +120,41 @@
         if (field) field.value = 1;
         form.submit();
     }
+
+    // Контекстное меню по правой кнопке мыши на строке таблицы - приём как в /sprsrv/networklist.
+    (function () {
+        var menu = document.getElementById('locRowContextMenu');
+        if (!menu) return;
+
+        function hideMenu() {
+            menu.classList.add('d-none');
+            menu.innerHTML = '';
+        }
+
+        document.querySelectorAll('.row-context-target').forEach(function (row) {
+            row.addEventListener('contextmenu', function (evt) {
+                var menuId = row.getAttribute('data-menu-id');
+                var source = menuId ? document.getElementById(menuId) : null;
+                if (!source) return;
+                evt.preventDefault();
+                menu.innerHTML = source.innerHTML;
+                menu.classList.remove('d-none');
+
+                var x = evt.clientX;
+                var y = evt.clientY;
+                var maxX = window.innerWidth - menu.offsetWidth - 8;
+                var maxY = window.innerHeight - menu.offsetHeight - 8;
+                if (x > maxX) x = Math.max(8, maxX);
+                if (y > maxY) y = Math.max(8, maxY);
+                menu.style.left = x + 'px';
+                menu.style.top = y + 'px';
+            });
+        });
+
+        document.addEventListener('click', function (evt) {
+            if (!menu.contains(evt.target)) hideMenu();
+        });
+        document.addEventListener('scroll', hideMenu, true);
+        window.addEventListener('resize', hideMenu);
+    })();
 </script>

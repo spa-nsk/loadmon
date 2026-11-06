@@ -61,7 +61,7 @@
                 <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель |)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
                 <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
                 <a href="/sprsrv/networkequipmenttypelist/0" class="btn btn-outline-secondary rounded-pill px-3">Типы оборудования</a>
-                <a href="/sprsrv/networkequipmentedit/0" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
+                <a href="/sprsrv/networkequipmentedit-tab/0" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
         <div class="row mt-2">
@@ -100,7 +100,7 @@
                         {{if eq $sw.ItiliumStatus 1}}В работе{{else if eq $sw.ItiliumStatus 2}}Выведен{{else if eq $sw.ItiliumStatus 3}}Списан{{else if eq $sw.ItiliumStatus 4}}Свободно{{else if eq $sw.ItiliumStatus 5}}На складе{{else if eq $sw.ItiliumStatus 6}}Зарезервировано{{else if eq $sw.ItiliumStatus 7}}В ремонте{{else if eq $sw.ItiliumStatus 8}}В пути{{else if eq $sw.ItiliumStatus 9}}Черновик{{else}}Не указано{{end}}
                     </span>
                 </td>
-                <td><a href="/sprsrv/networkequipmentedit/{{$sw.Id}}" target="_blank">{{$sw.Name}}</a></td>
+                <td><a href="/sprsrv/networkequipmentedit-tab/{{$sw.Id}}" target="_blank">{{$sw.Name}}</a></td>
                 <td>{{$sw.Vendor}} {{$sw.Model}}</td>
                 <td>{{$sw.SerialNum}}</td>
                 <td>{{$sw.ManagementIp}}</td>
@@ -108,7 +108,7 @@
                 <td class="text-end">{{$sw.UnitText}}</td>
                 <td>{{$sw.Networks}}</td>
                 <td id="swRowMenu{{$sw.Id}}" class="d-none">
-                    <a class="ctx-menu-item" href="/sprsrv/networkequipmentedit/{{$sw.Id}}" target="_blank">Редактировать</a>
+                    <a class="ctx-menu-item" href="/sprsrv/networkequipmentedit-tab/{{$sw.Id}}" target="_blank">Редактировать</a>
                 </td>
             </tr>
             {{else}}

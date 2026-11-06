@@ -115,13 +115,15 @@ func init() {
 	beego.Router("/sprsrv/networkedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEdit")
 
 	// Справочник IP-адресов (models.IPAddressSprRecords) - производная таблица,
-	// автосинхронизация из справочника серверов (см. cmdb/syncnetworkip.go),
-	// read-only, без формы редактирования (2026-09-16).
+	// автосинхронизация из справочника серверов (см. cmdb/syncnetworkip.go);
+	// ручное редактирование - /sprsrv/ipaddressedit/:id.
 	beego.Router("/sprsrv/ipaddresslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprIPAddress")
+	beego.Router("/sprsrv/ipaddressedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprIPAddressEdit")
 
 	// Справочник сетевого оборудования (бывший справочник коммутаторов, models.SwitchSprRecords) со связями с сетями (models.SwitchNetworkLink) и справочник типов оборудования (models.NetworkEquipmentType).
 	beego.Router("/sprsrv/networkequipmentlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEquipment")
 	beego.Router("/sprsrv/networkequipmentedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEquipmentEdit")
+	beego.Router("/sprsrv/networkequipmentedit-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEquipmentEditTab") // форма сетевого оборудования с закладками (networkequipmentedit_tab.tpl)
 	beego.Router("/sprsrv/networkequipmenttypelist/:id([0-9]+)", &controllers.MainController{}, "get:SprNetworkEquipmentTypes")
 	beego.Router("/sprsrv/networkequipmenttypeedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetworkEquipmentTypeEdit")
 	// старые адреса справочника коммутаторов - перенаправление на справочник сетевого оборудования
@@ -135,6 +137,7 @@ func init() {
 	beego.Router("/sprsrv/storagesystemsedit-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemsEditTab") // форма СХД с закладками (storagesystemsedit_tab.tpl)
 	beego.Router("/sprsrv/tapelibrarieslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprTapeLibraries")        // список справочника ленточных библиотек (models.TapeLibrary) с фильтром и пагинацией, см. controllers/sprtapelibraries.go
 	beego.Router("/sprsrv/tapelibrariesedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprTapeLibrariesEdit") // просмотр/редактирование/добавление одной ленточной библиотеки по Id (Id=0 - новая)
+	beego.Router("/sprsrv/tapelibrariesedit-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprTapeLibrariesEditTab") // форма ленточной библиотеки с закладками (tapelibrariesedit_tab.tpl)
 	beego.Router("/sprsrv/storagesystemconfigview/:id([0-9]+)", &controllers.MainController{}, "get:SprStorageSystemConfigView") // read-only карточка конфигурации СХД: сама СХД + сторадж-процессоры/полки (models.StorageEnclosure) + диски (models.StorageDisk)
 	beego.Router("/sprsrv/storagesystemmetricsview/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemMetricsView") // динамические графики производительности СХД за период (models.StorageMetricRecord/models.StorageMetric), с сохранением в PDF - по аналогии с sprsrvvmperfperiod/sprsrvclusterperfperiod
 	beego.Router("/sprsrv/powerrecent/:kind([a-z]+)/:id([0-9]+)", &controllers.MainController{}, "get:SprPowerRecent") // график потребляемой мощности (server/blade/storage/rack) за 3 суток по поминутным данным
@@ -142,6 +145,7 @@ func init() {
 	beego.Router("/sprsrv/storagesystemmetricsrecent/:id([0-9]+)", &controllers.MainController{}, "get:SprStorageSystemMetricsRecent") // динамический график производительности СХД за последние 3 суток напрямую по models.StorageMetric (без суточной агрегации), с сохранением в PDF
 	beego.Router("/sprsrv/storagevolumeslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageVolumes") // список записей models.StorageVolumes (справочник томов) с фильтром, пагинацией и экспортом в CSV/XLSX, см. controllers/sprstoragevolumes.go
 	beego.Router("/sprsrv/storagevolumeview/:id([0-9]+)", &controllers.MainController{}, "get:SprStorageVolumeView")    // read-only карточка детального просмотра одной записи models.StorageVolumes по Id (без формы сохранения - у StorageVolumes нет CRUD)
+	beego.Router("/sprsrv/storagevolumeview-tab/:id([0-9]+)", &controllers.MainController{}, "get:SprStorageVolumeViewTab") // read-only карточка тома СХД с закладками (storagevolumeview_tab.tpl)
 	beego.Router("/sprsrv/clustersprlist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprClusterList") // список записей models.ClusterSprRecords (справочник кластеров) с фильтром, пагинацией и экспортом в CSV/XLSX
 	beego.Router("/sprsrv/clusterspredit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprClusterEdit") // просмотр/редактирование одной записи models.ClusterSprRecords по Id (добавление вручную не предусмотрено - справочник наполняется автоматически)
 	//beego.Router("/sprsrv/storagesystemconfig/:Id", &controllers.MainController{}, "get,post:SprStorageSystemConfig") // метод SprStorageSystemConfig не реализован в controllers
