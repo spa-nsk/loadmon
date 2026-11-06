@@ -15,7 +15,7 @@
 
 {{if .HW}}
 <form role="form" id="hwEditForm" method="POST" class="pb-4">
-    <ul class="nav nav-tabs" id="hwEditTabs" role="tablist">
+    <ul class="nav nav-tabs flex-wrap" id="hwEditTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tab-hw-general-btn" data-bs-toggle="tab" data-bs-target="#tab-hw-general" type="button" role="tab" aria-controls="tab-hw-general" aria-selected="true">Общие сведения</button>
         </li>
@@ -23,8 +23,13 @@
             <button class="nav-link" id="tab-hw-account-btn" data-bs-toggle="tab" data-bs-target="#tab-hw-account" type="button" role="tab" aria-controls="tab-hw-account" aria-selected="false">Учетные данные и размещение</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-hw-details-btn" data-bs-toggle="tab" data-bs-target="#tab-hw-details" type="button" role="tab" aria-controls="tab-hw-details" aria-selected="false">Детали конфигурации</button>
+            <button class="nav-link" id="tab-hw-base-btn" data-bs-toggle="tab" data-bs-target="#tab-hw-base" type="button" role="tab" aria-controls="tab-hw-base" aria-selected="false">Базовая конфигурация</button>
         </li>
+        {{range $tab := .HwComponentTabs}}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-hw-comp-{{$tab.Type}}-btn" data-bs-toggle="tab" data-bs-target="#tab-hw-comp-{{$tab.Type}}" type="button" role="tab" aria-controls="tab-hw-comp-{{$tab.Type}}" aria-selected="false">{{$tab.Name}}{{if $tab.Items}} <span class="badge text-bg-secondary">{{len $tab.Items}}</span>{{end}}</button>
+        </li>
+        {{end}}
     </ul>
 
     <div class="tab-content border border-top-0 rounded-bottom p-3 mb-3" id="hwEditTabContent">
@@ -188,7 +193,7 @@
             </div>
         </div>
 
-        <div class="tab-pane fade" id="tab-hw-details" role="tabpanel" aria-labelledby="tab-hw-details-btn" tabindex="0">
+        <div class="tab-pane fade" id="tab-hw-base" role="tabpanel" aria-labelledby="tab-hw-base-btn" tabindex="0">
             <div class="row g-3">
                 <div class="col-6">
                     <label for="CPUModel" class="form-label">Модель процессора</label>
@@ -214,31 +219,89 @@
 
             <hr class="my-3">
 
-            <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
-                <div>
-                    <h6 class="mb-0">Компоненты сервера</h6>
-                    <div class="text-muted small">Память, диски, контроллеры, процессоры и прочие модули. При сохранении формы набор компонентов этой карточки перезаписывается целиком.</div>
-                </div>
-                <button type="button" id="hwCompAddRow" class="btn btn-outline-secondary btn-sm">+ Добавить компонент</button>
+            <div class="mb-2">
+                <h6 class="mb-1">Добавить компонент</h6>
+                <div class="text-muted small">Укажите тип и параметры, затем нажмите «Добавить» — строка сразу попадёт на закладку своего типа. Сохранение формы запишет весь набор компонентов.</div>
             </div>
+            <div class="row g-2 align-items-end" id="hwCompAddPanel">
+                <div class="col-6 col-lg-2">
+                    <label for="newCompType" class="form-label">Тип</label>
+                    <select id="newCompType" class="form-select form-select-sm">
+                        <option value="0">-</option>
+                        {{range $t := .HwComponentTypes}}
+                        <option value="{{$t.Value}}">{{$t.Name}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label for="newCompSlot" class="form-label">Слот</label>
+                    <input type="text" id="newCompSlot" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label for="newCompVendor" class="form-label">Производитель</label>
+                    <input type="text" id="newCompVendor" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label for="newCompModel" class="form-label">Модель</label>
+                    <input type="text" id="newCompModel" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label for="newCompSerial" class="form-label">Серийный №</label>
+                    <input type="text" id="newCompSerial" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-6 col-lg-1">
+                    <label for="newCompCapacity" class="form-label">Ёмкость, ГБ</label>
+                    <input type="number" step="0.01" id="newCompCapacity" class="form-control form-control-sm" value="">
+                </div>
+                <div class="col-6 col-lg-1" id="newCompSubTypeWrap" style="display:none;">
+                    <label for="newCompSubType" class="form-label">Подтип</label>
+                    <select id="newCompSubType" class="form-select form-select-sm">
+                        {{range $s := .HwComponentDiskSubTypes}}
+                        <option value="{{$s.Value}}">{{$s.Name}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="col-12 col-lg-auto">
+                    <button type="button" id="hwCompAddSubmit" class="btn btn-outline-secondary btn-sm">Добавить</button>
+                </div>
+            </div>
+            <div id="hwCompAddError" class="text-danger small mt-2 d-none"></div>
+        </div>
 
+        {{range $tab := .HwComponentTabs}}
+        <div class="tab-pane fade" id="tab-hw-comp-{{$tab.Type}}" role="tabpanel" aria-labelledby="tab-hw-comp-{{$tab.Type}}-btn" tabindex="0">
+            <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+                <div class="text-muted small">Компоненты типа «{{$tab.Name}}». Удаление строки действует после сохранения формы.</div>
+                {{if eq $tab.Type 1}}
+                <div class="d-flex align-items-center gap-2">
+                    <label for="hwMemFillFilter" class="small text-muted mb-0">Показать:</label>
+                    <select id="hwMemFillFilter" class="form-select form-select-sm" style="width:auto;" title="Фильтр по заполненности производителя, модели и ёмкости">
+                        <option value="all">Все модули</option>
+                        <option value="filled" selected>Заполненные (производитель, модель, ёмкость)</option>
+                        <option value="empty">Незаполненные</option>
+                    </select>
+                    <span id="hwMemFillFilterStat" class="small text-muted"></span>
+                </div>
+                {{end}}
+            </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0" id="hwCompTable">
+                <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr>
-                            <th style="min-width:9rem">Тип</th>
+                            {{if eq $tab.Type 0}}<th style="min-width:9rem">Тип</th>{{end}}
                             <th style="min-width:6rem">Слот</th>
                             <th style="min-width:7rem">Производитель</th>
                             <th style="min-width:10rem">Модель</th>
                             <th style="min-width:8rem">Серийный №</th>
                             <th style="min-width:6rem">Ёмкость, ГБ</th>
-                            <th style="min-width:6rem">Подтип диска</th>
+                            {{if or (eq $tab.Type 2) (eq $tab.Type 0)}}<th style="min-width:6rem">Подтип диска</th>{{end}}
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody id="hwCompRows">
-                        {{range $c := .HwComponents}}
+                    <tbody id="hwCompRows-{{$tab.Type}}" data-comp-type="{{$tab.Type}}">
+                        {{range $c := $tab.Items}}
                         <tr class="hw-comp-row">
+                            {{if eq $tab.Type 0}}
                             <td>
                                 <select name="CompType" class="form-select form-select-sm">
                                     <option value="0">-</option>
@@ -248,10 +311,17 @@
                                 </select>
                             </td>
                             <td><input type="text" name="CompSlot" class="form-control form-control-sm" value="{{$c.Slot}}"></td>
+                            {{else}}
+                            <td>
+                                <input type="hidden" name="CompType" value="{{$tab.Type}}">
+                                <input type="text" name="CompSlot" class="form-control form-control-sm" value="{{$c.Slot}}">
+                            </td>
+                            {{end}}
                             <td><input type="text" name="CompVendor" class="form-control form-control-sm" value="{{$c.Vendor}}"></td>
                             <td><input type="text" name="CompModel" class="form-control form-control-sm" value="{{$c.Model}}"></td>
                             <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value="{{$c.SerialNum}}"></td>
                             <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value="{{printf "%.2f" $c.CapacityGb}}"></td>
+                            {{if eq $tab.Type 2}}
                             <td>
                                 <select name="CompSubType" class="form-select form-select-sm">
                                     {{range $s := $.HwComponentDiskSubTypes}}
@@ -259,39 +329,47 @@
                                     {{end}}
                                 </select>
                             </td>
+                            {{else if eq $tab.Type 0}}
+                            <td>
+                                <select name="CompSubType" class="form-select form-select-sm">
+                                    {{range $s := $.HwComponentDiskSubTypes}}
+                                    <option value="{{$s.Value}}" {{if eq $c.SubType $s.Value}}selected{{end}}>{{$s.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </td>
+                            {{else}}
+                            <td class="d-none"><input type="hidden" name="CompSubType" value="{{$c.SubType}}"></td>
+                            {{end}}
                             <td><button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button></td>
                         </tr>
                         {{end}}
                     </tbody>
                 </table>
             </div>
-
-            <template id="hwCompRowTemplate">
-                <tr class="hw-comp-row">
-                    <td>
-                        <select name="CompType" class="form-select form-select-sm">
-                            <option value="0">-</option>
-                            {{range $t := .HwComponentTypes}}
-                            <option value="{{$t.Value}}">{{$t.Name}}</option>
-                            {{end}}
-                        </select>
-                    </td>
-                    <td><input type="text" name="CompSlot" class="form-control form-control-sm" value=""></td>
-                    <td><input type="text" name="CompVendor" class="form-control form-control-sm" value=""></td>
-                    <td><input type="text" name="CompModel" class="form-control form-control-sm" value=""></td>
-                    <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value=""></td>
-                    <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value=""></td>
-                    <td>
-                        <select name="CompSubType" class="form-select form-select-sm">
-                            {{range $s := .HwComponentDiskSubTypes}}
-                            <option value="{{$s.Value}}">{{$s.Name}}</option>
-                            {{end}}
-                        </select>
-                    </td>
-                    <td><button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button></td>
-                </tr>
-            </template>
         </div>
+        {{end}}
+
+        <template id="hwCompRowTemplate">
+            <tr class="hw-comp-row">
+                <td>
+                    <input type="hidden" name="CompType" value="">
+                    <input type="text" name="CompSlot" class="form-control form-control-sm" value="">
+                </td>
+                <td><input type="text" name="CompVendor" class="form-control form-control-sm" value=""></td>
+                <td><input type="text" name="CompModel" class="form-control form-control-sm" value=""></td>
+                <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value=""></td>
+                <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value=""></td>
+                <td class="hw-comp-subtype-cell">
+                    <select name="CompSubType" class="form-select form-select-sm">
+                        {{range $s := .HwComponentDiskSubTypes}}
+                        <option value="{{$s.Value}}">{{$s.Name}}</option>
+                        {{end}}
+                    </select>
+                </td>
+                <td class="d-none hw-comp-subtype-hidden-cell"><input type="hidden" name="CompSubType" value="0" class="hw-comp-subtype-hidden"></td>
+                <td><button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button></td>
+            </tr>
+        </template>
 
     </div>
 
@@ -338,12 +416,15 @@
         dcSelect.addEventListener('change', function () { applyFilter(true); });
     })();
 
-    // Динамические строки компонентов сервера на закладке "Детали конфигурации".
+    // Ручное добавление компонента на "Базовой конфигурации" с раскладкой
+    // по закладкам типов; редактирование/удаление - на закладках типов.
     (function () {
-        var tbody = document.getElementById('hwCompRows');
-        var addBtn = document.getElementById('hwCompAddRow');
         var tpl = document.getElementById('hwCompRowTemplate');
-        if (!tbody || !addBtn || !tpl) return;
+        var addBtn = document.getElementById('hwCompAddSubmit');
+        var typeSelect = document.getElementById('newCompType');
+        var subWrap = document.getElementById('newCompSubTypeWrap');
+        var errBox = document.getElementById('hwCompAddError');
+        if (!tpl || !addBtn || !typeSelect) return;
 
         function bindRemove(row) {
             var btn = row.querySelector('.hw-comp-remove-row');
@@ -351,13 +432,136 @@
             btn.addEventListener('click', function () { row.remove(); });
         }
 
-        Array.prototype.forEach.call(tbody.querySelectorAll('.hw-comp-row'), bindRemove);
+        Array.prototype.forEach.call(document.querySelectorAll('.hw-comp-row'), bindRemove);
+
+        function toggleSubType() {
+            if (!subWrap) return;
+            subWrap.style.display = typeSelect.value === '2' ? '' : 'none';
+        }
+        typeSelect.addEventListener('change', toggleSubType);
+        toggleSubType();
+
+        function showError(msg) {
+            if (!errBox) return;
+            if (!msg) {
+                errBox.classList.add('d-none');
+                errBox.textContent = '';
+                return;
+            }
+            errBox.textContent = msg;
+            errBox.classList.remove('d-none');
+        }
+
+        function clearAddForm() {
+            typeSelect.value = '0';
+            ['newCompSlot', 'newCompVendor', 'newCompModel', 'newCompSerial', 'newCompCapacity'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            var sub = document.getElementById('newCompSubType');
+            if (sub) sub.value = '0';
+            toggleSubType();
+        }
 
         addBtn.addEventListener('click', function () {
+            showError('');
+            var type = typeSelect.value;
+            if (!type || type === '0') {
+                showError('Выберите тип компонента.');
+                return;
+            }
+            var tbody = document.getElementById('hwCompRows-' + type);
+            if (!tbody) {
+                showError('Для выбранного типа нет закладки.');
+                return;
+            }
+
             var node = tpl.content.cloneNode(true);
             var row = node.querySelector('.hw-comp-row');
-            if (row) bindRemove(row);
+            if (!row) return;
+
+            var typeInput = row.querySelector('input[name="CompType"]');
+            if (typeInput) typeInput.value = type;
+
+            row.querySelector('input[name="CompSlot"]').value = (document.getElementById('newCompSlot') || {}).value || '';
+            row.querySelector('input[name="CompVendor"]').value = (document.getElementById('newCompVendor') || {}).value || '';
+            row.querySelector('input[name="CompModel"]').value = (document.getElementById('newCompModel') || {}).value || '';
+            row.querySelector('input[name="CompSerialNum"]').value = (document.getElementById('newCompSerial') || {}).value || '';
+            row.querySelector('input[name="CompCapacityGb"]').value = (document.getElementById('newCompCapacity') || {}).value || '';
+
+            var subtypeCell = row.querySelector('.hw-comp-subtype-cell');
+            var subtypeHiddenCell = row.querySelector('.hw-comp-subtype-hidden-cell');
+            var subtypeHidden = row.querySelector('.hw-comp-subtype-hidden');
+            var newSub = document.getElementById('newCompSubType');
+            var subVal = newSub ? newSub.value : '0';
+            // В каждой строке должен остаться ровно один CompSubType (select или hidden).
+            if (type === '2') {
+                if (subtypeHiddenCell) subtypeHiddenCell.remove();
+                if (subtypeCell) {
+                    var sel = subtypeCell.querySelector('select[name="CompSubType"]');
+                    if (sel) sel.value = subVal;
+                }
+            } else {
+                if (subtypeCell) subtypeCell.remove();
+                if (subtypeHidden) subtypeHidden.value = '0';
+            }
+
+            bindRemove(row);
             tbody.appendChild(node);
+            clearAddForm();
+
+            if (type === '1' && typeof window.hwApplyMemFillFilter === 'function') {
+                window.hwApplyMemFillFilter();
+            }
+
+            var tabBtn = document.getElementById('tab-hw-comp-' + type + '-btn');
+            if (tabBtn && window.bootstrap && bootstrap.Tab) {
+                bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+            }
         });
+    })();
+
+    // Фильтр отображения модулей памяти по заполненности Vendor/Model/CapacityGb.
+    // Скрытые строки остаются в форме и сохраняются — фильтр только визуальный.
+    (function () {
+        var tbody = document.getElementById('hwCompRows-1');
+        var filter = document.getElementById('hwMemFillFilter');
+        var stat = document.getElementById('hwMemFillFilterStat');
+        if (!tbody || !filter) return;
+
+        function isFilled(row) {
+            var vendor = ((row.querySelector('input[name="CompVendor"]') || {}).value || '').trim();
+            var model = ((row.querySelector('input[name="CompModel"]') || {}).value || '').trim();
+            var capRaw = ((row.querySelector('input[name="CompCapacityGb"]') || {}).value || '').trim();
+            var cap = parseFloat(capRaw.replace(',', '.'));
+            return vendor !== '' && model !== '' && !isNaN(cap) && cap > 0;
+        }
+
+        function apply() {
+            var mode = filter.value;
+            var rows = tbody.querySelectorAll('.hw-comp-row');
+            var total = 0, shown = 0, filled = 0;
+            Array.prototype.forEach.call(rows, function (row) {
+                total += 1;
+                var ok = isFilled(row);
+                if (ok) filled += 1;
+                var visible = mode === 'all' || (mode === 'filled' && ok) || (mode === 'empty' && !ok);
+                row.classList.toggle('d-none', !visible);
+                if (visible) shown += 1;
+            });
+            if (stat) {
+                stat.textContent = shown + ' из ' + total + (mode !== 'all' ? ' (заполнено: ' + filled + ')' : '');
+            }
+        }
+
+        window.hwApplyMemFillFilter = apply;
+        filter.addEventListener('change', apply);
+        tbody.addEventListener('input', function (evt) {
+            var name = (evt.target && evt.target.name) || '';
+            if (name === 'CompVendor' || name === 'CompModel' || name === 'CompCapacityGb') {
+                apply();
+            }
+        });
+        apply();
     })();
 </script>
