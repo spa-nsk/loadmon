@@ -589,7 +589,7 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 			Kind: "switch", Id: sw.Id, Name: firstNonEmpty(sw.Name, fmt.Sprintf("switch-%d", sw.Id)),
 			Vendor: sw.Vendor, Model: sw.Model, StartU: sw.StartUnitPos, SizeU: sizeU, Rows: rows,
 			Power: itiliumPower(sw.ItiliumStatus), Subtype: netTypeName[sw.TypeId], SizeGuess: guess,
-			Links: []rackViewLink{{Title: "Редактировать сетевое оборудование", URL: fmt.Sprintf("/sprsrv/networkequipmentedit/%d", sw.Id)}},
+			Links: []rackViewLink{{Title: "Редактировать сетевое оборудование", URL: fmt.Sprintf("/sprsrv/networkequipmentedit-tab/%d", sw.Id)}},
 		})
 	}
 
@@ -617,7 +617,7 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 			sizeU = tapeGuessSizeU(tl.Model)
 			guess = true
 		}
-		links := []rackViewLink{{Title: "Редактировать ленточную библиотеку", URL: fmt.Sprintf("/sprsrv/tapelibrariesedit/%d", tl.Id)}}
+		links := []rackViewLink{{Title: "Редактировать ленточную библиотеку", URL: fmt.Sprintf("/sprsrv/tapelibrariesedit-tab/%d", tl.Id)}}
 		if tl.ServerId > 0 {
 			links = append(links, rackViewLink{Title: "Сервер подключения", URL: fmt.Sprintf("/sprsrv/updatebase-tab/%d", tl.ServerId)})
 		}

@@ -301,11 +301,29 @@ func loadNetworkNamesBySwitch(o orm.QueryExecutor, switchIds []int64) map[int64]
 //
 // Маршрут: /sprsrv/networkequipmentedit/:id
 func (this *MainController) SprNetworkEquipmentEdit() {
-	idStr := this.Ctx.Input.Param(":id")
+	sprNetworkEquipmentEditPage(this, "sprsrv/networkequipmentedit", this.Ctx.Input.Param(":id"))
+}
+
+// SprNetworkEquipmentEditTab - та же карточка сетевого оборудования, что
+// SprNetworkEquipmentEdit, но с формой на закладках
+// (шаблон networkequipmentedit_tab.tpl).
+//
+// Маршрут: /sprsrv/networkequipmentedit-tab/:id([0-9]+)
+func (this *MainController) SprNetworkEquipmentEditTab() {
+	sprNetworkEquipmentEditPage(this, "sprsrv/networkequipmentedit_tab", this.Ctx.Input.Param(":id"))
+}
+
+// sprNetworkEquipmentEditPage - общая логика GET/POST формы SwitchSprRecords.
+// tpl - sprsrv/networkequipmentedit или sprsrv/networkequipmentedit_tab.
+func sprNetworkEquipmentEditPage(this *MainController, tpl, idStr string) {
 	RegisterRequest(this, LogTypeViewReference)
 
-	this.activeContent("sprsrv/networkequipmentedit")
+	this.activeContent(tpl)
 	this.Data["Id"] = idStr
+	this.Data["NetEqEditBasePath"] = "/sprsrv/networkequipmentedit"
+	if strings.Contains(tpl, "networkequipmentedit_tab") {
+		this.Data["NetEqEditBasePath"] = "/sprsrv/networkequipmentedit-tab"
+	}
 	flash := beego.NewFlash()
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -406,7 +424,11 @@ func (this *MainController) SprNetworkEquipmentEdit() {
 			}
 			RegisterRequest(this, LogTypeEditReference)
 			this.saveSwitchNetworkLinks(o, rec.Id)
-			this.Redirect(fmt.Sprintf("/sprsrv/networkequipmentedit/%d", rec.Id), 302)
+			basePath, _ := this.Data["NetEqEditBasePath"].(string)
+			if basePath == "" {
+				basePath = "/sprsrv/networkequipmentedit"
+			}
+			this.Redirect(fmt.Sprintf("%s/%d", basePath, rec.Id), 302)
 			return
 		}
 
@@ -483,5 +505,5 @@ func (this *MainController) RedirectSwitchList() {
 }
 
 func (this *MainController) RedirectSwitchEdit() {
-	this.Redirect("/sprsrv/networkequipmentedit/"+this.Ctx.Input.Param(":id"), 301)
+	this.Redirect("/sprsrv/networkequipmentedit-tab/"+this.Ctx.Input.Param(":id"), 301)
 }

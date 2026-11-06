@@ -1,8 +1,11 @@
 package controllers
 
 import (
+	"fmt"
 	"loadmon/models"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/beego/beego/v2/client/orm"
 	beego "github.com/beego/beego/v2/server/web"
@@ -21,14 +24,13 @@ func defaultIPAddressFilter() *IPAddressFilter {
 	return &IPAddressFilter{}
 }
 
-// SprIPAddress отображает read-only список записей справочника IP-адресов
+// SprIPAddress отображает список записей справочника IP-адресов
 // (models.IPAddressSprRecords, таблица ip_address_spr_records) - заведён по
 // запросу пользователя "на основе данных из справочника серверов по полю
 // Network построй справочник сетей и отдельно создай справочник IP адресов
-// и свяжи с сетями" (2026-09-16). В ОТЛИЧИЕ от /sprsrv/networklist эта
-// таблица целиком производная (пересобирается автосинхронизацией,
-// см. cmdb/syncnetworkip.go), поэтому у неё нет формы добавления/
-// редактирования - только просмотр со ссылкой на исходную карточку сервера.
+// и свяжи с сетями" (2026-09-16). Таблица пересобирается автосинхронизацией
+// (cmdb/syncnetworkip.go); ручное редактирование доступно через
+// /sprsrv/ipaddressedit/:id (контекстное меню списка).
 //
 // Маршрут: /sprsrv/ipaddresslist/:id
 func (this *MainController) SprIPAddress() {
@@ -209,4 +211,86 @@ func ipAddressExportTable(rows []models.IPAddressSprRecords, netNameById map[int
 		})
 	}
 	return header, data
+}
+
+// SprIPAddressEdit - просмотр/редактирование/добавление одной записи
+// models.IPAddressSprRecords (Id=0 - новая). Маршрут: /sprsrv/ipaddressedit/:id
+//
+// Запись может быть перезаписана очередным циклом SyncNetworkAndIPDirectories
+// (полная пересборка таблицы) - об этом предупреждает форма.
+func (this *MainController) SprIPAddressEdit() {
+	idStr := this.Ctx.Input.Param(":id")
+	RegisterRequest(this, LogTypeViewReference)
+
+	this.activeContent("sprsrv/ipaddressedit")
+	this.Data["Id"] = idStr
+	flash := beego.NewFlash()
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id < 0 {
+		flash.Error("Некорректный идентификатор записи: %s", idStr)
+		flash.Store(&this.Controller)
+		return
+	}
+	isNew := id == 0
+	this.Data["IsNew"] = isNew
+
+	o := orm.NewOrm()
+	var rec models.IPAddressSprRecords
+	if !isNew {
+		if err := o.QueryTable(new(models.IPAddressSprRecords)).Filter("Id", id).One(&rec); err != nil {
+			flash.Error("Запись с Id=%d не найдена: %v", id, err)
+			flash.Store(&this.Controller)
+			return
+		}
+	}
+
+	if this.Ctx.Input.Method() == "POST" {
+		if !this.RequireEditReference() {
+			this.fillIPAddressEditData(o, rec)
+			return
+		}
+		rec.IPAddress = strings.TrimSpace(this.GetString("IPAddress"))
+		rec.MacAddress = strings.TrimSpace(this.GetString("MacAddress"))
+		rec.ServerName = strings.TrimSpace(this.GetString("ServerName"))
+		rec.NetworkId, _ = strconv.ParseInt(strings.TrimSpace(this.GetString("NetworkId")), 10, 64)
+		rec.ServerSprId, _ = strconv.ParseInt(strings.TrimSpace(this.GetString("ServerSprId")), 10, 64)
+		if rec.IPAddress == "" {
+			flash.Error("Укажите IP-адрес.")
+			flash.Store(&this.Controller)
+			this.fillIPAddressEditData(o, rec)
+			return
+		}
+		rec.Time_Mfy = time.Now().Local()
+
+		if isNew {
+			if _, err := o.Insert(&rec); err != nil {
+				flash.Error("Ошибка создания записи: %v", err)
+				flash.Store(&this.Controller)
+				this.fillIPAddressEditData(o, rec)
+				return
+			}
+			RegisterRequest(this, LogTypeEditReference)
+			this.Redirect(fmt.Sprintf("/sprsrv/ipaddressedit/%d", rec.Id), 302)
+			return
+		}
+		if _, err := o.Update(&rec); err != nil {
+			flash.Error("Ошибка сохранения: %v", err)
+			flash.Store(&this.Controller)
+			this.fillIPAddressEditData(o, rec)
+			return
+		}
+		flash.Notice("Запись сохранена.")
+		flash.Store(&this.Controller)
+		RegisterRequest(this, LogTypeEditReference)
+	}
+
+	this.fillIPAddressEditData(o, rec)
+}
+
+func (this *MainController) fillIPAddressEditData(o orm.Ormer, rec models.IPAddressSprRecords) {
+	var networks []models.NetworkSprRecords
+	o.QueryTable(new(models.NetworkSprRecords)).OrderBy("Name").All(&networks, "Id", "Name")
+	this.Data["NetworkList"] = networks
+	this.Data["IP"] = rec
 }

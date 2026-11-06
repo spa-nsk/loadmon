@@ -104,7 +104,7 @@
                 <td class="text-end">{{printf "%.1f" $sv.PercentUsed}}</td>
                 <td style="max-width:220px; word-wrap:break-word;">{{$sv.Server}}</td>
                 <td id="svRowMenu{{$sv.Id}}" class="d-none">
-                    <a class="ctx-menu-item" href="/sprsrv/storagevolumeview/{{$sv.Id}}" target="_blank">Просмотр</a>
+                    <a class="ctx-menu-item" href="/sprsrv/storagevolumeview-tab/{{$sv.Id}}" target="_blank">Просмотр</a>
                 </td>
             </tr>
             {{else}}
@@ -204,7 +204,7 @@
 
     // Контекстное меню по правой кнопке мыши на строке таблицы - приём
     // идентичен /sprsrv/storagesystemslist. Единственный пункт - переход на
-    // read-only карточку /sprsrv/storagevolumeview/:Id (редактирования нет).
+    // read-only карточку /sprsrv/storagevolumeview-tab/:Id (редактирования нет).
     (function () {
         var menu = document.getElementById('svRowContextMenu');
         if (!menu) return;

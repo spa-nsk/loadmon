@@ -250,9 +250,9 @@ func equipCardURL(kind string, id int64) string {
 	case "storage":
 		return fmt.Sprintf("/sprsrv/storagesystemsedit-tab/%d", id)
 	case "switch":
-		return fmt.Sprintf("/sprsrv/networkequipmentedit/%d", id)
+		return fmt.Sprintf("/sprsrv/networkequipmentedit-tab/%d", id)
 	case "tape":
-		return fmt.Sprintf("/sprsrv/tapelibrariesedit/%d", id)
+		return fmt.Sprintf("/sprsrv/tapelibrariesedit-tab/%d", id)
 	}
 	return ""
 }
