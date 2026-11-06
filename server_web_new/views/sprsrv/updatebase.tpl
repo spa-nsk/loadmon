@@ -84,7 +84,7 @@
                 }
                 var html = escapeHtmlPlacement(data.placementText);
                 if (data.placementHWSprId) {
-                    html += ' <a href="/sprsrv/hwconfedit/' + data.placementHWSprId + '" class="ms-2 small" title="Изменить размещение в карточке оборудования">изменить в карточке оборудования</a>';
+                    html += ' <a href="/sprsrv/hwconfedit-tab/' + data.placementHWSprId + '" class="ms-2 small" title="Изменить размещение в карточке оборудования">изменить в карточке оборудования</a>';
                 }
                 el.innerHTML = html;
             })
@@ -607,7 +607,7 @@
                     <div class="form-control-plaintext">
                         {{.PlacementText}}
                         {{if .PlacementHWSprId}}
-                        <a href="/sprsrv/hwconfedit/{{.PlacementHWSprId}}" class="ms-2 small" title="Изменить размещение в карточке оборудования">изменить в карточке оборудования</a>
+                        <a href="/sprsrv/hwconfedit-tab/{{.PlacementHWSprId}}" class="ms-2 small" title="Изменить размещение в карточке оборудования">изменить в карточке оборудования</a>
                         {{end}}
                     </div>
                 </div>

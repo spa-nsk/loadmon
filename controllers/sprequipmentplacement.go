@@ -244,7 +244,7 @@ func resolveRackPlacement(o orm.Ormer, rackId int64) (siteId int64, siteName str
 func equipCardURL(kind string, id int64) string {
 	switch kind {
 	case "server":
-		return fmt.Sprintf("/sprsrv/hwconfedit/%d", id)
+		return fmt.Sprintf("/sprsrv/hwconfedit-tab/%d", id)
 	case "chassis":
 		return fmt.Sprintf("/sprsrv/bladesystemsedit/%d", id)
 	case "storage":

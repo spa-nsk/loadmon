@@ -75,7 +75,7 @@
                 <td>{{$ip.IPAddress}}</td>
                 <td>{{if $ip.MacAddress}}{{$ip.MacAddress}}{{else}}&mdash;{{end}}</td>
                 <td>{{if $ip.NetworkId}}{{index $.NetworkNameById $ip.NetworkId}}{{else}}&mdash;{{end}}</td>
-                <td><a href="/sprsrv/updatebase/all/{{$ip.ServerSprId}}" target="_blank">{{$ip.ServerName}}</a></td>
+                <td><a href="/sprsrv/updatebase-tab/{{$ip.ServerSprId}}" target="_blank">{{$ip.ServerName}}</a></td>
                 <td>{{$ip.Time_Mfy.Format "2006-01-02 15:04"}}</td>
             </tr>
             {{else}}

@@ -68,7 +68,7 @@
                     <div class="col-3">
                         <label class="form-label">Сервер</label>
                         <div class="form-control-plaintext">
-                            {{if .ServerName}}<a href="/sprsrv/updatebase/all/{{.TL.ServerId}}" target="_blank">{{.ServerName}}</a>{{else}}—{{end}}
+                            {{if .ServerName}}<a href="/sprsrv/updatebase-tab/{{.TL.ServerId}}" target="_blank">{{.ServerName}}</a>{{else}}—{{end}}
                         </div>
                     </div>
                 </div>

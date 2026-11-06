@@ -44,7 +44,7 @@
             <td>
                 <svg class="bi power-led {{if eq $hw.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $hw.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg>
             </td>
-            <td><a href="/sprsrv/hwconfedit/{{$hw.Id}}" target="_blank">{{if $hw.ServerName}}{{$hw.ServerName}}{{else}}&mdash;{{end}}</a></td>
+            <td><a href="/sprsrv/hwconfedit-tab/{{$hw.Id}}" target="_blank">{{if $hw.ServerName}}{{$hw.ServerName}}{{else}}&mdash;{{end}}</a></td>
             <td>
                 <div style="max-width:220px; word-wrap:break-word;">
                     {{$hw.Vendor}} {{$hw.Model}}

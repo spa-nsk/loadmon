@@ -56,7 +56,7 @@ function zabbixPeriodNavigate() {
         {{end}}
         <div class="text-muted small mt-1">
             {{if and .HostName (ne .HostName .ServerTitleName)}}Zabbix: <b>{{.HostName}}</b>{{if ne .HostNameFQDN ""}} ({{.HostNameFQDN}}){{end}}{{end}}
-            {{if gt .ServerId 0}}<a href="/sprsrv/updatebase/all/{{.ServerId}}" target="_blank" class="ms-2" title="Общие данные по серверу">Общие данные →</a>{{end}}
+            {{if gt .ServerId 0}}<a href="/sprsrv/updatebase-tab/{{.ServerId}}" target="_blank" class="ms-2" title="Общие данные по серверу">Общие данные →</a>{{end}}
         </div>
     </div>
     {{if ne .PointCount 0}}

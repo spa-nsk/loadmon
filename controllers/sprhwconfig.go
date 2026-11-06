@@ -598,11 +598,11 @@ func (this *MainController) SprHwConfigEditBySN() {
 	if err := o.QueryTable("server_hardware").Filter("SerialNum", sn).One(&rec); err != nil {
 		flash.Notice("Запись конфигурации сервера с серийным номером \"%s\" не найдена. Можно создать новую.", sn)
 		flash.Store(&this.Controller)
-		this.Redirect("/sprsrv/hwconfedit/0", 302)
+		this.Redirect("/sprsrv/hwconfedit-tab/0", 302)
 		return
 	}
 
-	this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit/%d", rec.Id), 302)
+	this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit-tab/%d", rec.Id), 302)
 }
 
 // SprHwConfigEditByName находит запись справочника серверов
@@ -641,23 +641,39 @@ func (this *MainController) SprHwConfigEditByName() {
 	if err != nil || rec.HWSprId <= 0 {
 		flash.Notice("Запись конфигурации сервера/гипервизора с именем \"%s\" не найдена. Можно создать новую.", name)
 		flash.Store(&this.Controller)
-		this.Redirect("/sprsrv/hwconfedit/0", 302)
+		this.Redirect("/sprsrv/hwconfedit-tab/0", 302)
 		return
 	}
 
-	this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit/%d", rec.HWSprId), 302)
+	this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit-tab/%d", rec.HWSprId), 302)
 }
 
 // Маршрут: /sprsrv/hwconfedit/:id
 func (this *MainController) SprHwConfigEdit() {
+	sprHwConfigEditPage(this, "sprsrv/hwconfedit", this.Ctx.Input.Param(":id"))
+}
 
-	idStr := this.Ctx.Input.Param(":id")
+// SprHwConfigEditTab - та же карточка конфигурации сервера, что
+// SprHwConfigEdit, но с формой на закладках (шаблон hwconfedit_tab.tpl).
+//
+// Маршрут: /sprsrv/hwconfedit-tab/:id([0-9]+)
+func (this *MainController) SprHwConfigEditTab() {
+	sprHwConfigEditPage(this, "sprsrv/hwconfedit_tab", this.Ctx.Input.Param(":id"))
+}
+
+// sprHwConfigEditPage - общая логика GET/POST формы ServerHardware.
+// tpl - sprsrv/hwconfedit или sprsrv/hwconfedit_tab.
+func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 
 	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки конфигурации сервера - отдельная запись типа "изменение" пишется ниже при сохранении
 
-	this.activeContent("sprsrv/hwconfedit")
+	this.activeContent(tpl)
 	this.Data["Id"] = idStr
+	this.Data["HwEditBasePath"] = "/sprsrv/hwconfedit"
+	if strings.Contains(tpl, "hwconfedit_tab") {
+		this.Data["HwEditBasePath"] = "/sprsrv/hwconfedit-tab"
+	}
 
 	flash := beego.NewFlash()
 
@@ -768,7 +784,11 @@ func (this *MainController) SprHwConfigEdit() {
 				return
 			}
 			RegisterRequest(this, LogTypeEditReference) // создание записи конфигурации сервера
-			this.Redirect(fmt.Sprintf("/sprsrv/hwconfedit/%d", rec.Id), 302)
+			basePath, _ := this.Data["HwEditBasePath"].(string)
+			if basePath == "" {
+				basePath = "/sprsrv/hwconfedit"
+			}
+			this.Redirect(fmt.Sprintf("%s/%d", basePath, rec.Id), 302)
 			return
 		}
 
