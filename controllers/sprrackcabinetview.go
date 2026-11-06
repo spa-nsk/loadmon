@@ -545,7 +545,7 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 				{Title: "Метрики СХД за 3 суток", URL: fmt.Sprintf("/sprsrv/storagesystemmetricsrecent/%d", st.Id)},
 				{Title: "Мощность СХД за 3 суток", URL: fmt.Sprintf("/sprsrv/powerrecent/storage/%d", st.Id)},
 				{Title: "Мощность СХД за период", URL: fmt.Sprintf("/sprsrv/powerview/storage/%d", st.Id)},
-				{Title: "Редактировать СХД", URL: fmt.Sprintf("/sprsrv/storagesystemsedit/%d", st.Id)},
+				{Title: "Редактировать СХД", URL: fmt.Sprintf("/sprsrv/storagesystemsedit-tab/%d", st.Id)},
 			}
 			add(rackViewItem{
 				Kind: "storage", Id: st.Id, Name: firstNonEmpty(st.ShortName, st.SerialNum, fmt.Sprintf("storage-%d", st.Id)),

@@ -88,7 +88,7 @@
                 <button type="submit" name="ViewBTN" value="Просмотр" title="Просмотреть данные с учётом фильтров" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Просмотр</button>
                 <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель |)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
                 <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
-                <a href="/sprsrv/storagesystemsedit/0" title="Добавить новую запись СХД" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
+                <a href="/sprsrv/storagesystemsedit-tab/0" title="Добавить новую запись СХД" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
         <div class="row mt-2">
@@ -136,13 +136,13 @@
                         <div class="small text-muted">{{$st.PartNum}}</div>
                     </div>
                 </td>
-                <td><a href="/sprsrv/storagesystemsedit/{{$st.Id}}" target="_blank">{{$st.ShortName}}</a></td>
+                <td><a href="/sprsrv/storagesystemsedit-tab/{{$st.Id}}" target="_blank">{{$st.ShortName}}</a></td>
                 <td>{{$st.SerialNum}}</td>
                 <td class="text-end">{{printf "%.1f" $st.TotalSizeRAW}}</td>
                 <td class="text-end">{{printf "%.1f" $st.UsedPercent}}</td>
                 <td>{{index $.StorageSystemsPlacement $st.Id}}</td>
                 <td id="stRowMenu{{$st.Id}}" class="d-none">
-                    <a class="ctx-menu-item" href="/sprsrv/storagesystemsedit/{{$st.Id}}" target="_blank">Редактировать</a>
+                    <a class="ctx-menu-item" href="/sprsrv/storagesystemsedit-tab/{{$st.Id}}" target="_blank">Редактировать</a>
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemconfigview/{{$st.Id}}" target="_blank">Конфигурация СХД</a>
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemmetricsview/{{$st.Id}}" target="_blank">Метрики СХД за период</a>
                     <a class="ctx-menu-item" href="/sprsrv/storagesystemmetricsrecent/{{$st.Id}}" target="_blank">Метрики СХД за 3 суток</a>

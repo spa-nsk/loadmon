@@ -36,7 +36,7 @@
                 </div>
                 <div class="col-6">
                     <div class="form-label mb-0 text-muted small">Мнемоническое имя</div>
-                    <div><a href="/sprsrv/storagesystemsedit/{{.SHD.Id}}" target="_blank">{{.SHD.ShortName}}</a></div>
+                    <div><a href="/sprsrv/storagesystemsedit-tab/{{.SHD.Id}}" target="_blank">{{.SHD.ShortName}}</a></div>
                 </div>
                 <div class="col-6">
                     <div class="form-label mb-0 text-muted small">Производитель / модель</div>
@@ -107,7 +107,7 @@
                     <div class="form-label mb-0 text-muted small">ЦОД / Шкаф</div>
                     <div>
                         {{if .SHDPlacementText}}{{.SHDPlacementText}}{{else}}&mdash;{{end}}
-                        <a href="/sprsrv/storagesystemsedit/{{.SHD.Id}}" class="ms-2 small" title="Изменить размещение">изменить</a>
+                        <a href="/sprsrv/storagesystemsedit-tab/{{.SHD.Id}}" class="ms-2 small" title="Изменить размещение">изменить</a>
                     </div>
                 </div>
             </div>
