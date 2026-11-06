@@ -53,6 +53,8 @@ func (this *MainController) SprIPAddress() {
 
 	page := 1
 	pageSize := 50
+	exportCSV := false
+	exportXLSX := false
 
 	if this.Ctx.Input.Method() == "POST" {
 		if err := this.ParseForm(filter); err != nil {
@@ -73,6 +75,8 @@ func (this *MainController) SprIPAddress() {
 				pageSize = s
 			}
 		}
+		exportCSV = this.GetString("ExportBTN") == "Экспорт в CSV"
+		exportXLSX = this.GetString("ExportBTN2") == "Экспорт в XLSX"
 	}
 
 	this.Data[keyFilter] = filter
@@ -106,6 +110,21 @@ func (this *MainController) SprIPAddress() {
 		return
 	}
 
+	// Экспорт отдаёт весь найденный по фильтру список, а не только текущую
+	// страницу - как /sprsrv/networklist и /sprsrv/bladesystemslist.
+	records := make([]models.IPAddressSprRecords, 0, pageSize)
+	if exportCSV || exportXLSX {
+		if _, err := qs.OrderBy("IPAddress").All(&records); err != nil {
+			flash.Error("Ошибка выборки данных: %v", err)
+			flash.Store(&this.Controller)
+			return
+		}
+		netNameById := ipAddressNetworkNames(o, records)
+		header, data := ipAddressExportTable(records, netNameById)
+		this.exportTableFile(header, data, exportXLSX, "ipaddresses", "IP-адреса", flash)
+		return
+	}
+
 	totalPages := int((totalRecords + int64(pageSize) - 1) / int64(pageSize))
 	if totalPages < 1 {
 		totalPages = 1
@@ -115,7 +134,6 @@ func (this *MainController) SprIPAddress() {
 	}
 	offset := (page - 1) * pageSize
 
-	records := make([]models.IPAddressSprRecords, 0, pageSize)
 	if _, err := qs.OrderBy("IPAddress").Limit(pageSize, offset).All(&records); err != nil {
 		flash.Error("Ошибка выборки данных: %v", err)
 		flash.Store(&this.Controller)
@@ -124,23 +142,7 @@ func (this *MainController) SprIPAddress() {
 
 	// Имя сети для отображения - резолвится здесь одним запросом по всем Id
 	// текущей страницы, чтобы не плодить JOIN'ы/N+1 запросы в шаблоне.
-	netIds := make([]int64, 0, len(records))
-	seenNet := map[int64]bool{}
-	for _, r := range records {
-		if r.NetworkId > 0 && !seenNet[r.NetworkId] {
-			seenNet[r.NetworkId] = true
-			netIds = append(netIds, r.NetworkId)
-		}
-	}
-	netNameById := map[int64]string{}
-	if len(netIds) > 0 {
-		var nets []models.NetworkSprRecords
-		o.QueryTable(new(models.NetworkSprRecords)).Filter("Id__in", netIds).All(&nets, "Id", "Name")
-		for _, n := range nets {
-			netNameById[n.Id] = n.Name
-		}
-	}
-	this.Data["NetworkNameById"] = netNameById
+	this.Data["NetworkNameById"] = ipAddressNetworkNames(o, records)
 
 	this.Data["IPList"] = records
 	this.Data["IPCount"] = totalRecords
@@ -156,4 +158,55 @@ func (this *MainController) SprIPAddress() {
 		pageTo = totalRecords
 	}
 	this.Data["PageTo"] = pageTo
+}
+
+// ipAddressNetworkNames строит карту NetworkId -> Name по уникальным
+// NetworkId из переданного среза IP-записей.
+func ipAddressNetworkNames(o orm.Ormer, records []models.IPAddressSprRecords) map[int64]string {
+	netIds := make([]int64, 0, len(records))
+	seenNet := map[int64]bool{}
+	for _, r := range records {
+		if r.NetworkId > 0 && !seenNet[r.NetworkId] {
+			seenNet[r.NetworkId] = true
+			netIds = append(netIds, r.NetworkId)
+		}
+	}
+	netNameById := map[int64]string{}
+	if len(netIds) == 0 {
+		return netNameById
+	}
+	var nets []models.NetworkSprRecords
+	o.QueryTable(new(models.NetworkSprRecords)).Filter("Id__in", netIds).All(&nets, "Id", "Name")
+	for _, n := range nets {
+		netNameById[n.Id] = n.Name
+	}
+	return netNameById
+}
+
+// ipAddressExportTable собирает выгрузку IP-адресов с расшифровкой имени сети
+// (как в колонке "Сеть" списка /sprsrv/ipaddresslist).
+func ipAddressExportTable(rows []models.IPAddressSprRecords, netNameById map[int64]string) ([]string, [][]string) {
+	header := []string{"Id", "IP-адрес", "MAC-адрес", "Сеть", "Сеть (ссылка)", "Сервер", "Сервер (ссылка)", "Дата обновления"}
+	data := make([][]string, 0, len(rows))
+	for _, r := range rows {
+		netName := ""
+		if r.NetworkId > 0 {
+			netName = netNameById[r.NetworkId]
+		}
+		updated := ""
+		if !r.Time_Mfy.IsZero() {
+			updated = r.Time_Mfy.Format("2006-01-02 15:04")
+		}
+		data = append(data, []string{
+			strconv.FormatInt(r.Id, 10),
+			r.IPAddress,
+			r.MacAddress,
+			netName,
+			strconv.FormatInt(r.NetworkId, 10),
+			r.ServerName,
+			strconv.FormatInt(r.ServerSprId, 10),
+			updated,
+		})
+	}
+	return header, data
 }

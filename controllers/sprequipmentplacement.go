@@ -246,7 +246,7 @@ func equipCardURL(kind string, id int64) string {
 	case "server":
 		return fmt.Sprintf("/sprsrv/hwconfedit-tab/%d", id)
 	case "chassis":
-		return fmt.Sprintf("/sprsrv/bladesystemsedit/%d", id)
+		return fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", id)
 	case "storage":
 		return fmt.Sprintf("/sprsrv/storagesystemsedit-tab/%d", id)
 	case "switch":

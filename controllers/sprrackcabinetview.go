@@ -468,7 +468,7 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 		links := []rackViewLink{
 			{Title: "Серверы в корзине", URL: fmt.Sprintf("/sprsrv/bladesystemserverslist/%d", ch.Id)},
 			{Title: "Мощность корзины за период (суточные, OneView)", URL: fmt.Sprintf("/sprsrv/powerview/blade/%d", ch.Id)},
-			{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit/%d", ch.Id)},
+			{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", ch.Id)},
 		}
 		blades := make([]rackViewBlade, 0, len(bladesByChassis[ch.Id]))
 		for _, b := range bladesByChassis[ch.Id] {
