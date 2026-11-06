@@ -661,6 +661,141 @@ func (this *MainController) SprHwConfigEditTab() {
 	sprHwConfigEditPage(this, "sprsrv/hwconfedit_tab", this.Ctx.Input.Param(":id"))
 }
 
+// hwComponentTypeOption - пункт select типа компонента
+// (models.ServerHardwareComponents.Type), см. cmdb/syncserverhardwarecomponents.go.
+type hwComponentTypeOption struct {
+	Value int
+	Name  string
+}
+
+// hwComponentTypes - типы компонентов, доступные в форме hwconfedit-tab.
+// Значения совпадают с константами cmdb.ServerHWComponent* (дублируем здесь,
+// чтобы controllers не импортировали cmdb ради подписей UI).
+func hwComponentTypes() []hwComponentTypeOption {
+	return []hwComponentTypeOption{
+		{1, "Память"},
+		{2, "Диск"},
+		{3, "Сетевой контроллер"},
+		{4, "FC контроллер"},
+		{5, "RAID контроллер"},
+		{9, "PCI-устройство"},
+		{10, "Прошивка"},
+		{11, "Процессор"},
+		{6, "Interconnect (blade)"},
+		{7, "Management (blade)"},
+		{12, "Блок питания (blade)"},
+		{13, "Вентилятор (blade)"},
+	}
+}
+
+// hwComponentDiskSubTypes - подтипы дисков (SubType при Type=2).
+func hwComponentDiskSubTypes() []hwComponentTypeOption {
+	return []hwComponentTypeOption{
+		{0, "-"},
+		{1, "SSD"},
+		{2, "SAS"},
+		{3, "SATA"},
+	}
+}
+
+// loadHwComponents читает компоненты сервера (ServerId = ServerHardware.Id).
+func loadHwComponents(o orm.Ormer, hwId int64) []models.ServerHardwareComponents {
+	var comps []models.ServerHardwareComponents
+	if hwId <= 0 {
+		return comps
+	}
+	_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
+		Filter("ServerId", hwId).
+		OrderBy("Type", "Slot", "Id").
+		All(&comps)
+	return comps
+}
+
+// saveHwComponents сохраняет набор models.ServerHardwareComponents для
+// ServerHardware.Id по параллельным массивам полей формы CompType/CompSlot/...
+// (см. hwconfedit_tab.tpl). Схема "удалить все по ServerId, вставить заново" -
+// как у размещений СХД и cmdb.SyncServerHardwareComponents. Вызывается только
+// из tab-формы: старый hwconfedit.tpl полей компонентов не содержит и при
+// общем вызове затёр бы таблицу.
+func (this *MainController) saveHwComponents(o orm.Ormer, hw *models.ServerHardware) error {
+	if hw == nil || hw.Id <= 0 {
+		return nil
+	}
+	types := this.GetStrings("CompType")
+	subTypes := this.GetStrings("CompSubType")
+	vendors := this.GetStrings("CompVendor")
+	compModels := this.GetStrings("CompModel")
+	serials := this.GetStrings("CompSerialNum")
+	caps := this.GetStrings("CompCapacityGb")
+	slots := this.GetStrings("CompSlot")
+
+	var currentUserId int64 = 9999
+	if uid, ok := this.Data["UserId"].(int64); ok && uid > 0 {
+		currentUserId = uid
+	}
+	now := time.Now().Local()
+
+	trn, err := o.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err := trn.QueryTable(new(models.ServerHardwareComponents)).Filter("ServerId", hw.Id).Delete(); err != nil {
+		_ = trn.Rollback()
+		return err
+	}
+
+	for i, typeStr := range types {
+		t, _ := strconv.Atoi(strings.TrimSpace(typeStr))
+		if t <= 0 {
+			continue
+		}
+		var sub int
+		if i < len(subTypes) {
+			sub, _ = strconv.Atoi(strings.TrimSpace(subTypes[i]))
+		}
+		vendor, model, serial, slot := "", "", "", ""
+		if i < len(vendors) {
+			vendor = strings.TrimSpace(vendors[i])
+		}
+		if i < len(compModels) {
+			model = strings.TrimSpace(compModels[i])
+		}
+		if i < len(serials) {
+			serial = strings.TrimSpace(serials[i])
+		}
+		if i < len(slots) {
+			slot = strings.TrimSpace(slots[i])
+		}
+		var capGb float64
+		if i < len(caps) {
+			capGb, _ = strconv.ParseFloat(strings.TrimSpace(caps[i]), 64)
+		}
+		c := models.ServerHardwareComponents{
+			ServerId:        hw.Id,
+			Type:            t,
+			SubType:         sub,
+			Vendor:          vendor,
+			Model:           model,
+			SerialNum:       serial,
+			CapacityGb:      capGb,
+			Slot:            slot,
+			ContractDoc:     hw.ContractDoc,
+			DateContractDoc: hw.DateContractDoc,
+			Invoice:         hw.Invoice,
+			DateInvoice:     hw.DateInvoice,
+			ServiceContract: hw.ServiceContract,
+			DateService:     hw.DateService,
+			Id_User:         currentUserId,
+			Time_Mfy:        now,
+		}
+		if _, err := trn.Insert(&c); err != nil {
+			_ = trn.Rollback()
+			return err
+		}
+	}
+	return trn.Commit()
+}
+
 // sprHwConfigEditPage - общая логика GET/POST формы ServerHardware.
 // tpl - sprsrv/hwconfedit или sprsrv/hwconfedit_tab.
 func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
@@ -671,7 +806,8 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 	this.activeContent(tpl)
 	this.Data["Id"] = idStr
 	this.Data["HwEditBasePath"] = "/sprsrv/hwconfedit"
-	if strings.Contains(tpl, "hwconfedit_tab") {
+	isTab := strings.Contains(tpl, "hwconfedit_tab")
+	if isTab {
 		this.Data["HwEditBasePath"] = "/sprsrv/hwconfedit-tab"
 	}
 
@@ -703,6 +839,11 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 			this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
 			this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 			this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
+			if isTab {
+				this.Data["HwComponents"] = loadHwComponents(o, rec.Id)
+				this.Data["HwComponentTypes"] = hwComponentTypes()
+				this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+			}
 			return
 		}
 		var currentUserId int64
@@ -781,7 +922,18 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 				flash.Error("Ошибка создания записи: %v", err)
 				flash.Store(&this.Controller)
 				this.Data["HW"] = rec
+				if isTab {
+					this.Data["HwComponents"] = []models.ServerHardwareComponents{}
+					this.Data["HwComponentTypes"] = hwComponentTypes()
+					this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+				}
 				return
+			}
+			if isTab {
+				if err := this.saveHwComponents(o, &rec); err != nil {
+					flash.Error("Запись создана (Id=%d), но не удалось сохранить компоненты: %v", rec.Id, err)
+					flash.Store(&this.Controller)
+				}
 			}
 			RegisterRequest(this, LogTypeEditReference) // создание записи конфигурации сервера
 			basePath, _ := this.Data["HwEditBasePath"].(string)
@@ -796,12 +948,26 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 			flash.Error("Ошибка сохранения: %v", err)
 			flash.Store(&this.Controller)
 			this.Data["HW"] = rec
+			if isTab {
+				this.Data["HwComponents"] = loadHwComponents(o, rec.Id)
+				this.Data["HwComponentTypes"] = hwComponentTypes()
+				this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+			}
 			return
 		}
+		if isTab {
+			if err := this.saveHwComponents(o, &rec); err != nil {
+				flash.Error("Запись сохранена, но не удалось сохранить компоненты: %v", err)
+				flash.Store(&this.Controller)
+			} else {
+				flash.Notice("Запись сохранена.")
+				flash.Store(&this.Controller)
+			}
+		} else {
+			flash.Notice("Запись сохранена.")
+			flash.Store(&this.Controller)
+		}
 		RegisterRequest(this, LogTypeEditReference) // изменение записи конфигурации сервера
-
-		flash.Notice("Запись сохранена.")
-		flash.Store(&this.Controller)
 	}
 
 	// ЦОД/Шкаф для каскадного select размещения (2026-09-08, по запросу
@@ -827,6 +993,11 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 	this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
+	if isTab {
+		this.Data["HwComponents"] = loadHwComponents(o, rec.Id)
+		this.Data["HwComponentTypes"] = hwComponentTypes()
+		this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes()
+	}
 }
 
 // bladeChassisRack возвращает шкаф и имя корзины для блейд-сервера

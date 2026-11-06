@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"loadmon/csvtools"
 	"loadmon/models"
 	"strconv"
 	"time"
@@ -50,6 +51,8 @@ func (this *MainController) SprNetwork() {
 
 	page := 1
 	pageSize := 50
+	exportCSV := false
+	exportXLSX := false
 
 	if this.Ctx.Input.Method() == "POST" {
 		if err := this.ParseForm(filter); err != nil {
@@ -70,6 +73,8 @@ func (this *MainController) SprNetwork() {
 				pageSize = s
 			}
 		}
+		exportCSV = this.GetString("ExportBTN") == "Экспорт в CSV"
+		exportXLSX = this.GetString("ExportBTN2") == "Экспорт в XLSX"
 	}
 
 	this.Data[keyFilter] = filter
@@ -95,6 +100,20 @@ func (this *MainController) SprNetwork() {
 		return
 	}
 
+	// Экспорт отдаёт весь найденный по фильтру список, а не только текущую
+	// страницу - как /sprsrv/bladesystemslist и /sprsrv/networkequipmentlist.
+	records := make([]models.NetworkSprRecords, 0, pageSize)
+	if exportCSV || exportXLSX {
+		if _, err := qs.OrderBy("Name").All(&records); err != nil {
+			flash.Error("Ошибка выборки данных: %v", err)
+			flash.Store(&this.Controller)
+			return
+		}
+		header, data := networkExportTable(records)
+		this.exportTableFile(header, data, exportXLSX, "networks", "Сети", flash)
+		return
+	}
+
 	totalPages := int((totalRecords + int64(pageSize) - 1) / int64(pageSize))
 	if totalPages < 1 {
 		totalPages = 1
@@ -104,7 +123,6 @@ func (this *MainController) SprNetwork() {
 	}
 	offset := (page - 1) * pageSize
 
-	records := make([]models.NetworkSprRecords, 0, pageSize)
 	if _, err := qs.OrderBy("Name").Limit(pageSize, offset).All(&records); err != nil {
 		flash.Error("Ошибка выборки данных: %v", err)
 		flash.Store(&this.Controller)
@@ -125,6 +143,21 @@ func (this *MainController) SprNetwork() {
 		pageTo = totalRecords
 	}
 	this.Data["PageTo"] = pageTo
+}
+
+// networkExportTable собирает заголовок и строки выгрузки справочника сетей
+// по csv-тегам models.NetworkSprRecords.
+func networkExportTable(rows []models.NetworkSprRecords) ([]string, [][]string) {
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	header, _ := csvtools.GetCSVHeader(&rows[0])
+	data := make([][]string, 0, len(rows))
+	for i := range rows {
+		row, _ := csvtools.GetCSVData(&rows[i])
+		data = append(data, row)
+	}
+	return header, data
 }
 
 // SprNetworkEdit отображает форму просмотра/редактирования одной записи

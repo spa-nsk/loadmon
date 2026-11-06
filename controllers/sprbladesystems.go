@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
@@ -439,20 +440,36 @@ func bladeSystemsComputeSizeUnit(startUnitPos, endUnitPos int) int {
 // (образец стиля для этой формы).
 //
 // Id=0 - режим добавления новой записи (ссылка "Добавить" со страницы
-// /sprsrv/bladesystemslist ведёт на /sprsrv/bladesystemsedit/0): форма
+// /sprsrv/bladesystemslist ведёт на /sprsrv/bladesystemsedit-tab/0): форма
 // показывается пустой, по отправке создаёт новую запись (o.Insert) и
 // переходит на страницу редактирования уже созданной записи по её Id.
 //
 // Маршрут: /sprsrv/bladesystemsedit/:id
 func (this *MainController) SprBladeSystemsEdit() {
+	sprBladeSystemsEditPage(this, "sprsrv/bladesystemsedit", this.Ctx.Input.Param(":id"))
+}
 
-	idStr := this.Ctx.Input.Param(":id")
+// SprBladeSystemsEditTab - та же карточка блейд-корзины, что
+// SprBladeSystemsEdit, но с формой на закладках (шаблон bladesystemsedit_tab.tpl).
+//
+// Маршрут: /sprsrv/bladesystemsedit-tab/:id([0-9]+)
+func (this *MainController) SprBladeSystemsEditTab() {
+	sprBladeSystemsEditPage(this, "sprsrv/bladesystemsedit_tab", this.Ctx.Input.Param(":id"))
+}
+
+// sprBladeSystemsEditPage - общая логика GET/POST формы BladeSystems.
+// tpl - sprsrv/bladesystemsedit или sprsrv/bladesystemsedit_tab.
+func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 
 	// Проверка сессии централизована в AuthFilter (см. controllers/auth_filter.go).
 	RegisterRequest(this, LogTypeViewReference) // просмотр карточки блейд-корзины - отдельная запись типа "изменение" пишется ниже при сохранении
 
-	this.activeContent("sprsrv/bladesystemsedit")
+	this.activeContent(tpl)
 	this.Data["Id"] = idStr
+	this.Data["BladeEditBasePath"] = "/sprsrv/bladesystemsedit"
+	if strings.Contains(tpl, "bladesystemsedit_tab") {
+		this.Data["BladeEditBasePath"] = "/sprsrv/bladesystemsedit-tab"
+	}
 
 	flash := beego.NewFlash()
 
@@ -527,7 +544,11 @@ func (this *MainController) SprBladeSystemsEdit() {
 				return
 			}
 			RegisterRequest(this, LogTypeEditReference) // создание записи справочника блейд-корзин
-			this.Redirect(fmt.Sprintf("/sprsrv/bladesystemsedit/%d", rec.Id), 302)
+			basePath, _ := this.Data["BladeEditBasePath"].(string)
+			if basePath == "" {
+				basePath = "/sprsrv/bladesystemsedit"
+			}
+			this.Redirect(fmt.Sprintf("%s/%d", basePath, rec.Id), 302)
 			return
 		}
 

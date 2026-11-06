@@ -62,7 +62,7 @@
                 <button type="submit" name="ViewBTN" value="Просмотр" title="Просмотреть данные с учётом фильтров" class="btn btn-primary rounded-pill px-3" onclick="document.getElementById('pageField').value=1;">Просмотр</button>
                 <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель |)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
                 <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
-                <a href="/sprsrv/bladesystemsedit/0" title="Добавить новую запись блейд-корзины" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
+                <a href="/sprsrv/bladesystemsedit-tab/0" title="Добавить новую запись блейд-корзины" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
         <div class="row mt-2">
@@ -95,7 +95,7 @@
             {{range $bs := .BladeSystemsList}}
             <tr class="row-context-target" data-menu-id="bsRowMenu{{$bs.Id}}">
                 <td class="text-end">{{$bs.Id}}</td>
-                <td><a href="/sprsrv/bladesystemsedit/{{$bs.Id}}" target="_blank">{{$bs.Name}}</a></td>
+                <td><a href="/sprsrv/bladesystemsedit-tab/{{$bs.Id}}" target="_blank">{{$bs.Name}}</a></td>
                 <td>
                     <div style="max-width:260px; word-wrap:break-word;">
                         {{$bs.Vendor}} {{$bs.Model}}
@@ -110,7 +110,7 @@
                 <td class="text-end">{{printf "%.0f" $bs.PowerPeak24hW}}</td>
                 <td>{{index $.BladeSystemsPlacement $bs.RackCabinetId}}</td>
                 <td id="bsRowMenu{{$bs.Id}}" class="d-none">
-                    <a class="ctx-menu-item" href="/sprsrv/bladesystemsedit/{{$bs.Id}}" target="_blank">Редактировать</a>
+                    <a class="ctx-menu-item" href="/sprsrv/bladesystemsedit-tab/{{$bs.Id}}" target="_blank">Редактировать</a>
                     <a class="ctx-menu-item" href="/sprsrv/bladesystemserverslist/{{$bs.Id}}" target="_blank">Серверы в корзине</a>
                 </td>
             </tr>

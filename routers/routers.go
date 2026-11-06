@@ -89,6 +89,7 @@ func init() {
 	beego.Router("/sprsrv/zabbixperfperiod/:Id", &controllers.MainController{}, "get,post:SprSrvZabbixPerfPeriod") // графики загрузки аппаратного сервера за период по данным Zabbix (zabbix_item/zabbix_key), см. controllers/sprsrvzabbixperfperiod.go
 	beego.Router("/sprsrv/bladesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystems")     // список записей models.BladeSystems (справочник блейд-корзин) с фильтром, пагинацией и экспортом в CSV/XLSX
 	beego.Router("/sprsrv/bladesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystemsEdit") // просмотр/редактирование/добавление одной записи models.BladeSystems по Id (Id=0 - новая запись)
+	beego.Router("/sprsrv/bladesystemsedit-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprBladeSystemsEditTab") // форма блейд-корзины с закладками (bladesystemsedit_tab.tpl)
 
 	// Справочник ЦОД (models.DatacenterSite) - по аналогии с Datacenter из oneview2, с альтернативным наименованием.
 	beego.Router("/sprsrv/datacentersitelist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprDatacenterSite")

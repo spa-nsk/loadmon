@@ -211,6 +211,86 @@
                     <input type="number" id="CoreMHz" name="CoreMHz" class="form-control" value="{{.HW.CoreMHz}}">
                 </div>
             </div>
+
+            <hr class="my-3">
+
+            <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+                <div>
+                    <h6 class="mb-0">Компоненты сервера</h6>
+                    <div class="text-muted small">Память, диски, контроллеры, процессоры и прочие модули. При сохранении формы набор компонентов этой карточки перезаписывается целиком.</div>
+                </div>
+                <button type="button" id="hwCompAddRow" class="btn btn-outline-secondary btn-sm">+ Добавить компонент</button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0" id="hwCompTable">
+                    <thead>
+                        <tr>
+                            <th style="min-width:9rem">Тип</th>
+                            <th style="min-width:6rem">Слот</th>
+                            <th style="min-width:7rem">Производитель</th>
+                            <th style="min-width:10rem">Модель</th>
+                            <th style="min-width:8rem">Серийный №</th>
+                            <th style="min-width:6rem">Ёмкость, ГБ</th>
+                            <th style="min-width:6rem">Подтип диска</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="hwCompRows">
+                        {{range $c := .HwComponents}}
+                        <tr class="hw-comp-row">
+                            <td>
+                                <select name="CompType" class="form-select form-select-sm">
+                                    <option value="0">-</option>
+                                    {{range $t := $.HwComponentTypes}}
+                                    <option value="{{$t.Value}}" {{if eq $c.Type $t.Value}}selected{{end}}>{{$t.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </td>
+                            <td><input type="text" name="CompSlot" class="form-control form-control-sm" value="{{$c.Slot}}"></td>
+                            <td><input type="text" name="CompVendor" class="form-control form-control-sm" value="{{$c.Vendor}}"></td>
+                            <td><input type="text" name="CompModel" class="form-control form-control-sm" value="{{$c.Model}}"></td>
+                            <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value="{{$c.SerialNum}}"></td>
+                            <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value="{{printf "%.2f" $c.CapacityGb}}"></td>
+                            <td>
+                                <select name="CompSubType" class="form-select form-select-sm">
+                                    {{range $s := $.HwComponentDiskSubTypes}}
+                                    <option value="{{$s.Value}}" {{if eq $c.SubType $s.Value}}selected{{end}}>{{$s.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </td>
+                            <td><button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button></td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+
+            <template id="hwCompRowTemplate">
+                <tr class="hw-comp-row">
+                    <td>
+                        <select name="CompType" class="form-select form-select-sm">
+                            <option value="0">-</option>
+                            {{range $t := .HwComponentTypes}}
+                            <option value="{{$t.Value}}">{{$t.Name}}</option>
+                            {{end}}
+                        </select>
+                    </td>
+                    <td><input type="text" name="CompSlot" class="form-control form-control-sm" value=""></td>
+                    <td><input type="text" name="CompVendor" class="form-control form-control-sm" value=""></td>
+                    <td><input type="text" name="CompModel" class="form-control form-control-sm" value=""></td>
+                    <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value=""></td>
+                    <td><input type="number" step="0.01" name="CompCapacityGb" class="form-control form-control-sm" value=""></td>
+                    <td>
+                        <select name="CompSubType" class="form-select form-select-sm">
+                            {{range $s := .HwComponentDiskSubTypes}}
+                            <option value="{{$s.Value}}">{{$s.Name}}</option>
+                            {{end}}
+                        </select>
+                    </td>
+                    <td><button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button></td>
+                </tr>
+            </template>
         </div>
 
     </div>
@@ -256,5 +336,28 @@
         applyFilter(true);
 
         dcSelect.addEventListener('change', function () { applyFilter(true); });
+    })();
+
+    // Динамические строки компонентов сервера на закладке "Детали конфигурации".
+    (function () {
+        var tbody = document.getElementById('hwCompRows');
+        var addBtn = document.getElementById('hwCompAddRow');
+        var tpl = document.getElementById('hwCompRowTemplate');
+        if (!tbody || !addBtn || !tpl) return;
+
+        function bindRemove(row) {
+            var btn = row.querySelector('.hw-comp-remove-row');
+            if (!btn) return;
+            btn.addEventListener('click', function () { row.remove(); });
+        }
+
+        Array.prototype.forEach.call(tbody.querySelectorAll('.hw-comp-row'), bindRemove);
+
+        addBtn.addEventListener('click', function () {
+            var node = tpl.content.cloneNode(true);
+            var row = node.querySelector('.hw-comp-row');
+            if (row) bindRemove(row);
+            tbody.appendChild(node);
+        });
     })();
 </script>
