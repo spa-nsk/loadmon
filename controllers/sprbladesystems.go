@@ -459,6 +459,165 @@ func (this *MainController) SprBladeSystemsEditTab() {
 	sprBladeSystemsEditPage(this, "sprsrv/bladesystemsedit_tab", this.Ctx.Input.Param(":id"))
 }
 
+// bladeComponentTypes - типы модулей блейд-корзины для ручного добавления
+// (значения = cmdb.ServerHWComponent*, см. syncbladesystemcomponents.go).
+func bladeComponentTypes() []hwComponentTypeOption {
+	return []hwComponentTypeOption{
+		{6, "Interconnect"},
+		{7, "Management / OA"},
+		{12, "Блок питания"},
+		{13, "Вентилятор"},
+	}
+}
+
+// bladeComponentTabDefs - закладки модулей корзины (порядок на форме).
+func bladeComponentTabDefs() []hwComponentTypeOption {
+	return []hwComponentTypeOption{
+		{6, "Interconnect"},
+		{7, "Management / OA"},
+		{12, "Блоки питания"},
+		{13, "Вентиляторы"},
+	}
+}
+
+// loadBladeComponents читает модули корзины (BladeSystemId).
+func loadBladeComponents(o orm.Ormer, bladeSystemId int64) []models.ServerHardwareComponents {
+	var comps []models.ServerHardwareComponents
+	if bladeSystemId <= 0 {
+		return comps
+	}
+	_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
+		Filter("BladeSystemId", bladeSystemId).
+		OrderBy("Type", "Slot", "Id").
+		All(&comps)
+	return comps
+}
+
+// buildBladeComponentTabs раскладывает модули корзины по закладкам типов.
+func buildBladeComponentTabs(comps []models.ServerHardwareComponents) []hwComponentTab {
+	byType := map[int][]models.ServerHardwareComponents{}
+	for _, c := range comps {
+		byType[c.Type] = append(byType[c.Type], c)
+	}
+	defs := bladeComponentTabDefs()
+	known := make(map[int]bool, len(defs))
+	tabs := make([]hwComponentTab, 0, len(defs)+1)
+	for _, d := range defs {
+		known[d.Value] = true
+		items := byType[d.Value]
+		if items == nil {
+			items = []models.ServerHardwareComponents{}
+		}
+		tabs = append(tabs, hwComponentTab{
+			Type: d.Value, Name: d.Name, Items: items,
+			ShowCapacity: false, ShowSubType: false,
+		})
+	}
+	var other []models.ServerHardwareComponents
+	for t, items := range byType {
+		if !known[t] {
+			other = append(other, items...)
+		}
+	}
+	if len(other) > 0 {
+		tabs = append(tabs, hwComponentTab{
+			Type: 0, Name: "Прочие", Items: other,
+			ShowCapacity: true, ShowSubType: true,
+		})
+	}
+	return tabs
+}
+
+// setBladeComponentFormData кладёт закладки модулей в Data для bladesystemsedit_tab.tpl.
+func setBladeComponentFormData(this *MainController, comps []models.ServerHardwareComponents) {
+	this.Data["BsComponentTypes"] = bladeComponentTypes()
+	this.Data["HwComponentDiskSubTypes"] = hwComponentDiskSubTypes() // для закладки «Прочие»
+	this.Data["BsComponentTabs"] = buildBladeComponentTabs(comps)
+}
+
+// saveBladeComponents сохраняет набор ServerHardwareComponents для корзины
+// (BladeSystemId) по полям CompType/CompSlot/... формы. Схема «удалить все
+// по BladeSystemId, вставить заново» — как у hwconf и sync OneView.
+// Вызывается только из tab-формы.
+func (this *MainController) saveBladeComponents(o orm.Ormer, bs *models.BladeSystems) error {
+	if bs == nil || bs.Id <= 0 {
+		return nil
+	}
+	types := this.GetStrings("CompType")
+	subTypes := this.GetStrings("CompSubType")
+	vendors := this.GetStrings("CompVendor")
+	compModels := this.GetStrings("CompModel")
+	serials := this.GetStrings("CompSerialNum")
+	caps := this.GetStrings("CompCapacityGb")
+	slots := this.GetStrings("CompSlot")
+
+	var currentUserId int64 = 9999
+	if uid, ok := this.Data["UserId"].(int64); ok && uid > 0 {
+		currentUserId = uid
+	}
+	now := time.Now().Local()
+
+	trn, err := o.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err := trn.QueryTable(new(models.ServerHardwareComponents)).Filter("BladeSystemId", bs.Id).Delete(); err != nil {
+		_ = trn.Rollback()
+		return err
+	}
+
+	for i, typeStr := range types {
+		t, _ := strconv.Atoi(strings.TrimSpace(typeStr))
+		if t <= 0 {
+			continue
+		}
+		var sub int
+		if i < len(subTypes) {
+			sub, _ = strconv.Atoi(strings.TrimSpace(subTypes[i]))
+		}
+		vendor, model, serial, slot := "", "", "", ""
+		if i < len(vendors) {
+			vendor = strings.TrimSpace(vendors[i])
+		}
+		if i < len(compModels) {
+			model = strings.TrimSpace(compModels[i])
+		}
+		if i < len(serials) {
+			serial = strings.TrimSpace(serials[i])
+		}
+		if i < len(slots) {
+			slot = strings.TrimSpace(slots[i])
+		}
+		var capGb float64
+		if i < len(caps) {
+			capGb, _ = strconv.ParseFloat(strings.TrimSpace(caps[i]), 64)
+		}
+		c := models.ServerHardwareComponents{
+			BladeSystemId:   bs.Id,
+			Type:            t,
+			SubType:         sub,
+			Vendor:          vendor,
+			Model:           model,
+			SerialNum:       serial,
+			CapacityGb:      capGb,
+			Slot:            slot,
+			ContractDoc:     bs.ContractDoc,
+			DateContractDoc: bs.DateContractDoc,
+			Invoice:         bs.Invoice,
+			DateInvoice:     bs.DateInvoice,
+			ServiceContract: bs.ServiceContract,
+			DateService:     bs.DateService,
+			Id_User:         currentUserId,
+			Time_Mfy:        now,
+		}
+		if _, err := trn.Insert(&c); err != nil {
+			_ = trn.Rollback()
+			return err
+		}
+	}
+	return trn.Commit()
+}
+
 // sprBladeSystemsEditPage - общая логика GET/POST формы BladeSystems.
 // tpl - sprsrv/bladesystemsedit или sprsrv/bladesystemsedit_tab.
 func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
@@ -469,7 +628,8 @@ func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 	this.activeContent(tpl)
 	this.Data["Id"] = idStr
 	this.Data["BladeEditBasePath"] = "/sprsrv/bladesystemsedit"
-	if strings.Contains(tpl, "bladesystemsedit_tab") {
+	isTab := strings.Contains(tpl, "bladesystemsedit_tab")
+	if isTab {
 		this.Data["BladeEditBasePath"] = "/sprsrv/bladesystemsedit-tab"
 	}
 
@@ -498,6 +658,9 @@ func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 	if this.Ctx.Input.Method() == "POST" {
 		if !this.RequireEditReference() {
 			this.Data["BS"] = rec
+			if isTab {
+				setBladeComponentFormData(this, loadBladeComponents(o, rec.Id))
+			}
 			return
 		}
 		rec.Name = this.GetString("Name")
@@ -543,7 +706,16 @@ func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 				flash.Error("Ошибка создания записи: %v", err)
 				flash.Store(&this.Controller)
 				this.Data["BS"] = rec
+				if isTab {
+					setBladeComponentFormData(this, nil)
+				}
 				return
+			}
+			if isTab {
+				if err := this.saveBladeComponents(o, &rec); err != nil {
+					flash.Error("Запись создана (Id=%d), но не удалось сохранить модули: %v", rec.Id, err)
+					flash.Store(&this.Controller)
+				}
 			}
 			RegisterRequest(this, LogTypeEditReference) // создание записи справочника блейд-корзин
 			basePath, _ := this.Data["BladeEditBasePath"].(string)
@@ -558,12 +730,25 @@ func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 			flash.Error("Ошибка сохранения: %v", err)
 			flash.Store(&this.Controller)
 			this.Data["BS"] = rec
+			if isTab {
+				setBladeComponentFormData(this, loadBladeComponents(o, rec.Id))
+			}
 			return
 		}
 		RegisterRequest(this, LogTypeEditReference) // изменение записи справочника блейд-корзин
 
-		flash.Notice("Запись сохранена.")
-		flash.Store(&this.Controller)
+		if isTab {
+			if err := this.saveBladeComponents(o, &rec); err != nil {
+				flash.Error("Запись сохранена, но не удалось сохранить модули: %v", err)
+				flash.Store(&this.Controller)
+			} else {
+				flash.Notice("Запись сохранена.")
+				flash.Store(&this.Controller)
+			}
+		} else {
+			flash.Notice("Запись сохранена.")
+			flash.Store(&this.Controller)
+		}
 	}
 
 	// ДОБАВЛЕНО (2026-09-08, по запросу пользователя): выбор ЦОД, по которому
@@ -585,6 +770,9 @@ func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 	this.Data["DateContractDocStr"] = formatBladeSystemsDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatBladeSystemsDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatBladeSystemsDate(rec.DateService)
+	if isTab {
+		setBladeComponentFormData(this, loadBladeComponents(o, rec.Id))
+	}
 }
 
 // BladeSystemServerRow - одна строка списка /sprsrv/bladesystemserverslist
@@ -674,16 +862,66 @@ func (this *MainController) SprBladeSystemServersList() {
 	this.Data["ServersCount"] = len(rows)
 }
 
+// bladeChassisPSU - блок питания корзины (models.ServerHardwareComponents,
+// Type=12 / cmdb.ServerHWComponentPowerSupply) для клика по нижней панели
+// визуализации /sprsrv/bladesystemserverslistvisual.
+type bladeChassisPSU struct {
+	Id    int64          `json:"id"`
+	Bay   int            `json:"bay"`   // номер отсека (1..N), 0 если неизвестен
+	Index int            `json:"index"` // порядковый индекс среди БП (0-based) для отрисовки
+	Name  string         `json:"name"`
+	Model string         `json:"model"`
+	Power int            `json:"power"` // 0 неизвестно, 1 OK/Present, 2 Absent/Failed/выкл
+	Rows  []rackViewKV   `json:"rows"`
+	Links []rackViewLink `json:"links"`
+}
+
 // bladeChassisVisualData - JSON для canvas-визуализации одной блейд-корзины
 // (/sprsrv/bladesystemserverslistvisual): та же структура слотов/блейдов, что
-// rackViewItem kind=chassis в /sprsrv/rackcabinetview.
+// rackViewItem kind=chassis в /sprsrv/rackcabinetview, плюс блоки питания.
 type bladeChassisVisualData struct {
-	Chassis rackViewItem `json:"chassis"`
+	Chassis       rackViewItem     `json:"chassis"`
+	PowerSupplies []bladeChassisPSU `json:"powerSupplies"`
+}
+
+// parseBladePSUBayAndStatus разбирает Slot компоненты БП вида
+// "Bay 3, OK" / "Bay 1, Present" (см. cmdb/syncbladesystemcomponents.go).
+func parseBladePSUBayAndStatus(slot string) (bay int, power int, status string) {
+	slot = strings.TrimSpace(slot)
+	power = 0
+	if slot == "" {
+		return 0, 0, ""
+	}
+	status = slot
+	parts := strings.SplitN(slot, ",", 2)
+	head := strings.TrimSpace(parts[0])
+	if len(parts) > 1 {
+		status = strings.TrimSpace(parts[1])
+	}
+	lowHead := strings.ToLower(head)
+	if strings.HasPrefix(lowHead, "bay") {
+		num := strings.TrimSpace(head[3:])
+		if n, err := strconv.Atoi(num); err == nil && n > 0 {
+			bay = n
+		}
+	}
+	st := strings.ToLower(status)
+	switch {
+	case strings.Contains(st, "absent"), strings.Contains(st, "fail"),
+		strings.Contains(st, "error"), strings.Contains(st, "critical"),
+		strings.Contains(st, "off"), strings.Contains(st, "выкл"):
+		power = 2
+	case strings.Contains(st, "ok"), strings.Contains(st, "present"),
+		strings.Contains(st, "normal"), strings.Contains(st, "good"),
+		strings.Contains(st, "on"):
+		power = 1
+	}
+	return bay, power, status
 }
 
 // SprBladeSystemServersListVisual - визуализация одной блейд-корзины с блейдами
-// в слотах (отрисовка как корзины в /sprsrv/rackcabinetview) и панелью
-// параметров выбранного блейда.
+// в слотах и блоками питания (отрисовка как корзины в /sprsrv/rackcabinetview)
+// и панелью параметров выбранного блейда или БП.
 //
 // Маршрут: /sprsrv/bladesystemserverslistvisual/:id([0-9]+)
 func (this *MainController) SprBladeSystemServersListVisual() {
@@ -829,7 +1067,44 @@ func (this *MainController) SprBladeSystemServersListVisual() {
 		Rows: chRows, Links: chLinks, Blades: blades,
 	}
 
-	payload, jerr := json.Marshal(bladeChassisVisualData{Chassis: item})
+	// Блоки питания корзины (Type=12) - кликабельные на нижней панели canvas.
+	const bladePSUComponentType = 12 // cmdb.ServerHWComponentPowerSupply
+	var psuComps []models.ServerHardwareComponents
+	_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
+		Filter("BladeSystemId", id).Filter("Type", bladePSUComponentType).
+		OrderBy("Id").All(&psuComps)
+	powerSupplies := make([]bladeChassisPSU, 0, len(psuComps))
+	for i, c := range psuComps {
+		bay, pwr, status := parseBladePSUBayAndStatus(c.Slot)
+		name := firstNonEmpty(c.Model, fmt.Sprintf("Блок питания %d", i+1))
+		if bay > 0 {
+			name = fmt.Sprintf("Блок питания, отсек %d", bay)
+		}
+		var rows []rackViewKV
+		if bay > 0 {
+			rows = rackViewKVAdd(rows, "Отсек (bay)", fmt.Sprintf("%d", bay))
+		}
+		rows = rackViewKVAdd(rows, "Производитель", c.Vendor)
+		rows = rackViewKVAdd(rows, "Модель", c.Model)
+		rows = rackViewKVAdd(rows, "Серийный номер", c.SerialNum)
+		rows = rackViewKVAdd(rows, "Расположение / статус", c.Slot)
+		rows = rackViewKVAdd(rows, "Статус", status)
+		if c.CapacityGb > 0 {
+			rows = rackViewKVAdd(rows, "Мощность (номинал)", fmt.Sprintf("%.0f Вт", c.CapacityGb))
+		}
+		powerSupplies = append(powerSupplies, bladeChassisPSU{
+			Id: c.Id, Bay: bay, Index: i, Name: name,
+			Model: firstNonEmpty(c.Model, c.Vendor), Power: pwr,
+			Rows: rows,
+			Links: []rackViewLink{
+				{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", bls.Id)},
+			},
+		})
+	}
+	chRows = rackViewKVAdd(chRows, "Блоков питания", fmt.Sprintf("%d", len(powerSupplies)))
+	item.Rows = chRows
+
+	payload, jerr := json.Marshal(bladeChassisVisualData{Chassis: item, PowerSupplies: powerSupplies})
 	if jerr != nil {
 		flash.Error("Ошибка сериализации данных визуализации: %v", jerr)
 		flash.Store(&this.Controller)

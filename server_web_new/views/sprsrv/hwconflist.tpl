@@ -163,6 +163,7 @@
                     </td>
                     <td id="hwRowMenu{{$hw.Id}}" class="d-none">
                         <a class="ctx-menu-item" href="/sprsrv/hwconfedit-tab/{{$hw.Id}}" target="_blank">Редактировать</a>
+                        <a class="ctx-menu-item" href="/sprsrv/hwconfvisual/{{$hw.Id}}" target="_blank">Отображение сервера по модели</a>
                     </td>
                 </tr>
                 {{else}}

@@ -61,6 +61,7 @@ func init() {
 	beego.Router("/sprsrv/hwconflist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfig")     // список записей models.ServerHardware (справочник конфигураций серверов) с фильтром и пагинацией
 	beego.Router("/sprsrv/hwconfedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfigEdit") // просмотр/редактирование одной записи models.ServerHardware по Id
 	beego.Router("/sprsrv/hwconfedit-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfigEditTab") // форма конфигурации сервера с закладками (hwconfedit_tab.tpl)
+	beego.Router("/sprsrv/hwconfvisual/:id([0-9]+)", &controllers.MainController{}, "get:SprHwConfVisual") // визуализация сервера по вендору/модели с наведением на диски
 	beego.Router("/sprsrv/hwconfeditbysn/:SN", &controllers.MainController{}, "get:SprHwConfigEditBySN")      // находит запись models.ServerHardware по серийному номеру и переходит на её /sprsrv/hwconfedit-tab/:id (используется пунктом меню "Конфигурация сервера" на /sprsrv/view2)
 	beego.Router("/sprsrv/hwconfeditbyname/:Name", &controllers.MainController{}, "get:SprHwConfigEditByName") // находит запись models.ServerSprRecords по имени (физический сервер/гипервизор) и переходит на связанную models.ServerHardware через HWSprId (используется хостами на /sprsrv/cluster/... без известного серийного номера)
 	beego.Router("/sprsrv/hwconfbulkedit", &controllers.MainController{}, "get,post:SprHwConfigBulkEdit")     // групповое редактирование статуса/размещения выбранных записей models.ServerHardware
