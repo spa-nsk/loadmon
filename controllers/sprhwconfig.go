@@ -711,10 +711,29 @@ func hwComponentDiskSubTypes() []hwComponentTypeOption {
 }
 
 // hwComponentTab - одна закладка типа компонентов на hwconfedit-tab.
+// ShowCapacity/ShowSubType задают специфичные для типа колонки
+// (у процессора/сети/PCI/прошивки нет ёмкости ГБ; подтип - только у дисков).
 type hwComponentTab struct {
-	Type  int
-	Name  string
-	Items []models.ServerHardwareComponents
+	Type         int
+	Name         string
+	Items        []models.ServerHardwareComponents
+	ShowCapacity bool
+	ShowSubType  bool
+}
+
+// hwComponentTypeFieldFlags - какие поля показывать для типа компонента.
+// Type=0 ("Прочие") - все поля, т.к. там смешанные типы.
+func hwComponentTypeFieldFlags(compType int) (showCapacity, showSubType bool) {
+	switch compType {
+	case 0: // прочие
+		return true, true
+	case 1, 2, 5: // память, диск, RAID (кэш)
+		showCapacity = true
+	}
+	if compType == 2 {
+		showSubType = true
+	}
+	return showCapacity, showSubType
 }
 
 // loadHwComponents читает компоненты сервера (ServerId = ServerHardware.Id).
@@ -747,7 +766,11 @@ func buildHwComponentTabs(comps []models.ServerHardwareComponents) []hwComponent
 		if items == nil {
 			items = []models.ServerHardwareComponents{}
 		}
-		tabs = append(tabs, hwComponentTab{Type: d.Value, Name: d.Name, Items: items})
+		cap, sub := hwComponentTypeFieldFlags(d.Value)
+		tabs = append(tabs, hwComponentTab{
+			Type: d.Value, Name: d.Name, Items: items,
+			ShowCapacity: cap, ShowSubType: sub,
+		})
 	}
 	var other []models.ServerHardwareComponents
 	for t, items := range byType {
@@ -756,7 +779,11 @@ func buildHwComponentTabs(comps []models.ServerHardwareComponents) []hwComponent
 		}
 	}
 	if len(other) > 0 {
-		tabs = append(tabs, hwComponentTab{Type: 0, Name: "Прочие", Items: other})
+		cap, sub := hwComponentTypeFieldFlags(0)
+		tabs = append(tabs, hwComponentTab{
+			Type: 0, Name: "Прочие", Items: other,
+			ShowCapacity: cap, ShowSubType: sub,
+		})
 	}
 	return tabs
 }
