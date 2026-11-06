@@ -43,7 +43,7 @@ func (this *MainController) SprSrvLocationURI() {
 	if errMsg != "" {
 		flash.Error(errMsg)
 		flash.Store(&this.Controller)
-		this.Redirect(fmt.Sprintf("/sprsrv/updatebase/all/%d", id), 302)
+		this.Redirect(fmt.Sprintf("/sprsrv/updatebase-tab/%d", id), 302)
 		return
 	}
 	this.Redirect(fmt.Sprintf("/sprsrv/datacentersiteview/%d?rack=%d&hw=%d", loc.SiteId, loc.RackId, loc.HwId), 302)

@@ -92,7 +92,7 @@
                 <button type="submit" name="ExportBTN" value="Экспорт в CSV" formtarget="_blank" title="Экспорт данных с учётом фильтров в CSV (utf8, разделитель ;)" class="btn btn-outline-success rounded-pill px-3">Экспорт в CSV</button>
                 <button type="submit" name="ExportBTN2" value="Экспорт в XLSX" formtarget="_blank" title="Экспорт данных с учётом фильтров в XLSX" class="btn btn-outline-success rounded-pill px-3">Экспорт в XLSX</button>
                 <button type="button" id="hwBulkEditBtn" title="Редактировать статус и размещение у выделенных в списке записей" class="btn btn-outline-warning rounded-pill px-3" disabled onclick="hwBulkEditGo()">Редактировать выделенные</button>
-                <a href="/sprsrv/hwconfedit/0" title="Добавить новую запись конфигурации сервера" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
+                <a href="/sprsrv/hwconfedit-tab/0" title="Добавить новую запись конфигурации сервера" class="btn btn-success rounded-pill px-3 ms-auto">Добавить</a>
             </div>
         </div>
         <div class="row mt-2">
@@ -142,7 +142,7 @@
                             <div class="small text-muted">{{$hw.PartNum}} {{if eq $hw.FormFactor 1}}(Rack){{else if eq $hw.FormFactor 2}}(Blade){{end}}</div>
                         </div>
                     </td>
-                    <td><a href="/sprsrv/hwconfedit/{{$hw.Id}}" target="_blank">{{$hw.SerialNum}}</a></td>
+                    <td><a href="/sprsrv/hwconfedit-tab/{{$hw.Id}}" target="_blank">{{$hw.SerialNum}}</a></td>
                     <td>
                         <div style="max-width:220px; word-wrap:break-word;">
                             {{$hw.CPUModel}}
@@ -155,14 +155,14 @@
                     <td>{{index $.HWConfigPlacement $hw.RackCabinetId}}</td>
                     <td>
                         {{if gt $hw.ServerId 0}}
-                            <a href="/sprsrv/updatebase/all/{{$hw.ServerId}}" target="_blank" title="Общие данные по серверу">{{if ne $hw.ServerName ""}}{{$hw.ServerName}}{{else}}{{$hw.ServerId}}{{end}}</a>
+                            <a href="/sprsrv/updatebase-tab/{{$hw.ServerId}}" target="_blank" title="Общие данные по серверу">{{if ne $hw.ServerName ""}}{{$hw.ServerName}}{{else}}{{$hw.ServerId}}{{end}}</a>
                         {{else if ne $hw.ServerName ""}}
                             {{$hw.ServerName}}
                         {{end}}
                         {{if ne $hw.ServerNameFQDN ""}}<div class="small text-muted">{{$hw.ServerNameFQDN}}</div>{{end}}
                     </td>
                     <td id="hwRowMenu{{$hw.Id}}" class="d-none">
-                        <a class="ctx-menu-item" href="/sprsrv/hwconfedit/{{$hw.Id}}" target="_blank">Редактировать</a>
+                        <a class="ctx-menu-item" href="/sprsrv/hwconfedit-tab/{{$hw.Id}}" target="_blank">Редактировать</a>
                     </td>
                 </tr>
                 {{else}}

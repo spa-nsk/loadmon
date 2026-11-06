@@ -406,14 +406,14 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 			serverSprId = spr.Id
 		}
 		if serverSprId > 0 {
-			links = append(links, rackViewLink{Title: "Общие данные по серверу", URL: fmt.Sprintf("/sprsrv/updatebase/all/%d", serverSprId)})
+			links = append(links, rackViewLink{Title: "Общие данные по серверу", URL: fmt.Sprintf("/sprsrv/updatebase-tab/%d", serverSprId)})
 		}
 		if serverSprId > 0 {
 			links = append(links,
 				rackViewLink{Title: "Мощность за 3 суток", URL: fmt.Sprintf("/sprsrv/powerrecent/server/%d", serverSprId)},
 				rackViewLink{Title: "Мощность за период", URL: fmt.Sprintf("/sprsrv/powerview/server/%d", serverSprId)})
 		}
-		links = append(links, rackViewLink{Title: "Карточка оборудования", URL: fmt.Sprintf("/sprsrv/hwconfedit/%d", hw.Id)})
+		links = append(links, rackViewLink{Title: "Карточка оборудования", URL: fmt.Sprintf("/sprsrv/hwconfedit-tab/%d", hw.Id)})
 		if sn := strings.TrimSpace(hw.SerialNum); sn != "" {
 			links = append(links, rackViewLink{Title: "Данные OneView", URL: "/sprsrv/srvhwviewbysn/" + sn})
 		}
@@ -619,7 +619,7 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 		}
 		links := []rackViewLink{{Title: "Редактировать ленточную библиотеку", URL: fmt.Sprintf("/sprsrv/tapelibrariesedit/%d", tl.Id)}}
 		if tl.ServerId > 0 {
-			links = append(links, rackViewLink{Title: "Сервер подключения", URL: fmt.Sprintf("/sprsrv/updatebase/all/%d", tl.ServerId)})
+			links = append(links, rackViewLink{Title: "Сервер подключения", URL: fmt.Sprintf("/sprsrv/updatebase-tab/%d", tl.ServerId)})
 		}
 		add(rackViewItem{
 			Kind: "tape", Id: tl.Id, Name: firstNonEmpty(tl.Name, tl.TechnicalNumberIT, fmt.Sprintf("tape-%d", tl.Id)),

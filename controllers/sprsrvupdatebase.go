@@ -49,7 +49,7 @@ func (this *MainController) SprSrvUpdateBaseByVMName() {
 		return
 	}
 
-	this.Redirect(fmt.Sprintf("/sprsrv/updatebase/all/%d", rec.Id), 302)
+	this.Redirect(fmt.Sprintf("/sprsrv/updatebase-tab/%d", rec.Id), 302)
 }
 
 // Маршрут: /sprsrv/updatebase/:backmode/:id([0-9]+)

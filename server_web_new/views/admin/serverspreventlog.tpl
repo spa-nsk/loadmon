@@ -72,7 +72,7 @@
                     <td class="text-end">{{$row.Id}}</td>
                     <td>{{$row.Time.Format "2006-01-02 15:04:05"}}</td>
                     <td>{{$row.TypeLabel}}</td>
-                    <td><a href="/sprsrv/updatebase/all/{{$row.ServerId}}" target="_blank">{{$row.Key}}</a></td>
+                    <td><a href="/sprsrv/updatebase-tab/{{$row.ServerId}}" target="_blank">{{$row.Key}}</a></td>
                     <td>{{if $row.FieldName}}{{$row.FieldName}}{{else}}&mdash;{{end}}</td>
                     <td style="max-width:260px; word-wrap:break-word;">
                         {{if $row.FieldName}}

@@ -163,7 +163,7 @@ func (this *MainController) SprAddServer() {
 		flash.Store(&this.Controller)
 		RegisterRequest(this, 6) //изменение данных справочника
 
-		this.Redirect("/sprsrv/updatebase/"+backmode+"/"+strconv.FormatInt(newId, 10), 302)
+		this.Redirect("/sprsrv/updatebase-tab/"+strconv.FormatInt(newId, 10), 302)
 		return
 	}
 

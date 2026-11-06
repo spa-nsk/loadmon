@@ -48,8 +48,8 @@ func init() {
 	beego.Router("/sprsrv/view2clusters", &controllers.MainController{}, "get:SprSrvView2ClusterList") // JSON: ленивая параллельная загрузка кластеров для чекбоксов фильтра view2
 	beego.Router("/sprsrv/addserver/:backmode/:name", &controllers.MainController{}, "get,post:SprAddServer")
 	beego.Router("/sprsrv/updatebase/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateBase")
-	beego.Router("/sprsrv/updatebase-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateBaseTab") // пробная форма карточки сервера с закладками (updatebase_tab.tpl); в меню не вставляется
-	beego.Router("/sprsrv/vmeditbyname/:Name", &controllers.MainController{}, "get:SprSrvUpdateBaseByVMName") // находит запись models.ServerSprRecords по имени виртуальной машины (Type=1) и переходит на её /sprsrv/updatebase/all/:id
+	beego.Router("/sprsrv/updatebase-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateBaseTab") // форма карточки сервера с закладками (updatebase_tab.tpl)
+	beego.Router("/sprsrv/vmeditbyname/:Name", &controllers.MainController{}, "get:SprSrvUpdateBaseByVMName") // находит запись models.ServerSprRecords по имени виртуальной машины (Type=1) и переходит на её /sprsrv/updatebase-tab/:id
 	beego.Router("/sprsrv/itsystemcorrectpreview/:key", &controllers.MainController{}, "get:SprITSystemCorrectPreview") // JSON-предпросмотр полей, которые пересчитает correctServerSprRecord для выбранной ИТ-системы - используется формой /sprsrv/updatebase для интерактивного обновления полей при выборе ИТ-системы, до сохранения
 	beego.Router("/sprsrv/vmplacementtext/:id([0-9]+)", &controllers.MainController{}, "get:SprSrvVMPlacementTextAsync") // JSON с текстом физического размещения VM (унаследованного от хоста) - асинхронный вызов из updatebase.tpl ПОСЛЕ отрисовки страницы /sprsrv/updatebase, чтобы медленный "живой" gRPC-запрос к vCenter не блокировал её открытие, см. controllers/sprsrvupdatebase.go:SprSrvVMPlacementTextAsync
 	beego.Router("/sprsrv/updateselectedbase/:selected", &controllers.MainController{}, "get,post:SprSrvUpdateSelectedBase")
@@ -60,7 +60,8 @@ func init() {
 	//beego.Router("/sprsrv/updatevmcluster/:backmode/:id([0-9]+)", &controllers.MainController{}, "get,post:SprSrvUpdateVMCluster") // метод SprSrvUpdateVMCluster не реализован в controllers
 	beego.Router("/sprsrv/hwconflist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfig")     // список записей models.ServerHardware (справочник конфигураций серверов) с фильтром и пагинацией
 	beego.Router("/sprsrv/hwconfedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfigEdit") // просмотр/редактирование одной записи models.ServerHardware по Id
-	beego.Router("/sprsrv/hwconfeditbysn/:SN", &controllers.MainController{}, "get:SprHwConfigEditBySN")      // находит запись models.ServerHardware по серийному номеру и переходит на её /sprsrv/hwconfedit/:id (используется пунктом меню "Конфигурация сервера" на /sprsrv/view2)
+	beego.Router("/sprsrv/hwconfedit-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprHwConfigEditTab") // форма конфигурации сервера с закладками (hwconfedit_tab.tpl)
+	beego.Router("/sprsrv/hwconfeditbysn/:SN", &controllers.MainController{}, "get:SprHwConfigEditBySN")      // находит запись models.ServerHardware по серийному номеру и переходит на её /sprsrv/hwconfedit-tab/:id (используется пунктом меню "Конфигурация сервера" на /sprsrv/view2)
 	beego.Router("/sprsrv/hwconfeditbyname/:Name", &controllers.MainController{}, "get:SprHwConfigEditByName") // находит запись models.ServerSprRecords по имени (физический сервер/гипервизор) и переходит на связанную models.ServerHardware через HWSprId (используется хостами на /sprsrv/cluster/... без известного серийного номера)
 	beego.Router("/sprsrv/hwconfbulkedit", &controllers.MainController{}, "get,post:SprHwConfigBulkEdit")     // групповое редактирование статуса/размещения выбранных записей models.ServerHardware
 	//beego.Router("/sprsrv/hwconfadd", &controllers.MainController{}, "get,post:SprAddHWServerConfig") // метод SprAddHWServerConfig не реализован в controllers

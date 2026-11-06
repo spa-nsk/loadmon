@@ -107,7 +107,7 @@
                 <td>{{$tl.InventoryNum}}</td>
                 <td>{{$tl.IPAddress}}</td>
                 <td>
-                    {{if $tl.ServerName}}<a href="/sprsrv/updatebase/all/{{$tl.ServerId}}" target="_blank">{{$tl.ServerName}}</a>{{else}}{{$tl.PcName}}{{end}}
+                    {{if $tl.ServerName}}<a href="/sprsrv/updatebase-tab/{{$tl.ServerId}}" target="_blank">{{$tl.ServerName}}</a>{{else}}{{$tl.PcName}}{{end}}
                 </td>
                 <td>{{$tl.Placement}}</td>
                 <td class="text-end">{{if gt $tl.SizeUnit 0}}{{$tl.SizeUnit}}{{end}}</td>

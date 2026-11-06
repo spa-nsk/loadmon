@@ -664,8 +664,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div style="width:300px;" class="srv-name-cell {{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{end}}">
                         <div class="d-inline-flex align-items-center">
                             <svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg>
-                            <a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" class="{{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{else if eq $record.S.Type 0}}link-body-emphasis{{end}}" title="Общие данные по серверу">{{$record.S.NameFQDN}}</a>
-                            {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}
+                            <a href="/sprsrv/updatebase-tab/{{$record.S.Id}}" target="_blank" class="{{if eq $record.S.Type 2}}text-success{{else if eq $record.S.Type 1}}text-danger{{else if eq $record.S.Type 0}}link-body-emphasis{{end}}" title="Общие данные по серверу">{{$record.S.NameFQDN}}</a>
+                            {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit-tab/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}
                         </div>
                         {{if or (eq $record.S.Type 1) (eq $record.S.Type 2)}}{{if ne $record.S.Vcenter "" }}
                         <!-- Раньше ссылка вела на /sprsrv/clusterperiod/... (метод SprClusterPeriod
@@ -681,8 +681,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div style="width:300px;" class="srv-name-cell text-body-secondary">
                         <div class="d-inline-flex align-items-center">
                             <svg class="bi power-led {{if eq $record.S.PowerState 1}}is-on{{else}}is-off{{end}}" aria-hidden="true" title="{{if eq $record.S.PowerState 1}}Включен{{else}}Выключен{{end}}"><use href="#power"></use></svg>
-                            <a href="/sprsrv/updatebase/all/{{$record.S.Id}}" target="_blank" title="Общие данные по серверу">{{$record.S.Name}}</a>
-                            {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}
+                            <a href="/sprsrv/updatebase-tab/{{$record.S.Id}}" target="_blank" title="Общие данные по серверу">{{$record.S.Name}}</a>
+                            {{if gt $record.Hardware.H.Id 0 }} ( sn:<a href="/sprsrv/hwconfedit-tab/{{$record.Hardware.H.Id}}" target="_blank" title="Конфигурация сервера">{{$record.Hardware.H.SerialNum}}</a> ){{end}}
                         </div>
                         {{if or (eq $record.S.Type 1) (eq $record.S.Type 2)}}{{if ne $record.S.Vcenter "" }}
                         <div class="text-success">{{$record.S.Vcenter}} / {{$record.S.Datacenter}} / {{$record.S.Cluster}}</div>
@@ -693,7 +693,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td id="rowMenu{{$record.S.Id}}" class="d-none">
                     <!-- Меню объединено в один плоский список без заголовков секций
                          "Подробнее"/"Загрузка" и разделителя между ними - по запросу. -->
-                    <a class="ctx-menu-item" href="/sprsrv/updatebase/{{$.backmode}}/{{$record.S.Id}}" target="_blank">Редактировать</a>
+                    <a class="ctx-menu-item" href="/sprsrv/updatebase-tab/{{$record.S.Id}}" target="_blank">Редактировать</a>
                     {{if and (or (eq $record.S.Type 0) (eq $record.S.Type 2)) (ne $record.S.SerialNumber "") }}<a class="ctx-menu-item" href="/sprsrv/hwconfeditbysn/{{$record.S.SerialNumber}}" target="_blank">Конфигурация сервера</a>{{end}}
                     <a class="ctx-menu-item" href="/sprsrv/location-uri/{{$record.S.Id}}" target="_blank">Расположение сервера на Площадке/ЦОД</a>
                     <!-- Пункты "Детали по виртуальной машине"/"Размещение виртуальной машины"
