@@ -132,6 +132,7 @@ func init() {
 	beego.Router("/admin/importnetworkequipment", &controllers.MainController{}, "get,post:AdminImportNetworkEquipment")          // импорт сетевого оборудования из Итиллиум, см. controllers/adminimportnetworkequipment.go
 	beego.Router("/admin/importnetworkequipment/status", &controllers.MainController{}, "get:AdminImportNetworkEquipmentStatus") // JSON-опрос прогресса этого импорта
 	beego.Router("/sprsrv/bladesystemserverslist/:id([0-9]+)", &controllers.MainController{}, "get:SprBladeSystemServersList") // read-only список models.ServerHardware, установленных в ОДНОЙ блейд-корзине (BladeSystemId), с фиксацией позиции (BladeNum)
+	beego.Router("/sprsrv/bladesystemserverslistvisual/:id([0-9]+)", &controllers.MainController{}, "get:SprBladeSystemServersListVisual") // визуализация одной блейд-корзины с блейдами (как в rackcabinetview) + параметры выбранного блейда
 	beego.Router("/sprsrv/storagesystemslist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystems")     // список записей models.StorageSystems (справочник СХД) с фильтром, пагинацией и экспортом в CSV/XLSX
 	beego.Router("/sprsrv/storagesystemsedit/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemsEdit") // просмотр/редактирование/добавление одной записи models.StorageSystems по Id (Id=0 - новая запись)
 	beego.Router("/sprsrv/storagesystemsedit-tab/:id([0-9]+)", &controllers.MainController{}, "get,post:SprStorageSystemsEditTab") // форма СХД с закладками (storagesystemsedit_tab.tpl)

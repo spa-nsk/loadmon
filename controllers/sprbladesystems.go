@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"loadmon/csvtools"
 	"loadmon/models"
 	"net/http"
@@ -670,4 +672,169 @@ func (this *MainController) SprBladeSystemServersList() {
 	}
 	this.Data["Servers"] = rows
 	this.Data["ServersCount"] = len(rows)
+}
+
+// bladeChassisVisualData - JSON для canvas-визуализации одной блейд-корзины
+// (/sprsrv/bladesystemserverslistvisual): та же структура слотов/блейдов, что
+// rackViewItem kind=chassis в /sprsrv/rackcabinetview.
+type bladeChassisVisualData struct {
+	Chassis rackViewItem `json:"chassis"`
+}
+
+// SprBladeSystemServersListVisual - визуализация одной блейд-корзины с блейдами
+// в слотах (отрисовка как корзины в /sprsrv/rackcabinetview) и панелью
+// параметров выбранного блейда.
+//
+// Маршрут: /sprsrv/bladesystemserverslistvisual/:id([0-9]+)
+func (this *MainController) SprBladeSystemServersListVisual() {
+	idStr := this.Ctx.Input.Param(":id")
+	RegisterRequest(this, LogTypeViewReference)
+
+	this.activeContent("sprsrv/bladesystemserverslistvisual")
+	this.Data["Id"] = idStr
+	this.Data["ChassisJSON"] = template.JS("null")
+
+	flash := beego.NewFlash()
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		flash.Error("Некорректный идентификатор записи: %s", idStr)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	o := orm.NewOrm()
+	var bls models.BladeSystems
+	if err := o.QueryTable("blade_systems").Filter("Id", id).One(&bls); err != nil {
+		flash.Error("Блейд-корзина с Id=%d не найдена: %v", id, err)
+		flash.Store(&this.Controller)
+		return
+	}
+	this.Data["BS"] = bls
+
+	var bladeRows []models.ServerHardware
+	if _, err := o.QueryTable("server_hardware").Filter("BladeSystemId", id).OrderBy("BladeNum").All(&bladeRows); err != nil {
+		flash.Error("Ошибка чтения списка серверов: %v", err)
+		flash.Store(&this.Controller)
+		return
+	}
+
+	hwIds := make([]int64, 0, len(bladeRows))
+	for _, hw := range bladeRows {
+		hwIds = append(hwIds, hw.Id)
+	}
+	sprByHW := map[int64]models.ServerSprRecords{}
+	if len(hwIds) > 0 {
+		var sprRows []models.ServerSprRecords
+		if _, err := models.ServerSprQS(o).Filter("Stat", 1).Filter("HWSprId__in", hwIds).All(&sprRows); err == nil {
+			for _, s := range sprRows {
+				if _, dup := sprByHW[s.HWSprId]; !dup {
+					sprByHW[s.HWSprId] = s
+				}
+			}
+		}
+	}
+
+	bladeDetail := func(hw models.ServerHardware) (rows []rackViewKV, links []rackViewLink, name string) {
+		spr, hasSpr := sprByHW[hw.Id]
+		if hasSpr && strings.TrimSpace(spr.Name) != "" {
+			name = spr.Name
+		}
+		if name == "" {
+			name = firstNonEmpty(hw.SerialNum, hw.Model, fmt.Sprintf("srv-%d", hw.Id))
+		}
+		if hasSpr {
+			rows = rackViewKVAdd(rows, "FQDN", spr.NameFQDN)
+			rows = rackViewKVAdd(rows, "IP сервера", spr.IPAddress)
+			if spr.Type == 2 {
+				rows = rackViewKVAdd(rows, "Роль", "Гипервизор VMware")
+			}
+		}
+		rows = rackViewKVAdd(rows, "Слот", fmt.Sprintf("%d", hw.BladeNum))
+		rows = rackViewKVAdd(rows, "Серийный номер", hw.SerialNum)
+		rows = rackViewKVAdd(rows, "Номер продукта", hw.PartNum)
+		rows = rackViewKVAdd(rows, "Инвентарный номер", hw.InventoryNum)
+		rows = rackViewKVAdd(rows, "IP iLO/MP", hw.MpIPAddress)
+		rows = rackViewKVAdd(rows, "Hostname iLO/MP", hw.MpHostName)
+		rows = rackViewKVAdd(rows, "Модель iLO/MP", hw.MpModel)
+		if hw.CPUCount > 0 {
+			rows = rackViewKVAdd(rows, "Процессоры", fmt.Sprintf("%d × %s (%d ядер @ %d MHz)", hw.CPUCount, strings.TrimSpace(hw.CPUModel), hw.CorePerCPU, hw.CoreMHz))
+		}
+		if hw.MemoryMb > 0 {
+			rows = rackViewKVAdd(rows, "Память", fmt.Sprintf("%d ГБ (%d МБ)", hw.MemoryMb/1024, hw.MemoryMb))
+		}
+		rows = rackViewPowerRows(rows, hw.PowerAvg24hW, hw.PowerPeak24hW, hw.PowerRatedMaxW)
+		rows = rackViewKVAdd(rows, "Состояние (health)", hw.Status)
+
+		serverSprId := hw.ServerId
+		if hasSpr && spr.Id > 0 {
+			serverSprId = spr.Id
+		}
+		if serverSprId > 0 {
+			links = append(links, rackViewLink{Title: "Общие данные по серверу", URL: fmt.Sprintf("/sprsrv/updatebase-tab/%d", serverSprId)})
+			links = append(links,
+				rackViewLink{Title: "Мощность за 3 суток", URL: fmt.Sprintf("/sprsrv/powerrecent/server/%d", serverSprId)},
+				rackViewLink{Title: "Мощность за период", URL: fmt.Sprintf("/sprsrv/powerview/server/%d", serverSprId)})
+		}
+		links = append(links, rackViewLink{Title: "Карточка оборудования", URL: fmt.Sprintf("/sprsrv/hwconfedit-tab/%d", hw.Id)})
+		if sn := strings.TrimSpace(hw.SerialNum); sn != "" {
+			links = append(links, rackViewLink{Title: "Данные OneView", URL: "/sprsrv/srvhwviewbysn/" + sn})
+		}
+		if hasSpr && spr.ZabbixHostId > 0 {
+			links = append(links, rackViewLink{Title: "Метрики производительности (Zabbix)", URL: fmt.Sprintf("/sprsrv/zabbixperfperiod/%d", spr.ZabbixHostId)})
+		}
+		return rows, links, name
+	}
+
+	slots := bls.Size
+	if slots <= 0 {
+		slots = 16
+	}
+	sizeU := bls.SizeUnit
+	if sizeU <= 0 && bls.EndUnitPos >= bls.StartUnitPos && bls.StartUnitPos > 0 {
+		sizeU = bls.EndUnitPos - bls.StartUnitPos + 1
+	}
+	if sizeU <= 0 {
+		sizeU = 10
+	}
+
+	var chRows []rackViewKV
+	chRows = rackViewKVAdd(chRows, "Тип", bls.Type)
+	chRows = rackViewKVAdd(chRows, "Серийный номер", bls.SerialNum)
+	chRows = rackViewKVAdd(chRows, "Номер продукта", bls.PartNum)
+	chRows = rackViewKVAdd(chRows, "Инвентарный номер", bls.InventoryNum)
+	chRows = rackViewKVAdd(chRows, "Слотов (занято)", fmt.Sprintf("%d (%d)", slots, len(bladeRows)))
+	chRows = rackViewPowerRows(chRows, bls.PowerAvg24hW, bls.PowerPeak24hW, bls.PowerRatedMaxW)
+	chLinks := []rackViewLink{
+		{Title: "Серверы в корзине (список)", URL: fmt.Sprintf("/sprsrv/bladesystemserverslist/%d", bls.Id)},
+		{Title: "Мощность корзины за период", URL: fmt.Sprintf("/sprsrv/powerview/blade/%d", bls.Id)},
+		{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", bls.Id)},
+	}
+
+	blades := make([]rackViewBlade, 0, len(bladeRows))
+	for _, b := range bladeRows {
+		brows, blinks, bname := bladeDetail(b)
+		blades = append(blades, rackViewBlade{
+			Id: b.Id, Slot: b.BladeNum, Name: bname, Model: firstNonEmpty(b.Model, b.ShortModel),
+			Power: rackViewPower(b.PowerState), Rows: brows, Links: blinks,
+		})
+	}
+
+	item := rackViewItem{
+		Kind: "chassis", Id: bls.Id,
+		Name:   firstNonEmpty(bls.Name, bls.SerialNum, fmt.Sprintf("chassis-%d", bls.Id)),
+		Vendor: bls.Vendor, Model: firstNonEmpty(bls.Model, bls.Type),
+		StartU: bls.StartUnitPos, SizeU: sizeU,
+		Power: rackViewPower(bls.PowerState), Slots: slots,
+		Rows: chRows, Links: chLinks, Blades: blades,
+	}
+
+	payload, jerr := json.Marshal(bladeChassisVisualData{Chassis: item})
+	if jerr != nil {
+		flash.Error("Ошибка сериализации данных визуализации: %v", jerr)
+		flash.Store(&this.Controller)
+		return
+	}
+	this.Data["ChassisJSON"] = template.JS(payload)
+	this.Data["ServersCount"] = len(bladeRows)
 }

@@ -467,6 +467,7 @@ func fillRackCabinetViewPage(this *MainController, o orm.Ormer, id int64, flash 
 		rows = rackViewPowerRows(rows, ch.PowerAvg24hW, ch.PowerPeak24hW, ch.PowerRatedMaxW)
 		links := []rackViewLink{
 			{Title: "Серверы в корзине", URL: fmt.Sprintf("/sprsrv/bladesystemserverslist/%d", ch.Id)},
+			{Title: "Отображение блэйд корзины с серверами", URL: fmt.Sprintf("/sprsrv/bladesystemserverslistvisual/%d", ch.Id)},
 			{Title: "Мощность корзины за период (суточные, OneView)", URL: fmt.Sprintf("/sprsrv/powerview/blade/%d", ch.Id)},
 			{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", ch.Id)},
 		}
