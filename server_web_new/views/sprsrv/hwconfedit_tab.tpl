@@ -31,27 +31,27 @@
 
         <div class="tab-pane fade show active" id="tab-hw-general" role="tabpanel" aria-labelledby="tab-hw-general-btn" tabindex="0">
             <div class="row g-3">
-                <div class="col-6">
+                <div class="col-4">
                     <label for="Vendor" class="form-label">Производитель</label>
                     <input type="text" id="Vendor" name="Vendor" class="form-control" value="{{.HW.Vendor}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="Model" class="form-label">Модель</label>
                     <input type="text" id="Model" name="Model" class="form-control" value="{{.HW.Model}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="PartNum" class="form-label">Номер продукта</label>
                     <input type="text" id="PartNum" name="PartNum" class="form-control" value="{{.HW.PartNum}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="SerialNum" class="form-label">Серийный номер</label>
                     <input type="text" id="SerialNum" name="SerialNum" class="form-control" value="{{.HW.SerialNum}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="VirtualSerialNum" class="form-label">Виртуальный серийный номер</label>
                     <input type="text" id="VirtualSerialNum" name="VirtualSerialNum" class="form-control" value="{{.HW.VirtualSerialNum}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="FormFactor" class="form-label">Тип сервера</label>
                     <select id="FormFactor" name="FormFactor" class="form-select">
                         <option value="0" {{if eq .HW.FormFactor 0}}selected{{end}}>Не указано</option>
@@ -59,7 +59,7 @@
                         <option value="2" {{if eq .HW.FormFactor 2}}selected{{end}}>Blade</option>
                     </select>
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="PowerState" class="form-label">Состояние питания</label>
                     <select id="PowerState" name="PowerState" class="form-select">
                         <option value="0" {{if eq .HW.PowerState 0}}selected{{end}}>Не указано</option>
@@ -67,7 +67,7 @@
                         <option value="2" {{if eq .HW.PowerState 2}}selected{{end}}>Выключен</option>
                     </select>
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="Active" class="form-label">Статус</label>
                     <select id="Active" name="Active" class="form-select">
                         <option value="0" {{if eq .HW.Active 0}}selected{{end}}>Не указано</option>
@@ -76,7 +76,7 @@
                         <option value="3" {{if eq .HW.Active 3}}selected{{end}}>Списан</option>
                     </select>
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
                     <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
                         {{range $s := .ItiliumStatuses}}
@@ -105,58 +105,45 @@
 
         <div class="tab-pane fade" id="tab-hw-account" role="tabpanel" aria-labelledby="tab-hw-account-btn" tabindex="0">
             <div class="row g-3">
-                <div class="col-6">
+                <div class="col-4">
                     <label for="TechnicalNumberIT" class="form-label">Технический номер ИТ</label>
                     <input type="text" id="TechnicalNumberIT" name="TechnicalNumberIT" class="form-control" value="{{.HW.TechnicalNumberIT}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="InventoryNum" class="form-label">Инвентарный номер</label>
                     <input type="text" id="InventoryNum" name="InventoryNum" class="form-control" value="{{.HW.InventoryNum}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="InventoryNumBuh" class="form-label">Инвентарный номер (Бух)</label>
                     <input type="text" id="InventoryNumBuh" name="InventoryNumBuh" class="form-control" value="{{.HW.InventoryNumBuh}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="Counterparty" class="form-label">Контрагент</label>
                     <input type="text" id="Counterparty" name="Counterparty" class="form-control" value="{{.HW.Counterparty}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="ContractDoc" class="form-label">Номер договора</label>
                     <input type="text" id="ContractDoc" name="ContractDoc" class="form-control" value="{{.HW.ContractDoc}}">
                 </div>
-                <div class="col-6">
+                <div class="col-4">
                     <label for="DateContractDoc" class="form-label">Дата договора</label>
                     <input type="date" id="DateContractDoc" name="DateContractDoc" class="form-control" value="{{.DateContractDocStr}}">
                 </div>
-                <div class="col-6">
+                <div class="col-3">
                     <label for="Invoice" class="form-label">Накладная</label>
                     <input type="text" id="Invoice" name="Invoice" class="form-control" value="{{.HW.Invoice}}">
                 </div>
-                <div class="col-6">
+                <div class="col-3">
                     <label for="DateInvoice" class="form-label">Дата получения</label>
                     <input type="date" id="DateInvoice" name="DateInvoice" class="form-control" value="{{.DateInvoiceStr}}">
                 </div>
-                <div class="col-6">
+                <div class="col-3">
                     <label for="ServiceContract" class="form-label">Сервисный контракт</label>
                     <input type="text" id="ServiceContract" name="ServiceContract" class="form-control" value="{{.HW.ServiceContract}}">
                 </div>
-                <div class="col-6">
+                <div class="col-3">
                     <label for="DateService" class="form-label">Дата окончания</label>
                     <input type="date" id="DateService" name="DateService" class="form-control" value="{{.DateServiceStr}}">
-                </div>
-                <div class="col-12">
-                    <label for="SourceUpdate" class="form-label">Источник данных</label>
-                    <input type="text" id="SourceUpdate" name="SourceUpdate" class="form-control" value="{{.HW.SourceUpdate}}">
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Источник последнего обновления</label>
-                    <div>
-                        <span class="badge {{if eq .HW.SourceUpdateType 1}}text-bg-secondary{{else if eq .HW.SourceUpdateType 2}}text-bg-info{{else if eq .HW.SourceUpdateType 3}}text-bg-primary{{else if eq .HW.SourceUpdateType 4}}text-bg-warning{{else}}text-bg-light{{end}}">
-                            {{if eq .HW.SourceUpdateType 1}}Вручную{{else if eq .HW.SourceUpdateType 2}}VMware{{else if eq .HW.SourceUpdateType 3}}HPE OneView{{else if eq .HW.SourceUpdateType 4}}Zabbix{{else}}Не указано{{end}}
-                        </span>
-                        <span class="small text-muted ms-1">проставляется автоматически при синхронизации/сохранении, вручную не редактируется</span>
-                    </div>
                 </div>
                 <div class="col-6">
                     <label for="hwEditDatacenterSiteId" class="form-label">Площадка/ЦОД</label>
@@ -184,6 +171,19 @@
                 <div class="col-6">
                     <label for="SizeUnit" class="form-label">Занимаемых юнитов</label>
                     <input type="number" id="SizeUnit" name="SizeUnit" class="form-control" value="{{.HW.SizeUnit}}">
+                </div>
+                <div class="col-12">
+                    <label for="SourceUpdate" class="form-label">Источник данных</label>
+                    <input type="text" id="SourceUpdate" name="SourceUpdate" class="form-control" value="{{.HW.SourceUpdate}}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Источник последнего обновления</label>
+                    <div>
+                        <span class="badge {{if eq .HW.SourceUpdateType 1}}text-bg-secondary{{else if eq .HW.SourceUpdateType 2}}text-bg-info{{else if eq .HW.SourceUpdateType 3}}text-bg-primary{{else if eq .HW.SourceUpdateType 4}}text-bg-warning{{else}}text-bg-light{{end}}">
+                            {{if eq .HW.SourceUpdateType 1}}Вручную{{else if eq .HW.SourceUpdateType 2}}VMware{{else if eq .HW.SourceUpdateType 3}}HPE OneView{{else if eq .HW.SourceUpdateType 4}}Zabbix{{else}}Не указано{{end}}
+                        </span>
+                        <span class="small text-muted ms-1">проставляется автоматически при синхронизации/сохранении, вручную не редактируется</span>
+                    </div>
                 </div>
             </div>
         </div>
