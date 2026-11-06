@@ -112,6 +112,7 @@
                 <td id="bsRowMenu{{$bs.Id}}" class="d-none">
                     <a class="ctx-menu-item" href="/sprsrv/bladesystemsedit-tab/{{$bs.Id}}" target="_blank">Редактировать</a>
                     <a class="ctx-menu-item" href="/sprsrv/bladesystemserverslist/{{$bs.Id}}" target="_blank">Серверы в корзине</a>
+                    <a class="ctx-menu-item" href="/sprsrv/bladesystemserverslistvisual/{{$bs.Id}}" target="_blank">Отображение блэйд корзины с серверами</a>
                 </td>
             </tr>
             {{else}}

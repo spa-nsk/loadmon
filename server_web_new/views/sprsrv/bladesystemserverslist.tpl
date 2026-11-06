@@ -9,6 +9,7 @@
     </div>
     <div class="d-flex gap-2">
         {{if .BS}}
+        <a href="/sprsrv/bladesystemserverslistvisual/{{.BS.Id}}" class="btn btn-outline-primary rounded-pill px-3" target="_blank">Визуализация</a>
         <a href="/sprsrv/bladesystemsedit-tab/{{.BS.Id}}" class="btn btn-outline-secondary rounded-pill px-3" target="_blank">Корзина</a>
         {{end}}
         <a href="/sprsrv/bladesystemslist/0" class="btn btn-outline-secondary rounded-pill px-3">К списку корзин</a>
