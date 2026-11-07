@@ -35,7 +35,7 @@ func (this *ErrorController) activeContent(view string) {
 	this.LayoutSections["Footer"] = "footer.tpl"
 	this.TplName = view + ".tpl"
 	this.Data["domainname"] = "https://spa.usvc.global.bcs"
-	this.Data["StaticVer"] = staticAssetVersion // cache-busting для ссылок на /static/... (см. комментарий у staticAssetVersion в main_controller.go) - нужен на 404.tpl/500.tpl/dberror.tpl, которые ссылаются на /static/js/reload.min.js
+	this.Data["StaticVer"] = currentStaticVersion() // cache-busting для ссылок на /static/... (см. комментарий у staticAssetVersion в main_controller.go) - нужен на 404.tpl/500.tpl/dberror.tpl, которые ссылаются на /static/js/reload.min.js
 	//this.Data["domainname"] = "yourdomainname"
 
 	sess := this.GetSession("loadmon")

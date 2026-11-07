@@ -12,11 +12,12 @@ import (
 	beego "github.com/beego/beego/v2/server/web"
 )
 
-// hwConfVisualDisk - физический диск сервера (ServerHardwareComponents Type=2)
-// для наведения/выбора на canvas /sprsrv/hwconfvisual.
-type hwConfVisualDisk struct {
+// hwConfVisualComp - компонент сервера (ServerHardwareComponents) для 3D-вида
+// /sprsrv/hwconfvisual. Kind: disk, cpu, ram, nic, fc, raid, pci, psu, fan.
+type hwConfVisualComp struct {
 	Id          int64        `json:"id"`
-	Index       int          `json:"index"` // порядковый индекс в корзине дисков (0-based)
+	Kind        string       `json:"kind"`
+	Index       int          `json:"index"` // порядковый индекс среди компонентов этого вида (0-based)
 	Slot        string       `json:"slot"`
 	Name        string       `json:"name"`
 	Vendor      string       `json:"vendor"`
@@ -28,7 +29,7 @@ type hwConfVisualDisk struct {
 	Rows        []rackViewKV `json:"rows"`
 }
 
-// hwConfVisualServer - данные лицевой панели сервера для отрисовки.
+// hwConfVisualServer - данные сервера для 3D-отрисовки.
 type hwConfVisualServer struct {
 	Id         int64          `json:"id"`
 	Name       string         `json:"name"`
@@ -40,12 +41,34 @@ type hwConfVisualServer struct {
 	Power      int            `json:"power"`
 	Rows       []rackViewKV   `json:"rows"`
 	Links      []rackViewLink `json:"links"`
+	CPUCount   int            `json:"cpuCount"`
+	MemoryGb   int            `json:"memoryGb"`
+	MgmtIP     string         `json:"mgmtIp"`
+	MgmtModel  string         `json:"mgmtModel"`
+	RatedW     float64        `json:"ratedW"`
 }
 
 // hwConfVisualData - JSON для /sprsrv/hwconfvisual/:id.
 type hwConfVisualData struct {
-	Server hwConfVisualServer `json:"server"`
-	Disks  []hwConfVisualDisk `json:"disks"`
+	Server     hwConfVisualServer `json:"server"`
+	Components []hwConfVisualComp `json:"components"`
+}
+
+// hwConfVisualKinds - типы компонентов сервера, выводимые в 3D-виде.
+var hwConfVisualKinds = []struct {
+	Type  int
+	Kind  string
+	Title string
+}{
+	{2, "disk", "Диск"},
+	{11, "cpu", "Процессор"},
+	{1, "ram", "Модуль памяти"},
+	{3, "nic", "Сетевой адаптер"},
+	{4, "fc", "FC-адаптер"},
+	{5, "raid", "RAID-контроллер"},
+	{9, "pci", "PCI-устройство"},
+	{12, "psu", "Блок питания"},
+	{13, "fan", "Вентилятор"},
 }
 
 func hwDiskSubTypeName(sub int) string {
@@ -60,8 +83,10 @@ func hwDiskSubTypeName(sub int) string {
 	return ""
 }
 
-// SprHwConfVisual - визуализация конфигурации сервера по вендору/модели
-// (лицевая панель как в /sprsrv/rackcabinetview) с наведением на диски.
+// SprHwConfVisual - 3D-визуализация конфигурации сервера по вендору/модели
+// (HPE, Dell, Supermicro, DEPO и др.): лицевая панель с дисками, тыльная
+// сторона (БП, адаптеры, порты управления) и вид сверху со снятым кожухом
+// (вентиляторы, процессоры, память).
 //
 // Маршрут: /sprsrv/hwconfvisual/:id([0-9]+)
 func (this *MainController) SprHwConfVisual() {
@@ -163,42 +188,81 @@ func (this *MainController) SprHwConfVisual() {
 		links = append(links, rackViewLink{Title: "Данные OneView", URL: "/sprsrv/srvhwviewbysn/" + sn})
 	}
 
-	const diskType = 2 // cmdb.ServerHWComponentDisk
-	var diskComps []models.ServerHardwareComponents
-	_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
-		Filter("ServerId", hw.Id).Filter("Type", diskType).
-		OrderBy("Slot", "Id").All(&diskComps)
-
-	disks := make([]hwConfVisualDisk, 0, len(diskComps))
-	for i, c := range diskComps {
-		dname := firstNonEmpty(c.Model, c.SerialNum, fmt.Sprintf("Диск %d", i+1))
-		var drows []rackViewKV
-		drows = rackViewKVAdd(drows, "Слот / расположение", c.Slot)
-		drows = rackViewKVAdd(drows, "Производитель", c.Vendor)
-		drows = rackViewKVAdd(drows, "Модель", c.Model)
-		drows = rackViewKVAdd(drows, "Серийный номер", c.SerialNum)
-		if c.CapacityGb > 0 {
-			drows = rackViewKVAdd(drows, "Ёмкость", fmt.Sprintf("%.1f ГБ", c.CapacityGb))
+	// Компоненты сервера (по ServerId = ServerHardware.Id).
+	comps := make([]hwConfVisualComp, 0, 64)
+	countByKind := map[string]int{}
+	for _, kd := range hwConfVisualKinds {
+		var list []models.ServerHardwareComponents
+		_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
+			Filter("ServerId", hw.Id).Filter("Type", kd.Type).
+			OrderBy("Slot", "Id").All(&list)
+		for i, c := range list {
+			cname := firstNonEmpty(c.Model, c.SerialNum, fmt.Sprintf("%s %d", kd.Title, i+1))
+			var crow []rackViewKV
+			crow = rackViewKVAdd(crow, "Слот / расположение", c.Slot)
+			crow = rackViewKVAdd(crow, "Производитель", c.Vendor)
+			crow = rackViewKVAdd(crow, "Модель", c.Model)
+			crow = rackViewKVAdd(crow, "Серийный номер", c.SerialNum)
+			if c.CapacityGb > 0 {
+				if kd.Kind == "psu" {
+					crow = rackViewKVAdd(crow, "Мощность (номинал)", fmt.Sprintf("%.0f Вт", c.CapacityGb))
+				} else {
+					crow = rackViewKVAdd(crow, "Ёмкость", fmt.Sprintf("%.1f ГБ", c.CapacityGb))
+				}
+			}
+			stName := ""
+			if kd.Kind == "disk" {
+				stName = hwDiskSubTypeName(c.SubType)
+				if stName != "" {
+					crow = rackViewKVAdd(crow, "Тип носителя", stName)
+				}
+			}
+			comps = append(comps, hwConfVisualComp{
+				Id: c.Id, Kind: kd.Kind, Index: i, Slot: c.Slot, Name: cname,
+				Vendor: c.Vendor, Model: c.Model, SerialNum: c.SerialNum,
+				CapacityGb: c.CapacityGb, SubType: c.SubType, SubTypeName: stName,
+				Rows: crow,
+			})
+			countByKind[kd.Kind]++
 		}
-		if st := hwDiskSubTypeName(c.SubType); st != "" {
-			drows = rackViewKVAdd(drows, "Тип носителя", st)
-		}
-		disks = append(disks, hwConfVisualDisk{
-			Id: c.Id, Index: i, Slot: c.Slot, Name: dname,
-			Vendor: c.Vendor, Model: c.Model, SerialNum: c.SerialNum,
-			CapacityGb: c.CapacityGb, SubType: c.SubType, SubTypeName: hwDiskSubTypeName(c.SubType),
-			Rows: drows,
-		})
 	}
-	rows = rackViewKVAdd(rows, "Дисков", fmt.Sprintf("%d", len(disks)))
+	// Процессоры не синхронизированы как компоненты - показываем по данным сервера.
+	if countByKind["cpu"] == 0 && hw.CPUCount > 0 {
+		for i := 0; i < hw.CPUCount; i++ {
+			var crow []rackViewKV
+			crow = rackViewKVAdd(crow, "Сокет", fmt.Sprintf("%d", i+1))
+			crow = rackViewKVAdd(crow, "Модель", strings.TrimSpace(hw.CPUModel))
+			if hw.CorePerCPU > 0 {
+				crow = rackViewKVAdd(crow, "Ядер", fmt.Sprintf("%d", hw.CorePerCPU))
+			}
+			if hw.CoreMHz > 0 {
+				crow = rackViewKVAdd(crow, "Частота", fmt.Sprintf("%d MHz", hw.CoreMHz))
+			}
+			comps = append(comps, hwConfVisualComp{
+				Kind: "cpu", Index: i, Slot: fmt.Sprintf("Сокет %d", i+1),
+				Name: firstNonEmpty(strings.TrimSpace(hw.CPUModel), fmt.Sprintf("Процессор %d", i+1)),
+				Model: strings.TrimSpace(hw.CPUModel), Rows: crow,
+			})
+			countByKind["cpu"]++
+		}
+	}
+	rows = rackViewKVAdd(rows, "Дисков", fmt.Sprintf("%d", countByKind["disk"]))
+	if n := countByKind["ram"]; n > 0 {
+		rows = rackViewKVAdd(rows, "Модулей памяти", fmt.Sprintf("%d", n))
+	}
+	if n := countByKind["nic"] + countByKind["fc"] + countByKind["raid"] + countByKind["pci"]; n > 0 {
+		rows = rackViewKVAdd(rows, "Адаптеров/портов (NIC, FC, RAID, PCI)", fmt.Sprintf("%d", n))
+	}
 
 	payload, jerr := json.Marshal(hwConfVisualData{
 		Server: hwConfVisualServer{
 			Id: hw.Id, Name: name, Vendor: hw.Vendor, Model: firstNonEmpty(hw.Model, hw.ShortModel),
 			SerialNum: hw.SerialNum, FormFactor: hw.FormFactor, SizeU: sizeU,
 			Power: rackViewPower(hw.PowerState), Rows: rows, Links: links,
+			CPUCount: hw.CPUCount, MemoryGb: hw.MemoryMb / 1024,
+			MgmtIP: hw.MpIPAddress, MgmtModel: hw.MpModel, RatedW: hw.PowerRatedMaxW,
 		},
-		Disks: disks,
+		Components: comps,
 	})
 	if jerr != nil {
 		flash.Error("Ошибка сериализации данных визуализации: %v", jerr)
@@ -206,5 +270,5 @@ func (this *MainController) SprHwConfVisual() {
 		return
 	}
 	this.Data["VisualJSON"] = template.JS(payload)
-	this.Data["DisksCount"] = len(disks)
+	this.Data["DisksCount"] = countByKind["disk"]
 }

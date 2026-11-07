@@ -57,7 +57,7 @@ func (this *MainController) showAuthGate(target string) {
 	this.Layout = ""
 	this.TplName = "user/authgate.tpl"
 	this.Data["AuthGateTarget"] = target
-	this.Data["StaticVer"] = staticAssetVersion
+	this.Data["StaticVer"] = currentStaticVersion()
 	domain := config.ConfigData.IsDomainAuth()
 	this.Data["AuthGateSSO"] = domain
 	if domain {

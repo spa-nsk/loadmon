@@ -10,11 +10,14 @@ package controllers
 import (
 	"encoding/base64"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	//"github.com/astaxie/beego"
@@ -63,6 +66,52 @@ func (this *MainController) Shutdown() {
 // auto } в loadmon.css) до ручной очистки кэша - см. историю обсуждения.
 var staticAssetVersion = strconv.FormatInt(time.Now().Unix(), 10)
 
+// Динамическая версия статики: максимальное время изменения файлов в
+// static/ (css, js, ...) и момент старта процесса. Меняется при любой правке
+// css/js (даже без перезапуска сервера), поэтому браузер сам перечитывает
+// изменённые файлы, без Ctrl+F5. Результат кэшируется на staticVerTTL,
+// чтобы не обходить каталог на каждый запрос страницы.
+const staticVerTTL = 3 * time.Second
+
+var (
+	staticVerMu      sync.Mutex
+	staticVerChecked time.Time
+	staticVerValue   = staticAssetVersion
+)
+
+// currentStaticVersion возвращает значение для ?v= у ссылок на /static/...
+func currentStaticVersion() string {
+	staticVerMu.Lock()
+	defer staticVerMu.Unlock()
+	if time.Since(staticVerChecked) < staticVerTTL {
+		return staticVerValue
+	}
+	staticVerChecked = time.Now()
+
+	dir := beego.BConfig.WebConfig.StaticDir["/static"]
+	if dir == "" {
+		dir = "static"
+	}
+	if !filepath.IsAbs(dir) && beego.WorkPath != "" {
+		dir = filepath.Join(beego.WorkPath, dir)
+	}
+	latest, _ := strconv.ParseInt(staticAssetVersion, 10, 64)
+	// Не обходим тяжёлые вложенные библиотеки: достаточно css/js и js2 проекта.
+	for _, sub := range []string{"css", "js", "js2"} {
+		_ = filepath.WalkDir(filepath.Join(dir, sub), func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			if info, e := d.Info(); e == nil && info.ModTime().Unix() > latest {
+				latest = info.ModTime().Unix()
+			}
+			return nil
+		})
+	}
+	staticVerValue = strconv.FormatInt(latest, 10)
+	return staticVerValue
+}
+
 func (this *MainController) activeContent(view string) {
 	this.Layout = "basic-layout.tpl"
 	this.LayoutSections = make(map[string]string)
@@ -73,7 +122,7 @@ func (this *MainController) activeContent(view string) {
 	}
 	this.TplName = view + ".tpl"
 	this.Data["domainname"] = "https://spa.usvc.global.bcs"
-	this.Data["StaticVer"] = staticAssetVersion // cache-busting для ссылок на /static/... (см. комментарий у staticAssetVersion)
+	this.Data["StaticVer"] = currentStaticVersion() // cache-busting для ссылок на /static/... (см. комментарий у staticAssetVersion)
 	// IsLocalAuth — режим авторизации из конфигурации (true - локальная
 	// логин/пароль, false - доменная Kerberos/SPNEGO, см. RequireLocalAuth
 	// выше и config.ConfigData.IsLocalAuth()). Кладётся в Data для ВСЕХ
