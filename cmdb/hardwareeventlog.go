@@ -67,7 +67,11 @@ func componentKey(c models.ServerHardwareComponents) string {
 // (тот же ключ) что-то существенное (модель/объём/слот), не заводя
 // отдельную колонку под каждое поле.
 func componentSummary(c models.ServerHardwareComponents) string {
-	return fmt.Sprintf("Vendor=%s Model=%s CapacityGb=%.2f Slot=%s SubType=%d", c.Vendor, c.Model, c.CapacityGb, c.Slot, c.SubType)
+	s := fmt.Sprintf("Vendor=%s Model=%s CapacityGb=%.2f Slot=%s SubType=%d", c.Vendor, c.Model, c.CapacityGb, c.Slot, c.SubType)
+	if c.Role != "" {
+		s += " Role=" + c.Role // для дисков: переход Data <-> Spare важен для журнала
+	}
+	return s
 }
 
 // diffAndLogComponents сравнивает предыдущий набор строк

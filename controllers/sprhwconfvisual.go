@@ -26,6 +26,9 @@ type hwConfVisualComp struct {
 	CapacityGb  float64      `json:"capacityGb"`
 	SubType     int          `json:"subType"`
 	SubTypeName string       `json:"subTypeName"`
+	Role        string       `json:"role"`     // диски: Data | Spare | Raw | Failed | Cache | ""
+	RoleName    string       `json:"roleName"` // человекочитаемое назначение диска
+	Status      string       `json:"status"`   // здоровье по OneView ("OK", "Warning", ...) либо ""
 	Rows        []rackViewKV `json:"rows"`
 }
 
@@ -46,6 +49,8 @@ type hwConfVisualServer struct {
 	MgmtIP     string         `json:"mgmtIp"`
 	MgmtModel  string         `json:"mgmtModel"`
 	RatedW     float64        `json:"ratedW"`
+	MgmtRows   []rackViewKV   `json:"mgmtRows"`  // карточка контроллера управления (iLO/iDRAC/...)
+	PowerRows  []rackViewKV   `json:"powerRows"` // сводка по питанию сервера (для БП/вентиляторов без собственных данных)
 }
 
 // hwConfVisualData - JSON для /sprsrv/hwconfvisual/:id.
@@ -81,6 +86,23 @@ func hwDiskSubTypeName(sub int) string {
 		return "SATA"
 	}
 	return ""
+}
+
+// hwDiskRoleName - подпись назначения диска (models.ServerHardwareComponents.Role).
+func hwDiskRoleName(role string) string {
+	switch role {
+	case "Data":
+		return "Рабочий (в массиве)"
+	case "Spare":
+		return "Горячий резерв (hot spare)"
+	case "Raw":
+		return "Не в массиве (не сконфигурирован)"
+	case "Failed":
+		return "Отказавший"
+	case "Cache":
+		return "Кэш-диск"
+	}
+	return role
 }
 
 // SprHwConfVisual - 3D-визуализация конфигурации сервера по вендору/модели
@@ -210,17 +232,26 @@ func (this *MainController) SprHwConfVisual() {
 					crow = rackViewKVAdd(crow, "Ёмкость", fmt.Sprintf("%.1f ГБ", c.CapacityGb))
 				}
 			}
-			stName := ""
+			stName, roleName := "", ""
 			if kd.Kind == "disk" {
 				stName = hwDiskSubTypeName(c.SubType)
 				if stName != "" {
 					crow = rackViewKVAdd(crow, "Тип носителя", stName)
 				}
+				if c.Role != "" {
+					roleName = hwDiskRoleName(c.Role)
+					crow = rackViewKVAdd(crow, "Назначение", roleName)
+				}
+				if c.Role == "Spare" {
+					countByKind["disk-spare"]++
+				}
 			}
+			crow = rackViewKVAdd(crow, "Состояние (health)", c.Status)
 			comps = append(comps, hwConfVisualComp{
 				Id: c.Id, Kind: kd.Kind, Index: i, Slot: c.Slot, Name: cname,
 				Vendor: c.Vendor, Model: c.Model, SerialNum: c.SerialNum,
 				CapacityGb: c.CapacityGb, SubType: c.SubType, SubTypeName: stName,
+				Role: c.Role, RoleName: roleName, Status: c.Status,
 				Rows: crow,
 			})
 			countByKind[kd.Kind]++
@@ -247,11 +278,32 @@ func (this *MainController) SprHwConfVisual() {
 		}
 	}
 	rows = rackViewKVAdd(rows, "Дисков", fmt.Sprintf("%d", countByKind["disk"]))
+	if n := countByKind["disk-spare"]; n > 0 {
+		rows = rackViewKVAdd(rows, "Из них горячий резерв", fmt.Sprintf("%d", n))
+	}
 	if n := countByKind["ram"]; n > 0 {
 		rows = rackViewKVAdd(rows, "Модулей памяти", fmt.Sprintf("%d", n))
 	}
 	if n := countByKind["nic"] + countByKind["fc"] + countByKind["raid"] + countByKind["pci"]; n > 0 {
 		rows = rackViewKVAdd(rows, "Адаптеров/портов (NIC, FC, RAID, PCI)", fmt.Sprintf("%d", n))
+	}
+
+	// Контроллер управления (iLO/iDRAC/...): всё, что OneView отдаёт о нём в server-hardware.
+	var mgmtRows []rackViewKV
+	mgmtRows = rackViewKVAdd(mgmtRows, "IP адрес", hw.MpIPAddress)
+	mgmtRows = rackViewKVAdd(mgmtRows, "Модель контроллера", hw.MpModel)
+	mgmtRows = rackViewKVAdd(mgmtRows, "Прошивка контроллера", hw.MpFirmwareVersion)
+	mgmtRows = rackViewKVAdd(mgmtRows, "Версия BIOS/ROM", hw.RomVersion)
+	// Питание сервера (замеры OneView) - показывается у БП/вентиляторов, для которых нет собственных данных.
+	var powerRows []rackViewKV
+	if hw.PowerAvg24hW > 0 {
+		powerRows = rackViewKVAdd(powerRows, "Мощность сервера, средняя 24ч", fmt.Sprintf("%.0f Вт", hw.PowerAvg24hW))
+	}
+	if hw.PowerPeak24hW > 0 {
+		powerRows = rackViewKVAdd(powerRows, "Мощность сервера, пик 24ч", fmt.Sprintf("%.0f Вт", hw.PowerPeak24hW))
+	}
+	if hw.PowerRatedMaxW > 0 {
+		powerRows = rackViewKVAdd(powerRows, "Мощность сервера, паспорт", fmt.Sprintf("%.0f Вт", hw.PowerRatedMaxW))
 	}
 
 	payload, jerr := json.Marshal(hwConfVisualData{
@@ -261,6 +313,7 @@ func (this *MainController) SprHwConfVisual() {
 			Power: rackViewPower(hw.PowerState), Rows: rows, Links: links,
 			CPUCount: hw.CPUCount, MemoryGb: hw.MemoryMb / 1024,
 			MgmtIP: hw.MpIPAddress, MgmtModel: hw.MpModel, RatedW: hw.PowerRatedMaxW,
+			MgmtRows: mgmtRows, PowerRows: powerRows,
 		},
 		Components: comps,
 	})

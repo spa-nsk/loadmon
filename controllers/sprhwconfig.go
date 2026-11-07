@@ -813,6 +813,10 @@ func (this *MainController) saveHwComponents(o orm.Ormer, hw *models.ServerHardw
 	serials := this.GetStrings("CompSerialNum")
 	caps := this.GetStrings("CompCapacityGb")
 	slots := this.GetStrings("CompSlot")
+	// Role/Status заполняет синхронизация OneView; форма только переносит их из
+	// скрытых полей, иначе сохранение карточки стирало бы назначение дисков.
+	roles := this.GetStrings("CompRole")
+	statuses := this.GetStrings("CompStatus")
 
 	var currentUserId int64 = 9999
 	if uid, ok := this.Data["UserId"].(int64); ok && uid > 0 {
@@ -855,10 +859,19 @@ func (this *MainController) saveHwComponents(o orm.Ormer, hw *models.ServerHardw
 		if i < len(caps) {
 			capGb, _ = strconv.ParseFloat(strings.TrimSpace(caps[i]), 64)
 		}
+		var role, status string
+		if i < len(roles) {
+			role = strings.TrimSpace(roles[i])
+		}
+		if i < len(statuses) {
+			status = strings.TrimSpace(statuses[i])
+		}
 		c := models.ServerHardwareComponents{
 			ServerId:        hw.Id,
 			Type:            t,
 			SubType:         sub,
+			Role:            role,
+			Status:          status,
 			Vendor:          vendor,
 			Model:           model,
 			SerialNum:       serial,

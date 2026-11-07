@@ -112,6 +112,7 @@ func SyncServerHardwareComponents(o orm.QueryExecutor, hw *models.ServerHardware
 			CapacityGb: float64(mem.CapacityMiB) / 1024.0,
 			SerialNum:  firstNonEmpty(strings.TrimSpace(mem.SerialNumber), hw.SerialNum+"-ram-"+strconv.Itoa(idx)),
 			Slot:       mem.Name,
+			Status:     healthStatus(mem.Health, mem.State),
 		})
 	}
 	syncType(ServerHWComponentRAM, ram)
@@ -126,6 +127,7 @@ func SyncServerHardwareComponents(o orm.QueryExecutor, hw *models.ServerHardware
 			CapacityGb: float64(storage.CacheMemorySizeMiB) / 1024.0,
 			SerialNum:  strings.TrimSpace(storage.SerialNumber),
 			Slot:       storage.Location, // формат строки расположения "ControllerPort:Box:Bay"
+			Status:     healthStatus(storage.Health, storage.State),
 		})
 		for _, disk := range storage.Drives {
 			dsk := models.ServerHardwareComponents{
@@ -135,6 +137,11 @@ func SyncServerHardwareComponents(o orm.QueryExecutor, hw *models.ServerHardware
 				CapacityGb: float64(disk.CapacityMiB) / 1000.0,
 				SerialNum:  strings.TrimSpace(disk.SerialNumber),
 				Slot:       disk.Location,
+				// DiskDriveUse (Data/Spare/Raw/Failed/Cache) раньше читался oneview2, но
+				// в БД не попадал - из-за этого в 3D нельзя было отличить рабочий диск
+				// от горячего резерва (2026-11-07).
+				Role:   normalizeDiskRole(disk.DiskDriveUse),
+				Status: healthStatus(disk.Health, disk.State),
 			}
 			switch disk.MediaType {
 			case "HDD":
@@ -190,6 +197,7 @@ func SyncServerHardwareComponents(o orm.QueryExecutor, hw *models.ServerHardware
 			Model:     fmt.Sprintf("%s (%s) FW:%s", dev.Name, dev.DeviceType, dev.FirmwareVersion),
 			SerialNum: firstNonEmpty(strings.TrimSpace(dev.SerialNumber), hw.SerialNum+"-pci-"+strconv.Itoa(idx)),
 			Slot:      dev.Location,
+			Status:    healthStatus(dev.Health, dev.State),
 		})
 	}
 	syncType(ServerHWComponentPCIDevice, pci)
@@ -225,6 +233,7 @@ func SyncServerHardwareComponents(o orm.QueryExecutor, hw *models.ServerHardware
 			Model:     fmt.Sprintf("%s (%d ядер/%d потоков, %d МГц)", p.Model, p.TotalCores, p.TotalThreads, speed),
 			SerialNum: firstNonEmpty(strings.TrimSpace(p.ID), hw.SerialNum+"-cpu-"+p.Socket),
 			Slot:      fmt.Sprintf("Сокет %s", p.Socket),
+			Status:    healthStatus(p.Health, p.State),
 		})
 	}
 	syncType(ServerHWComponentProcessor, cpus)

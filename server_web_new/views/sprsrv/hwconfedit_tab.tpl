@@ -336,7 +336,11 @@
                             {{else}}
                             <td class="d-none"><input type="hidden" name="CompSubType" value="{{$c.SubType}}"></td>
                             {{end}}
-                            <td><button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button></td>
+                            <td>
+                                <input type="hidden" name="CompRole" value="{{$c.Role}}">
+                                <input type="hidden" name="CompStatus" value="{{$c.Status}}">
+                                <button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button>
+                            </td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -366,7 +370,11 @@
                     </select>
                 </td>
                 <td class="d-none hw-comp-subtype-hidden-cell"><input type="hidden" name="CompSubType" value="0" class="hw-comp-subtype-hidden"></td>
-                <td><button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button></td>
+                <td>
+                    <input type="hidden" name="CompRole" value="">
+                    <input type="hidden" name="CompStatus" value="">
+                    <button type="button" class="btn btn-outline-danger btn-sm hw-comp-remove-row">Удалить</button>
+                </td>
             </tr>
         </template>
 

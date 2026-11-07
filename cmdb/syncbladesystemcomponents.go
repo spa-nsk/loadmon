@@ -32,13 +32,11 @@ import (
 // (bayNumber/model/partNumber/serialNumber/status/state/...) - см.
 // bayString/bayInt ниже.
 //
-// ⚠️ Поля сырых bay-словарей (interconnect/manager/power/fan) взяты по
-// документации HPE OneView REST API (устойчивый паттерн именования по всем
-// bay-ресурсам этого API), а НЕ проверены против реального ответа
-// appliance в этой песочнице (нет доступа к живому HP OneView) - если после
-// включения окажется, что часть колонок остаётся пустой, нужно свериться с
-// фактическим JSON (например, залогировав один "сырой" bay через
-// fmt.Printf("%#v", bay) и сверив реальные ключи).
+// Ключи БП и вентиляторов (bayNumber/model/partNumber/serialNumber/status/
+// devicePresence) сверены со swagger HPE OneView API 300; ключи interconnect и
+// manager отличаются (interconnectModel, ipAddress, managerType, ...) и
+// разбираются отдельно - см. cmdb/syncbladesystemmodules.go. Если колонка
+// остаётся пустой, в логе печатаются фактические ключи сырого отсека.
 func SyncBladeSystemsFromOneView(ov *oneview.Infrastructure) {
 	if ov == nil {
 		return
@@ -75,6 +73,9 @@ type encCandidate struct {
 	GD       bool // Global Dashboard (агрегатор): мощность - только поля объекта
 	Enc      oneview.Enclosure
 	Power    oneview.PowerWatts
+	// ICs - interconnect-модули этой точки подключения по URI (/rest/interconnects);
+	// nil, если список получить не удалось (например, Global Dashboard).
+	ICs map[string]oneview.Interconnect
 }
 
 func collectEnclosuresFromEndpoint(ctx context.Context, cfg oneview.Config) []encCandidate {
@@ -96,13 +97,14 @@ func collectEnclosuresFromEndpoint(ctx context.Context, cfg oneview.Config) []en
 	}
 
 	gd := c.IsGlobalDashboard()
+	ics := collectInterconnects(ctx, c)
 	out := make([]encCandidate, 0, len(col.Members))
 	for i := range col.Members {
 		enc := col.Members[i]
 		// Локальный appliance: /utilization (+refresh, calibratedMaxPower);
 		// GD: только свежие поля объекта. Пустой результат = данных нет.
 		p := c.EnclosurePower(ctx, &enc)
-		out = append(out, encCandidate{Endpoint: cfg.Endpoint, GD: gd, Enc: enc, Power: p})
+		out = append(out, encCandidate{Endpoint: cfg.Endpoint, GD: gd, Enc: enc, Power: p, ICs: ics})
 	}
 	return out
 }
@@ -146,7 +148,7 @@ func syncEnclosureCandidates(cands []encCandidate) {
 			"| мощность: источник="+fmt.Sprintf("%q", power.Source),
 			"avg="+FormatPowerW(power.Avg24hW), "peak="+FormatPowerW(power.Peak24hW),
 			"номинал="+FormatPowerW(power.RatedMaxW)+" ("+power.RatedSource+")")
-		syncOneEnclosure(o, &enc, power)
+		syncOneEnclosure(o, &enc, power, inv.ICs)
 	}
 }
 
@@ -189,7 +191,9 @@ func bladeSystemNameFromEnclosure(name string) string {
 
 // syncOneEnclosure записывает одну корзину; power - итог объединения источников
 // мощности (может быть пустым: тогда используется оценка по блейдам).
-func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure, power oneview.PowerWatts) {
+// ics - interconnect-модули того же appliance по URI (/rest/interconnects),
+// могут быть nil: тогда модель/статус берутся только из interconnectBays.
+func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure, power oneview.PowerWatts, ics map[string]oneview.Interconnect) {
 	if enc == nil || strings.TrimSpace(enc.Name) == "" {
 		return
 	}
@@ -256,14 +260,14 @@ func syncOneEnclosure(o orm.QueryExecutor, enc *oneview.Enclosure, power oneview
 		return
 	}
 
-	syncBladeSystemComponents(o, bls.Id, enc)
+	syncBladeSystemComponents(o, bls.Id, enc, ics)
 }
 
 // syncBladeSystemComponents полностью пересобирает компоненты ОДНОЙ корзины
 // (interconnect/management/питание/охлаждение) - тот же приём "удалить всё
 // по (BladeSystemId, Type), записать заново", что и
 // cmdb/syncserverhardwarecomponents.go для компонентов сервера.
-func syncBladeSystemComponents(o orm.QueryExecutor, bladeSystemId int64, enc *oneview.Enclosure) {
+func syncBladeSystemComponents(o orm.QueryExecutor, bladeSystemId int64, enc *oneview.Enclosure, ics map[string]oneview.Interconnect) {
 	// syncType - тот же приём diff+delete+insert, что и
 	// cmdb/syncserverhardwarecomponents.go:SyncServerHardwareComponents
 	// (2026-09-04) - перед перезаписью читает предыдущий набор строк этого
@@ -288,29 +292,8 @@ func syncBladeSystemComponents(o orm.QueryExecutor, bladeSystemId int64, enc *on
 		}
 	}
 
-	var interconnect []models.ServerHardwareComponents
-	for idx, bay := range enc.InterconnectBays {
-		interconnect = append(interconnect, models.ServerHardwareComponents{
-			Type:      ServerHWComponentInterconnect,
-			Vendor:    "HPE",
-			Model:     bayString(bay, "model", "partNumber"),
-			SerialNum: firstNonEmpty(bayString(bay, "serialNumber"), "bay-ic-"+strconv.Itoa(idx)),
-			Slot:      fmt.Sprintf("Bay %d, %s", bayInt(bay, "bayNumber", idx+1), bayString(bay, "status", "state")),
-		})
-	}
-	syncType(ServerHWComponentInterconnect, interconnect)
-
-	var management []models.ServerHardwareComponents
-	for idx, bay := range enc.ManagerBays {
-		management = append(management, models.ServerHardwareComponents{
-			Type:      ServerHWComponentManagement,
-			Vendor:    "HPE",
-			Model:     bayString(bay, "model", "role"),
-			SerialNum: firstNonEmpty(bayString(bay, "serialNumber"), "bay-mgmt-"+strconv.Itoa(idx)),
-			Slot:      fmt.Sprintf("Bay %d, IP %s", bayInt(bay, "bayNumber", idx+1), bayString(bay, "mgmtIpAddress")),
-		})
-	}
-	syncType(ServerHWComponentManagement, management)
+	syncType(ServerHWComponentInterconnect, buildInterconnectComponents(enc, ics))
+	syncType(ServerHWComponentManagement, buildManagerComponents(enc))
 
 	var power []models.ServerHardwareComponents
 	for idx, bay := range enc.PowerSupplyBays {

@@ -2747,6 +2747,8 @@ type ServerHardwareComponents struct {
 	SerialNum       string    `form:"SerialNum"`                  //серийный номер (там где есть, если нет наследуем от сервера с дополнением порядкового номера)
 	CapacityGb      float64   `form:"CapacityGb"`                 //для дисков и памяти
 	Slot            string    `form:"Slot"`                       //расположение в родительском устройстве
+	Role            string    `form:"Role"`                       //для дисков: назначение по DiskDriveUse OneView/iLO - Data (рабочий, в массиве), Spare (горячий резерв), Raw (не в массиве), Failed, Cache; для остальных типов пусто (поле добавлено 2026-11-07)
+	Status          string    `form:"Status"`                     //здоровье компонента по OneView: "OK", "Warning", "Critical" (+ " / " + State при наличии); пусто, если источник не отдаёт (поле добавлено 2026-11-07)
 	ContractDoc     string    `form:"ContractDoc"`                //договорной документ на покупку, название и номер дополнительного соглашения \
 	DateContractDoc time.Time `orm:"null" form:"DateContractDoc"` //дата документа                                          \ только для отдельно приобретаемых комплектующих
 	Invoice         string    `form:"Invoice"`                    //счет фактура, накладная                                       / возможно нужно учесть ЦФО с которого оплата

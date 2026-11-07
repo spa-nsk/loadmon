@@ -13,6 +13,8 @@
     .hcv-dot-on { background: #35e06a; box-shadow: 0 0 6px #35e06a; }
     .hcv-dot-stby { background: #ffab1a; box-shadow: 0 0 6px #ffab1a; }
     .hcv-dot-unk { background: #5b616b; }
+    .hcv-dot-spare { background: #3da5ff; box-shadow: 0 0 6px #3da5ff; }
+    .hcv-dot-err { background: #ff453a; box-shadow: 0 0 6px #ff453a; }
     .hcv-toolbar { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-bottom: 0.5rem; }
     .hcv-toolbar .btn { padding: 0.2rem 0.65rem; font-size: 0.85rem; }
     .hcv-toolbar .hcv-sep { width: 1px; align-self: stretch; background: var(--bs-border-color); margin: 0 0.25rem; }
@@ -97,6 +99,8 @@
                 <li><span class="hcv-dot hcv-dot-on"></span> Включено / OK</li>
                 <li><span class="hcv-dot hcv-dot-stby"></span> Выключено</li>
                 <li><span class="hcv-dot hcv-dot-unk"></span> Не определено</li>
+                <li><span class="hcv-dot hcv-dot-spare"></span> Диск — горячий резерв (метка HS)</li>
+                <li><span class="hcv-dot hcv-dot-err"></span> Диск / компонент — отказ</li>
             </ul>
             <div class="text-muted small">
                 Колесо мыши — масштаб. Тяните <b>угловые маркеры</b> (или фон) — вращение; с <b>Shift</b> / правой кнопкой — крен.
