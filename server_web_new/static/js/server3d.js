@@ -65,15 +65,15 @@
     var KIND_TITLE = {
         server: 'Сервер', disk: 'Диск', 'disk-empty': 'Пустой отсек диска', cpu: 'Процессор', ram: 'Модуль памяти',
         'ram-empty': 'Свободный слот памяти', card: 'Адаптер', psu: 'Блок питания', fan: 'Вентилятор',
-        panel: 'Панель управления', ports: 'Порты и управление', slot: 'Слот расширения', conn: 'Разъём корзины'
+        panel: 'Панель управления', ports: 'Порты ввода-вывода', mgmt: 'Контроллер управления', slot: 'Слот расширения', conn: 'Разъём корзины'
     };
     var GROUP_TITLE = {
-        disk: 'Диски', panel: 'Панель управления', psu: 'Блоки питания', card: 'PCI-адаптеры', ports: 'Порты и управление',
+        disk: 'Диски', panel: 'Панель управления', psu: 'Блоки питания', card: 'PCI-адаптеры', ports: 'Порты ввода-вывода', mgmt: 'Контроллер управления',
         fan: 'Вентиляторы', cpu: 'Процессоры', ram: 'Модули памяти', conn: 'Разъём корзины', slot: 'Слоты расширения'
     };
     var SIDE_KINDS = {
         front: ['disk', 'panel'],
-        rear: BLADE ? ['conn'] : ['psu', 'card', 'ports'],
+        rear: BLADE ? ['conn'] : ['psu', 'card', 'ports', 'mgmt'],
         top: ['fan', 'cpu', 'ram', 'card']
     };
     var SIDE_NAME = { front: 'Спереди', rear: 'Сзади', top: 'Сверху' };
@@ -83,9 +83,17 @@
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
         });
     }
-    function pwColor(p) { return p === 1 ? C_ON : (p === 2 ? C_STBY : C_UNK); }
-    function pwText(p) { return p === 1 ? 'Включён' : (p === 2 ? 'Выключен' : 'Не определено'); }
-    function dotClass(p) { return p === 1 ? 'hcv-dot-on' : (p === 2 ? 'hcv-dot-stby' : 'hcv-dot-unk'); }
+    // Коды состояния: 1 включён, 2 выключен, 3 горячий резерв (диск), 4 отказ, иначе не определено
+    function pwColor(p) { return p === 1 ? C_ON : (p === 2 ? C_STBY : (p === 3 ? C_UID : (p === 4 ? C_ERR : C_UNK))); }
+    function pwText(p) { return p === 1 ? 'Включён' : (p === 2 ? 'Выключен' : (p === 3 ? 'Горячий резерв' : (p === 4 ? 'Отказ' : 'Не определено'))); }
+    function dotClass(p) { return p === 1 ? 'hcv-dot-on' : (p === 2 ? 'hcv-dot-stby' : (p === 3 ? 'hcv-dot-spare' : (p === 4 ? 'hcv-dot-err' : 'hcv-dot-unk'))); }
+    // цвет LED по health из OneView ("OK", "Warning", "Critical", ...); пусто - штатно
+    function stColor(st) {
+        var s = String(st || '').toLowerCase();
+        if (/crit|fail|error/.test(s)) return C_ERR;
+        if (/warn|degrad/.test(s)) return C_STBY;
+        return C_ON;
+    }
     function compsOf(kind) { return COMPS.filter(function (c) { return c.kind === kind; }); }
     function hash(n) { n = (Math.imul(n + 1, 2654435761) >>> 0); return (n % 1000) / 1000; }
 
@@ -113,9 +121,17 @@
         x.fillStyle = color; x.textAlign = align || 'center'; x.textBaseline = 'middle';
         x.fillText(s, X, Y);
     }
+    // «Живой» светодиод (включённое оборудование) мерцает; статусные (ожидание/UID/ошибка) — нет.
+    function ledIsLive(color) {
+        return !!(color && color !== C_STBY && color !== C_ERR && color !== C_UID && color !== C_UNK &&
+            color !== '#000' && color !== '#1d2024');
+    }
     function led(x, cx, cy, r, color, on) {
+        var live = !!on && ledIsLive(color);
+        if (live) { var lc = x.canvas; (lc.__leds || (lc.__leds = [])).push({ cx: cx, cy: cy, r: r, color: color }); }
         x.save();
-        if (on) { x.shadowColor = color; x.shadowBlur = r * 2.6; }
+        if (on) { x.shadowColor = color; x.shadowBlur = r * (live ? 1.4 : 2.6); }
+        if (live) x.globalAlpha = 0.72; // остальная яркость добавляется мерцающим слоем (attachLeds)
         x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2);
         x.fillStyle = on ? color : '#1d2024'; x.fill();
         x.restore();
@@ -251,12 +267,14 @@
     var CARD_KIND = { raid: 'RAID-контроллер', fc: 'FC-адаптер', nic: 'Сетевой адаптер', pci: 'PCI-устройство' };
 
     function layoutRear() {
-        var L = { slots: [], psu: [], ports: null, conn: null };
+        var L = { slots: [], psu: [], ports: null, ilo: null, conn: null };
         if (BLADE) { L.conn = { u0: 0.1, u1: 0.9, v0: 0.25, v1: 0.78 }; return L; }
         var i, r, c;
         if (U === 1) {
             for (i = 0; i < 2; i++) L.slots.push({ n: i + 1, u0: 0.03 + i * 0.245, u1: 0.03 + i * 0.245 + 0.235, v0: 0.1, v1: 0.9 });
-            L.ports = { u0: 0.53, u1: 0.665, v0: 0.1, v1: 0.9 };
+            // зона портов делится: порты ввода-вывода сверху, выделенный порт управления (iLO/iDRAC) снизу
+            L.ports = { u0: 0.53, u1: 0.665, v0: 0.1, v1: 0.5 };
+            L.ilo = { u0: 0.53, u1: 0.665, v0: 0.52, v1: 0.9 };
             L.psu.push({ n: 1, u0: 0.685, u1: 0.82, v0: 0.1, v1: 0.9 });
             L.psu.push({ n: 2, u0: 0.835, u1: 0.97, v0: 0.1, v1: 0.9 });
         } else {
@@ -265,7 +283,8 @@
                 var hh = 0.88 / rows;
                 L.slots.push({ n: c * rows + r + 1, u0: 0.025 + c * 0.255, u1: 0.025 + c * 0.255 + 0.245, v0: 0.06 + r * hh + 0.006, v1: 0.06 + (r + 1) * hh - 0.006 });
             }
-            L.ports = { u0: 0.545, u1: 0.685, v0: 0.06, v1: 0.94 };
+            L.ports = { u0: 0.545, u1: 0.685, v0: 0.06, v1: 0.68 };
+            L.ilo = { u0: 0.545, u1: 0.685, v0: 0.70, v1: 0.94 };
             L.psu.push({ n: 1, u0: 0.705, u1: 0.975, v0: 0.06, v1: 0.485 });
             L.psu.push({ n: 2, u0: 0.705, u1: 0.975, v0: 0.515, v1: 0.94 });
         }
@@ -353,7 +372,7 @@
         noise(x, w, h, 12000);
         if (BLADE) return c;
         function rect(r) { fillRR(x, r.u0 * w - 2, r.v0 * h - 2, (r.u1 - r.u0) * w + 4, (r.v1 - r.v0) * h + 4, 4, '#08090b'); }
-        LR.slots.forEach(rect); LR.psu.forEach(rect); if (LR.ports) rect(LR.ports);
+        LR.slots.forEach(rect); LR.psu.forEach(rect); if (LR.ports) rect(LR.ports); if (LR.ilo) rect(LR.ilo);
         dots(x, w * 0.02, h * 0.02, w * 0.96, h * 0.02, 10, 1.2, 'rgba(0,0,0,.35)');
         return c;
     }
@@ -422,22 +441,32 @@
             strokeRR(x, 1, 1, w - 2, h - 2, 2, 'rgba(255,255,255,.05)', 1);
             return c;
         }
-        var isSsd = d.subType === 1;
+        var isSsd = d.subType === 1, role = d.role || '';
+        // LED активности: горячий резерв - синий (UID) и статичный, отказ - красный LED неисправности
+        var actCol = role === 'Spare' ? C_UID : (hash(idx) > 0.4 ? D.led1 : '#ffffff');
+        var faultCol = role === 'Failed' ? C_ERR : D.led2, faultOn = role === 'Failed' && on;
         if (vert) {
             fillRR(x, 0, 0, w, h, 2, lg(x, 0, 0, w, 0, [[0, D.body[1]], [0.5, D.body[0]], [1, D.body[1]]]));
             fillRR(x, w * 0.16, h * 0.72, w * 0.68, h * 0.2, 2, lg(x, 0, h * 0.72, 0, h * 0.92, [[0, D.latch[0]], [1, D.latch[1]]]));
             x.fillStyle = 'rgba(0,0,0,.5)';
             for (var k = 0; k < 6; k++) x.fillRect(w * 0.2, h * (0.2 + k * 0.08), w * 0.6, Math.max(1, h * 0.025));
-            var lc = hash(idx) > 0.4 ? D.led1 : '#ffffff';
-            led(x, w * 0.32, h * 0.1, Math.max(1.5, w * 0.1), on ? lc : '#000', on);
-            led(x, w * 0.68, h * 0.1, Math.max(1.5, w * 0.1), D.led2, false);
+            led(x, w * 0.32, h * 0.1, Math.max(1.5, w * 0.1), on && role !== 'Failed' ? actCol : '#000', on && role !== 'Failed');
+            led(x, w * 0.68, h * 0.1, Math.max(1.5, w * 0.1), faultCol, faultOn);
         } else {
             fillRR(x, 0, 0, w, h, 2, lg(x, 0, 0, 0, h, [[0, D.body[0]], [1, D.body[1]]]));
             fillRR(x, w * 0.08, h * 0.14, w * 0.84, h * 0.2, 1, D.latch[1]);
             x.fillStyle = 'rgba(0,0,0,.55)';
             for (var m = 0; m < 6; m++) x.fillRect(w * 0.1 + m * (w * 0.8 / 6), h * 0.46, Math.max(1, w * 0.05), h * 0.26);
-            led(x, w * 0.14, h * 0.86, Math.max(1.5, h * 0.07), on ? (hash(idx) > 0.4 ? D.led1 : '#ffffff') : '#000', on);
-            led(x, w * 0.3, h * 0.86, Math.max(1.5, h * 0.07), D.led2, false);
+            led(x, w * 0.14, h * 0.86, Math.max(1.5, h * 0.07), on && role !== 'Failed' ? actCol : '#000', on && role !== 'Failed');
+            led(x, w * 0.3, h * 0.86, Math.max(1.5, h * 0.07), faultCol, faultOn);
+        }
+        // метка назначения диска: HS - горячий резерв, RAW - не в массиве, C - кэш, ! - отказ (рабочие диски без метки)
+        var badge = role === 'Spare' ? 'HS' : (role === 'Raw' ? 'RAW' : (role === 'Cache' ? 'C' : (role === 'Failed' ? '!' : '')));
+        if (badge) {
+            var bc = role === 'Spare' ? C_UID : (role === 'Failed' ? C_ERR : (role === 'Cache' ? '#9b6bff' : '#6b727c'));
+            var bx = vert ? w * 0.1 : w * 0.62, by = vert ? h * 0.28 : h * 0.5, bw = vert ? w * 0.8 : w * 0.32, bh = vert ? Math.min(h * 0.14, w * 0.8) : h * 0.4;
+            fillRR(x, bx, by, bw, bh, 2, bc);
+            txt(x, badge, bx + bw / 2, by + bh / 2, Math.max(6, Math.min(bh * 0.7, bw * 0.72 / (0.74 * badge.length))), '#06121c', 'center', '800');
         }
         if (isSsd) { x.fillStyle = 'rgba(80,170,255,.9)'; x.fillRect(vert ? w * 0.1 : w * 0.08, vert ? h * 0.65 : h * 0.4, vert ? w * 0.8 : w * 0.84, Math.max(1, (vert ? h : w) * 0.012)); }
         strokeRR(x, 0.5, 0.5, w - 1, h - 1, 2, 'rgba(0,0,0,.8)', 1);
@@ -484,7 +513,7 @@
         x.fillRect(ix + iw * 0.2, iy + ih * 0.3, iw * 0.15, ih * 0.4); x.fillRect(ix + iw * 0.65, iy + ih * 0.3, iw * 0.15, ih * 0.4);
         // ручка и LED
         fillRR(x, horiz ? w * 0.06 : w * 0.15, horiz ? h * 0.86 : h * 0.9, horiz ? w * 0.5 : w * 0.7, horiz ? h * 0.08 : h * 0.05, 2, '#9aa0a8');
-        led(x, horiz ? w * 0.9 : w * 0.8, horiz ? h * 0.12 : h * 0.93, Math.max(2, Math.min(w, h) * 0.04), comp ? pwColor(comp.power || 1) : C_ON, true);
+        led(x, horiz ? w * 0.9 : w * 0.8, horiz ? h * 0.12 : h * 0.93, Math.max(2, Math.min(w, h) * 0.04), comp ? stColor(comp.status) : C_UNK, !!comp);
         var wattage = comp && comp.capacityGb ? Math.round(comp.capacityGb) + 'W' : (SRV.ratedW > 0 ? '' : '');
         txt(x, 'PSU ' + n + (wattage ? ' · ' + wattage : ''), horiz ? w * 0.8 : w * 0.5, horiz ? h * 0.82 : h * 0.84, Math.max(8, Math.min(w, h) * 0.1), 'rgba(235,238,242,.65)', 'center', '600');
         return c;
@@ -536,19 +565,31 @@
         fillRR(x, 0, 0, w, h, 4, lg(x, 0, 0, 0, h, [[0, '#2b2e33'], [1, '#17191c']]));
         strokeRR(x, 1, 1, w - 2, h - 2, 4, 'rgba(255,255,255,.1)', 1);
         var vert = h > w * 1.2;
-        var step = vert ? h / 7 : w / 6;
+        var step = vert ? h / 5 : w / 5;
         function slot(i, kind) {
-            var X = vert ? w * 0.1 : step * i + step * 0.1, Y = vert ? step * (i + 1) + step * 0.1 : h * 0.12;
+            var X = vert ? w * 0.1 : step * i + step * 0.1, Y = vert ? step * i + step * 0.1 : h * 0.12;
             var pw = vert ? w * 0.8 : step * 0.8, ph = vert ? step * 0.8 : h * 0.62;
             if (kind === 'rj') portRJ45(x, X, Y + ph * 0.1, pw, ph * 0.8, true);
             else if (kind === 'usb') { fillRR(x, X, Y + ph * 0.2, pw, ph * 0.6, 2, '#050607'); x.fillStyle = '#3da5ff'; x.fillRect(X + pw * 0.12, Y + ph * 0.45, pw * 0.76, ph * 0.12); }
             else if (kind === 'vga') { fillRR(x, X, Y + ph * 0.2, pw, ph * 0.6, 4, '#1b3a6a'); }
             else { fillRR(x, X, Y + ph * 0.2, pw, ph * 0.6, 3, '#0a0a0c'); }
         }
-        slot(0, 'rj'); slot(1, 'rj'); slot(2, 'rj'); slot(3, 'usb'); slot(4, 'usb'); slot(5, 'vga');
-        // подпись выделенного порта управления
-        fillRR(x, vert ? w * 0.06 : step * 0.06, vert ? step * 0.06 : h * 0.06, vert ? w * 0.88 : step * 0.88, vert ? step * 0.88 : h * 0.7, 3, 'rgba(255,255,255,0)');
-        txt(x, SK.mgmt, vert ? w * 0.5 : step * 0.5, vert ? step * 0.5 : h * 0.9, Math.max(8, Math.min(w, h) * 0.17), SK.accent === '#e2231a' ? '#ff6a63' : '#8ee0c6', 'center', '700');
+        slot(0, 'rj'); slot(1, 'rj'); slot(2, 'usb'); slot(3, 'usb'); slot(4, 'vga');
+        return c;
+    }
+    // выделенный порт управления (iLO / iDRAC / IPMI / XCC / BMC) - отдельный модуль с данными контроллера
+    function texIlo(w, h) {
+        var c = mk(w, h), x = c.getContext('2d');
+        fillRR(x, 0, 0, w, h, 4, lg(x, 0, 0, 0, h, [[0, '#2b2e33'], [1, '#17191c']]));
+        strokeRR(x, 1, 1, w - 2, h - 2, 4, 'rgba(255,255,255,.1)', 1);
+        var horiz = w >= h * 1.1, lit = !!SRV.mgmtIp, col = SK.accent === '#e2231a' ? '#ff6a63' : '#8ee0c6';
+        if (horiz) {
+            portRJ45(x, w * 0.06, h * 0.12, w * 0.42, h * 0.76, lit);
+            txt(x, SK.mgmt, w * 0.76, h * 0.5, Math.max(8, Math.min(h * 0.4, w * 0.17)), col, 'center', '700');
+        } else {
+            portRJ45(x, w * 0.1, h * 0.08, w * 0.8, h * 0.52, lit);
+            txt(x, SK.mgmt, w * 0.5, h * 0.8, Math.max(8, Math.min(w * 0.22, h * 0.2)), col, 'center', '700');
+        }
         return c;
     }
     function texFan(w, h, comp, n) {
@@ -565,7 +606,7 @@
         x.restore();
         x.beginPath(); x.arc(cx, cy, R * 0.22, 0, Math.PI * 2); x.fillStyle = '#4a4e55'; x.fill();
         x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.lineWidth = Math.max(2, R * 0.07); x.strokeStyle = '#70757e'; x.stroke();
-        led(x, w * 0.14, h * 0.14, Math.max(2, Math.min(w, h) * 0.05), comp ? pwColor(comp.power || 1) : C_ON, true);
+        led(x, w * 0.14, h * 0.14, Math.max(2, Math.min(w, h) * 0.05), comp ? stColor(comp.status) : C_UNK, !!comp);
         txt(x, String(n), w * 0.86, h * 0.12, Math.max(8, Math.min(w, h) * 0.14), 'rgba(255,255,255,.5)');
         return c;
     }
@@ -644,6 +685,65 @@
         return t;
     }
     function std(o) { return new THREE.MeshStandardMaterial(o); }
+
+    // --- мерцание светодиодов включённого оборудования ---------------------------
+    // Светодиоды рисуются в текстуру модуля (led()), а их «дыхание» — отдельные
+    // аддитивные полупрозрачные плоскости перед гранью с анимируемой opacity
+    // (текстуры не перерисовываются; два слоя с разной фазой дают разнобой).
+    function hexA(color, a) {
+        var m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color || '');
+        if (!m) return 'rgba(255,255,255,' + a + ')';
+        var h = m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1];
+        return 'rgba(' + parseInt(h.substr(0, 2), 16) + ',' + parseInt(h.substr(2, 2), 16) + ',' + parseInt(h.substr(4, 2), 16) + ',' + a + ')';
+    }
+    function ledBright(t, seed) {
+        var s = seed * 12.9898;
+        var a = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 2.15 + s));
+        var b = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(t * 5.4 + s * 1.73));
+        var dip = 1 - 0.12 * Math.max(0, Math.sin(t * 15.5 + s * 2.9));
+        return Math.min(1, Math.max(0.3, a * b * dip));
+    }
+    var ledMeshes = []; // { mat, seed }
+    // pw/ph — размеры грани в мм; side: front | rear | top (как в addModule)
+    function attachLeds(m, canvas, pw, ph, depth, side) {
+        var leds = canvas.__leds;
+        if (!leds || !leds.length) return;
+        for (var g = 0; g < 2; g++) {
+            var list = leds.filter(function (l, i) { return i % 2 === g; });
+            if (!list.length) continue;
+            var cv = document.createElement('canvas'); cv.width = canvas.width; cv.height = canvas.height;
+            var c = cv.getContext('2d');
+            c.globalCompositeOperation = 'lighter';
+            list.forEach(function (l) {
+                var R = l.r * 3.4, gr = c.createRadialGradient(l.cx, l.cy, 0, l.cx, l.cy, R);
+                gr.addColorStop(0, hexA(l.color, 0.85)); gr.addColorStop(0.35, hexA(l.color, 0.32)); gr.addColorStop(1, hexA(l.color, 0));
+                c.fillStyle = gr; c.beginPath(); c.arc(l.cx, l.cy, R, 0, Math.PI * 2); c.fill();
+                c.fillStyle = 'rgba(255,255,255,0.45)';
+                c.beginPath(); c.arc(l.cx - l.r * 0.2, l.cy - l.r * 0.2, l.r * 0.45, 0, Math.PI * 2); c.fill();
+            });
+            var mat = new THREE.MeshBasicMaterial({
+                map: tex(cv), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+                opacity: 1, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+            });
+            var pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
+            pl.raycast = function () {};
+            var off = depth / 2 + 0.35;
+            if (side === 'rear') { pl.rotation.y = Math.PI; pl.position.z = -off; }
+            else if (side === 'top') { pl.rotation.x = -Math.PI / 2; pl.position.y = off; }
+            else { pl.position.z = off; }
+            m.add(pl);
+            ledMeshes.push({ mat: mat, seed: modules.length * 1.37 + g * 5.1 + list[0].cx * 0.011 });
+        }
+    }
+    var ledLast = 0;
+    function updateLeds(now) {
+        if (!ledMeshes.length || now - ledLast < 55) return false;
+        ledLast = now;
+        var t = now * 0.001;
+        for (var i = 0; i < ledMeshes.length; i++) ledMeshes[i].mat.opacity = ledBright(t, ledMeshes[i].seed);
+        return true;
+    }
+
     var pickables = [], modules = [];
 
     // корпус
@@ -689,6 +789,7 @@
         hull.visible = false; m.add(hull);
         info.side = side;
         m.userData = { info: info, faceMat: faceMat, hull: hull, flashUntil: 0 };
+        attachLeds(m, canvas, bb.width, side === 'top' ? bb.depth : bb.height, side === 'top' ? bb.height : bb.depth, side);
         m.visible = side !== 'top';
         rig.add(m); pickables.push(m); modules.push(m);
         return m;
@@ -708,7 +809,8 @@
         var cv = texDrive(vert, d, s.w * S3, s.h * S3, on, i);
         var inf;
         if (d) {
-            inf = info('disk', d.name, 'Отсек ' + (i + 1) + (d.subTypeName ? ' · ' + d.subTypeName : '') + (d.capacityGb > 0 ? ' · ' + d.capacityGb.toFixed(1) + ' ГБ' : ''), on ? 1 : 2, d.rows || []);
+            var dpw = d.role === 'Spare' ? 3 : (d.role === 'Failed' ? 4 : (on ? 1 : 2));
+            inf = info('disk', d.name, 'Отсек ' + (i + 1) + (d.subTypeName ? ' · ' + d.subTypeName : '') + (d.capacityGb > 0 ? ' · ' + d.capacityGb.toFixed(1) + ' ГБ' : '') + (d.roleName ? ' · ' + d.roleName : ''), dpw, d.rows || []);
         } else {
             inf = info('disk-empty', 'Отсек диска ' + (i + 1), 'Диск не установлен / нет данных', 0, [K('Отсек', String(i + 1))]);
             inf.absent = true;
@@ -730,9 +832,9 @@
     } else {
         LR.psu.forEach(function (r, i) {
             var comp = psuComps[i] || null, s = sz(r, 'rear');
-            var inf = comp ? info('psu', comp.name, 'Блок питания ' + (i + 1), 1, comp.rows || [])
+            var inf = comp ? info('psu', comp.name, 'Блок питания ' + (i + 1), /crit|fail|error/i.test(comp.status || '') ? 4 : 1, comp.rows || [])
                 : info('psu', 'Блок питания ' + (i + 1), 'Нет данных о блоке питания в справочнике', 0,
-                    [K('Отсек', String(i + 1))].concat(SRV.ratedW > 0 ? [K('Максимальная мощность сервера', Math.round(SRV.ratedW) + ' Вт')] : []));
+                    [K('Отсек', String(i + 1))].concat(SRV.powerRows || [], [K('Данные БП', 'OneView не отдаёт состав БП серверов в стойке (нужен опрос iLO / Redfish)')]));
             addModule('rear', r, 14, texPsu(s.w * S3, s.h * S3, comp, i + 1), inf);
         });
         LR.slots.forEach(function (r, i) {
@@ -756,18 +858,27 @@
         });
         if (LR.ports) {
             var pr = LR.ports, s2 = sz(pr, 'rear');
-            var prow = [K('Порт управления', SK.mgmt), K('IP адрес', SRV.mgmtIp), K('Модель контроллера', SRV.mgmtModel)].filter(function (q) { return q.v; });
-            var plinks = SRV.mgmtIp ? [{ title: 'Открыть ' + SK.mgmt + ' (https://' + SRV.mgmtIp + ')', url: 'https://' + SRV.mgmtIp }] : [];
             addModule('rear', pr, 10, texPorts(s2.w * S3, s2.h * S3),
-                info('ports', 'Порты и управление (' + SK.mgmt + ')', 'LOM, USB, VGA, выделенный порт ' + SK.mgmt, 0, prow, plinks));
+                info('ports', 'Порты ввода-вывода', 'LOM, USB, VGA', 0, [K('Порты', 'LOM 2 × RJ45, USB 2, VGA')]));
+        }
+        if (LR.ilo) {
+            var ir = LR.ilo, s4 = sz(ir, 'rear');
+            // данные контроллера собирает Go (mgmtRows: IP, модель, прошивка, BIOS/ROM); запасной вариант - из mgmtIp/mgmtModel
+            var mrows = (SRV.mgmtRows && SRV.mgmtRows.length) ? SRV.mgmtRows.slice() : [K('IP адрес', SRV.mgmtIp), K('Модель контроллера', SRV.mgmtModel)];
+            mrows = [K('Порт управления', SK.mgmt)].concat(mrows).filter(function (q) { return q.v; });
+            if (mrows.length < 2) mrows.push(K('Данные', 'OneView не вернул данные контроллера управления'));
+            var mlinks = SRV.mgmtIp ? [{ title: 'Открыть ' + SK.mgmt + ' (https://' + SRV.mgmtIp + ')', url: 'https://' + SRV.mgmtIp }] : [];
+            addModule('rear', ir, 10, texIlo(s4.w * S3, s4.h * S3),
+                info('mgmt', SK.mgmt + (SRV.mgmtIp ? ' · ' + SRV.mgmtIp : ''), 'Выделенный порт управления', SRV.mgmtIp ? 1 : 0, mrows, mlinks));
         }
     }
     // --- вид сверху (кожух снят)
     var fanComps = compsOf('fan');
     LT.fans.forEach(function (r, i) {
         var comp = fanComps[i] || null, s = sz(r, 'top');
-        var inf = comp ? info('fan', comp.name, 'Вентилятор ' + (i + 1), 1, comp.rows || [])
-            : info('fan', 'Вентилятор ' + (i + 1), 'Модуль охлаждения (нет данных в справочнике)', 0, [K('Позиция', String(i + 1))]);
+        var inf = comp ? info('fan', comp.name, 'Вентилятор ' + (i + 1), /crit|fail|error/i.test(comp.status || '') ? 4 : 1, comp.rows || [])
+            : info('fan', 'Вентилятор ' + (i + 1), 'Модуль охлаждения (нет данных в справочнике)', 0,
+                [K('Позиция', String(i + 1)), K('Данные вентиляторов', 'OneView не отдаёт состав вентиляторов серверов в стойке (нужен опрос iLO / Redfish)')]);
         addModule('top', r, 22, texFan(s.w * S3, s.h * S3, comp, i + 1), inf);
     });
     var cpuComps = compsOf('cpu');
@@ -1001,6 +1112,7 @@
             viewChanged();
         }
         if (applyHighlights(now)) dirty = true;
+        if (updateLeds(now)) dirty = true;
         if (!dirty) return;
         dirty = false;
         renderer.render(scene, camera);

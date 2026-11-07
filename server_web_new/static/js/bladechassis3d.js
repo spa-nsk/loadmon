@@ -102,9 +102,17 @@
         x.fillStyle = color; x.textAlign = align || 'center'; x.textBaseline = 'middle';
         x.fillText(s, X, Y);
     }
+    // «Живой» светодиод (включённое оборудование) мерцает; статусные (ожидание/UID/ошибка) — нет.
+    function ledIsLive(color) {
+        return !!(color && color !== C_STBY && color !== C_ERR && color !== C_UID && color !== C_UNK &&
+            color !== '#000' && color !== '#1d2024');
+    }
     function led(x, cx, cy, r, color, on) {
+        var live = !!on && ledIsLive(color);
+        if (live) { var lc = x.canvas; (lc.__leds || (lc.__leds = [])).push({ cx: cx, cy: cy, r: r, color: color }); }
         x.save();
-        if (on) { x.shadowColor = color; x.shadowBlur = r * 2.6; }
+        if (on) { x.shadowColor = color; x.shadowBlur = r * (live ? 1.4 : 2.6); }
+        if (live) x.globalAlpha = 0.72; // остальная яркость добавляется мерцающим слоем (attachLeds)
         x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2);
         x.fillStyle = on ? color : '#1d2024'; x.fill();
         x.restore();
@@ -511,6 +519,62 @@
     }
     function std(o) { return new THREE.MeshStandardMaterial(o); }
 
+    // --- мерцание светодиодов включённого оборудования ---------------------------
+    // Светодиоды рисуются в текстуру модуля (led()), а их «дыхание» — отдельные
+    // аддитивные полупрозрачные плоскости перед гранью с анимируемой opacity
+    // (текстуры не перерисовываются; два слоя с разной фазой дают разнобой).
+    function hexA(color, a) {
+        var m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color || '');
+        if (!m) return 'rgba(255,255,255,' + a + ')';
+        var h = m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1];
+        return 'rgba(' + parseInt(h.substr(0, 2), 16) + ',' + parseInt(h.substr(2, 2), 16) + ',' + parseInt(h.substr(4, 2), 16) + ',' + a + ')';
+    }
+    function ledBright(t, seed) {
+        var s = seed * 12.9898;
+        var a = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 2.15 + s));
+        var b = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(t * 5.4 + s * 1.73));
+        var dip = 1 - 0.12 * Math.max(0, Math.sin(t * 15.5 + s * 2.9));
+        return Math.min(1, Math.max(0.3, a * b * dip));
+    }
+    var ledMeshes = []; // { mat, seed }
+    function attachLeds(m, canvas, pw, ph, depth, side) {
+        var leds = canvas.__leds;
+        if (!leds || !leds.length) return;
+        for (var g = 0; g < 2; g++) {
+            var list = leds.filter(function (l, i) { return i % 2 === g; });
+            if (!list.length) continue;
+            var cv = document.createElement('canvas'); cv.width = canvas.width; cv.height = canvas.height;
+            var c = cv.getContext('2d');
+            c.globalCompositeOperation = 'lighter';
+            list.forEach(function (l) {
+                var R = l.r * 3.4, gr = c.createRadialGradient(l.cx, l.cy, 0, l.cx, l.cy, R);
+                gr.addColorStop(0, hexA(l.color, 0.85)); gr.addColorStop(0.35, hexA(l.color, 0.32)); gr.addColorStop(1, hexA(l.color, 0));
+                c.fillStyle = gr; c.beginPath(); c.arc(l.cx, l.cy, R, 0, Math.PI * 2); c.fill();
+                c.fillStyle = 'rgba(255,255,255,0.45)';
+                c.beginPath(); c.arc(l.cx - l.r * 0.2, l.cy - l.r * 0.2, l.r * 0.45, 0, Math.PI * 2); c.fill();
+            });
+            var mat = new THREE.MeshBasicMaterial({
+                map: tex(cv), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+                opacity: 1, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+            });
+            var pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
+            pl.raycast = function () {};
+            var off = depth / 2 + 0.35;
+            if (side === 'rear') { pl.rotation.y = Math.PI; pl.position.z = -off; }
+            else { pl.position.z = off; }
+            m.add(pl);
+            ledMeshes.push({ mat: mat, seed: modules.length * 1.37 + g * 5.1 + list[0].cx * 0.011 });
+        }
+    }
+    var ledLast = 0;
+    function updateLeds(now) {
+        if (!ledMeshes.length || now - ledLast < 55) return false;
+        ledLast = now;
+        var t = now * 0.001;
+        for (var i = 0; i < ledMeshes.length; i++) ledMeshes[i].mat.opacity = ledBright(t, ledMeshes[i].seed);
+        return true;
+    }
+
     var pickables = [], modules = [];
 
     // Корпус
@@ -554,6 +618,7 @@
         m.add(hull);
         info.side = side;
         m.userData = { info: info, faceMat: faceMat, darkMat: darkMat, hull: hull, flashUntil: 0 };
+        attachLeds(m, canvas, w, h, depth, side);
         rig.add(m);
         pickables.push(m);
         modules.push(m);
@@ -865,6 +930,7 @@
         }
         var fl = applyHighlights(now);
         if (fl) dirty = true;
+        if (updateLeds(now)) dirty = true;
         if (!dirty) return;
         dirty = false;
         renderer.render(scene, camera);

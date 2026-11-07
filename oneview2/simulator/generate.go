@@ -344,6 +344,10 @@ func buildControllers(seed, diskCount int) []ControllerRecord {
 			capMiB = 1907729
 			model = "EG001800JWJNN"
 		}
+		use := "Data"
+		if diskCount >= 4 && d == diskCount-1 {
+			use = "Spare" // последний диск - горячий резерв (для проверки отображения)
+		}
 		drives = append(drives, DriveRecord{
 			Location:        fmt.Sprintf("1:1:%d", d+1),
 			Model:           model,
@@ -351,7 +355,7 @@ func buildControllers(seed, diskCount int) []ControllerRecord {
 			MediaType:       media,
 			InterfaceType:   "SAS",
 			CapacityMiB:     capMiB,
-			DiskDriveUse:    "Data",
+			DiskDriveUse:    use,
 			FirmwareVersion: nestedFirmware{Current: struct{ VersionString string `json:"VersionString"` }{VersionString: "HPD9"}},
 			EncryptedDrive:  d%5 == 0,
 			Status:          status{Health: "OK", State: "Enabled"},

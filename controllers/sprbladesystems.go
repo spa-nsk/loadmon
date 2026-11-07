@@ -924,7 +924,7 @@ func parseBladePSUBayAndStatus(slot string) (bay int, power int, status string) 
 		strings.Contains(st, "error"), strings.Contains(st, "critical"),
 		strings.Contains(st, "off"), strings.Contains(st, "выкл"):
 		power = 2
-	case strings.Contains(st, "ok"), strings.Contains(st, "present"),
+	case strings.Contains(st, "ok"), strings.Contains(st, "present"), strings.Contains(st, "warn"),
 		strings.Contains(st, "normal"), strings.Contains(st, "good"),
 		strings.Contains(st, "on"), strings.HasPrefix(st, "ip "):
 		power = 1
