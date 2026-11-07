@@ -862,13 +862,14 @@ func (this *MainController) SprBladeSystemServersList() {
 	this.Data["ServersCount"] = len(rows)
 }
 
-// bladeChassisPSU - блок питания корзины (models.ServerHardwareComponents,
-// Type=12 / cmdb.ServerHWComponentPowerSupply) для клика по нижней панели
-// визуализации /sprsrv/bladesystemserverslistvisual.
-type bladeChassisPSU struct {
+// bladeChassisComp - компонент корзины (models.ServerHardwareComponents с
+// BladeSystemId) для 3D-визуализации /sprsrv/bladesystemserverslistvisual.
+// Kind: psu (Type=12), fan (13), interconnect (6), manager (7: OA / Frame Link).
+type bladeChassisComp struct {
 	Id    int64          `json:"id"`
+	Kind  string         `json:"kind"`
 	Bay   int            `json:"bay"`   // номер отсека (1..N), 0 если неизвестен
-	Index int            `json:"index"` // порядковый индекс среди БП (0-based) для отрисовки
+	Index int            `json:"index"` // порядковый индекс среди компонентов этого вида (0-based)
 	Name  string         `json:"name"`
 	Model string         `json:"model"`
 	Power int            `json:"power"` // 0 неизвестно, 1 OK/Present, 2 Absent/Failed/выкл
@@ -876,12 +877,24 @@ type bladeChassisPSU struct {
 	Links []rackViewLink `json:"links"`
 }
 
-// bladeChassisVisualData - JSON для canvas-визуализации одной блейд-корзины
-// (/sprsrv/bladesystemserverslistvisual): та же структура слотов/блейдов, что
-// rackViewItem kind=chassis в /sprsrv/rackcabinetview, плюс блоки питания.
+// bladeChassisVisualData - JSON для 3D-визуализации одной блейд-корзины
+// (/sprsrv/bladesystemserverslistvisual): слоты/блейды как rackViewItem
+// kind=chassis в /sprsrv/rackcabinetview, плюс компоненты корзины.
 type bladeChassisVisualData struct {
-	Chassis       rackViewItem     `json:"chassis"`
-	PowerSupplies []bladeChassisPSU `json:"powerSupplies"`
+	Chassis    rackViewItem       `json:"chassis"`
+	Components []bladeChassisComp `json:"components"`
+}
+
+// bladeChassisCompKinds - типы компонентов корзины, выводимые в 3D-виде.
+var bladeChassisCompKinds = []struct {
+	Type  int
+	Kind  string
+	Title string // заголовок в имени компонента
+}{
+	{12, "psu", "Блок питания"},
+	{13, "fan", "Вентилятор"},
+	{6, "interconnect", "Interconnect-модуль"},
+	{7, "manager", "Модуль управления"},
 }
 
 // parseBladePSUBayAndStatus разбирает Slot компоненты БП вида
@@ -913,7 +926,7 @@ func parseBladePSUBayAndStatus(slot string) (bay int, power int, status string) 
 		power = 2
 	case strings.Contains(st, "ok"), strings.Contains(st, "present"),
 		strings.Contains(st, "normal"), strings.Contains(st, "good"),
-		strings.Contains(st, "on"):
+		strings.Contains(st, "on"), strings.HasPrefix(st, "ip "):
 		power = 1
 	}
 	return bay, power, status
@@ -1067,44 +1080,56 @@ func (this *MainController) SprBladeSystemServersListVisual() {
 		Rows: chRows, Links: chLinks, Blades: blades,
 	}
 
-	// Блоки питания корзины (Type=12) - кликабельные на нижней панели canvas.
-	const bladePSUComponentType = 12 // cmdb.ServerHWComponentPowerSupply
-	var psuComps []models.ServerHardwareComponents
-	_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
-		Filter("BladeSystemId", id).Filter("Type", bladePSUComponentType).
-		OrderBy("Id").All(&psuComps)
-	powerSupplies := make([]bladeChassisPSU, 0, len(psuComps))
-	for i, c := range psuComps {
-		bay, pwr, status := parseBladePSUBayAndStatus(c.Slot)
-		name := firstNonEmpty(c.Model, fmt.Sprintf("Блок питания %d", i+1))
-		if bay > 0 {
-			name = fmt.Sprintf("Блок питания, отсек %d", bay)
+	// Компоненты корзины (БП, вентиляторы, interconnect, OA/FLM) - объекты 3D-вида.
+	components := make([]bladeChassisComp, 0, 40)
+	countByKind := map[string]int{}
+	for _, kd := range bladeChassisCompKinds {
+		var comps []models.ServerHardwareComponents
+		_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
+			Filter("BladeSystemId", id).Filter("Type", kd.Type).
+			OrderBy("Id").All(&comps)
+		for i, c := range comps {
+			bay, pwr, status := parseBladePSUBayAndStatus(c.Slot)
+			name := firstNonEmpty(c.Model, fmt.Sprintf("%s %d", kd.Title, i+1))
+			if bay > 0 {
+				name = fmt.Sprintf("%s, отсек %d", kd.Title, bay)
+			}
+			var rows []rackViewKV
+			if bay > 0 {
+				rows = rackViewKVAdd(rows, "Отсек (bay)", fmt.Sprintf("%d", bay))
+			}
+			rows = rackViewKVAdd(rows, "Производитель", c.Vendor)
+			rows = rackViewKVAdd(rows, "Модель", c.Model)
+			rows = rackViewKVAdd(rows, "Серийный номер", c.SerialNum)
+			rows = rackViewKVAdd(rows, "Расположение / статус", c.Slot)
+			rows = rackViewKVAdd(rows, "Статус", status)
+			if c.CapacityGb > 0 && kd.Kind == "psu" {
+				rows = rackViewKVAdd(rows, "Мощность (номинал)", fmt.Sprintf("%.0f Вт", c.CapacityGb))
+			}
+			components = append(components, bladeChassisComp{
+				Id: c.Id, Kind: kd.Kind, Bay: bay, Index: i, Name: name,
+				Model: firstNonEmpty(c.Model, c.Vendor), Power: pwr,
+				Rows: rows,
+				Links: []rackViewLink{
+					{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", bls.Id)},
+				},
+			})
+			countByKind[kd.Kind]++
 		}
-		var rows []rackViewKV
-		if bay > 0 {
-			rows = rackViewKVAdd(rows, "Отсек (bay)", fmt.Sprintf("%d", bay))
-		}
-		rows = rackViewKVAdd(rows, "Производитель", c.Vendor)
-		rows = rackViewKVAdd(rows, "Модель", c.Model)
-		rows = rackViewKVAdd(rows, "Серийный номер", c.SerialNum)
-		rows = rackViewKVAdd(rows, "Расположение / статус", c.Slot)
-		rows = rackViewKVAdd(rows, "Статус", status)
-		if c.CapacityGb > 0 {
-			rows = rackViewKVAdd(rows, "Мощность (номинал)", fmt.Sprintf("%.0f Вт", c.CapacityGb))
-		}
-		powerSupplies = append(powerSupplies, bladeChassisPSU{
-			Id: c.Id, Bay: bay, Index: i, Name: name,
-			Model: firstNonEmpty(c.Model, c.Vendor), Power: pwr,
-			Rows: rows,
-			Links: []rackViewLink{
-				{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", bls.Id)},
-			},
-		})
 	}
-	chRows = rackViewKVAdd(chRows, "Блоков питания", fmt.Sprintf("%d", len(powerSupplies)))
+	chRows = rackViewKVAdd(chRows, "Блоков питания", fmt.Sprintf("%d", countByKind["psu"]))
+	if n := countByKind["fan"]; n > 0 {
+		chRows = rackViewKVAdd(chRows, "Вентиляторов", fmt.Sprintf("%d", n))
+	}
+	if n := countByKind["interconnect"]; n > 0 {
+		chRows = rackViewKVAdd(chRows, "Interconnect-модулей", fmt.Sprintf("%d", n))
+	}
+	if n := countByKind["manager"]; n > 0 {
+		chRows = rackViewKVAdd(chRows, "Модулей управления (OA/FLM)", fmt.Sprintf("%d", n))
+	}
 	item.Rows = chRows
 
-	payload, jerr := json.Marshal(bladeChassisVisualData{Chassis: item, PowerSupplies: powerSupplies})
+	payload, jerr := json.Marshal(bladeChassisVisualData{Chassis: item, Components: components})
 	if jerr != nil {
 		flash.Error("Ошибка сериализации данных визуализации: %v", jerr)
 		flash.Store(&this.Controller)
