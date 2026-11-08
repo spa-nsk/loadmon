@@ -39,7 +39,10 @@
     var CH = DATA.chassis;
     var COMPS = DATA.components || [];
     var BLADES = CH.blades || [];
-    var vendorStr = ((CH.vendor || '') + ' ' + (CH.model || '') + ' ' + (CH.name || '')).toLowerCase();
+    // Тип корзины также ищем в rows («Тип»), иначе Synergy без model = c7000-раскладка.
+    var typeFromRows = '';
+    (CH.rows || []).forEach(function (r) { if (r && (r.k === 'Тип' || r.k === 'Type')) typeFromRows = r.v || ''; });
+    var vendorStr = ((CH.vendor || '') + ' ' + (CH.model || '') + ' ' + (CH.name || '') + ' ' + typeFromRows).toLowerCase();
     var SYN = /synergy|sy ?12|12000/.test(vendorStr);
     var HPE = SYN || /hpe|hp |hewlett|c7000|c3000|bladesystem|proliant/.test(vendorStr);
     var SK = SYN
@@ -627,12 +630,35 @@
 
     // --- поиск данных по отсекам
     function compsOf(kind) { return COMPS.filter(function (c) { return c.kind === kind; }); }
+    // Номера отсеков текущей раскладки по виду (чтобы «осиротевшие» компоненты
+    // с bay вне раскладки или bay=0 всё равно попали на свободные места).
+    var LAYOUT_BAYS = {
+        psu: LF.psu.map(function (r) { return r.n; }),
+        fan: LR.fans.map(function (r) { return r.n; }),
+        interconnect: LR.ic.map(function (r) { return r.n; }),
+        manager: LR.mgr.map(function (r) { return r.n; })
+    };
     function stateOf(kind, n, idx) {
         var list = compsOf(kind), i, f = null;
         for (i = 0; i < list.length; i++) if (list[i].bay === n) { f = list[i]; break; }
-        if (!f) {
-            var anyBay = list.some(function (c) { return c.bay > 0; });
-            if (!anyBay && idx < list.length) f = list[idx];
+        if (!f && list.length) {
+            var layout = LAYOUT_BAYS[kind] || [];
+            var layoutSet = {};
+            layout.forEach(function (b) { layoutSet[b] = true; });
+            // Компоненты, уже занявшие «свой» отсек раскладки.
+            var claimed = {};
+            list.forEach(function (c) { if (c.bay > 0 && layoutSet[c.bay]) claimed[c.bay] = true; });
+            // Свободные отсеки раскладки (в т.ч. текущий n) и «лишние» компоненты.
+            var freeIdx = 0, targetFree = -1;
+            layout.forEach(function (b) {
+                if (!claimed[b]) {
+                    if (b === n) targetFree = freeIdx;
+                    freeIdx++;
+                }
+            });
+            var orphans = list.filter(function (c) { return !(c.bay > 0 && layoutSet[c.bay]); });
+            if (targetFree >= 0 && targetFree < orphans.length) f = orphans[targetFree];
+            else if (!list.some(function (c) { return c.bay > 0; }) && idx < list.length) f = list[idx];
         }
         if (f) return { comp: f, mode: 'present' };
         return { comp: null, mode: list.length === 0 ? 'unknown' : 'absent' };
@@ -640,7 +666,7 @@
     function compInfo(kind, n, st, extraRows) {
         var info = { kind: kind, bay: n, title: '', sub: '', power: 0, rows: [], links: [] };
         if (st.comp) {
-            info.title = st.comp.name;
+            info.title = st.comp.name || (st.comp.model ? st.comp.model + ' · отсек ' + n : (KIND_TITLE[kind] + ', отсек ' + n));
             info.sub = KIND_TITLE[kind] + (st.comp.model ? ' · ' + st.comp.model : '');
             info.power = st.comp.power;
             info.rows = st.comp.rows || [];
@@ -786,8 +812,10 @@
             html += '<div class="bcv-grp"><div class="bcv-grp-title">' + esc(GROUP_TITLE[kind]) + ' <span class="text-muted">(' + items.length + ')</span></div>';
             items.forEach(function (m) {
                 var i = m.userData.info;
-                html += '<button type="button" class="bcv-li" data-mi="' + modules.indexOf(m) + '"><span class="bcv-dot ' + dotClass(i.power) + '"></span>' +
-                    esc(kind === 'blade' ? ('Слот ' + i.bay + ': ' + i.title) : (kind === 'inlet' ? i.title : i.title)) + '</button>';
+                var label = kind === 'blade' ? ('Слот ' + i.bay + ': ' + i.title)
+                    : (kind === 'inlet' ? i.title
+                        : (i.title || (KIND_TITLE[kind] + (i.bay ? ', отсек ' + i.bay : ''))));
+                html += '<button type="button" class="bcv-li" data-mi="' + modules.indexOf(m) + '"><span class="bcv-dot ' + dotClass(i.power) + '"></span>' + esc(label) + '</button>';
             });
             html += '</div>';
         });

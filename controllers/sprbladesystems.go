@@ -9,6 +9,7 @@ import (
 	"loadmon/models"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -897,8 +898,15 @@ var bladeChassisCompKinds = []struct {
 	{7, "manager", "Модуль управления"},
 }
 
-// parseBladePSUBayAndStatus разбирает Slot компоненты БП вида
-// "Bay 3, OK" / "Bay 1, Present" (см. cmdb/syncbladesystemcomponents.go).
+// bladeCompBayRe - номер отсека в Slot: "Bay 3, OK", "Bay3", "bay #2", "Отсек 1".
+var bladeCompBayRe = regexp.MustCompile(`(?i)(?:bay|отсек)\s*#?\s*(\d+)`)
+
+// bladeCompIPRe - IPv4 в Slot менеджера ("Bay 1, IP 172.18.1.11" / "... 172.18.1.11").
+var bladeCompIPRe = regexp.MustCompile(`(?i)\b(?:ip\s+)?(\d{1,3}(?:\.\d{1,3}){3})\b`)
+
+// parseBladePSUBayAndStatus разбирает Slot компонента корзины (БП / вентилятор /
+// interconnect / OA): "Bay 3, OK", "Bay 1, Present", "Bay 2, IP 10.0.0.1, Active".
+// Используется и sync (формат Slot), и 3D-визуализация.
 func parseBladePSUBayAndStatus(slot string) (bay int, power int, status string) {
 	slot = strings.TrimSpace(slot)
 	power = 0
@@ -911,10 +919,14 @@ func parseBladePSUBayAndStatus(slot string) (bay int, power int, status string) 
 	if len(parts) > 1 {
 		status = strings.TrimSpace(parts[1])
 	}
-	lowHead := strings.ToLower(head)
-	if strings.HasPrefix(lowHead, "bay") {
-		num := strings.TrimSpace(head[3:])
-		if n, err := strconv.Atoi(num); err == nil && n > 0 {
+	if m := bladeCompBayRe.FindStringSubmatch(slot); len(m) == 2 {
+		if n, err := strconv.Atoi(m[1]); err == nil && n > 0 {
+			bay = n
+		}
+	}
+	if bay == 0 {
+		// Запасной вариант: в форме иногда пишут просто "3" или "3, OK".
+		if n, err := strconv.Atoi(head); err == nil && n > 0 {
 			bay = n
 		}
 	}
@@ -926,10 +938,22 @@ func parseBladePSUBayAndStatus(slot string) (bay int, power int, status string) 
 		power = 2
 	case strings.Contains(st, "ok"), strings.Contains(st, "present"), strings.Contains(st, "warn"),
 		strings.Contains(st, "normal"), strings.Contains(st, "good"),
-		strings.Contains(st, "on"), strings.HasPrefix(st, "ip "):
+		strings.Contains(st, "on"), strings.Contains(st, "active"),
+		strings.Contains(st, "enabled"), strings.HasPrefix(st, "ip "),
+		bladeCompIPRe.MatchString(status):
 		power = 1
 	}
 	return bay, power, status
+}
+
+// parseBladeCompIP вытаскивает IPv4 из Slot/статуса модуля управления.
+func parseBladeCompIP(slot, status string) string {
+	for _, s := range []string{status, slot} {
+		if m := bladeCompIPRe.FindStringSubmatch(s); len(m) == 2 {
+			return m[1]
+		}
+	}
+	return ""
 }
 
 // SprBladeSystemServersListVisual - визуализация одной блейд-корзины с блейдами
@@ -1081,34 +1105,60 @@ func (this *MainController) SprBladeSystemServersListVisual() {
 	}
 
 	// Компоненты корзины (БП, вентиляторы, interconnect, OA/FLM) - объекты 3D-вида.
+	// Те же записи, что на закладках Interconnect / Management/OA формы
+	// bladesystemsedit-tab: Filter BladeSystemId + Type 6/7/12/13.
 	components := make([]bladeChassisComp, 0, 40)
 	countByKind := map[string]int{}
 	for _, kd := range bladeChassisCompKinds {
 		var comps []models.ServerHardwareComponents
 		_, _ = o.QueryTable(new(models.ServerHardwareComponents)).
 			Filter("BladeSystemId", id).Filter("Type", kd.Type).
-			OrderBy("Id").All(&comps)
+			OrderBy("Slot", "Id").All(&comps)
 		for i, c := range comps {
 			bay, pwr, status := parseBladePSUBayAndStatus(c.Slot)
-			name := firstNonEmpty(c.Model, fmt.Sprintf("%s %d", kd.Title, i+1))
+			model := firstNonEmpty(c.Model, c.Vendor)
+			// Модель известна, а статус в Slot пустой (старый sync писал
+			// "Bay N, ") → модуль установлен, не «не определено».
+			if pwr == 0 && (model != "" || strings.TrimSpace(c.SerialNum) != "") {
+				pwr = 1
+			}
+			name := firstNonEmpty(model, fmt.Sprintf("%s %d", kd.Title, i+1))
 			if bay > 0 {
-				name = fmt.Sprintf("%s, отсек %d", kd.Title, bay)
+				if model != "" {
+					name = fmt.Sprintf("%s · отсек %d", model, bay)
+				} else {
+					name = fmt.Sprintf("%s, отсек %d", kd.Title, bay)
+				}
 			}
 			var rows []rackViewKV
 			if bay > 0 {
 				rows = rackViewKVAdd(rows, "Отсек (bay)", fmt.Sprintf("%d", bay))
 			}
+			rows = rackViewKVAdd(rows, "Тип модуля", kd.Title)
 			rows = rackViewKVAdd(rows, "Производитель", c.Vendor)
 			rows = rackViewKVAdd(rows, "Модель", c.Model)
 			rows = rackViewKVAdd(rows, "Серийный номер", c.SerialNum)
-			rows = rackViewKVAdd(rows, "Расположение / статус", c.Slot)
-			rows = rackViewKVAdd(rows, "Статус", status)
+			if ip := parseBladeCompIP(c.Slot, status); ip != "" {
+				rows = rackViewKVAdd(rows, "IP адрес", ip)
+				// У OA Slot = "Bay N, IP x[, роль]" — роль после IP, если есть.
+				afterIP := status
+				for _, pfx := range []string{"IP " + ip, "ip " + ip, ip} {
+					if i := strings.Index(strings.ToLower(afterIP), strings.ToLower(pfx)); i >= 0 {
+						afterIP = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(afterIP[i+len(pfx):]), ","))
+						break
+					}
+				}
+				rows = rackViewKVAdd(rows, "Роль / статус", afterIP)
+			} else {
+				rows = rackViewKVAdd(rows, "Статус", status)
+			}
+			rows = rackViewKVAdd(rows, "Расположение (Slot)", c.Slot)
 			if c.CapacityGb > 0 && kd.Kind == "psu" {
 				rows = rackViewKVAdd(rows, "Мощность (номинал)", fmt.Sprintf("%.0f Вт", c.CapacityGb))
 			}
 			components = append(components, bladeChassisComp{
 				Id: c.Id, Kind: kd.Kind, Bay: bay, Index: i, Name: name,
-				Model: firstNonEmpty(c.Model, c.Vendor), Power: pwr,
+				Model: model, Power: pwr,
 				Rows: rows,
 				Links: []rackViewLink{
 					{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", bls.Id)},

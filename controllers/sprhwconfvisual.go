@@ -88,6 +88,25 @@ func hwDiskSubTypeName(sub int) string {
 	return ""
 }
 
+// hwTypicalFanCount — сколько вентиляторов обычно у rack-сервера данного U /
+// семейства. OneView server-hardware вентиляторы не отдаёт; оценка нужна, чтобы
+// 3D-вид сверху не был пустым. Точные S/N и health — только из iLO Redfish.
+func hwTypicalFanCount(sizeU int, model string) int {
+	m := strings.ToLower(model)
+	switch {
+	case strings.Contains(m, "dl360"), strings.Contains(m, "r640"), strings.Contains(m, "r650"):
+		return 7
+	case strings.Contains(m, "dl380"), strings.Contains(m, "dl385"), strings.Contains(m, "r740"),
+		strings.Contains(m, "r750"):
+		return 6
+	case sizeU == 1:
+		return 7
+	case sizeU <= 0, sizeU >= 2:
+		return 6
+	}
+	return 6
+}
+
 // hwDiskRoleName - подпись назначения диска (models.ServerHardwareComponents.Role).
 func hwDiskRoleName(role string) string {
 	switch role {
@@ -277,6 +296,28 @@ func (this *MainController) SprHwConfVisual() {
 			countByKind["cpu"]++
 		}
 	}
+	// Вентиляторы rack-серверов OneView не отдаёт (только enclosure у блейд-корзин).
+	// Для 3D подставляем типовое число по U/модели — с пометкой «оценка», чтобы
+	// на виде сверху были не пустые заглушки без пояснения.
+	fanEstimated := false
+	if countByKind["fan"] == 0 && hw.FormFactor != 2 {
+		nFan := hwTypicalFanCount(sizeU, hw.Model)
+		for i := 0; i < nFan; i++ {
+			var crow []rackViewKV
+			crow = rackViewKVAdd(crow, "Позиция", fmt.Sprintf("%d", i+1))
+			crow = rackViewKVAdd(crow, "Источник данных", "оценка по форм-фактору (OneView не отдаёт вентиляторы rack-серверов)")
+			crow = rackViewKVAdd(crow, "Как получить точные данные", "iLO Redfish: /redfish/v1/Chassis/1/Thermal")
+			crow = rackViewKVAdd(crow, "Сервер", firstNonEmpty(hw.Model, hw.ShortModel))
+			comps = append(comps, hwConfVisualComp{
+				Kind: "fan", Index: i, Slot: fmt.Sprintf("Fan %d", i+1),
+				Name: fmt.Sprintf("Вентилятор %d (оценка)", i+1),
+				Model: fmt.Sprintf("типовая конфигурация %dU", sizeU),
+				Rows: crow,
+			})
+			countByKind["fan"]++
+		}
+		fanEstimated = nFan > 0
+	}
 	rows = rackViewKVAdd(rows, "Дисков", fmt.Sprintf("%d", countByKind["disk"]))
 	if n := countByKind["disk-spare"]; n > 0 {
 		rows = rackViewKVAdd(rows, "Из них горячий резерв", fmt.Sprintf("%d", n))
@@ -286,6 +327,16 @@ func (this *MainController) SprHwConfVisual() {
 	}
 	if n := countByKind["nic"] + countByKind["fc"] + countByKind["raid"] + countByKind["pci"]; n > 0 {
 		rows = rackViewKVAdd(rows, "Адаптеров/портов (NIC, FC, RAID, PCI)", fmt.Sprintf("%d", n))
+	}
+	if n := countByKind["pci"]; n > 0 {
+		rows = rackViewKVAdd(rows, "PCI-устройств (Devices)", fmt.Sprintf("%d", n))
+	}
+	if n := countByKind["fan"]; n > 0 {
+		label := "Вентиляторов"
+		if fanEstimated {
+			label = "Вентиляторов (оценка по U)"
+		}
+		rows = rackViewKVAdd(rows, label, fmt.Sprintf("%d", n))
 	}
 
 	// Контроллер управления (iLO/iDRAC/...): всё, что OneView отдаёт о нём в server-hardware.

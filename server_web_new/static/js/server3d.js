@@ -207,7 +207,8 @@
     // Лицевая сторона. u: 0..1 по ширине FW, v: 0..1 сверху вниз.
     function bayConfig(diskCount) {
         var cfg;
-        if (BLADE) return { flat: false, cols: 1, rows: 2, blade: true };
+        // Блейд: столько отсеков, сколько дисков в карточке (минимум 2 — типичный BL460).
+        if (BLADE) return { flat: false, cols: 1, rows: Math.max(2, diskCount || 2), blade: true };
         if (U <= 1) cfg = { flat: true, cols: SK.cols1, rows: 2 };
         else if (U === 2) cfg = { flat: false, cols: 24, rows: 1 };
         else cfg = { flat: false, cols: 12, rows: 2 };
@@ -235,8 +236,13 @@
     function layoutFront() {
         var L = { bays: [], panel: null };
         if (BLADE) {
-            for (var i = 0; i < 2; i++) L.bays.push({ n: i + 1, u0: 0.12, u1: 0.88, v0: 0.075 + i * 0.135, v1: 0.075 + i * 0.135 + 0.118 });
-            L.panel = { u0: 0.2, u1: 0.8, v0: 0.5, v1: 0.72 };
+            var nBay = CFG.rows, bh = Math.min(0.12, 0.42 / nBay), gap = 0.012;
+            var v0 = 0.06;
+            for (var i = 0; i < nBay; i++) {
+                L.bays.push({ n: i + 1, u0: 0.12, u1: 0.88, v0: v0 + i * (bh + gap), v1: v0 + i * (bh + gap) + bh });
+            }
+            var panelTop = v0 + nBay * (bh + gap) + 0.04;
+            L.panel = { u0: 0.2, u1: 0.8, v0: Math.min(panelTop, 0.72), v1: Math.min(panelTop + 0.22, 0.94) };
             return L;
         }
         var cx0 = 0.145, cx1 = 0.80, cy0 = 0.1, cy1 = 0.9;
@@ -249,15 +255,32 @@
     }
     var LF = layoutFront();
 
-    // Карты расширения: raid, fc, nic, pci -> группы по слоту
+    // Карты расширения: raid, fc, nic, pci -> группы по слоту.
+    // Type=9 (Devices OneView) часто дублирует Ethernet/Smart Array, уже попавшие
+    // в nic/raid — такие pci отбрасываем, иначе они забивают слоты и «теряют»
+    // настоящие GPU/HBA, а на 1U (всего 2 слота сзади) PCI некуда поставить.
     function buildCards() {
-        var cards = [], byKey = {};
+        var cards = [], byKey = {}, slotTaken = {};
+        function slotBase(slot) { return String(slot || '').split(/,\s*порт/i)[0].replace(/\s+/g, ' ').trim(); }
+        function isDupPciModel(model) {
+            return /\(ethernet\)|\(storagecontroller\)|\(fibrechannel\)|\(fiberchannel\)|\(network\)/i.test(model || '')
+                || /smart\s*array/i.test(model || '');
+        }
         ['raid', 'fc', 'nic', 'pci'].forEach(function (kind) {
             compsOf(kind).forEach(function (c, i) {
-                var slot = String(c.slot || '');
-                var key = kind + '|' + (kind === 'nic' || kind === 'fc' ? slot.split(/,\s*порт/i)[0] : slot + '#' + i);
+                var base = slotBase(c.slot) || ('—' + kind + i);
+                if (kind === 'pci') {
+                    if (slotTaken[base]) return;
+                    if (isDupPciModel(c.model)) return;
+                }
+                var key = kind + '|' + (kind === 'nic' || kind === 'fc' ? base : base + '#' + i);
                 var card = byKey[key];
-                if (!card) { card = { kind: kind, key: key, slot: slot.split(/,\s*порт/i)[0], comps: [] }; byKey[key] = card; cards.push(card); }
+                if (!card) {
+                    card = { kind: kind, key: key, slot: base, comps: [] };
+                    byKey[key] = card;
+                    cards.push(card);
+                    slotTaken[base] = true;
+                }
                 card.comps.push(c);
             });
         });
@@ -295,15 +318,67 @@
     // Вид сверху (кожух снят): u слева направо, v от задней стенки (0) к передней (1)
     var CPUN = Math.max(1, Math.min(4, SRV.cpuCount || compsOf('cpu').length || 1));
     var RAMS = compsOf('ram');
+    var FAN_COMPS_EARLY = compsOf('fan');
     function layoutTop() {
         var L = { fans: [], cpus: [], dimms: [], cards: [] };
         var i;
         if (BLADE) {
-            // 16 слотов памяти (горизонтальные планки), CPU, мезонины
-            for (i = 0; i < 16; i++) L.dimms.push({ n: i + 1, u0: 0.08, u1: 0.92, v0: 0.05 + Math.floor(i / 8) * 0.205 + (i % 8) * 0.0235, v1: 0.05 + Math.floor(i / 8) * 0.205 + (i % 8) * 0.0235 + 0.018, wide: true });
-            for (i = 0; i < Math.min(2, CPUN); i++) L.cpus.push({ n: i + 1, u0: 0.2, u1: 0.8, v0: 0.5 + i * 0.145, v1: 0.5 + i * 0.145 + 0.12 });
-            L.cards.push({ u0: 0.12, u1: 0.88, v0: 0.8, v1: 0.88 });
-            L.cards.push({ u0: 0.12, u1: 0.88, v0: 0.9, v1: 0.98 });
+            // Раскладка по фактическим компонентам карточки (раньше было жёстко
+            // 16 DIMM / 2 мезонина / 0 вентиляторов — лишние NIC/FC/RAID/RAM
+            // из редактирования на 3D не попадали).
+            var v = 0.03;
+            var fanN = FAN_COMPS_EARLY.length;
+            if (fanN > 0) {
+                var fSpan = Math.min(0.14, 0.04 + fanN * 0.02), fw = 0.88 / fanN;
+                for (i = 0; i < fanN; i++) {
+                    L.fans.push({ n: i + 1, u0: 0.06 + i * fw + 0.004, u1: 0.06 + (i + 1) * fw - 0.004, v0: v, v1: v + fSpan });
+                }
+                v += fSpan + 0.02;
+            }
+            var banks = 2;
+            var perBank = Math.max(8, Math.ceil(Math.max(RAMS.length, 1) / banks));
+            if (RAMS.length === 0) perBank = 8; // пустая эстетика 2×8
+            var dimmH = Math.min(0.018, 0.28 / perBank), dimmGap = 0.0035;
+            var bankH = perBank * (dimmH + dimmGap);
+            for (i = 0; i < banks * perBank; i++) {
+                var bank = Math.floor(i / perBank), row = i % perBank;
+                L.dimms.push({
+                    n: i + 1, wide: true,
+                    u0: 0.08, u1: 0.92,
+                    v0: v + bank * (bankH + 0.02) + row * (dimmH + dimmGap),
+                    v1: v + bank * (bankH + 0.02) + row * (dimmH + dimmGap) + dimmH
+                });
+            }
+            v += banks * (bankH + 0.02) + 0.01;
+            var nCpu = Math.max(1, Math.min(2, CPUN));
+            var cpuH = Math.min(0.11, (0.72 - v - 0.02) / Math.max(1, nCpu + 0.5));
+            for (i = 0; i < nCpu; i++) {
+                L.cpus.push({ n: i + 1, u0: 0.18, u1: 0.82, v0: v + i * (cpuH + 0.015), v1: v + i * (cpuH + 0.015) + cpuH });
+            }
+            v += nCpu * (cpuH + 0.015) + 0.02;
+            // Мезонины: по одному слоту на каждую карту (NIC/FC/RAID/PCI); минимум 2 пустых.
+            var nCard = Math.max(2, CARDS.length);
+            var remain = Math.max(0.08, 0.98 - v);
+            var cardH = Math.min(0.09, (remain - 0.008 * (nCard - 1)) / nCard);
+            for (i = 0; i < nCard; i++) {
+                L.cards.push({
+                    n: i + 1,
+                    u0: 0.1, u1: 0.9,
+                    v0: v + i * (cardH + 0.008),
+                    v1: v + i * (cardH + 0.008) + cardH
+                });
+            }
+            // Если блоков много — пропорционально вписать в 0..0.98.
+            var bottom = 0;
+            ['fans', 'dimms', 'cpus', 'cards'].forEach(function (k) {
+                L[k].forEach(function (r) { if (r.v1 > bottom) bottom = r.v1; });
+            });
+            if (bottom > 0.98) {
+                var sc = 0.96 / bottom;
+                ['fans', 'dimms', 'cpus', 'cards'].forEach(function (k) {
+                    L[k].forEach(function (r) { r.v0 *= sc; r.v1 *= sc; });
+                });
+            }
             return L;
         }
         var nf = U === 1 ? 7 : 6, fw = 0.92 / nf;
@@ -322,11 +397,23 @@
                 }
             });
         });
-        L.cards.push({ u0: 0.04, u1: 0.3, v0: 0.04, v1: 0.14 });
-        L.cards.push({ u0: 0.33, u1: 0.59, v0: 0.04, v1: 0.14 });
+        // Места под «лишние» PCIe добавляются после split CARDS → REAR/TOP.
         return L;
     }
     var LT = layoutTop();
+    // Сзади — сколько влезает в раскладку; остаток (PCI/GPU/riser) — сверху при снятом кожухе.
+    var REAR_CARDS = BLADE ? [] : CARDS.slice(0, LR.slots.length);
+    var TOP_CARDS = BLADE ? CARDS.slice() : CARDS.slice(REAR_CARDS.length);
+    if (!BLADE && TOP_CARDS.length) {
+        var tc = TOP_CARDS.length, cw = Math.min(0.28, 0.9 / Math.max(tc, 1));
+        for (var ti = 0; ti < tc; ti++) {
+            LT.cards.push({
+                n: ti + 1,
+                u0: 0.04 + ti * (cw + 0.02), u1: 0.04 + ti * (cw + 0.02) + cw,
+                v0: 0.04, v1: 0.14
+            });
+        }
+    }
 
     // -------------------------------------------------------- текстуры плит/корпуса
     var TS = 4; // px/mm для плит
@@ -838,7 +925,7 @@
             addModule('rear', r, 14, texPsu(s.w * S3, s.h * S3, comp, i + 1), inf);
         });
         LR.slots.forEach(function (r, i) {
-            var card = CARDS[i], s = sz(r, 'rear');
+            var card = REAR_CARDS[i], s = sz(r, 'rear');
             if (card) {
                 var first = card.comps[0], rows = [K('Слот', card.slot), K('Тип', CARD_KIND[card.kind])];
                 var model = first.model || first.name;
@@ -873,10 +960,18 @@
         }
     }
     // --- вид сверху (кожух снят)
-    var fanComps = compsOf('fan');
+    var fanComps = FAN_COMPS_EARLY;
+    // Число слотов вентиляторов: по данным (в т.ч. оценка из Go), иначе типовое по U.
+    if (!BLADE && fanComps.length > LT.fans.length) {
+        var need = fanComps.length, fw2 = 0.92 / need;
+        LT.fans = [];
+        for (var fi = 0; fi < need; fi++) {
+            LT.fans.push({ n: fi + 1, u0: 0.04 + fi * fw2 + 0.004, u1: 0.04 + (fi + 1) * fw2 - 0.004, v0: 0.69, v1: 0.84 });
+        }
+    }
     LT.fans.forEach(function (r, i) {
         var comp = fanComps[i] || null, s = sz(r, 'top');
-        var inf = comp ? info('fan', comp.name, 'Вентилятор ' + (i + 1), /crit|fail|error/i.test(comp.status || '') ? 4 : 1, comp.rows || [])
+        var inf = comp ? info('fan', comp.name, comp.model || ('Вентилятор ' + (i + 1)), /crit|fail|error/i.test(comp.status || '') ? 4 : 1, comp.rows || [])
             : info('fan', 'Вентилятор ' + (i + 1), 'Модуль охлаждения (нет данных в справочнике)', 0,
                 [K('Позиция', String(i + 1)), K('Данные вентиляторов', 'OneView не отдаёт состав вентиляторов серверов в стойке (нужен опрос iLO / Redfish)')]);
         addModule('top', r, 22, texFan(s.w * S3, s.h * S3, comp, i + 1), inf);
@@ -901,10 +996,23 @@
         addModule('top', r, 6, texDimm(!!comp, Math.max(8, s.w * S3), Math.max(8, s.h * S3), !!r.wide), inf, 'dimm-' + (comp ? 1 : 0) + (r.wide ? 'w' : 'v') + '-' + Math.round(s.w) + 'x' + Math.round(s.h));
     });
     LT.cards.forEach(function (r, i) {
-        var card = BLADE ? CARDS[i] : null;
-        if (!card) return;
-        var s = sz(r, 'top'), rows = [K('Слот', card.slot), K('Тип', CARD_KIND[card.kind]), K('Модель', card.comps[0].model || card.comps[0].name)].filter(function (q) { return q.v; });
-        addModule('top', r, 8, texCard(card, s.w * S3, s.h * S3), info('card', card.comps[0].model || CARD_KIND[card.kind], 'Мезонин: ' + CARD_KIND[card.kind], 0, rows));
+        // Блейд: все мезонины сверху. Rack: сверху — адаптеры, не влезшие сзади (часто PCI Type=9).
+        var card = TOP_CARDS[i] || null;
+        var s = sz(r, 'top');
+        if (card) {
+            var rows = [K('Слот', card.slot), K('Тип', CARD_KIND[card.kind]), K('Модель', card.comps[0].model || card.comps[0].name)].filter(function (q) { return q.v; });
+            if (card.comps.length > 1) {
+                rows.push(K('Портов / частей', String(card.comps.length)));
+                card.comps.forEach(function (c, j) { rows.push(K('Часть ' + (j + 1), c.slot || c.name)); });
+            }
+            if (!BLADE) rows.push(K('Расположение на 3D', 'Внутренний/ризерный слот (вид сверху)'));
+            addModule('top', r, 8, texCard(card, s.w * S3, s.h * S3),
+                info('card', card.comps[0].model || CARD_KIND[card.kind], (BLADE ? 'Мезонин: ' : 'PCIe: ') + CARD_KIND[card.kind], 0, rows));
+        } else if (BLADE) {
+            var empty = info('slot', 'Мезонин ' + (r.n || (i + 1)), 'Свободен / нет данных в справочнике', 0, [K('Мезонин', String(r.n || (i + 1)))]);
+            empty.absent = true;
+            addModule('top', r, 4, texEmptySlot(s.w * S3, s.h * S3, 'Mezz ' + (r.n || (i + 1))), empty, 'mezz-empty-' + Math.round(s.w) + 'x' + Math.round(s.h));
+        }
     });
 
     // корпус как объект
