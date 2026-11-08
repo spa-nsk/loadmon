@@ -32,6 +32,15 @@
                 </select>
             </div>
             <div class="col-6 col-md-3">
+                <label for="ItiliumStatus" class="form-label">Статус Итилиум</label>
+                <select id="ItiliumStatus" name="ItiliumStatus" class="form-select">
+                    <option value="all" {{if eq .HWConfigFilter.ItiliumStatus "all"}}selected{{end}}>Все</option>
+                    {{range $s := .ItiliumStatuses}}
+                    <option value="{{$s.Value}}" {{if eq $.HWConfigFilter.ItiliumStatus (printf "%d" $s.Value)}}selected{{end}}>{{$s.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
                 <label for="FormFactor" class="form-label">Тип сервера</label>
                 <select id="FormFactor" name="FormFactor" class="form-select">
                     <option value="all" {{if eq .HWConfigFilter.FormFactor "all"}}selected{{end}}>Все</option>
@@ -113,6 +122,7 @@
                     <th class="text-center">Id</th>
                     <th>Питание</th>
                     <th>Статус</th>
+                    <th>Статус Итилиум</th>
                     <th>Производитель / модель</th>
                     <th>Серийный №</th>
                     <th>Процессор</th>
@@ -134,6 +144,11 @@
                     <td>
                         <span class="badge {{if eq $hw.Active 1}}text-bg-success{{else if eq $hw.Active 2}}text-bg-secondary{{else if eq $hw.Active 3}}text-bg-dark{{else}}text-bg-light{{end}}">
                             {{if eq $hw.Active 1}}Активен{{else if eq $hw.Active 2}}Выведен{{else if eq $hw.Active 3}}Списан{{else}}Не указано{{end}}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {{if eq $hw.ItiliumStatus 1}}text-bg-success{{else if eq $hw.ItiliumStatus 3}}text-bg-dark{{else if or (eq $hw.ItiliumStatus 2) (eq $hw.ItiliumStatus 5)}}text-bg-secondary{{else}}text-bg-light{{end}}">
+                            {{if eq $hw.ItiliumStatus 1}}В работе{{else if eq $hw.ItiliumStatus 2}}Выведен{{else if eq $hw.ItiliumStatus 3}}Списан{{else if eq $hw.ItiliumStatus 4}}Свободно{{else if eq $hw.ItiliumStatus 5}}На складе{{else if eq $hw.ItiliumStatus 6}}Зарезервировано{{else if eq $hw.ItiliumStatus 7}}В ремонте{{else if eq $hw.ItiliumStatus 8}}В пути{{else if eq $hw.ItiliumStatus 9}}Черновик{{else}}Не указано{{end}}
                         </span>
                     </td>
                     <td>
@@ -168,7 +183,7 @@
                 </tr>
                 {{else}}
                 <tr>
-                    <td colspan="10" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
+                    <td colspan="13" class="text-center text-muted py-4">По выбранным условиям фильтра записи не найдены</td>
                 </tr>
                 {{end}}
             </tbody>

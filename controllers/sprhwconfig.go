@@ -17,11 +17,11 @@ import (
 )
 
 // HWConfigFilter - фильтр списка /sprsrv/hwconflist. Числовые поля-перечисления
-// (PowerState/Active/FormFactor) хранятся как строки ("all"/"0"/"1"/"2"/"3"),
-// чтобы отличать "фильтр не применён" от осмысленного значения 0 ("не
-// указано" в самой таблице models.ServerHardware). ServerName - поиск по
-// связанному справочнику серверов (models.ServerSprRecords.Name/NameFQDN,
-// связь через ServerHardware.ServerId).
+// (PowerState/Active/ItiliumStatus/FormFactor) хранятся как строки
+// ("all"/"0"/"1"/...), чтобы отличать "фильтр не применён" от осмысленного
+// значения 0 ("не указано" в самой таблице models.ServerHardware).
+// ServerName - поиск по связанному справочнику серверов
+// (models.ServerSprRecords.Name/NameFQDN, связь через ServerHardware.ServerId).
 //
 // ИЗМЕНЕНО (2026-09-08, по запросу пользователя "в справочнике серверов в
 // фильтре используй схему с выбором ЦОД и Шкафа вместо ЦОД: адрес и площадка
@@ -35,6 +35,7 @@ import (
 type HWConfigFilter struct {
 	PowerState        string `form:"PowerState"`
 	Active            string `form:"Active"`
+	ItiliumStatus     string `form:"ItiliumStatus"`
 	Vendor            string `form:"Vendor"`
 	Model             string `form:"Model"`
 	PartNum           string `form:"PartNum"`
@@ -47,7 +48,7 @@ type HWConfigFilter struct {
 }
 
 func defaultHWConfigFilter() *HWConfigFilter {
-	return &HWConfigFilter{PowerState: "all", Active: "all", FormFactor: "all", RackCabinetId: "0"}
+	return &HWConfigFilter{PowerState: "all", Active: "all", ItiliumStatus: "all", FormFactor: "all", RackCabinetId: "0"}
 }
 
 // HWConfigRow - одна строка списка /sprsrv/hwconflist: запись
@@ -162,6 +163,7 @@ func (this *MainController) SprHwConfig() {
 	var sites []models.DatacenterSite
 	o.QueryTable("cmdb_datacenter_site").OrderBy("Name").All(&sites)
 	this.Data["DatacenterSites"] = sites
+	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 
 	var racks []models.RackCabinet
 	o.QueryTable("cmdb_rack_cabinet").OrderBy("Name").All(&racks)
@@ -177,6 +179,11 @@ func (this *MainController) SprHwConfig() {
 	if filter.Active != "" && filter.Active != "all" {
 		if v, err := strconv.Atoi(filter.Active); err == nil {
 			qs = qs.Filter("Active", v)
+		}
+	}
+	if filter.ItiliumStatus != "" && filter.ItiliumStatus != "all" {
+		if v, err := strconv.Atoi(filter.ItiliumStatus); err == nil {
+			qs = qs.Filter("ItiliumStatus", v)
 		}
 	}
 	if filter.FormFactor != "" && filter.FormFactor != "all" {
