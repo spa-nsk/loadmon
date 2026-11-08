@@ -1117,9 +1117,10 @@ func (this *MainController) SprBladeSystemServersListVisual() {
 		for i, c := range comps {
 			bay, pwr, status := parseBladePSUBayAndStatus(c.Slot)
 			model := firstNonEmpty(c.Model, c.Vendor)
-			// Модель известна, а статус в Slot пустой (старый sync писал
-			// "Bay N, ") → модуль установлен, не «не определено».
-			if pwr == 0 && (model != "" || strings.TrimSpace(c.SerialNum) != "") {
+			// Модуль есть в справочнике (даже без модели/SN): пустой Slot-статус
+			// или старый sync "Bay N, " → считаем установленным, иначе 3D
+			// рисует «пустой» отсек без опознаваемой панели.
+			if pwr == 0 && (model != "" || strings.TrimSpace(c.SerialNum) != "" || bay > 0 || kd.Kind == "interconnect" || kd.Kind == "manager") {
 				pwr = 1
 			}
 			name := firstNonEmpty(model, fmt.Sprintf("%s %d", kd.Title, i+1))

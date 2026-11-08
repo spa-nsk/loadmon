@@ -110,6 +110,8 @@ func init() {
 	beego.Router("/sprsrv/location-uri/:id([0-9]+)", &controllers.MainController{}, "get:SprSrvLocationURI") // по ServerSprRecords.Id открыть план площадки с выделением шкафа и сервера (ВМ - через хост ESXi)
 	beego.Router("/sprsrv/equipmentplacement", &controllers.MainController{}, "get:SprEquipmentPlacement") // поиск размещения оборудования по IT/инв./бух./серийному номеру
 	beego.Router("/sprsrv/equipmentplacement/go/:kind/:id([0-9]+)", &controllers.MainController{}, "get:SprEquipmentPlacementGo")
+	beego.Router("/sprsrv/equipmentvisual", &controllers.MainController{}, "get:SprEquipmentVisual") // поиск → 3D-вид конкретного устройства (корзина / rack / blade)
+	beego.Router("/sprsrv/equipmentvisual/go/:kind/:id([0-9]+)", &controllers.MainController{}, "get:SprEquipmentVisualGo")
 
 	// Справочник сетей (models.NetworkSprRecords) для серверов и других компонент инфраструктуры.
 	beego.Router("/sprsrv/networklist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetwork")

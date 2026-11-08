@@ -7,8 +7,9 @@
  *
  * Управление:
  *   - колесо мыши                        - масштаб;
- *   - перетаскивание за угловой маркер   - вращение (Shift или правая кнопка - крен);
- *   - перетаскивание за фон              - вращение;
+ *   - ЛКМ + перемещение                  - pan (сдвиг вида при увеличении);
+ *   - перетаскивание за угловой маркер   - вращение (СКМ тоже вращает);
+ *   - Shift или правая кнопка            - крен;
  *   - наведение                          - подсветка компонента + подсказка;
  *   - клик                               - закрепление и вывод параметров.
  *
@@ -315,11 +316,19 @@
         strokeRR(x, 1, 1, w - 2, h - 2, 4, 'rgba(0,0,0,.45)', 1.2);
         fillRR(x, w * 0.04, h * 0.1, w * 0.92, h * 0.12, 2, '#11151a');
         txt(x, 'Interconnect ' + bay, w * 0.08, h * 0.16, h * 0.085, '#d8dde3', 'left', '600');
-        var cols = SYN ? 2 : 4;
         portBlock(x, w * 0.06, h * 0.32, w * 0.88, h * 0.12, SYN ? 8 : 8, '#8a6f2a');
         portBlock(x, w * 0.06, h * 0.58, w * 0.88, h * 0.12, SYN ? 8 : 4, '#7a7f87');
         var comp = st.comp;
-        txt(x, comp && comp.model ? comp.model.slice(0, 26) : '', w / 2, h * 0.88, h * 0.075, '#2b2f35', 'center', '600');
+        // Без модели модуль всё равно установлен — подпись не оставляем пустой.
+        var icLabel = '';
+        if (comp) {
+            icLabel = String(comp.model || '').trim();
+            if (!icLabel && comp.name) {
+                icLabel = String(comp.name).replace(/\s*·\s*отсек\s+\d+\s*$/i, '').trim();
+            }
+        }
+        if (!icLabel) icLabel = 'Interconnect ' + bay;
+        txt(x, icLabel.slice(0, 26), w / 2, h * 0.88, h * 0.075, '#2b2f35', 'center', '600');
         led(x, w * 0.9, h * 0.16, Math.max(2, h * 0.03), comp ? pwColor(comp.power) : C_UNK, !!(comp && comp.power));
         return c;
     }
@@ -348,7 +357,15 @@
         var comp = st.comp;
         led(x, w * 0.2, h * 0.78, Math.max(2.5, h * 0.045), comp ? pwColor(comp.power) : C_UNK, !!(comp && comp.power));
         led(x, w * 0.32, h * 0.78, Math.max(2.5, h * 0.045), C_UID, false);
-        txt(x, comp && comp.model ? comp.model.slice(0, 22) : '', w * 0.62, h * 0.86, h * 0.08, 'rgba(220,224,230,.8)', 'center', '500');
+        var mgrLabel = '';
+        if (comp) {
+            mgrLabel = String(comp.model || '').trim();
+            if (!mgrLabel && comp.name) {
+                mgrLabel = String(comp.name).replace(/\s*·\s*отсек\s+\d+\s*$/i, '').trim();
+            }
+        }
+        if (!mgrLabel) mgrLabel = SYN ? ('Frame Link ' + n) : ('OA ' + n);
+        txt(x, mgrLabel.slice(0, 22), w * 0.62, h * 0.86, h * 0.08, 'rgba(220,224,230,.8)', 'center', '500');
         return c;
     }
 
@@ -501,9 +518,12 @@
     var scene = new THREE.Scene();
     var camera = new THREE.PerspectiveCamera(30, 1, 20, 9000);
     var DEF_DIST = 2100, MIN_DIST = 450, MAX_DIST = 6000;
-    var dist = DEF_DIST;
-    camera.position.set(0, 0, dist);
-    camera.lookAt(0, 0, 0);
+    var dist = DEF_DIST, panX = 0, panY = 0;
+    function applyCam() {
+        camera.position.set(panX, panY, dist);
+        camera.lookAt(panX, panY, 0);
+    }
+    applyCam();
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.35));
     scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x303540, 0.9));
@@ -758,14 +778,21 @@
     var anim = null;
     var dirty = true;
     function animateTo(q, d) {
-        anim = { t0: performance.now(), dur: 520, q0: rig.quaternion.clone(), q1: q.clone(), d0: dist, d1: d == null ? dist : d };
+        anim = { t0: performance.now(), dur: 520, q0: rig.quaternion.clone(), q1: q.clone(), d0: dist, d1: d == null ? dist : d, px0: panX, py0: panY };
         dirty = true;
     }
     function setDist(d) {
         dist = Math.max(MIN_DIST, Math.min(MAX_DIST, d));
-        camera.position.set(0, 0, dist);
+        applyCam();
         if (zoomEl) zoomEl.textContent = Math.round(DEF_DIST / dist * 100) + '%';
         dirty = true;
+    }
+    function panBy(dx, dy) {
+        var k = dist * Math.tan(camera.fov * Math.PI / 360) * 2 / Math.max(1, vh);
+        panX -= dx * k * (camera.aspect || 1);
+        panY += dy * k;
+        applyCam();
+        anim = null; dirty = true;
     }
     function rotateBy(dx, dy) {
         rig.quaternion.premultiply(qAxis(AY, dx * 0.45)).premultiply(qAxis(AX, dy * 0.45)).normalize();
@@ -951,9 +978,11 @@
             var t = Math.min(1, (now - anim.t0) / anim.dur);
             var e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
             rig.quaternion.copy(anim.q0).slerp(anim.q1, e);
+            panX = (anim.px0 || 0) * (1 - e);
+            panY = (anim.py0 || 0) * (1 - e);
             setDist(anim.d0 + (anim.d1 - anim.d0) * e);
             dirty = true;
-            if (t >= 1) { anim = null; }
+            if (t >= 1) { panX = 0; panY = 0; applyCam(); anim = null; }
             viewChanged();
         }
         var fl = applyHighlights(now);
@@ -1008,12 +1037,17 @@
         var ci = cornerAt(p);
         var hit = ci < 0 ? pick(p) : null;
         var roll = e.shiftKey || e.button === 2;
-        if (ci >= 0 || e.button === 2 || e.button === 1) {
+        // Углы / СКМ — вращение; ПКМ/Shift — крен; ЛКМ — pan; короткий клик — выбор.
+        if (ci >= 0) {
             drag = { mode: roll ? 'roll' : 'rot', x: p.x, y: p.y, moved: 0 };
-        } else if (!hit) {
-            drag = { mode: roll ? 'roll' : 'rot', x: p.x, y: p.y, moved: 0 };
-        } else {
+        } else if (roll) {
+            drag = { mode: 'roll', x: p.x, y: p.y, moved: 0 };
+        } else if (e.button === 1) {
+            drag = { mode: 'rot', x: p.x, y: p.y, moved: 0 };
+        } else if (hit && !hit.userData.isBody) {
             drag = { mode: 'click', x: p.x, y: p.y, moved: 0, hit: hit };
+        } else {
+            drag = { mode: 'pan', x: p.x, y: p.y, moved: 0 };
         }
         try { dom.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
         dom.style.cursor = drag.mode === 'click' ? 'pointer' : 'grabbing';
@@ -1022,6 +1056,10 @@
     });
     dom.addEventListener('pointermove', function (e) {
         var p = localXY(e);
+        if (drag && drag.mode === 'click' && drag.moved >= 6) {
+            drag.mode = 'pan';
+            dom.style.cursor = 'grabbing';
+        }
         if (drag && drag.mode !== 'click') {
             var dx = p.x - drag.x, dy = p.y - drag.y;
             drag.moved += Math.abs(dx) + Math.abs(dy);
@@ -1031,6 +1069,8 @@
                 var da = a1 - a0;
                 if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
                 rollBy(da);
+            } else if (drag.mode === 'pan') {
+                panBy(dx, dy);
             } else {
                 rotateBy(dx, dy);
             }
@@ -1054,7 +1094,7 @@
         var m = pick(p);
         var hm = m && !m.userData.isBody ? m : null;
         if (hm !== hovered) { hovered = hm; dirty = true; }
-        dom.style.cursor = hm ? 'pointer' : 'default';
+        dom.style.cursor = hm ? 'pointer' : 'grab';
         showTip(m, p);
     });
     function endDrag(e) {
@@ -1064,8 +1104,7 @@
         dom.style.cursor = 'default';
         if (d.mode === 'click' && d.moved < 6) {
             select(d.hit, true);
-        } else if (d.mode !== 'click' && d.moved < 4) {
-            // клик по фону без перетаскивания снимает выделение
+        } else if ((d.mode === 'pan' || d.mode === 'rot') && d.moved < 4) {
             select(null, true);
         }
     }

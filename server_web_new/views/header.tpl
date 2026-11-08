@@ -369,6 +369,10 @@
               <a href="/sprsrv/equipmentplacement"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Поиск размещения оборудования</a>
             </li>
+            <li>
+              <a href="/sprsrv/equipmentvisual"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Визуализация оборудования</a>
+            </li>
           </ul>
         </div>
       </li>
