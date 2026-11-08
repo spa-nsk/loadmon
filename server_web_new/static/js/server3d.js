@@ -324,9 +324,39 @@
     var CPUN = Math.max(1, Math.min(4, SRV.cpuCount || compsOf('cpu').length || 1));
     var RAMS = compsOf('ram');
     var FAN_COMPS_EARLY = compsOf('fan');
+    // Последнее число в Slot ("DIMM 2", "PROC 1 DIMM 3") — 1-based номер слота.
+    function maxCompSlotNum(comps) {
+        var max = comps.length;
+        comps.forEach(function (c) {
+            var m = String(c.slot || '').match(/(\d+)\s*$/);
+            if (m) max = Math.max(max, parseInt(m[1], 10));
+        });
+        return max;
+    }
+    // Компоненты → индекс слота раскладки: сначала по номеру из Slot,
+    // «осиротевшие» (без номера / дубликат / вне диапазона) — в свободные слоты.
+    // Иначе единственный модуль в Slot=2 попадал бы в визуальный слот 1 (по порядку массива).
+    function placeBySlot(comps, nSlots) {
+        var at = {}, claimed = {}, orphans = [];
+        comps.forEach(function (c) {
+            var m = String(c.slot || '').match(/(\d+)\s*$/);
+            var b = m ? parseInt(m[1], 10) - 1 : -1;
+            if (b < 0 || b >= nSlots || claimed[b]) { orphans.push(c); return; }
+            claimed[b] = true;
+            at[b] = c;
+        });
+        var free = [];
+        for (var i = 0; i < nSlots; i++) if (!at[i]) free.push(i);
+        orphans.forEach(function (c) {
+            if (!free.length) return;
+            at[free.shift()] = c;
+        });
+        return at;
+    }
     function layoutTop() {
         var L = { fans: [], cpus: [], dimms: [], cards: [] };
         var i;
+        var needRam = Math.max(RAMS.length, maxCompSlotNum(RAMS));
         if (BLADE) {
             // Раскладка по фактическим компонентам карточки (раньше было жёстко
             // 16 DIMM / 2 мезонина / 0 вентиляторов — лишние NIC/FC/RAID/RAM
@@ -341,7 +371,7 @@
                 v += fSpan + 0.02;
             }
             var banks = 2;
-            var perBank = Math.max(8, Math.ceil(Math.max(RAMS.length, 1) / banks));
+            var perBank = Math.max(8, Math.ceil(Math.max(needRam, 1) / banks));
             if (RAMS.length === 0) perBank = 8; // пустая эстетика 2×8
             var dimmH = Math.min(0.018, 0.28 / perBank), dimmGap = 0.0035;
             var bankH = perBank * (dimmH + dimmGap);
@@ -389,7 +419,7 @@
         var nf = U === 1 ? 7 : 6, fw = 0.92 / nf;
         for (i = 0; i < nf; i++) L.fans.push({ n: i + 1, u0: 0.04 + i * fw + 0.004, u1: 0.04 + (i + 1) * fw - 0.004, v0: 0.69, v1: 0.84 });
         var centers = CPUN === 1 ? [0.5] : (CPUN === 2 ? [0.3, 0.7] : (CPUN === 3 ? [0.2, 0.5, 0.8] : [0.14, 0.38, 0.62, 0.86]));
-        var perBank = CPUN >= 3 ? 4 : Math.min(8, Math.max(6, Math.ceil(RAMS.length / (CPUN * 2))));
+        var perBank = CPUN >= 3 ? 4 : Math.min(8, Math.max(6, Math.ceil(needRam / (CPUN * 2))));
         var sw = CPUN >= 3 ? 0.014 : 0.0105, gp = 0.0015, n = 0;
         centers.forEach(function (cu, k) {
             L.cpus.push({ n: k + 1, u0: cu - 0.045, u1: cu + 0.045, v0: 0.38, v1: 0.52 });
@@ -406,6 +436,7 @@
         return L;
     }
     var LT = layoutTop();
+    var ramAtSlot = placeBySlot(RAMS, LT.dimms.length);
     // Сзади — сколько влезает в раскладку; остаток (PCI/GPU/riser) — сверху при снятом кожухе.
     var REAR_CARDS = BLADE ? [] : CARDS.slice(0, LR.slots.length);
     var TOP_CARDS = BLADE ? CARDS.slice() : CARDS.slice(REAR_CARDS.length);
@@ -1004,16 +1035,20 @@
     });
     var RAMS_INSTALLED = RAMS.filter(isPopulatedStorage);
     LT.dimms.forEach(function (r, i) {
-        var compRaw = RAMS[i] || null, s = sz(r, 'top');
+        var slotNo = r.n || (i + 1);
+        var compRaw = ramAtSlot[i] || null, s = sz(r, 'top');
         var comp = isPopulatedStorage(compRaw) ? compRaw : null;
         var inf;
         if (comp) {
-            inf = info('ram', comp.name, 'Слот памяти ' + (i + 1) + ' · ' + Math.round(comp.capacityGb) + ' ГБ', 0, comp.rows || []);
+            inf = info('ram', comp.name, 'Слот памяти ' + slotNo + ' · ' + Math.round(comp.capacityGb) + ' ГБ', 0, comp.rows || []);
         } else {
-            var emptyRows = [K('Слот', String(i + 1))];
-            if (compRaw) emptyRows.push(K('Состояние', 'Не установлен (ёмкость 0)'));
+            var emptyRows = [K('Слот', String(slotNo))];
+            if (compRaw) {
+                emptyRows.push(K('Состояние', 'Не установлен (ёмкость 0)'));
+                if (compRaw.slot) emptyRows.push(K('Слот / расположение', compRaw.slot));
+            }
             if (SRV.memoryGb > 0) emptyRows.push(K('Всего памяти', SRV.memoryGb + ' ГБ'));
-            inf = info('ram-empty', 'Слот памяти ' + (i + 1),
+            inf = info('ram-empty', 'Слот памяти ' + slotNo,
                 compRaw ? 'Свободный слот (модуль не установлен)' : (RAMS_INSTALLED.length ? 'Свободен' : 'Нет данных о модулях памяти'),
                 0, emptyRows);
             inf.absent = !!(RAMS_INSTALLED.length || compRaw);
