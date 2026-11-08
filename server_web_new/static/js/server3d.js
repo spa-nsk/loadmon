@@ -321,54 +321,75 @@
     var LR = layoutRear();
 
     // Вид сверху (кожух снят): u слева направо, v от задней стенки (0) к передней (1)
-    var CPUN = Math.max(1, Math.min(4, SRV.cpuCount || compsOf('cpu').length || 1));
     var RAMS = compsOf('ram');
     var FAN_COMPS_EARLY = compsOf('fan');
-    // Номер слота из Slot: "DIMM 2", "PROC 1 DIMM 2", "proc1dimm2", "2" — 1-based.
-    function parseRamSlotNum(slot) {
-        var s = String(slot || '');
-        var m = s.match(/dimm\s*(\d+)/i) || s.match(/(?:^|[^\d])(?:slot|слот)\s*(\d+)/i) || s.match(/(\d+)\s*$/);
-        return m ? parseInt(m[1], 10) : -1;
+    // Локатор DIMM -> {sock, dn}. HPE/OneView: "proc1dimm3", "PROC 2 DIMM 12" —
+    // номер слота считается ВНУТРИ процессора, поэтому sock обязателен: иначе
+    // proc1dimm3 и proc2dimm3 дают одно «3» и слоты путаются при линейной раскладке.
+    function parseRamLoc(slot) {
+        var s = String(slot || ''), m;
+        m = s.match(/proc(?:essor)?[\s._-]*(\d+)[\s._-]*dimm[\s._-]*(\d+)/i);
+        if (m) return { sock: parseInt(m[1], 10), dn: parseInt(m[2], 10) };
+        m = s.match(/dimm[\s._-]*(\d+)/i) || s.match(/(\d+)\s*$/);
+        if (m) return { sock: 1, dn: parseInt(m[1], 10) };
+        return null;
     }
-    function maxCompSlotNum(comps) {
-        var max = comps.length;
-        comps.forEach(function (c) {
-            var n = parseRamSlotNum(c.slot);
-            if (n > max) max = n;
-        });
-        return max;
-    }
-    // Компоненты → индекс слота раскладки по номеру из Slot.
-    // Важно: при дубле «плейсхолдер ёмкость 0» + «установленный модуль» на одном
-    // Slot (часто после ручного заведения слотов) место должен занять модуль,
-    // иначе плейсхолдер забирает слот 2, а 32 ГБ уезжает в следующий свободный
-    // (на скрине: слот 2 «свободен», модуль рисуется как слот 3).
-    function placeBySlot(comps, nSlots) {
-        var at = {}, claimed = {}, orphans = [];
-        function claim(c, allowEmpty) {
-            if (!allowEmpty && !isPopulatedStorage(c)) return;
-            if (allowEmpty && isPopulatedStorage(c)) return;
-            var num = parseRamSlotNum(c.slot);
-            var b = num > 0 ? num - 1 : -1;
-            if (b < 0 || b >= nSlots || claimed[b]) { orphans.push(c); return; }
-            claimed[b] = true;
-            at[b] = c;
+    // План размещения памяти. mapped=true — все модули разобраны в (сокет, слот)
+    // без коллизий установленных модулей: позиция однозначна. Плейсхолдер (ёмкость 0)
+    // на том же локаторе, что и установленный модуль, - это тот же слот, он отбрасывается.
+    // Иначе mapped=false — модули идут по порядку натуральной сортировки Slot.
+    var RAM_PLAN = (function () {
+        var items = RAMS.map(function (c, i) { return { c: c, i: i, loc: parseRamLoc(c.slot), pop: isPopulatedStorage(c) }; });
+        var mapped = items.length > 0 && items.every(function (x) { return x.loc && x.loc.sock > 0 && x.loc.dn > 0; });
+        var byKey = {}, maxSock = 1, maxDn = 0;
+        if (mapped) {
+            items.forEach(function (x) {
+                var k = x.loc.sock + ':' + x.loc.dn, e = byKey[k];
+                if (!e) { byKey[k] = x; return; }
+                if (e.pop && x.pop) { mapped = false; return; }
+                if (!e.pop && x.pop) byKey[k] = x;
+            });
         }
-        comps.forEach(function (c) { claim(c, false); }); // сначала установленные
-        comps.forEach(function (c) { claim(c, true); });  // затем плейсхолдеры ёмкости 0
-        var free = [];
-        for (var i = 0; i < nSlots; i++) if (!at[i]) free.push(i);
-        orphans.sort(function (a, b) { return (isPopulatedStorage(b) ? 1 : 0) - (isPopulatedStorage(a) ? 1 : 0); });
-        orphans.forEach(function (c) {
-            if (!free.length) return;
-            at[free.shift()] = c;
+        if (mapped) {
+            items.forEach(function (x) {
+                if (x.loc.sock > maxSock) maxSock = x.loc.sock;
+                if (x.loc.dn > maxDn) maxDn = x.loc.dn;
+            });
+        }
+        var sorted = items.slice().sort(function (a, b) {
+            var r = String(a.c.slot || '').localeCompare(String(b.c.slot || ''), undefined, { numeric: true });
+            return r || (a.i - b.i);
         });
+        return { items: items, sorted: sorted, mapped: mapped, byKey: byKey, maxSock: maxSock, maxDn: maxDn };
+    })();
+    var CPUN = Math.max(1, Math.min(4, Math.max(SRV.cpuCount || compsOf('cpu').length || 1, RAM_PLAN.mapped ? RAM_PLAN.maxSock : 1)));
+    var RAM_DDR5 = RAMS.some(function (c) { return /ddr5/i.test((c.model || '') + ' ' + (c.name || '')); });
+    // Слотов на один процессор (stride) задаёт layoutTop; размещаем по (сокет, слот).
+    function placeRam(nSlots, stride) {
+        var at = {}, i;
+        if (RAM_PLAN.mapped) {
+            var orphans = [];
+            Object.keys(RAM_PLAN.byKey).forEach(function (k) {
+                var x = RAM_PLAN.byKey[k], idx = (x.loc.sock - 1) * stride + x.loc.dn - 1;
+                if (x.loc.dn > stride || idx < 0 || idx >= nSlots || at[idx]) orphans.push(x);
+                else at[idx] = x.c;
+            });
+            var free = [];
+            for (i = 0; i < nSlots; i++) if (!at[i]) free.push(i);
+            orphans.sort(function (a, b) { return (b.pop ? 1 : 0) - (a.pop ? 1 : 0); });
+            orphans.forEach(function (x) { if (free.length) at[free.shift()] = x.c; });
+        } else {
+            for (i = 0; i < RAM_PLAN.sorted.length && i < nSlots; i++) at[i] = RAM_PLAN.sorted[i].c;
+        }
         return at;
     }
+    // Подпись слота без компонента: PROC s DIMM d (если процессоров >1) или DIMM d.
+    function ramSlotLabel(r) {
+        return (CPUN > 1 ? 'PROC ' + (r.sock || 1) + ' ' : '') + 'DIMM ' + (r.dn || r.n);
+    }
     function layoutTop() {
-        var L = { fans: [], cpus: [], dimms: [], cards: [] };
+        var L = { fans: [], cpus: [], dimms: [], cards: [], ramStride: 0 };
         var i;
-        var needRam = Math.max(RAMS.length, maxCompSlotNum(RAMS));
         if (BLADE) {
             // Раскладка по фактическим компонентам карточки (раньше было жёстко
             // 16 DIMM / 2 мезонина / 0 вентиляторов — лишние NIC/FC/RAID/RAM
@@ -383,14 +404,18 @@
                 v += fSpan + 0.02;
             }
             var banks = 2;
+            // Слотов всего: по данным (сокеты × макс. номер) либо число модулей.
+            var needRam = RAM_PLAN.mapped ? RAM_PLAN.maxSock * RAM_PLAN.maxDn : RAMS.length;
             var perBank = Math.max(8, Math.ceil(Math.max(needRam, 1) / banks));
             if (RAMS.length === 0) perBank = 8; // пустая эстетика 2×8
+            L.ramStride = RAM_PLAN.mapped ? RAM_PLAN.maxDn : banks * perBank;
             var dimmH = Math.min(0.018, 0.28 / perBank), dimmGap = 0.0035;
             var bankH = perBank * (dimmH + dimmGap);
             for (i = 0; i < banks * perBank; i++) {
                 var bank = Math.floor(i / perBank), row = i % perBank;
                 L.dimms.push({
                     n: i + 1, wide: true,
+                    sock: Math.floor(i / L.ramStride) + 1, dn: (i % L.ramStride) + 1,
                     u0: 0.08, u1: 0.92,
                     v0: v + bank * (bankH + 0.02) + row * (dimmH + dimmGap),
                     v1: v + bank * (bankH + 0.02) + row * (dimmH + dimmGap) + dimmH
@@ -431,16 +456,24 @@
         var nf = U === 1 ? 7 : 6, fw = 0.92 / nf;
         for (i = 0; i < nf; i++) L.fans.push({ n: i + 1, u0: 0.04 + i * fw + 0.004, u1: 0.04 + (i + 1) * fw - 0.004, v0: 0.69, v1: 0.84 });
         var centers = CPUN === 1 ? [0.5] : (CPUN === 2 ? [0.3, 0.7] : (CPUN === 3 ? [0.2, 0.5, 0.8] : [0.14, 0.38, 0.62, 0.86]));
-        var perBank = CPUN >= 3 ? 4 : Math.min(8, Math.max(6, Math.ceil(needRam / (CPUN * 2))));
-        var sw = CPUN >= 3 ? 0.014 : 0.0105, gp = 0.0015, n = 0;
+        // Слотов на процессор: по данным (макс. DIMM внутри сокета) либо поровну по числу модулей;
+        // минимум 6 на сторону (12/CPU), для DDR5 — 8 (16/CPU), 4 при 3-4 процессорах.
+        var perSock = RAM_PLAN.mapped ? RAM_PLAN.maxDn : Math.ceil(RAMS.length / CPUN);
+        var minPB = CPUN >= 3 ? 4 : (RAM_DDR5 ? 8 : 6);
+        var perBank = Math.min(12, Math.max(minPB, Math.ceil(perSock / 2)));
+        var spacing = CPUN === 1 ? 1 : (CPUN === 2 ? 0.4 : (CPUN === 3 ? 0.3 : 0.24));
+        // Шаг слота: стандартный, но так, чтобы банк поместился между процессорами.
+        var step = Math.min(CPUN >= 3 ? 0.0155 : 0.012, (spacing / 2 - 0.055 - 0.01) / perBank);
+        var sw = step * 0.875, n = 0;
+        L.ramStride = perBank * 2;
         centers.forEach(function (cu, k) {
             L.cpus.push({ n: k + 1, u0: cu - 0.045, u1: cu + 0.045, v0: 0.38, v1: 0.52 });
             [-1, 1].forEach(function (side) {
                 for (var j = 0; j < perBank; j++) {
-                    var off = 0.055 + j * (sw + gp);
+                    var off = 0.055 + j * step;
                     var u1 = side < 0 ? cu - off : cu + off + sw;
                     var u0 = side < 0 ? cu - off - sw : cu + off;
-                    L.dimms.push({ n: ++n, cpu: k + 1, u0: u0, u1: u1, v0: 0.2, v1: 0.6 });
+                    L.dimms.push({ n: ++n, sock: k + 1, dn: (side < 0 ? 0 : perBank) + j + 1, cpu: k + 1, u0: u0, u1: u1, v0: 0.2, v1: 0.6 });
                 }
             });
         });
@@ -448,7 +481,7 @@
         return L;
     }
     var LT = layoutTop();
-    var ramAtSlot = placeBySlot(RAMS, LT.dimms.length);
+    var ramAtSlot = placeRam(LT.dimms.length, LT.ramStride);
     // Сзади — сколько влезает в раскладку; остаток (PCI/GPU/riser) — сверху при снятом кожухе.
     var REAR_CARDS = BLADE ? [] : CARDS.slice(0, LR.slots.length);
     var TOP_CARDS = BLADE ? CARDS.slice() : CARDS.slice(REAR_CARDS.length);
@@ -926,11 +959,17 @@
         var m = new THREE.Mesh(geo, mats);
         m.position.set(px, py, pz);
         var bb = geo.parameters;
-        var hull = new THREE.Mesh(new THREE.BoxGeometry(bb.width + 5, bb.height + 5, bb.depth + 5),
-            new THREE.MeshBasicMaterial({ color: 0x4dabf7, side: THREE.BackSide, transparent: true, opacity: 0.9, depthWrite: false }));
+        // Контур выделения. Для крупных модулей — BackSide-коробка +5 мм. Для узких
+        // (DIMM: ~4.5 мм при шаге ~5.2 мм) такая коробка перекрывала соседей, а её
+        // дальняя грань рисовалась поверх них — выделялся «не тот» слот. Узкие модули
+        // подсвечиваем полупрозрачной FrontSide-оболочкой ровно по их габариту.
+        var small = Math.min(bb.width, bb.height, bb.depth) < 12;
+        var hullPad = small ? 0.5 : 5;
+        var hull = new THREE.Mesh(new THREE.BoxGeometry(bb.width + hullPad, bb.height + hullPad, bb.depth + hullPad),
+            new THREE.MeshBasicMaterial({ color: 0x4dabf7, side: small ? THREE.FrontSide : THREE.BackSide, transparent: true, opacity: 0.9, depthWrite: false }));
         hull.visible = false; m.add(hull);
         info.side = side;
-        m.userData = { info: info, faceMat: faceMat, hull: hull, flashUntil: 0 };
+        m.userData = { info: info, faceMat: faceMat, hull: hull, hullSmall: small, flashUntil: 0 };
         attachLeds(m, canvas, bb.width, side === 'top' ? bb.depth : bb.height, side === 'top' ? bb.height : bb.depth, side);
         m.visible = side !== 'top';
         rig.add(m); pickables.push(m); modules.push(m);
@@ -1048,12 +1087,13 @@
     var RAMS_INSTALLED = RAMS.filter(isPopulatedStorage);
     LT.dimms.forEach(function (r, i) {
         var compRaw = ramAtSlot[i] || null, s = sz(r, 'top');
-        var parsed = compRaw ? parseRamSlotNum(compRaw.slot) : -1;
-        var slotNo = parsed > 0 ? parsed : (r.n || (i + 1));
+        // Подпись — реальный локатор из данных (proc1dimm3), иначе «PROC s DIMM d» по позиции.
+        var slotNo = (compRaw && compRaw.slot) ? compRaw.slot : ramSlotLabel(r);
         var comp = isPopulatedStorage(compRaw) ? compRaw : null;
         var inf;
         if (comp) {
-            inf = info('ram', comp.name, 'Слот памяти ' + slotNo + ' · ' + Math.round(comp.capacityGb) + ' ГБ', 0, comp.rows || []);
+            inf = info('ram', comp.name, 'Слот памяти ' + slotNo + ' · ' + Math.round(comp.capacityGb) + ' ГБ', 0,
+                (comp.rows || []).concat([K('Позиция на схеме', ramSlotLabel(r))]));
         } else {
             var emptyRows = [K('Слот', String(slotNo))];
             if (compRaw) {
@@ -1287,7 +1327,7 @@
                 opacity = 0.35 + 0.6 * Math.abs(Math.sin(ph * Math.PI * 4)); emis = 0.18 * opacity;
             }
             u.hull.visible = hullOn;
-            if (hullOn) { u.hull.material.color.setHex(color); u.hull.material.opacity = opacity; }
+            if (hullOn) { u.hull.material.color.setHex(color); u.hull.material.opacity = u.hullSmall ? opacity * 0.6 : opacity; }
             u.faceMat.emissiveIntensity = emis;
         }
         return flashing;
