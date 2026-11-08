@@ -324,29 +324,41 @@
     var CPUN = Math.max(1, Math.min(4, SRV.cpuCount || compsOf('cpu').length || 1));
     var RAMS = compsOf('ram');
     var FAN_COMPS_EARLY = compsOf('fan');
-    // Последнее число в Slot ("DIMM 2", "PROC 1 DIMM 3") — 1-based номер слота.
+    // Номер слота из Slot: "DIMM 2", "PROC 1 DIMM 2", "proc1dimm2", "2" — 1-based.
+    function parseRamSlotNum(slot) {
+        var s = String(slot || '');
+        var m = s.match(/dimm\s*(\d+)/i) || s.match(/(?:^|[^\d])(?:slot|слот)\s*(\d+)/i) || s.match(/(\d+)\s*$/);
+        return m ? parseInt(m[1], 10) : -1;
+    }
     function maxCompSlotNum(comps) {
         var max = comps.length;
         comps.forEach(function (c) {
-            var m = String(c.slot || '').match(/(\d+)\s*$/);
-            if (m) max = Math.max(max, parseInt(m[1], 10));
+            var n = parseRamSlotNum(c.slot);
+            if (n > max) max = n;
         });
         return max;
     }
-    // Компоненты → индекс слота раскладки: сначала по номеру из Slot,
-    // «осиротевшие» (без номера / дубликат / вне диапазона) — в свободные слоты.
-    // Иначе единственный модуль в Slot=2 попадал бы в визуальный слот 1 (по порядку массива).
+    // Компоненты → индекс слота раскладки по номеру из Slot.
+    // Важно: при дубле «плейсхолдер ёмкость 0» + «установленный модуль» на одном
+    // Slot (часто после ручного заведения слотов) место должен занять модуль,
+    // иначе плейсхолдер забирает слот 2, а 32 ГБ уезжает в следующий свободный
+    // (на скрине: слот 2 «свободен», модуль рисуется как слот 3).
     function placeBySlot(comps, nSlots) {
         var at = {}, claimed = {}, orphans = [];
-        comps.forEach(function (c) {
-            var m = String(c.slot || '').match(/(\d+)\s*$/);
-            var b = m ? parseInt(m[1], 10) - 1 : -1;
+        function claim(c, allowEmpty) {
+            if (!allowEmpty && !isPopulatedStorage(c)) return;
+            if (allowEmpty && isPopulatedStorage(c)) return;
+            var num = parseRamSlotNum(c.slot);
+            var b = num > 0 ? num - 1 : -1;
             if (b < 0 || b >= nSlots || claimed[b]) { orphans.push(c); return; }
             claimed[b] = true;
             at[b] = c;
-        });
+        }
+        comps.forEach(function (c) { claim(c, false); }); // сначала установленные
+        comps.forEach(function (c) { claim(c, true); });  // затем плейсхолдеры ёмкости 0
         var free = [];
         for (var i = 0; i < nSlots; i++) if (!at[i]) free.push(i);
+        orphans.sort(function (a, b) { return (isPopulatedStorage(b) ? 1 : 0) - (isPopulatedStorage(a) ? 1 : 0); });
         orphans.forEach(function (c) {
             if (!free.length) return;
             at[free.shift()] = c;
@@ -1035,8 +1047,9 @@
     });
     var RAMS_INSTALLED = RAMS.filter(isPopulatedStorage);
     LT.dimms.forEach(function (r, i) {
-        var slotNo = r.n || (i + 1);
         var compRaw = ramAtSlot[i] || null, s = sz(r, 'top');
+        var parsed = compRaw ? parseRamSlotNum(compRaw.slot) : -1;
+        var slotNo = parsed > 0 ? parsed : (r.n || (i + 1));
         var comp = isPopulatedStorage(compRaw) ? compRaw : null;
         var inf;
         if (comp) {
