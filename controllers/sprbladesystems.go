@@ -509,9 +509,12 @@ func buildBladeComponentTabs(comps []models.ServerHardwareComponents) []hwCompon
 		if items == nil {
 			items = []models.ServerHardwareComponents{}
 		}
+		// Interconnect (6) и OA/FLM (7): редактируемые Status/Role.
+		showMeta := d.Value == 6 || d.Value == 7
 		tabs = append(tabs, hwComponentTab{
 			Type: d.Value, Name: d.Name, Items: items,
 			ShowCapacity: false, ShowSubType: false,
+			ShowStatus: showMeta, ShowRole: showMeta,
 		})
 	}
 	var other []models.ServerHardwareComponents
@@ -524,6 +527,7 @@ func buildBladeComponentTabs(comps []models.ServerHardwareComponents) []hwCompon
 		tabs = append(tabs, hwComponentTab{
 			Type: 0, Name: "Прочие", Items: other,
 			ShowCapacity: true, ShowSubType: true,
+			ShowStatus: true, ShowRole: true,
 		})
 	}
 	return tabs
@@ -551,6 +555,10 @@ func (this *MainController) saveBladeComponents(o orm.Ormer, bs *models.BladeSys
 	serials := this.GetStrings("CompSerialNum")
 	caps := this.GetStrings("CompCapacityGb")
 	slots := this.GetStrings("CompSlot")
+	// Role/Status (interconnect/OA): форма показывает и сохраняет; иначе sync
+	// значения стирались бы при ручном сохранении карточки корзины.
+	roles := this.GetStrings("CompRole")
+	statuses := this.GetStrings("CompStatus")
 
 	var currentUserId int64 = 9999
 	if uid, ok := this.Data["UserId"].(int64); ok && uid > 0 {
@@ -593,6 +601,13 @@ func (this *MainController) saveBladeComponents(o orm.Ormer, bs *models.BladeSys
 		if i < len(caps) {
 			capGb, _ = strconv.ParseFloat(strings.TrimSpace(caps[i]), 64)
 		}
+		var role, status string
+		if i < len(roles) {
+			role = strings.TrimSpace(roles[i])
+		}
+		if i < len(statuses) {
+			status = strings.TrimSpace(statuses[i])
+		}
 		c := models.ServerHardwareComponents{
 			BladeSystemId:   bs.Id,
 			Type:            t,
@@ -602,6 +617,8 @@ func (this *MainController) saveBladeComponents(o orm.Ormer, bs *models.BladeSys
 			SerialNum:       serial,
 			CapacityGb:      capGb,
 			Slot:            slot,
+			Role:            role,
+			Status:          status,
 			ContractDoc:     bs.ContractDoc,
 			DateContractDoc: bs.DateContractDoc,
 			Invoice:         bs.Invoice,
@@ -1115,13 +1132,30 @@ func (this *MainController) SprBladeSystemServersListVisual() {
 			Filter("BladeSystemId", id).Filter("Type", kd.Type).
 			OrderBy("Slot", "Id").All(&comps)
 		for i, c := range comps {
-			bay, pwr, status := parseBladePSUBayAndStatus(c.Slot)
-			model := firstNonEmpty(c.Model, c.Vendor)
+			bay, pwr, statusFromSlot := parseBladePSUBayAndStatus(c.Slot)
+			status := firstNonEmpty(strings.TrimSpace(c.Status), statusFromSlot)
+			role := strings.TrimSpace(c.Role)
+			modelField := strings.TrimSpace(c.Model)
+			// Interconnect без модели = свободный отсек (как диск/DIMM с ёмкостью 0).
+			// В JSON Model отдаём только поле Model (без fallback на Vendor), иначе 3D
+			// принял бы Vendor за установленный модуль.
+			emptyIC := kd.Kind == "interconnect" && modelField == ""
+			model := modelField
+			if !emptyIC {
+				model = firstNonEmpty(modelField, strings.TrimSpace(c.Vendor))
+			}
+			// Статус из отдельного поля (форма/sync) тоже влияет на power.
+			if !emptyIC && pwr == 0 && status != "" {
+				_, pwr, _ = parseBladePSUBayAndStatus("Bay 1, " + status)
+			}
 			// Модуль есть в справочнике (даже без модели/SN): пустой Slot-статус
 			// или старый sync "Bay N, " → считаем установленным, иначе 3D
 			// рисует «пустой» отсек без опознаваемой панели.
-			if pwr == 0 && (model != "" || strings.TrimSpace(c.SerialNum) != "" || bay > 0 || kd.Kind == "interconnect" || kd.Kind == "manager") {
+			if !emptyIC && pwr == 0 && (model != "" || strings.TrimSpace(c.SerialNum) != "" || bay > 0 || kd.Kind == "manager") {
 				pwr = 1
+			}
+			if emptyIC {
+				pwr = 0
 			}
 			name := firstNonEmpty(model, fmt.Sprintf("%s %d", kd.Title, i+1))
 			if bay > 0 {
@@ -1139,21 +1173,15 @@ func (this *MainController) SprBladeSystemServersListVisual() {
 			rows = rackViewKVAdd(rows, "Производитель", c.Vendor)
 			rows = rackViewKVAdd(rows, "Модель", c.Model)
 			rows = rackViewKVAdd(rows, "Серийный номер", c.SerialNum)
-			if ip := parseBladeCompIP(c.Slot, status); ip != "" {
+			if ip := parseBladeCompIP(c.Slot, statusFromSlot); ip != "" {
 				rows = rackViewKVAdd(rows, "IP адрес", ip)
-				// У OA Slot = "Bay N, IP x[, роль]" — роль после IP, если есть.
-				afterIP := status
-				for _, pfx := range []string{"IP " + ip, "ip " + ip, ip} {
-					if i := strings.Index(strings.ToLower(afterIP), strings.ToLower(pfx)); i >= 0 {
-						afterIP = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(afterIP[i+len(pfx):]), ","))
-						break
-					}
-				}
-				rows = rackViewKVAdd(rows, "Роль / статус", afterIP)
-			} else {
-				rows = rackViewKVAdd(rows, "Статус", status)
 			}
+			rows = rackViewKVAdd(rows, "Роль", role)
+			rows = rackViewKVAdd(rows, "Статус", status)
 			rows = rackViewKVAdd(rows, "Расположение (Slot)", c.Slot)
+			if emptyIC {
+				rows = rackViewKVAdd(rows, "Установка", "не установлен (модель не указана) — свободный отсек")
+			}
 			if c.CapacityGb > 0 && kd.Kind == "psu" {
 				rows = rackViewKVAdd(rows, "Мощность (номинал)", fmt.Sprintf("%.0f Вт", c.CapacityGb))
 			}
@@ -1165,6 +1193,9 @@ func (this *MainController) SprBladeSystemServersListVisual() {
 					{Title: "Редактировать корзину", URL: fmt.Sprintf("/sprsrv/bladesystemsedit-tab/%d", bls.Id)},
 				},
 			})
+			if emptyIC {
+				continue
+			}
 			countByKind[kd.Kind]++
 		}
 	}

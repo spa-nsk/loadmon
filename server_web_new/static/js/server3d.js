@@ -215,8 +215,13 @@
         if (diskCount > cfg.cols * cfg.rows) cfg.cols = Math.max(cfg.cols, Math.ceil(diskCount / cfg.rows));
         return cfg;
     }
+    // Ёмкость 0 = слот/отсек зарезервирован в справочнике, но модуль не установлен.
+    function isPopulatedStorage(comp) {
+        return !!(comp && Number(comp.capacityGb) > 0);
+    }
     var DISKS = compsOf('disk');
-    var CFG = bayConfig(DISKS.length);
+    var DISKS_INSTALLED = DISKS.filter(isPopulatedStorage);
+    var CFG = bayConfig(Math.max(DISKS.length, DISKS_INSTALLED.length));
     // сопоставление диск -> отсек: по номеру bay из Slot ("1I:1:5"), если номера уникальны, иначе по порядку
     function diskBayMap() {
         var map = {}, used = {}, ok = true;
@@ -898,15 +903,21 @@
     // --- лицевая сторона: диски
     var on = SRV.power === 1;
     LF.bays.forEach(function (r, i) {
-        var d = BLADE ? (DISKS[i] || null) : (diskAtBay[i] || null);
+        var dRaw = BLADE ? (DISKS[i] || null) : (diskAtBay[i] || null);
+        var d = isPopulatedStorage(dRaw) ? dRaw : null;
         var s = sz(r, 'front'), vert = BLADE ? false : !CFG.flat;
         var cv = texDrive(vert, d, s.w * S3, s.h * S3, on, i);
         var inf;
         if (d) {
             var dpw = d.role === 'Spare' ? 3 : (d.role === 'Failed' ? 4 : (on ? 1 : 2));
-            inf = info('disk', d.name, 'Отсек ' + (i + 1) + (d.subTypeName ? ' · ' + d.subTypeName : '') + (d.capacityGb > 0 ? ' · ' + d.capacityGb.toFixed(1) + ' ГБ' : '') + (d.roleName ? ' · ' + d.roleName : ''), dpw, d.rows || []);
+            inf = info('disk', d.name, 'Отсек ' + (i + 1) + (d.subTypeName ? ' · ' + d.subTypeName : '') + ' · ' + d.capacityGb.toFixed(1) + ' ГБ' + (d.roleName ? ' · ' + d.roleName : ''), dpw, d.rows || []);
         } else {
-            inf = info('disk-empty', 'Отсек диска ' + (i + 1), 'Диск не установлен / нет данных', 0, [K('Отсек', String(i + 1))]);
+            var emptyRows = [K('Отсек', String(i + 1))];
+            if (dRaw) {
+                emptyRows.push(K('Состояние', 'Не установлен (ёмкость 0)'));
+                if (dRaw.slot) emptyRows.push(K('Слот / расположение', dRaw.slot));
+            }
+            inf = info('disk-empty', 'Отсек диска ' + (i + 1), dRaw ? 'Свободный отсек (диск не установлен)' : 'Диск не установлен / нет данных', 0, emptyRows);
             inf.absent = true;
         }
         addModule('front', r, d ? 7 : 3, cv, inf, d ? null : 'drive-empty-' + vert + '-' + Math.round(s.w) + 'x' + Math.round(s.h));
@@ -991,14 +1002,21 @@
         addModule('top', r, 14, texCpu(s.w * S3, s.h * S3, comp, i + 1),
             info('cpu', comp ? comp.name : 'Процессор ' + (i + 1), 'Сокет ' + (i + 1), 0, rows));
     });
+    var RAMS_INSTALLED = RAMS.filter(isPopulatedStorage);
     LT.dimms.forEach(function (r, i) {
-        var comp = RAMS[i] || null, s = sz(r, 'top');
+        var compRaw = RAMS[i] || null, s = sz(r, 'top');
+        var comp = isPopulatedStorage(compRaw) ? compRaw : null;
         var inf;
-        if (comp) inf = info('ram', comp.name, 'Слот памяти ' + (i + 1) + (comp.capacityGb > 0 ? ' · ' + Math.round(comp.capacityGb) + ' ГБ' : ''), 0, comp.rows || []);
-        else {
-            inf = info('ram-empty', 'Слот памяти ' + (i + 1), RAMS.length ? 'Свободен' : 'Нет данных о модулях памяти', 0,
-                [K('Слот', String(i + 1))].concat(SRV.memoryGb > 0 ? [K('Всего памяти', SRV.memoryGb + ' ГБ')] : []));
-            inf.absent = !!RAMS.length;
+        if (comp) {
+            inf = info('ram', comp.name, 'Слот памяти ' + (i + 1) + ' · ' + Math.round(comp.capacityGb) + ' ГБ', 0, comp.rows || []);
+        } else {
+            var emptyRows = [K('Слот', String(i + 1))];
+            if (compRaw) emptyRows.push(K('Состояние', 'Не установлен (ёмкость 0)'));
+            if (SRV.memoryGb > 0) emptyRows.push(K('Всего памяти', SRV.memoryGb + ' ГБ'));
+            inf = info('ram-empty', 'Слот памяти ' + (i + 1),
+                compRaw ? 'Свободный слот (модуль не установлен)' : (RAMS_INSTALLED.length ? 'Свободен' : 'Нет данных о модулях памяти'),
+                0, emptyRows);
+            inf.absent = !!(RAMS_INSTALLED.length || compRaw);
         }
         addModule('top', r, 6, texDimm(!!comp, Math.max(8, s.w * S3), Math.max(8, s.h * S3), !!r.wide), inf, 'dimm-' + (comp ? 1 : 0) + (r.wide ? 'w' : 'v') + '-' + Math.round(s.w) + 'x' + Math.round(s.h));
     });

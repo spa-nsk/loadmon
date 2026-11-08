@@ -234,7 +234,7 @@
 
         {{range $tab := .BsComponentTabs}}
         <div class="tab-pane fade" id="tab-bs-comp-{{$tab.Type}}" role="tabpanel" aria-labelledby="tab-bs-comp-{{$tab.Type}}-btn" tabindex="0">
-            <div class="text-muted small mb-2">Модули типа «{{$tab.Name}}». Удаление строки действует после сохранения формы. Данные обычно приходят из OneView.</div>
+            <div class="text-muted small mb-2">Модули типа «{{$tab.Name}}». Удаление строки действует после сохранения формы. Данные обычно приходят из OneView.{{if or $tab.ShowRole $tab.ShowStatus}} Для interconnect/OA: роль и статус сохраняются отдельно; IP OA указывается в «Отсек / слот» (например «Bay 1, IP 10.0.0.1»).{{end}}</div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
@@ -246,10 +246,12 @@
                             <th style="min-width:8rem">Серийный №</th>
                             {{if $tab.ShowCapacity}}<th style="min-width:6rem">Ёмкость, ГБ</th>{{end}}
                             {{if $tab.ShowSubType}}<th style="min-width:6rem">Подтип</th>{{end}}
+                            {{if $tab.ShowRole}}<th style="min-width:7rem" title="Для OA/FLM — Active/Standby; IP указывается в поле «Отсек / слот»">Роль</th>{{end}}
+                            {{if $tab.ShowStatus}}<th style="min-width:7rem">Статус</th>{{end}}
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody id="bsCompRows-{{$tab.Type}}" data-comp-type="{{$tab.Type}}" data-show-capacity="{{if $tab.ShowCapacity}}1{{else}}0{{end}}" data-show-subtype="{{if $tab.ShowSubType}}1{{else}}0{{end}}">
+                    <tbody id="bsCompRows-{{$tab.Type}}" data-comp-type="{{$tab.Type}}" data-show-capacity="{{if $tab.ShowCapacity}}1{{else}}0{{end}}" data-show-subtype="{{if $tab.ShowSubType}}1{{else}}0{{end}}" data-show-role="{{if $tab.ShowRole}}1{{else}}0{{end}}" data-show-status="{{if $tab.ShowStatus}}1{{else}}0{{end}}">
                         {{range $c := $tab.Items}}
                         <tr class="bs-comp-row">
                             {{if eq $tab.Type 0}}
@@ -287,6 +289,16 @@
                             {{else}}
                             <td class="d-none"><input type="hidden" name="CompSubType" value="{{$c.SubType}}"></td>
                             {{end}}
+                            {{if $tab.ShowRole}}
+                            <td><input type="text" name="CompRole" class="form-control form-control-sm" value="{{$c.Role}}" placeholder="Active / Standby"></td>
+                            {{else}}
+                            <td class="d-none"><input type="hidden" name="CompRole" value="{{$c.Role}}"></td>
+                            {{end}}
+                            {{if $tab.ShowStatus}}
+                            <td><input type="text" name="CompStatus" class="form-control form-control-sm" value="{{$c.Status}}" placeholder="OK / Present"></td>
+                            {{else}}
+                            <td class="d-none"><input type="hidden" name="CompStatus" value="{{$c.Status}}"></td>
+                            {{end}}
                             <td><button type="button" class="btn btn-outline-danger btn-sm bs-comp-remove-row">Удалить</button></td>
                         </tr>
                         {{end}}
@@ -307,6 +319,10 @@
                 <td><input type="text" name="CompSerialNum" class="form-control form-control-sm" value=""></td>
                 <td class="d-none"><input type="hidden" name="CompCapacityGb" value="0"></td>
                 <td class="d-none"><input type="hidden" name="CompSubType" value="0"></td>
+                <td class="bs-comp-role-cell"><input type="text" name="CompRole" class="form-control form-control-sm" value="" placeholder="Active / Standby"></td>
+                <td class="d-none bs-comp-role-hidden-cell"><input type="hidden" name="CompRole" value="" class="bs-comp-role-hidden"></td>
+                <td class="bs-comp-status-cell"><input type="text" name="CompStatus" class="form-control form-control-sm" value="" placeholder="OK / Present"></td>
+                <td class="d-none bs-comp-status-hidden-cell"><input type="hidden" name="CompStatus" value="" class="bs-comp-status-hidden"></td>
                 <td><button type="button" class="btn btn-outline-danger btn-sm bs-comp-remove-row">Удалить</button></td>
             </tr>
         </template>
@@ -407,6 +423,20 @@
             row.querySelector('input[name="CompVendor"]').value = (document.getElementById('newCompVendor') || {}).value || '';
             row.querySelector('input[name="CompModel"]').value = (document.getElementById('newCompModel') || {}).value || '';
             row.querySelector('input[name="CompSerialNum"]').value = (document.getElementById('newCompSerial') || {}).value || '';
+            var showRole = tbody.getAttribute('data-show-role') === '1';
+            var showStatus = tbody.getAttribute('data-show-status') === '1';
+            var roleCell = row.querySelector('.bs-comp-role-cell');
+            var roleHidden = row.querySelector('.bs-comp-role-hidden-cell');
+            var statusCell = row.querySelector('.bs-comp-status-cell');
+            var statusHidden = row.querySelector('.bs-comp-status-hidden-cell');
+            if (roleCell && roleHidden) {
+                if (showRole) { roleHidden.remove(); }
+                else { roleCell.remove(); }
+            }
+            if (statusCell && statusHidden) {
+                if (showStatus) { statusHidden.remove(); }
+                else { statusCell.remove(); }
+            }
             bindRemove(row);
             tbody.appendChild(node);
             clearAddForm();
