@@ -710,15 +710,17 @@ func hwComponentDiskSubTypes() []hwComponentTypeOption {
 	}
 }
 
-// hwComponentTab - одна закладка типа компонентов на hwconfedit-tab.
-// ShowCapacity/ShowSubType задают специфичные для типа колонки
-// (у процессора/сети/PCI/прошивки нет ёмкости ГБ; подтип - только у дисков).
+// hwComponentTab - одна закладка типа компонентов на hwconfedit-tab /
+// bladesystemsedit-tab. ShowCapacity/ShowSubType — ёмкость ГБ и подтип диска;
+// ShowStatus/ShowRole — здоровье и роль (interconnect/OA и диски в скрытом виде).
 type hwComponentTab struct {
 	Type         int
 	Name         string
 	Items        []models.ServerHardwareComponents
 	ShowCapacity bool
 	ShowSubType  bool
+	ShowStatus   bool
+	ShowRole     bool
 }
 
 // hwComponentTypeFieldFlags - какие поля показывать для типа компонента.
@@ -770,6 +772,8 @@ func buildHwComponentTabs(comps []models.ServerHardwareComponents) []hwComponent
 		tabs = append(tabs, hwComponentTab{
 			Type: d.Value, Name: d.Name, Items: items,
 			ShowCapacity: cap, ShowSubType: sub,
+			// На форме сервера Role/Status дисков — скрытые поля (см. шаблон);
+			// явные колонки не показываем, чтобы не путать с подтипом диска.
 		})
 	}
 	var other []models.ServerHardwareComponents
@@ -969,6 +973,15 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 		rec.CorePerCPU, _ = strconv.Atoi(this.GetString("CorePerCPU"))
 		rec.CoreMHz, _ = strconv.Atoi(this.GetString("CoreMHz"))
 		rec.MemoryMb, _ = strconv.Atoi(this.GetString("MemoryMb"))
+
+		// Контроллер управления (iLO/iDRAC/IPMI) — поля с закладки «Базовая
+		// конфигурация»; иначе при ручном вводе/правке после sync они не
+		// сохранялись, а 3D-вид читал только то, что пришло из OneView.
+		rec.MpIPAddress = strings.TrimSpace(this.GetString("MpIPAddress"))
+		rec.MpHostName = strings.TrimSpace(this.GetString("MpHostName"))
+		rec.MpModel = strings.TrimSpace(this.GetString("MpModel"))
+		rec.MpFirmwareVersion = strings.TrimSpace(this.GetString("MpFirmwareVersion"))
+		rec.RomVersion = strings.TrimSpace(this.GetString("RomVersion"))
 
 		// DatacenterRoom/RackNum/DatacenterName/RackName больше НЕ читаются
 		// из формы (2026-09-10, по запросу пользователя "удали поля ЦОД

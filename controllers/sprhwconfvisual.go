@@ -261,11 +261,11 @@ func (this *MainController) SprHwConfVisual() {
 					roleName = hwDiskRoleName(c.Role)
 					crow = rackViewKVAdd(crow, "Назначение", roleName)
 				}
-				if c.Role == "Spare" {
-					countByKind["disk-spare"]++
-				}
 			}
 			crow = rackViewKVAdd(crow, "Состояние (health)", c.Status)
+			if (kd.Kind == "disk" || kd.Kind == "ram") && c.CapacityGb <= 0 {
+				crow = rackViewKVAdd(crow, "Установка", "не установлен (ёмкость 0) — свободный слот")
+			}
 			comps = append(comps, hwConfVisualComp{
 				Id: c.Id, Kind: kd.Kind, Index: i, Slot: c.Slot, Name: cname,
 				Vendor: c.Vendor, Model: c.Model, SerialNum: c.SerialNum,
@@ -273,6 +273,13 @@ func (this *MainController) SprHwConfVisual() {
 				Role: c.Role, RoleName: roleName, Status: c.Status,
 				Rows: crow,
 			})
+			// Диск/DIMM с ёмкостью 0 не считаем установленными (3D рисует пустой слот).
+			if (kd.Kind == "disk" || kd.Kind == "ram") && c.CapacityGb <= 0 {
+				continue
+			}
+			if kd.Kind == "disk" && c.Role == "Spare" {
+				countByKind["disk-spare"]++
+			}
 			countByKind[kd.Kind]++
 		}
 	}
@@ -339,9 +346,11 @@ func (this *MainController) SprHwConfVisual() {
 		rows = rackViewKVAdd(rows, label, fmt.Sprintf("%d", n))
 	}
 
-	// Контроллер управления (iLO/iDRAC/...): всё, что OneView отдаёт о нём в server-hardware.
+	// Контроллер управления (iLO/iDRAC/...): поля ServerHardware.Mp* —
+	// синхронизация OneView и ручная правка на hwconfedit-tab.
 	var mgmtRows []rackViewKV
 	mgmtRows = rackViewKVAdd(mgmtRows, "IP адрес", hw.MpIPAddress)
+	mgmtRows = rackViewKVAdd(mgmtRows, "Hostname iLO/MP", hw.MpHostName)
 	mgmtRows = rackViewKVAdd(mgmtRows, "Модель контроллера", hw.MpModel)
 	mgmtRows = rackViewKVAdd(mgmtRows, "Прошивка контроллера", hw.MpFirmwareVersion)
 	mgmtRows = rackViewKVAdd(mgmtRows, "Версия BIOS/ROM", hw.RomVersion)

@@ -83,7 +83,10 @@ func buildInterconnectComponents(enc *oneview.Enclosure, ics map[string]oneview.
 			Vendor:    "HPE",
 			Model:     model,
 			SerialNum: firstNonEmpty(serial, "bay-ic-"+strconv.Itoa(idx)),
-			Slot:      fmt.Sprintf("Bay %d, %s", bayNo, status),
+			// Slot оставляет bay+статус для совместимости с разбором visual;
+			// Status дублируется в отдельном поле (форма и 3D читают его напрямую).
+			Slot:   fmt.Sprintf("Bay %d, %s", bayNo, status),
+			Status: status,
 		})
 	}
 	return out
@@ -105,6 +108,7 @@ func buildManagerComponents(enc *oneview.Enclosure) []models.ServerHardwareCompo
 			managerTypeTitle(bayString(bay, "managerType", "deviceType", "type"), enc.EnclosureType),
 		)
 
+		status := firstNonEmpty(bayString(bay, "status", "state", "devicePresence"), "Present")
 		slot := fmt.Sprintf("Bay %d", bayNo)
 		switch {
 		case ip != "" && role != "":
@@ -114,7 +118,7 @@ func buildManagerComponents(enc *oneview.Enclosure) []models.ServerHardwareCompo
 		case role != "":
 			slot += ", " + role
 		default:
-			slot += ", " + firstNonEmpty(bayString(bay, "status", "state", "devicePresence"), "Present")
+			slot += ", " + status
 		}
 		out = append(out, models.ServerHardwareComponents{
 			Type:      ServerHWComponentManagement,
@@ -122,6 +126,8 @@ func buildManagerComponents(enc *oneview.Enclosure) []models.ServerHardwareCompo
 			Model:     model,
 			SerialNum: firstNonEmpty(bayString(bay, "serialNumber"), "bay-mgmt-"+strconv.Itoa(idx)),
 			Slot:      slot,
+			Role:      role,   // Active / Standby / …
+			Status:    status, // Present / OK / …
 		})
 	}
 	return out

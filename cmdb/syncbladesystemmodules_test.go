@@ -38,6 +38,9 @@ func TestBuildInterconnectComponents_Swagger(t *testing.T) {
 	if got[0].Slot != "Bay 1, Present" {
 		t.Errorf("Slot = %q", got[0].Slot)
 	}
+	if got[0].Status != "Present" {
+		t.Errorf("Status = %q, want Present", got[0].Status)
+	}
 
 	// С /rest/interconnects: статус берётся оттуда.
 	ics := map[string]oneview.Interconnect{"/rest/interconnects/a": {}}
@@ -48,6 +51,9 @@ func TestBuildInterconnectComponents_Swagger(t *testing.T) {
 	got = buildInterconnectComponents(&enc, ics)
 	if got[0].Slot != "Bay 1, OK" {
 		t.Errorf("Slot с /rest/interconnects = %q", got[0].Slot)
+	}
+	if got[0].Status != "OK" {
+		t.Errorf("Status с /rest/interconnects = %q", got[0].Status)
 	}
 }
 
@@ -65,6 +71,9 @@ func TestBuildManagerComponents_Swagger(t *testing.T) {
 	}
 	if got[0].Slot != "Bay 1, IP 172.18.1.11" || got[1].Slot != "Bay 2, IP 172.18.1.12" {
 		t.Errorf("Slot: %q / %q", got[0].Slot, got[1].Slot)
+	}
+	if got[0].Status != "Present" {
+		t.Errorf("OA Status = %q, want Present", got[0].Status)
 	}
 }
 

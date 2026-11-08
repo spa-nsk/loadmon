@@ -218,6 +218,34 @@
             </div>
 
             <hr class="my-3">
+            <div class="mb-2">
+                <h6 class="mb-1">Контроллер управления (iLO / iDRAC / IPMI)</h6>
+                <div class="text-muted small">Данные с OneView и ручная правка; отображаются в 3D-виде сервера (модуль iLO).</div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-lg-3">
+                    <label for="MpIPAddress" class="form-label">IP адрес</label>
+                    <input type="text" id="MpIPAddress" name="MpIPAddress" class="form-control" value="{{.HW.MpIPAddress}}" autocomplete="off">
+                </div>
+                <div class="col-6 col-lg-3">
+                    <label for="MpHostName" class="form-label">Hostname</label>
+                    <input type="text" id="MpHostName" name="MpHostName" class="form-control" value="{{.HW.MpHostName}}" autocomplete="off">
+                </div>
+                <div class="col-6 col-lg-3">
+                    <label for="MpModel" class="form-label">Модель контроллера</label>
+                    <input type="text" id="MpModel" name="MpModel" class="form-control" value="{{.HW.MpModel}}">
+                </div>
+                <div class="col-6 col-lg-3">
+                    <label for="MpFirmwareVersion" class="form-label">Прошивка контроллера</label>
+                    <input type="text" id="MpFirmwareVersion" name="MpFirmwareVersion" class="form-control" value="{{.HW.MpFirmwareVersion}}">
+                </div>
+                <div class="col-6 col-lg-3">
+                    <label for="RomVersion" class="form-label">BIOS / ROM</label>
+                    <input type="text" id="RomVersion" name="RomVersion" class="form-control" value="{{.HW.RomVersion}}">
+                </div>
+            </div>
+
+            <hr class="my-3">
 
             <div class="mb-2">
                 <h6 class="mb-1">Добавить компонент</h6>

@@ -319,15 +319,7 @@
         portBlock(x, w * 0.06, h * 0.32, w * 0.88, h * 0.12, SYN ? 8 : 8, '#8a6f2a');
         portBlock(x, w * 0.06, h * 0.58, w * 0.88, h * 0.12, SYN ? 8 : 4, '#7a7f87');
         var comp = st.comp;
-        // Без модели модуль всё равно установлен — подпись не оставляем пустой.
-        var icLabel = '';
-        if (comp) {
-            icLabel = String(comp.model || '').trim();
-            if (!icLabel && comp.name) {
-                icLabel = String(comp.name).replace(/\s*·\s*отсек\s+\d+\s*$/i, '').trim();
-            }
-        }
-        if (!icLabel) icLabel = 'Interconnect ' + bay;
+        var icLabel = comp && String(comp.model || '').trim() ? String(comp.model).trim() : ('Interconnect ' + bay);
         txt(x, icLabel.slice(0, 26), w / 2, h * 0.88, h * 0.075, '#2b2f35', 'center', '600');
         led(x, w * 0.9, h * 0.16, Math.max(2, h * 0.03), comp ? pwColor(comp.power) : C_UNK, !!(comp && comp.power));
         return c;
@@ -658,8 +650,14 @@
         interconnect: LR.ic.map(function (r) { return r.n; }),
         manager: LR.mgr.map(function (r) { return r.n; })
     };
+    // Interconnect без модели = свободный отсек (как диск/DIMM с ёмкостью 0).
+    function interconnectInstalled(comp) {
+        return !!(comp && String(comp.model || '').trim());
+    }
     function stateOf(kind, n, idx) {
         var list = compsOf(kind), i, f = null;
+        // Для назначения bay учитываем и «пустые» interconnect (без модели),
+        // чтобы отсек с записью в справочнике не занимал чужой orphan.
         for (i = 0; i < list.length; i++) if (list[i].bay === n) { f = list[i]; break; }
         if (!f && list.length) {
             var layout = LAYOUT_BAYS[kind] || [];
@@ -680,17 +678,29 @@
             if (targetFree >= 0 && targetFree < orphans.length) f = orphans[targetFree];
             else if (!list.some(function (c) { return c.bay > 0; }) && idx < list.length) f = list[idx];
         }
-        if (f) return { comp: f, mode: 'present' };
+        if (f) {
+            if (kind === 'interconnect' && !interconnectInstalled(f)) {
+                return { comp: f, mode: 'absent' };
+            }
+            return { comp: f, mode: 'present' };
+        }
         return { comp: null, mode: list.length === 0 ? 'unknown' : 'absent' };
     }
     function compInfo(kind, n, st, extraRows) {
         var info = { kind: kind, bay: n, title: '', sub: '', power: 0, rows: [], links: [] };
-        if (st.comp) {
+        var emptyIC = kind === 'interconnect' && st.comp && !interconnectInstalled(st.comp);
+        if (st.comp && !emptyIC) {
             info.title = st.comp.name || (st.comp.model ? st.comp.model + ' · отсек ' + n : (KIND_TITLE[kind] + ', отсек ' + n));
             info.sub = KIND_TITLE[kind] + (st.comp.model ? ' · ' + st.comp.model : '');
             info.power = st.comp.power;
             info.rows = st.comp.rows || [];
             info.links = st.comp.links || [];
+        } else if (emptyIC) {
+            info.title = 'Interconnect, отсек ' + n;
+            info.sub = 'Свободный отсек (модель не указана)';
+            info.power = 0;
+            info.rows = (st.comp.rows && st.comp.rows.length) ? st.comp.rows.slice() : [{ k: 'Отсек (bay)', v: String(n) }, { k: 'Установка', v: 'не установлен (модель не указана)' }];
+            info.links = st.comp.links || [{ title: 'Редактировать корзину', url: '/sprsrv/bladesystemsedit-tab/' + CH.id }];
         } else {
             info.title = KIND_TITLE[kind] + ', отсек ' + n;
             info.sub = st.mode === 'absent' ? 'Отсек пуст / модуль не установлен' : 'Нет данных о компоненте в справочнике';
