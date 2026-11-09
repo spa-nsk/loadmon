@@ -108,6 +108,7 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 		mm.Socket = int32(m.Socket)
 		mm.Channel = int32(m.Channel)
 		mm.Slot = int32(m.Slot)
+		mm.MemoryController = int32(m.Controller)
 		mm.Attributes = append([]string(nil), m.Attributes...)
 		out.Memory.Data = append(out.Memory.Data, &mm)
 	}
@@ -117,6 +118,7 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	for _, c := range in.Controllers {
 		ls := pb.LocalStorage{}
 		ls.AdapterType = c.AdapterType
+		ls.CurrentOperatingMode = c.CurrentOperatingMode
 		ls.CacheMemorySizeMiB = int32(c.CacheMemorySizeMiB)
 		ls.Location = c.Location
 		ls.Model = c.Model
@@ -130,6 +132,10 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 			logical.LogicalDriveNumber = int32(v.Number)
 			logical.LogicalDriveType = v.MediaType
 			logical.Raid = v.RAID
+			logical.Name = v.Name
+			logical.InterfaceType = v.InterfaceType
+			logical.VolumeUniqueID = v.VolumeUniqueID
+			logical.Acceleration = v.Acceleration
 			logical.Status = &pb.Status{Health: v.Health, State: v.State}
 			ls.LogicalDrives = append(ls.LogicalDrives, &logical)
 		}
@@ -141,6 +147,8 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 			physical.FirmwareVersion = &pb.FirmwareVersion{Current: &pb.Version{VersionString: d.FirmwareVersion}}
 			physical.Location = d.Location
 			physical.MediaType = d.MediaType
+			physical.InterfaceType = d.InterfaceType
+			physical.CapacityGB = int32(d.CapacityGB)
 			physical.Model = d.Model
 			physical.SerialNumber = d.SerialNumber
 			physical.Status = &pb.Status{Health: d.Health, State: d.State}
@@ -157,6 +165,8 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	out.Datacenter.State = in.Datacenter.State
 	out.Datacenter.Width = int32(in.Datacenter.Width)
 	out.Datacenter.Currency = in.Datacenter.Currency
+	out.Datacenter.CoolingCapacity = int32(in.Datacenter.CoolingCapacity)
+	out.Datacenter.Height = int32(in.Datacenter.Height)
 
 	out.Rack = &pb.Racks{}
 	out.Rack.Name = in.Rack.Name
@@ -169,6 +179,9 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	out.Rack.TopUSlot = int32(in.Rack.TopUSlot)
 	out.Rack.MountUHeight = int32(in.Rack.MountUHeight)
 	out.Rack.MountLocation = in.Rack.MountLocation
+	out.Rack.Model = in.Rack.Model
+	out.Rack.PartNumber = in.Rack.PartNumber
+	out.Rack.ThermalLimit = int32(in.Rack.ThermalLimit)
 
 	out.EnclosureInfo = &pb.Enclosure{}
 	out.EnclosureInfo.Name = in.EnclosureInfo.Name
@@ -182,6 +195,9 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	out.EnclosureInfo.Status = in.EnclosureInfo.Status
 	out.EnclosureInfo.State = in.EnclosureInfo.State
 	out.EnclosureInfo.ActiveOaPreferredIP = in.EnclosureInfo.ActiveOAPreferredIP
+	out.EnclosureInfo.URI = in.EnclosureInfo.URI
+	out.EnclosureInfo.GroupURI = in.EnclosureInfo.GroupURI
+	out.EnclosureInfo.LogicalEnclosureURI = in.EnclosureInfo.LogicalEnclosureURI
 
 	out.BayInfo = &pb.DeviceBayInfo{}
 	out.BayInfo.BayNumber = int32(in.BayInfo.BayNumber)
@@ -189,6 +205,12 @@ func ServerHardwareToMessage(in *oneview.Server, out *pb.ServerHardware) {
 	out.BayInfo.URI = in.BayInfo.DeviceURI
 	out.BayInfo.DeviceBayType = in.BayInfo.DeviceBayType
 	out.BayInfo.BayPowerState = in.BayInfo.PowerState
+	out.BayInfo.Model = in.BayInfo.Model
+	out.BayInfo.ProfileURI = in.BayInfo.ProfileURI
+	out.BayInfo.Covered = in.BayInfo.Covered
+
+	out.Power = powerWattsToMessage(in.Power)
+	out.ChassisPower = powerWattsToMessage(in.ChassisPower)
 
 	for _, p := range in.Processors {
 		op, mx := resolveProcessorSpeedMHz(p.OperatingSpeedMHz, p.MaxSpeedMHz, speedFallback)
@@ -349,6 +371,7 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 			mm.Socket = int(m.Socket)
 			mm.Channel = int(m.Channel)
 			mm.Slot = int(m.Slot)
+			mm.Controller = int(m.MemoryController)
 			mm.Attributes = append([]string(nil), m.Attributes...)
 			out.Memory = append(out.Memory, mm)
 		}
@@ -363,6 +386,7 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 			c.Model = st.Model
 			c.Name = st.Name
 			c.SerialNumber = st.SerialNumber
+			c.CurrentOperatingMode = st.CurrentOperatingMode
 			if st.Status != nil {
 				c.Health = st.Status.Health
 				c.State = st.Status.State
@@ -372,10 +396,14 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 			}
 			for _, ld := range st.LogicalDrives {
 				v := oneview.LogicalDrive{
-					Number:      int(ld.LogicalDriveNumber),
-					RAID:        ld.Raid,
-					MediaType:   ld.LogicalDriveType,
-					CapacityMiB: int(ld.CapacityMiB),
+					Number:         int(ld.LogicalDriveNumber),
+					RAID:           ld.Raid,
+					MediaType:      ld.LogicalDriveType,
+					CapacityMiB:    int(ld.CapacityMiB),
+					Name:           ld.Name,
+					InterfaceType:  ld.InterfaceType,
+					VolumeUniqueID: ld.VolumeUniqueID,
+					Acceleration:   ld.Acceleration,
 				}
 				if ld.Status != nil {
 					v.Health = ld.Status.Health
@@ -385,13 +413,15 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 			}
 			for _, pd := range st.PhysicalDrives {
 				d := oneview.PhysicalDrive{
-					Location:     pd.Location,
-					Model:        pd.Model,
-					SerialNumber: pd.SerialNumber,
-					MediaType:    pd.MediaType,
-					CapacityMiB:  int(pd.CapacityMiB),
-					DiskDriveUse: pd.DiskDriveUse,
-					Encrypted:    pd.EncryptedDrive,
+					Location:      pd.Location,
+					Model:         pd.Model,
+					SerialNumber:  pd.SerialNumber,
+					MediaType:     pd.MediaType,
+					CapacityMiB:   int(pd.CapacityMiB),
+					CapacityGB:    int(pd.CapacityGB),
+					InterfaceType: pd.InterfaceType,
+					DiskDriveUse:  pd.DiskDriveUse,
+					Encrypted:     pd.EncryptedDrive,
 				}
 				if pd.FirmwareVersion != nil && pd.FirmwareVersion.Current != nil {
 					d.FirmwareVersion = pd.FirmwareVersion.Current.VersionString
@@ -414,6 +444,8 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 		out.Datacenter.State = in.Datacenter.State
 		out.Datacenter.Width = int(in.Datacenter.Width)
 		out.Datacenter.Currency = in.Datacenter.Currency
+		out.Datacenter.CoolingCapacity = int(in.Datacenter.CoolingCapacity)
+		out.Datacenter.Height = int(in.Datacenter.Height)
 	}
 
 	if in.Rack != nil {
@@ -427,6 +459,9 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 		out.Rack.TopUSlot = int(in.Rack.TopUSlot)
 		out.Rack.MountUHeight = int(in.Rack.MountUHeight)
 		out.Rack.MountLocation = in.Rack.MountLocation
+		out.Rack.Model = in.Rack.Model
+		out.Rack.PartNumber = in.Rack.PartNumber
+		out.Rack.ThermalLimit = int(in.Rack.ThermalLimit)
 	}
 
 	if in.EnclosureInfo != nil {
@@ -441,6 +476,9 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 		out.EnclosureInfo.Status = in.EnclosureInfo.Status
 		out.EnclosureInfo.State = in.EnclosureInfo.State
 		out.EnclosureInfo.ActiveOAPreferredIP = in.EnclosureInfo.ActiveOaPreferredIP
+		out.EnclosureInfo.URI = in.EnclosureInfo.URI
+		out.EnclosureInfo.GroupURI = in.EnclosureInfo.GroupURI
+		out.EnclosureInfo.LogicalEnclosureURI = in.EnclosureInfo.LogicalEnclosureURI
 	}
 
 	if in.BayInfo != nil {
@@ -449,7 +487,13 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 		out.BayInfo.DeviceURI = in.BayInfo.URI
 		out.BayInfo.DeviceBayType = in.BayInfo.DeviceBayType
 		out.BayInfo.PowerState = in.BayInfo.BayPowerState
+		out.BayInfo.Model = in.BayInfo.Model
+		out.BayInfo.ProfileURI = in.BayInfo.ProfileURI
+		out.BayInfo.Covered = in.BayInfo.Covered
 	}
+
+	out.Power = messageToPowerWatts(in.Power)
+	out.ChassisPower = messageToPowerWatts(in.ChassisPower)
 
 	for _, np := range in.NetworkPorts {
 		out.NetworkPorts = append(out.NetworkPorts, oneview.NetworkPortExport{
@@ -499,5 +543,30 @@ func MessageToServerHardware(in *pb.ServerHardware, out *oneview.Server) {
 				Product:    src.Product,
 			})
 		}
+	}
+}
+
+// powerWattsToMessage конвертирует снимок питания oneview.PowerWatts в pb.OVPowerWatts.
+func powerWattsToMessage(p oneview.PowerWatts) *pb.OVPowerWatts {
+	return &pb.OVPowerWatts{
+		Avg24HW:     p.Avg24hW,
+		Peak24HW:    p.Peak24hW,
+		RatedMaxW:   p.RatedMaxW,
+		Source:      p.Source,
+		RatedSource: p.RatedSource,
+	}
+}
+
+// messageToPowerWatts конвертирует pb.OVPowerWatts в oneview.PowerWatts; для nil возвращает нулевое значение.
+func messageToPowerWatts(p *pb.OVPowerWatts) oneview.PowerWatts {
+	if p == nil {
+		return oneview.PowerWatts{}
+	}
+	return oneview.PowerWatts{
+		Avg24hW:     p.Avg24HW,
+		Peak24hW:    p.Peak24HW,
+		RatedMaxW:   p.RatedMaxW,
+		Source:      p.Source,
+		RatedSource: p.RatedSource,
 	}
 }

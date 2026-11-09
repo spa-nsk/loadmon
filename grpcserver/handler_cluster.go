@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"io"
 	"loadmon/config"
-	"loadmon/protocol"
 	pb "loadmon/protocol"
 	vsphere "loadmon/vspheremetrics"
 	"log"
@@ -24,7 +23,6 @@ import (
 
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *server) GetCluster(in *pb.CLReq, stream grpc.ServerStreamingServer[pb.ClusterShort]) error {
@@ -464,19 +462,9 @@ func (s *server) GetClusterPerfByKey(_ context.Context, in *pb.CLReqKey) (*pb.CL
 	}
 	cl.CalcPerfomance()
 	for _, p := range cl.Perf {
-		perf := protocol.CLPerf{}
-		perf.Id = p.ID
-		perf.Start = timestamppb.New(p.Start)
-		perf.CpuUsage = p.CPUUsage
-		perf.CpuUtilization = p.CPUUtilization
-		perf.MemUsage = p.MemUsage
-		perf.DiskUsage = p.DiskUsage
-		perf.DiskRead = p.DiskRead
-		perf.DiskWrite = p.DiskWrite
-		perf.NetUsage = p.NetUsage
-		perf.NetReceived = p.NetReceived
-		perf.NetTransmitted = p.NetTransmitted
-		out.Perf = append(out.Perf, &perf)
+		perf := &pb.CLPerf{}
+		ClusterMetricToMessage(p, perf)
+		out.Perf = append(out.Perf, perf)
 	}
 	return &out, nil
 }

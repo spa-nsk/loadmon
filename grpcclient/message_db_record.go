@@ -211,6 +211,7 @@ func HostRecordToMessage(in *models.HostRecord, out *pb.HostRecord) {
 	out.MemBilling = in.MemBilling                                                                 //float64
 	out.DiskBilling = in.DiskBilling                                                               //float64
 	out.NetBilling = in.NetBilling                                                                 //float64
+	out.IpAddress = in.IpAddress
 }
 
 // MessageToHostRecord конвертирует gRPC-сообщение pb.HostRecord в доменную модель models.HostRecord. При in == nil или out == nil ничего не делает.
@@ -282,6 +283,7 @@ func MessageToHostRecord(in *pb.HostRecord, out *models.HostRecord) {
 	out.MemBilling = in.MemBilling                                                         //float64
 	out.DiskBilling = in.DiskBilling                                                       //float64
 	out.NetBilling = in.NetBilling                                                         //float64
+	out.IpAddress = in.IpAddress
 }
 
 // VMRecordToMessage конвертирует доменную модель models.VMRecord в gRPC-сообщение pb.VMRecord. При in == nil или out == nil ничего не делает.
@@ -350,6 +352,7 @@ func VMRecordToMessage(in *models.VMRecord, out *pb.VMRecord) {
 	out.MemBilling = in.MemBilling
 	out.DiskBilling = in.DiskBilling
 	out.NetBilling = in.NetBilling
+	out.Vm_Network = in.Vm_Network
 }
 
 // MessageToVMRecord конвертирует gRPC-сообщение pb.VMRecord в доменную модель models.VMRecord. При in == nil или out == nil ничего не делает.
@@ -418,6 +421,7 @@ func MessageToVMRecord(in *pb.VMRecord, out *models.VMRecord) {
 	out.MemBilling = in.MemBilling
 	out.DiskBilling = in.DiskBilling
 	out.NetBilling = in.NetBilling
+	out.Vm_Network = in.Vm_Network
 }
 
 // ClusterPerfToMessage конвертирует доменную модель models.ClusterPerf (метрика кластера для БД) в gRPC-сообщение pb.ClusterPerf. При in == nil или out == nil ничего не делает.

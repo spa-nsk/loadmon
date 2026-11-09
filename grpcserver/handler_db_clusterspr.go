@@ -121,7 +121,7 @@ func (p *serverdb) AddClusterSprRecord(_ context.Context, in *pb.ClusterSprRecor
 			if !ok {
 				continue
 			}
-			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.NewClient(endpoint.GetSrvDBAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Printf("did not connect: %v\n", err)
 				return &pb.ClusterSprId{}, err
@@ -159,7 +159,7 @@ func (p *serverdb) UpdateClusterSprRecord(_ context.Context, in *pb.ClusterSprRe
 			if !ok {
 				continue
 			}
-			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.NewClient(endpoint.GetSrvDBAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Printf("did not connect: %v\n", err)
 				return &pb.ClusterSprId{}, err

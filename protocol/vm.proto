@@ -363,6 +363,8 @@ message CLPerf {
   double NetUsage = 9;
   double NetReceived = 10;
   double NetTransmitted = 11;
+  double DiskTotalReadLatency = 12;
+  double DiskTotalWriteLatency = 13;
 }
 
 //
@@ -389,6 +391,7 @@ message GuestDiskInfo {
   double CapacityGb = 2;
   double FreeSpaceGb = 3;
   double PercentUsed = 4;
+  string FileSystemType = 5;
 }
 
 //
@@ -573,6 +576,17 @@ message VMPoint {
   // не изменены и продолжают заполняться как раньше, это ДОПОЛНИТЕЛЬНОЕ
   // представление тех же данных из vm.Guest.Net.
   repeated NetInterface Interfaces = 77;
+  // Агрегаты задержек диска (мс) - добавлено при аудите контрактов (2026-11).
+  double DiskTotalReadLatencyMaximum = 78;
+  google.protobuf.Timestamp DiskTotalReadLatencyMaximumTime = 79;
+  double DiskTotalReadLatencyAverage = 80;
+  double DiskTotalReadLatencyMinimum = 81;
+  google.protobuf.Timestamp DiskTotalReadLatencyMinimumTime = 82;
+  double DiskTotalWriteLatencyMaximum = 83;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMaximumTime = 84;
+  double DiskTotalWriteLatencyAverage = 85;
+  double DiskTotalWriteLatencyMinimum = 86;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMinimumTime = 87;
 }
 
 // NetInterface — один сетевой интерфейс (пара MAC+IP) сервера в
@@ -649,6 +663,34 @@ message VMPointShort {
   string GuestDetailedData = 54;
   string ToolsStatus = 55;
   string DomainName = 56;
+  // Добавлено при аудите контрактов (2026-11): агрегаты задержек диска, billing и поля размещения/конфигурации.
+  double DiskTotalReadLatencyMaximum = 57;
+  google.protobuf.Timestamp DiskTotalReadLatencyMaximumTime = 58;
+  double DiskTotalReadLatencyAverage = 59;
+  double DiskTotalReadLatencyMinimum = 60;
+  google.protobuf.Timestamp DiskTotalReadLatencyMinimumTime = 61;
+  double DiskTotalWriteLatencyMaximum = 62;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMaximumTime = 63;
+  double DiskTotalWriteLatencyAverage = 64;
+  double DiskTotalWriteLatencyMinimum = 65;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMinimumTime = 66;
+  double CpuBilling = 67;
+  double MemBilling = 68;
+  double DiskBilling = 69;
+  double NetBilling = 70;
+  string Vcenter = 71;
+  string Datacenter = 72;
+  string Cluster = 73;
+  string KeyName = 74;
+  string Uuid = 75;
+  string GuestId = 76;
+  string Annotation = 77;
+  int32 NumEthernetCards = 78;
+  int32 NumVirtualDisks = 79;
+  double DiskCommittedGB = 80;
+  double DiskUncommittedGB = 81;
+  string EsxHost = 82;
+  repeated NetInterface Interfaces = 83;
 }
 
 //
@@ -723,6 +765,22 @@ message Host {
   // доработки хранения сетевых интерфейсов серверов, см. CHANGELOG.md).
   // Добавлено аддитивно, IpAddress/MacAddress выше не изменены.
   repeated NetInterface Interfaces = 61;
+  // Добавлено при аудите контрактов (2026-11): billing, агрегаты задержек диска, версия ESXi.
+  double CpuBilling = 62;
+  double MemBilling = 63;
+  double DiskBilling = 64;
+  double NetBilling = 65;
+  double DiskTotalReadLatencyMaximum = 66;
+  google.protobuf.Timestamp DiskTotalReadLatencyMaximumTime = 67;
+  double DiskTotalReadLatencyAverage = 68;
+  double DiskTotalReadLatencyMinimum = 69;
+  google.protobuf.Timestamp DiskTotalReadLatencyMinimumTime = 70;
+  double DiskTotalWriteLatencyMaximum = 71;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMaximumTime = 72;
+  double DiskTotalWriteLatencyAverage = 73;
+  double DiskTotalWriteLatencyMinimum = 74;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMinimumTime = 75;
+  HostProduct Product = 76;
 }
 
 //
@@ -792,6 +850,22 @@ message HostFull {
   // "полного" хостового сообщения. Stage 1 доработки хранения сетевых
   // интерфейсов серверов, см. CHANGELOG.md.
   repeated NetInterface Interfaces = 62;
+  // Добавлено при аудите контрактов (2026-11): billing, агрегаты задержек диска, версия ESXi.
+  double CpuBilling = 63;
+  double MemBilling = 64;
+  double DiskBilling = 65;
+  double NetBilling = 66;
+  double DiskTotalReadLatencyMaximum = 67;
+  google.protobuf.Timestamp DiskTotalReadLatencyMaximumTime = 68;
+  double DiskTotalReadLatencyAverage = 69;
+  double DiskTotalReadLatencyMinimum = 70;
+  google.protobuf.Timestamp DiskTotalReadLatencyMinimumTime = 71;
+  double DiskTotalWriteLatencyMaximum = 72;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMaximumTime = 73;
+  double DiskTotalWriteLatencyAverage = 74;
+  double DiskTotalWriteLatencyMinimum = 75;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMinimumTime = 76;
+  HostProduct Product = 77;
 }
 
 //
@@ -849,6 +923,21 @@ message Cluster {
   int64 VMCount = 51;
   int32 TypeWork = 52;
   string ClusterId = 53;
+  // Добавлено при аудите контрактов (2026-11): billing и агрегаты задержек диска.
+  double CpuBilling = 54;
+  double MemBilling = 55;
+  double DiskBilling = 56;
+  double NetBilling = 57;
+  double DiskTotalReadLatencyMaximum = 58;
+  google.protobuf.Timestamp DiskTotalReadLatencyMaximumTime = 59;
+  double DiskTotalReadLatencyAverage = 60;
+  double DiskTotalReadLatencyMinimum = 61;
+  google.protobuf.Timestamp DiskTotalReadLatencyMinimumTime = 62;
+  double DiskTotalWriteLatencyMaximum = 63;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMaximumTime = 64;
+  double DiskTotalWriteLatencyAverage = 65;
+  double DiskTotalWriteLatencyMinimum = 66;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMinimumTime = 67;
 }
 
 //
@@ -908,6 +997,21 @@ message ClusterFull {
   int64 VMCount = 53;
   int32 TypeWork = 54;
   string ClusterId = 55;
+  // Добавлено при аудите контрактов (2026-11): billing и агрегаты задержек диска.
+  double CpuBilling = 56;
+  double MemBilling = 57;
+  double DiskBilling = 58;
+  double NetBilling = 59;
+  double DiskTotalReadLatencyMaximum = 60;
+  google.protobuf.Timestamp DiskTotalReadLatencyMaximumTime = 61;
+  double DiskTotalReadLatencyAverage = 62;
+  double DiskTotalReadLatencyMinimum = 63;
+  google.protobuf.Timestamp DiskTotalReadLatencyMinimumTime = 64;
+  double DiskTotalWriteLatencyMaximum = 65;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMaximumTime = 66;
+  double DiskTotalWriteLatencyAverage = 67;
+  double DiskTotalWriteLatencyMinimum = 68;
+  google.protobuf.Timestamp DiskTotalWriteLatencyMinimumTime = 69;
 }
 
 //
@@ -966,6 +1070,9 @@ message ServerHardware {
   repeated OVPCIDevice Devices = 10;
   repeated OVFirmwareComponent Firmware = 11;
   OVServerMetadata Metadata = 12;
+  // Добавлено при аудите контрактов (2026-11): питание сервера и корзины.
+  OVPowerWatts Power = 13;
+  OVPowerWatts ChassisPower = 14;
 }
 
 //
@@ -1065,6 +1172,7 @@ message MemoryModule {
   int32 Channel=17;
   int32 Slot=18;
   repeated string Attributes=19;
+  int32 MemoryController=20;
 }
 
 //
@@ -1103,6 +1211,7 @@ message LocalStorage {
   string              SerialNumber=15;           //серийный номер
   Status              Status=16;                 //состояние
   repeated LocalStorageEnclosure StorageEnclosures=17; //корзины для дисков
+  string              CurrentOperatingMode=18;   //режим работы контроллера (RAID/HBA/Mixed)
 }
 
 //
@@ -1155,6 +1264,10 @@ message LocalLogicalDrive {
   string                LogicalDriveType=5;       //тип логического диска
   string                Raid=6;                   //уровень Raid "5", ...
   Status                Status=7;                 //состояние
+  string                Name=8;
+  string                InterfaceType=9;
+  string                VolumeUniqueID=10;
+  string                Acceleration=11;
 }
 
 // LocalPhysicalDrive - описание диска
@@ -1170,6 +1283,8 @@ message LocalPhysicalDrive {
   string          Model=9;                //модель "MB4000JVYZQ"
   string          SerialNumber=10;        //серийный номер "ZC17LE2X"
   Status          Status=11;              //состояние
+  string          InterfaceType=12;
+  int32           CapacityGB=13;
 }
 
 // LocalStorageEnclosure - описание корзины для дисков
@@ -1206,6 +1321,8 @@ message DatacenterInfo {
   string Name=14;
   string State=15;
   string Status=16;
+  int32 CoolingCapacity=17;
+  int32 Height=18;
 }
 
 //
@@ -1228,6 +1345,9 @@ message Racks {
   int32                   TopUSlot=13;
   int32                   MountUHeight=14;
   string                  MountLocation=15;
+  string Model=16;
+  string PartNumber=17;
+  int32 ThermalLimit=18;
 }
 
 //
@@ -1246,6 +1366,9 @@ message DeviceBayInfo{
   string      ChangeState=12;
   bool        AvailableForHalfHeightDoubleWideProfile=13;
   bool        AvailableForFullHeightDoubleWideProfile=14;
+  string      Model=15;
+  string      ProfileURI=16;
+  bool        Covered=17;
 }
 
 //
@@ -1343,6 +1466,9 @@ message Enclosure {
   string                          VcmURL=38;
   int32                           OaBays=39;
   string                          MigrationState=40;
+  string                          GroupURI=41;
+  string                          LogicalEnclosureURI=42;
+  string                          URI=43;
 }
 
 // --- oneview2 extended inventory ---
@@ -1405,4 +1531,32 @@ message OVServerMetadata {
   string Endpoint = 3;
   repeated string Warnings = 4;
   repeated OVServerSource Sources = 5;
+}
+// HostProduct - сведения о продукте ESXi (vim25 AboutInfo): имя, версия, сборка
+// и т.п. Соответствует vspheremetrics.HostInfo.Product.
+message HostProduct {
+  string Name = 1;
+  string FullName = 2;
+  string Vendor = 3;
+  string Version = 4;
+  string PatchLevel = 5;
+  string Build = 6;
+  string LocaleVersion = 7;
+  string LocaleBuild = 8;
+  string OsType = 9;
+  string ProductLineId = 10;
+  string ApiType = 11;
+  string ApiVersion = 12;
+  string LicenseProductName = 13;
+  string LicenseProductVersion = 14;
+  string InstanceUuid = 15;
+}
+
+// OVPowerWatts - потребление/лимит питания (Вт), oneview2.PowerWatts.
+message OVPowerWatts {
+  double Avg24hW = 1;
+  double Peak24hW = 2;
+  double RatedMaxW = 3;
+  string Source = 4;
+  string RatedSource = 5;
 }

@@ -311,8 +311,16 @@ type ServerSprRecords struct {
 	Datacenter           string                 `protobuf:"bytes,63,opt,name=Datacenter,proto3" json:"Datacenter,omitempty"`
 	Cluster              string                 `protobuf:"bytes,64,opt,name=Cluster,proto3" json:"Cluster,omitempty"`
 	MacAddress           string                 `protobuf:"bytes,65,opt,name=MacAddress,proto3" json:"MacAddress,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Добавлено при аудите контрактов (2026-11): поля модели, ранее не передававшиеся.
+	HWSprId          int64  `protobuf:"varint,66,opt,name=HWSprId,proto3" json:"HWSprId,omitempty"`                   // ссылка на ServerHardware
+	ZabbixHostId     int64  `protobuf:"varint,67,opt,name=ZabbixHostId,proto3" json:"ZabbixHostId,omitempty"`         // ссылка на ZabbixHost.Id
+	ScomHostId       int64  `protobuf:"varint,68,opt,name=ScomHostId,proto3" json:"ScomHostId,omitempty"`             // ссылка на ScomHost.Id
+	SerialNumber     string `protobuf:"bytes,69,opt,name=SerialNumber,proto3" json:"SerialNumber,omitempty"`          // серийный номер (type 0 и 2)
+	SourceUpdateType int32  `protobuf:"varint,70,opt,name=SourceUpdateType,proto3" json:"SourceUpdateType,omitempty"` // код источника последнего обновления
+	TagName          string `protobuf:"bytes,71,opt,name=TagName,proto3" json:"TagName,omitempty"`                    // имя тэга для виртуальных машин
+	TagDescription   string `protobuf:"bytes,72,opt,name=TagDescription,proto3" json:"TagDescription,omitempty"`      // описание тэга для виртуальных машин
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ServerSprRecords) Reset() {
@@ -800,6 +808,55 @@ func (x *ServerSprRecords) GetMacAddress() string {
 	return ""
 }
 
+func (x *ServerSprRecords) GetHWSprId() int64 {
+	if x != nil {
+		return x.HWSprId
+	}
+	return 0
+}
+
+func (x *ServerSprRecords) GetZabbixHostId() int64 {
+	if x != nil {
+		return x.ZabbixHostId
+	}
+	return 0
+}
+
+func (x *ServerSprRecords) GetScomHostId() int64 {
+	if x != nil {
+		return x.ScomHostId
+	}
+	return 0
+}
+
+func (x *ServerSprRecords) GetSerialNumber() string {
+	if x != nil {
+		return x.SerialNumber
+	}
+	return ""
+}
+
+func (x *ServerSprRecords) GetSourceUpdateType() int32 {
+	if x != nil {
+		return x.SourceUpdateType
+	}
+	return 0
+}
+
+func (x *ServerSprRecords) GetTagName() string {
+	if x != nil {
+		return x.TagName
+	}
+	return ""
+}
+
+func (x *ServerSprRecords) GetTagDescription() string {
+	if x != nil {
+		return x.TagDescription
+	}
+	return ""
+}
+
 type VMSprRecord struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Id                   int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
@@ -841,8 +898,14 @@ type VMSprRecord struct {
 	// -> RackCabinet.DatacenterSiteId -> DatacenterSite.CodeJira) на момент записи
 	// метрики. Заполняется отдельно от остальных полей, см. UpdateVMSprDatacenterName.
 	DatacenterName string `protobuf:"bytes,35,opt,name=DatacenterName,proto3" json:"DatacenterName,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Добавлено при аудите контрактов (2026-11): поля модели, ранее не передававшиеся.
+	Production    int32  `protobuf:"varint,36,opt,name=Production,proto3" json:"Production,omitempty"`               // среда 0-не заполнено 1-продуктовая 2-тестовая
+	TypeWork      int32  `protobuf:"varint,37,opt,name=TypeWork,proto3" json:"TypeWork,omitempty"`                   // 0 - не указано 1 - продуктовая 2 - внутренний тест 3 - внешний тест
+	Vm_EsxHost    string `protobuf:"bytes,38,opt,name=Vm_EsxHost,json=VmEsxHost,proto3" json:"Vm_EsxHost,omitempty"` // имя ESXi хоста, на котором размещена ВМ
+	Vm_Network    string `protobuf:"bytes,39,opt,name=Vm_Network,json=VmNetwork,proto3" json:"Vm_Network,omitempty"` // список сетей через ";"
+	WorkStation   bool   `protobuf:"varint,40,opt,name=WorkStation,proto3" json:"WorkStation,omitempty"`             // признак рабочей станции Windows
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *VMSprRecord) Reset() {
@@ -1118,6 +1181,41 @@ func (x *VMSprRecord) GetDatacenterName() string {
 		return x.DatacenterName
 	}
 	return ""
+}
+
+func (x *VMSprRecord) GetProduction() int32 {
+	if x != nil {
+		return x.Production
+	}
+	return 0
+}
+
+func (x *VMSprRecord) GetTypeWork() int32 {
+	if x != nil {
+		return x.TypeWork
+	}
+	return 0
+}
+
+func (x *VMSprRecord) GetVm_EsxHost() string {
+	if x != nil {
+		return x.Vm_EsxHost
+	}
+	return ""
+}
+
+func (x *VMSprRecord) GetVm_Network() string {
+	if x != nil {
+		return x.Vm_Network
+	}
+	return ""
+}
+
+func (x *VMSprRecord) GetWorkStation() bool {
+	if x != nil {
+		return x.WorkStation
+	}
+	return false
 }
 
 // VMSprDatacenterNameRequest - запрос на точечное обновление
@@ -1427,6 +1525,7 @@ type VMRecord struct {
 	MemBilling                       float64                `protobuf:"fixed64,58,opt,name=MemBilling,proto3" json:"MemBilling,omitempty"`
 	DiskBilling                      float64                `protobuf:"fixed64,59,opt,name=DiskBilling,proto3" json:"DiskBilling,omitempty"`
 	NetBilling                       float64                `protobuf:"fixed64,60,opt,name=NetBilling,proto3" json:"NetBilling,omitempty"`
+	Vm_Network                       string                 `protobuf:"bytes,61,opt,name=Vm_Network,json=VmNetwork,proto3" json:"Vm_Network,omitempty"`
 	unknownFields                    protoimpl.UnknownFields
 	sizeCache                        protoimpl.SizeCache
 }
@@ -1881,6 +1980,13 @@ func (x *VMRecord) GetNetBilling() float64 {
 	return 0
 }
 
+func (x *VMRecord) GetVm_Network() string {
+	if x != nil {
+		return x.Vm_Network
+	}
+	return ""
+}
+
 type HostRecord struct {
 	state                            protoimpl.MessageState `protogen:"open.v1"`
 	Id                               int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
@@ -1946,6 +2052,7 @@ type HostRecord struct {
 	MemBilling                       float64                `protobuf:"fixed64,61,opt,name=MemBilling,proto3" json:"MemBilling,omitempty"`
 	DiskBilling                      float64                `protobuf:"fixed64,62,opt,name=DiskBilling,proto3" json:"DiskBilling,omitempty"`
 	NetBilling                       float64                `protobuf:"fixed64,63,opt,name=NetBilling,proto3" json:"NetBilling,omitempty"`
+	IpAddress                        string                 `protobuf:"bytes,64,opt,name=IpAddress,proto3" json:"IpAddress,omitempty"`
 	unknownFields                    protoimpl.UnknownFields
 	sizeCache                        protoimpl.SizeCache
 }
@@ -2419,6 +2526,13 @@ func (x *HostRecord) GetNetBilling() float64 {
 		return x.NetBilling
 	}
 	return 0
+}
+
+func (x *HostRecord) GetIpAddress() string {
+	if x != nil {
+		return x.IpAddress
+	}
+	return ""
 }
 
 type ClusterRecord struct {
@@ -3391,7 +3505,7 @@ const file_db_proto_rawDesc = "" +
 	"\x06Status\x18\x02 \x01(\x05R\x06Status\"9\n" +
 	"\x0fClusterRecordId\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x16\n" +
-	"\x06Status\x18\x02 \x01(\x05R\x06Status\"\xc6\x10\n" +
+	"\x06Status\x18\x02 \x01(\x05R\x06Status\"\xb6\x12\n" +
 	"\x10ServerSprRecords\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x14\n" +
 	"\x05OldId\x18\x02 \x01(\x03R\x05OldId\x12\x12\n" +
@@ -3476,7 +3590,16 @@ const file_db_proto_rawDesc = "" +
 	"\aCluster\x18@ \x01(\tR\aCluster\x12\x1e\n" +
 	"\n" +
 	"MacAddress\x18A \x01(\tR\n" +
-	"MacAddress\"\xf3\t\n" +
+	"MacAddress\x12\x18\n" +
+	"\aHWSprId\x18B \x01(\x03R\aHWSprId\x12\"\n" +
+	"\fZabbixHostId\x18C \x01(\x03R\fZabbixHostId\x12\x1e\n" +
+	"\n" +
+	"ScomHostId\x18D \x01(\x03R\n" +
+	"ScomHostId\x12\"\n" +
+	"\fSerialNumber\x18E \x01(\tR\fSerialNumber\x12*\n" +
+	"\x10SourceUpdateType\x18F \x01(\x05R\x10SourceUpdateType\x12\x18\n" +
+	"\aTagName\x18G \x01(\tR\aTagName\x12&\n" +
+	"\x0eTagDescription\x18H \x01(\tR\x0eTagDescription\"\x8f\v\n" +
 	"\vVMSprRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x1a\n" +
 	"\bServerId\x18\x02 \x01(\x03R\bServerId\x12\x18\n" +
@@ -3521,7 +3644,16 @@ const file_db_proto_rawDesc = "" +
 	"\n" +
 	"DomainName\x18\" \x01(\tR\n" +
 	"DomainName\x12&\n" +
-	"\x0eDatacenterName\x18# \x01(\tR\x0eDatacenterName\"T\n" +
+	"\x0eDatacenterName\x18# \x01(\tR\x0eDatacenterName\x12\x1e\n" +
+	"\n" +
+	"Production\x18$ \x01(\x05R\n" +
+	"Production\x12\x1a\n" +
+	"\bTypeWork\x18% \x01(\x05R\bTypeWork\x12\x1d\n" +
+	"\n" +
+	"Vm_EsxHost\x18& \x01(\tR\tVmEsxHost\x12\x1d\n" +
+	"\n" +
+	"Vm_Network\x18' \x01(\tR\tVmNetwork\x12 \n" +
+	"\vWorkStation\x18( \x01(\bR\vWorkStation\"T\n" +
 	"\x1aVMSprDatacenterNameRequest\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12&\n" +
 	"\x0eDatacenterName\x18\x02 \x01(\tR\x0eDatacenterName\"\xf6\x02\n" +
@@ -3547,7 +3679,7 @@ const file_db_proto_rawDesc = "" +
 	"\x0eDatacenterName\x18\f \x01(\tR\x0eDatacenterName\"Y\n" +
 	"\x1fClusterSprDatacenterNameRequest\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12&\n" +
-	"\x0eDatacenterName\x18\x02 \x01(\tR\x0eDatacenterName\"\x9d\x1a\n" +
+	"\x0eDatacenterName\x18\x02 \x01(\tR\x0eDatacenterName\"\xbc\x1a\n" +
 	"\bVMRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x1a\n" +
 	"\bServerId\x18\x02 \x01(\x03R\bServerId\x12\x18\n" +
@@ -3616,7 +3748,9 @@ const file_db_proto_rawDesc = "" +
 	"\vDiskBilling\x18; \x01(\x01R\vDiskBilling\x12\x1e\n" +
 	"\n" +
 	"NetBilling\x18< \x01(\x01R\n" +
-	"NetBilling\"\x90\x1a\n" +
+	"NetBilling\x12\x1d\n" +
+	"\n" +
+	"Vm_Network\x18= \x01(\tR\tVmNetwork\"\xae\x1a\n" +
 	"\n" +
 	"HostRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x1a\n" +
@@ -3692,7 +3826,8 @@ const file_db_proto_rawDesc = "" +
 	"\vDiskBilling\x18> \x01(\x01R\vDiskBilling\x12\x1e\n" +
 	"\n" +
 	"NetBilling\x18? \x01(\x01R\n" +
-	"NetBilling\"\xab\x1a\n" +
+	"NetBilling\x12\x1c\n" +
+	"\tIpAddress\x18@ \x01(\tR\tIpAddress\"\xab\x1a\n" +
 	"\rClusterRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x1c\n" +
 	"\tClusterId\x18\x02 \x01(\x03R\tClusterId\x12.\n" +

@@ -155,6 +155,14 @@ message ServerSprRecords {
   string Datacenter = 63;
   string Cluster = 64;
   string MacAddress = 65;
+  // Добавлено при аудите контрактов (2026-11): поля модели, ранее не передававшиеся.
+  int64  HWSprId = 66;          // ссылка на ServerHardware
+  int64  ZabbixHostId = 67;     // ссылка на ZabbixHost.Id
+  int64  ScomHostId = 68;       // ссылка на ScomHost.Id
+  string SerialNumber = 69;     // серийный номер (type 0 и 2)
+  int32  SourceUpdateType = 70; // код источника последнего обновления
+  string TagName = 71;          // имя тэга для виртуальных машин
+  string TagDescription = 72;   // описание тэга для виртуальных машин
 }
 
 message VMSprRecord{
@@ -197,6 +205,12 @@ message VMSprRecord{
   // -> RackCabinet.DatacenterSiteId -> DatacenterSite.CodeJira) на момент записи
   // метрики. Заполняется отдельно от остальных полей, см. UpdateVMSprDatacenterName.
   string DatacenterName = 35;
+  // Добавлено при аудите контрактов (2026-11): поля модели, ранее не передававшиеся.
+  int32 Production = 36;   // среда 0-не заполнено 1-продуктовая 2-тестовая
+  int32 TypeWork = 37;     // 0 - не указано 1 - продуктовая 2 - внутренний тест 3 - внешний тест
+  string Vm_EsxHost = 38;  // имя ESXi хоста, на котором размещена ВМ
+  string Vm_Network = 39;  // список сетей через ";"
+  bool WorkStation = 40;   // признак рабочей станции Windows
 }
 
 // VMSprDatacenterNameRequest - запрос на точечное обновление
@@ -294,6 +308,7 @@ message VMRecord {
   double                    MemBilling=58;
   double                    DiskBilling=59;
   double                    NetBilling=60;
+  string                    Vm_Network=61;
 }
 
 message HostRecord {
@@ -360,6 +375,7 @@ message HostRecord {
   double              MemBilling=61;
   double              DiskBilling=62;
   double              NetBilling=63;
+  string              IpAddress=64;
 }
 
 message ClusterRecord {
