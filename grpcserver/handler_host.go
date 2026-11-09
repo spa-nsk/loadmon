@@ -15,7 +15,6 @@ import (
 	"errors"
 	"io"
 	"loadmon/config"
-	"loadmon/protocol"
 	pb "loadmon/protocol"
 	vsphere "loadmon/vspheremetrics"
 	"log"
@@ -23,7 +22,6 @@ import (
 
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *server) GetHostFull(in *pb.HSReq, stream grpc.ServerStreamingServer[pb.HostFull]) error {
@@ -190,19 +188,10 @@ func (s *server) GetHostPerf(in *pb.HSReqKey, stream grpc.ServerStreamingServer[
 		return errors.New("Host не найден")
 	}
 	for _, p := range hs.Perf {
-		perf := protocol.HSPerf{}
-		perf.Id = p.ID
-		perf.Start = timestamppb.New(p.Start)
-		perf.CpuUsage = p.CPUUsage
-		perf.CpuUtilization = p.CPUUtilization
-		perf.MemUsage = p.MemUsage
-		perf.DiskUsage = p.DiskUsage
-		perf.DiskRead = p.DiskRead
-		perf.DiskWrite = p.DiskWrite
-		perf.NetUsage = p.NetUsage
-		perf.NetReceived = p.NetReceived
-		perf.NetTransmitted = p.NetTransmitted
-		if err := stream.Send(&perf); err != nil {
+		if p == nil {
+			continue
+		}
+		if err := stream.Send(HSPerfToMessage(p)); err != nil {
 			_ = err
 		}
 	}
@@ -247,20 +236,12 @@ func (s *server) GetHostPerfByKey(_ context.Context, in *pb.HSReqKey) (*pb.HSPer
 		return &out, errors.New("Host не найден")
 	}
 	for _, p := range hs.Perf {
-		perf := protocol.HSPerf{}
-		perf.Id = p.ID
-		perf.Start = timestamppb.New(p.Start)
-		perf.CpuUsage = p.CPUUsage
-		perf.CpuUtilization = p.CPUUtilization
-		perf.MemUsage = p.MemUsage
-		perf.DiskUsage = p.DiskUsage
-		perf.DiskRead = p.DiskRead
-		perf.DiskWrite = p.DiskWrite
-		perf.NetUsage = p.NetUsage
-		perf.NetReceived = p.NetReceived
-		perf.NetTransmitted = p.NetTransmitted
-		out.Perf = append(out.Perf, &perf)
+		if p == nil {
+			continue
+		}
+		out.Perf = append(out.Perf, HSPerfToMessage(p))
 	}
+	out.Count = int64(len(out.Perf))
 	return &out, nil
 }
 

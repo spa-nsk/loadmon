@@ -305,6 +305,31 @@ func GetVM(key string) (vsphere.VMPoint, error) {
 	return vsphere.VMPoint{}, errors.New("Данные по ключу не найдены.")
 }
 
+// GetVMPerfByKey возвращает только временной ряд метрик производительности
+// одной VM по её составному ключу key ("vCenter/Датацентр/Кластер/Имя", берётся
+// из GetVMListKey/VMKeyRec) - gRPC GetVMPerfByKey. Дешевле GetVM/GetVMByKeyWithPerf
+// там, где нужны только графики: не передаются файлы, диски и прочие поля VMPoint,
+// агрегаты (min/max/average) не считаются.
+// Возвращает ошибку при пустом ключе, ошибке подключения/RPC или если VM не
+// найдена. VM без накопленных метрик - пустой срез без ошибки.
+func GetVMPerfByKey(key string) ([]*vsphere.VMPerf, error) {
+	if key == "" {
+		return nil, errors.New("не указан ключ виртуальной машины")
+	}
+	c, conn, ctx, cancel, err := dialAPI()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	defer cancel()
+	perf, err := c.GetVMPerfByKey(ctx, &pb.VMReqKey{Key: key})
+	if err != nil {
+		log.Printf("GetVMPerfByKey(%s): %v", key, err)
+		return nil, err
+	}
+	return GetVMPerfRPC(perf), nil
+}
+
 // GetVMListKey возвращает список ключей VM, подходящих под заданные
 // фильтры. Возвращает ошибку, если подключение не удалось или ни одной
 // записи не найдено (vml.Count == 0).

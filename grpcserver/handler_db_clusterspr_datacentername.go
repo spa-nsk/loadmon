@@ -45,7 +45,7 @@ func (p *serverdb) UpdateClusterSprDatacenterName(_ context.Context, in *pb.Clus
 			if !ok {
 				continue
 			}
-			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.NewClient(endpoint.GetSrvDBAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Printf("did not connect: %v\n", err)
 				return &pb.ClusterSprId{}, err

@@ -22,6 +22,7 @@ import (
 
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 )
 
 func (s *server) GetVMFiles(_ context.Context, in *pb.VMReqKey) (*pb.VMFileSlice, error) {
@@ -74,13 +75,10 @@ func (s *server) GetVMFiles(_ context.Context, in *pb.VMReqKey) (*pb.VMFileSlice
 
 // CopyPbVMFile создаёт независимую копию сообщения pb.VMFile.
 func CopyPbVMFile(in *pb.VMFile) *pb.VMFile {
-	out := pb.VMFile{
-		Type:       in.Type,
-		Name:       in.Name,
-		Size:       in.Size,
-		UniqueSize: in.UniqueSize,
+	if in == nil {
+		return &pb.VMFile{}
 	}
-	return &out
+	return proto.Clone(in).(*pb.VMFile)
 }
 
 // GetVMGuestDiskInfo возвращает информацию о дисках гостевой ОС виртуальной машины по её ключу. Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется на каждый из них через gRPC-клиент, иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().
@@ -125,6 +123,7 @@ func (s *server) GetVMGuestDiskInfo(_ context.Context, in *pb.VMReqKey) (*pb.Gue
 		dn := pb.GuestDiskInfo{}
 		dn.CapacityGb = d.CapacityGb
 		dn.DiskPath = d.DiskPath
+		dn.FileSystemType = d.FileSystemType
 		dn.FreeSpaceGb = d.FreeSpaceGb
 		dn.PercentUsed = d.PercentUsed
 		out.GuestDisks = append(out.GuestDisks, &dn)
@@ -402,6 +401,48 @@ func (s *server) GetVMShortByKey(_ context.Context, in *pb.VMReqKey) (*pb.VMPoin
 	out := pb.VMPointShort{}
 	VMToMessageShort(vm, &out)
 	return &out, nil
+}
+
+// GetVMPerfByKey возвращает временной ряд метрик производительности одной виртуальной машины по её ключу
+// ("vCenter/Датацентр/Кластер/Имя") единым срезом, без остальных полей VMPoint - дешевле GetVMByKey там, где нужны
+// только графики. Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется
+// на каждый из них, ответ первого, у кого ВМ найдена, возвращается как есть (по тому же принципу, что GetVMByKey);
+// иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().
+// Пустой ключ даёт ошибку. Если ВМ нигде не найдена - ошибка errNotFound (удалённый режим) либо ошибка
+// infra.GetVMKey (локальный). ВМ без накопленных метрик - успешный ответ с Count == 0.
+func (s *server) GetVMPerfByKey(_ context.Context, in *pb.VMReqKey) (*pb.VMPerfSlice, error) {
+	if in.GetKey() == "" {
+		return &pb.VMPerfSlice{Perf: make([]*pb.VMPerf, 0)}, errors.New("не указан ключ виртуальной машины")
+	}
+	if config.Switch.Endpoint.Count() > 0 {
+		for _, key := range config.Switch.Endpoint.Keys() {
+			endpoint, ok := config.Switch.Endpoint.Get(key)
+			if !ok {
+				continue
+			}
+			conn, err := grpc.NewClient(endpoint.GetSrvApiAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				log.Printf("did not connect: %v\n", err)
+				return &pb.VMPerfSlice{Perf: make([]*pb.VMPerf, 0)}, err
+			}
+			defer conn.Close()
+
+			c := pb.NewLoadmonClient(conn)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			perf, err := c.GetVMPerfByKey(ctx, in)
+			if err == nil { //как только получаем правильный ответ, пересылаем его
+				return perf, nil
+			}
+		}
+		return &pb.VMPerfSlice{Perf: make([]*pb.VMPerf, 0)}, errors.New(errNotFound) //ничего не найдено
+	}
+	infra := vsphere.GetGlobalVMInfrastructure()
+	vm, err := infra.GetVMKey(in.GetKey())
+	if err != nil {
+		return &pb.VMPerfSlice{Perf: make([]*pb.VMPerf, 0)}, err
+	}
+	return VMPerfToMessage(vm.Perf), nil
 }
 
 // GetVMListKey возвращает список ключей всех виртуальных машин, соответствующих фильтру запроса. Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется на каждый из них через gRPC-клиент, иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().

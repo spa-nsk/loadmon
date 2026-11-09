@@ -1,8 +1,6 @@
 package grpcserver
 
 import (
-	"loadmon/protocol"
-
 	pb "loadmon/protocol"
 	vsphere "loadmon/vspheremetrics"
 
@@ -42,6 +40,24 @@ func VMToMessageShort(vm vsphere.VMPoint, out *pb.VMPointShort) {
 	out.FreeSpaceGb = vm.FreeSpaceGb
 	out.PercentUsed = vm.PercentUsed
 	out.PerfCount = vm.PerfCount
+	out.TypeWork = int32(vm.TypeWork)
+	out.CpuBilling = vm.CPUBilling
+	out.MemBilling = vm.MemBilling
+	out.DiskBilling = vm.DiskBilling
+	out.NetBilling = vm.NetBilling
+	out.Vcenter = vm.Vcenter
+	out.Datacenter = vm.Datacenter
+	out.Cluster = vm.Cluster
+	out.KeyName = vm.KeyName
+	out.Uuid = vm.UUID
+	out.GuestId = vm.GuestID
+	out.Annotation = vm.Annotation
+	out.NumEthernetCards = vm.NumEthernetCards
+	out.NumVirtualDisks = vm.NumVirtualDisks
+	out.DiskCommittedGB = vm.DiskCommittedGB
+	out.DiskUncommittedGB = vm.DiskUncommittedGB
+	out.EsxHost = vm.EsxHost
+	out.Interfaces = hostInterfacesToMessage(vm.Interfaces)
 	if vm.PerfCount > 0 {
 
 		out.CpuUsageMaximum = vm.CPUUsageMaximum
@@ -68,7 +84,14 @@ func VMToMessageShort(vm vsphere.VMPoint, out *pb.VMPointShort) {
 		out.NetUsageMaximumTime = timestamppb.New(vm.NetUsageMaximumTime)
 		out.NetUsageMinimum = vm.NetUsageMinimum
 		out.NetUsageMinimumTime = timestamppb.New(vm.NetUsageMinimumTime)
-
+		out.DiskTotalReadLatencyMaximum = vm.DiskTotalReadLatencyMaximum
+		out.DiskTotalReadLatencyMaximumTime = timestamppb.New(vm.DiskTotalReadLatencyMaximumTime)
+		out.DiskTotalReadLatencyMinimum = vm.DiskTotalReadLatencyMinimum
+		out.DiskTotalReadLatencyMinimumTime = timestamppb.New(vm.DiskTotalReadLatencyMinimumTime)
+		out.DiskTotalWriteLatencyMaximum = vm.DiskTotalWriteLatencyMaximum
+		out.DiskTotalWriteLatencyMaximumTime = timestamppb.New(vm.DiskTotalWriteLatencyMaximumTime)
+		out.DiskTotalWriteLatencyMinimum = vm.DiskTotalWriteLatencyMinimum
+		out.DiskTotalWriteLatencyMinimumTime = timestamppb.New(vm.DiskTotalWriteLatencyMinimumTime)
 		count := float64(vm.PerfCount)
 		out.CpuUsageAverage = vm.CPUUsageAverage / count
 		out.MemUsageAverage = vm.MemUsageAverage / count
@@ -76,6 +99,8 @@ func VMToMessageShort(vm vsphere.VMPoint, out *pb.VMPointShort) {
 		out.DiskWriteAverage = vm.DiskWriteAverage / count
 		out.DiskReadAverage = vm.DiskReadAverage / count
 		out.NetUsageAverage = vm.NetUsageAverage / count
+		out.DiskTotalReadLatencyAverage = vm.DiskTotalReadLatencyAverage / count
+		out.DiskTotalWriteLatencyAverage = vm.DiskTotalWriteLatencyAverage / count
 	}
 }
 
@@ -93,6 +118,7 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 	out.Datacenter = vm.Datacenter
 	out.Cluster = vm.Cluster
 	out.ClusterId = vm.ClusterID
+	out.TypeWork = int32(vm.TypeWork)
 	out.KeyName = vm.KeyName
 	out.Uuid = vm.UUID
 	out.GuestId = vm.GuestID
@@ -121,14 +147,7 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 	// Interfaces - структурированные сетевые интерфейсы (Stage 1 доработки
 	// хранения сетевых интерфейсов серверов, см. CHANGELOG.md), аддитивно
 	// к IPAddress/MacAddress/Network выше.
-	for _, iface := range vm.Interfaces {
-		out.Interfaces = append(out.Interfaces, &pb.NetInterface{
-			MacAddress:  iface.MacAddress,
-			IPAddress:   iface.IPAddress,
-			NetworkName: iface.NetworkName,
-			SubnetMask:  iface.SubnetMask,
-		})
-	}
+	out.Interfaces = hostInterfacesToMessage(vm.Interfaces)
 	out.PathName = vm.PathName
 	out.PowerState = vm.PowerState
 	out.CpuMhz = vm.CPUMhz
@@ -173,7 +192,14 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 		out.NetUsageMaximumTime = timestamppb.New(vm.NetUsageMaximumTime)
 		out.NetUsageMinimum = vm.NetUsageMinimum
 		out.NetUsageMinimumTime = timestamppb.New(vm.NetUsageMinimumTime)
-
+		out.DiskTotalReadLatencyMaximum = vm.DiskTotalReadLatencyMaximum
+		out.DiskTotalReadLatencyMaximumTime = timestamppb.New(vm.DiskTotalReadLatencyMaximumTime)
+		out.DiskTotalReadLatencyMinimum = vm.DiskTotalReadLatencyMinimum
+		out.DiskTotalReadLatencyMinimumTime = timestamppb.New(vm.DiskTotalReadLatencyMinimumTime)
+		out.DiskTotalWriteLatencyMaximum = vm.DiskTotalWriteLatencyMaximum
+		out.DiskTotalWriteLatencyMaximumTime = timestamppb.New(vm.DiskTotalWriteLatencyMaximumTime)
+		out.DiskTotalWriteLatencyMinimum = vm.DiskTotalWriteLatencyMinimum
+		out.DiskTotalWriteLatencyMinimumTime = timestamppb.New(vm.DiskTotalWriteLatencyMinimumTime)
 		count := float64(vm.PerfCount)
 		out.CpuUsageAverage = vm.CPUUsageAverage / count
 		out.MemUsageAverage = vm.MemUsageAverage / count
@@ -181,22 +207,13 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 		out.DiskWriteAverage = vm.DiskWriteAverage / count
 		out.DiskReadAverage = vm.DiskReadAverage / count
 		out.NetUsageAverage = vm.NetUsageAverage / count
+		out.DiskTotalReadLatencyAverage = vm.DiskTotalReadLatencyAverage / count
+		out.DiskTotalWriteLatencyAverage = vm.DiskTotalWriteLatencyAverage / count
 	}
 
-	for _, p := range vm.Perf {
-		perf := protocol.VMPerf{}
-		perf.Id = p.ID
-		perf.Start = timestamppb.New(p.Start)
-		perf.CpuUsage = p.CPUUsage
-		perf.MemUsage = p.MemUsage
-		perf.DiskUsage = p.DiskUsage
-		perf.DiskRead = p.DiskRead
-		perf.DiskWrite = p.DiskWrite
-		perf.NetUsage = p.NetUsage
-		perf.NetReceived = p.NetReceived
-		perf.NetTransmitted = p.NetTransmitted
-		out.Perf = append(out.Perf, &perf)
-	}
+	// Конвертация точек метрик общая с GetVMPerfByKey (VMPerfToMessage) -
+	// копирует в том числе DiskTotalReadLatency/DiskTotalWriteLatency.
+	out.Perf = append(out.Perf, VMPerfToMessage(vm.Perf).Perf...)
 	for _, f := range vm.Files {
 		fn := pb.VMFile{}
 		fn.Type = f.Type
@@ -209,6 +226,7 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 		dn := pb.GuestDiskInfo{}
 		dn.CapacityGb = d.CapacityGb
 		dn.DiskPath = d.DiskPath
+		dn.FileSystemType = d.FileSystemType
 		dn.FreeSpaceGb = d.FreeSpaceGb
 		dn.PercentUsed = d.PercentUsed
 		out.VMDisk = append(out.VMDisk, &dn)
@@ -228,6 +246,34 @@ func VMToMessageFull(vm vsphere.VMPoint, out *pb.VMPoint) {
 		dn.Datastore = d.Datastore
 		out.UsageDatastore = append(out.UsageDatastore, &dn)
 	}
+}
+
+// VMPerfToMessage конвертирует временной ряд метрик виртуальной машины (vsphere.VMPerf) в gRPC-сообщение
+// pb.VMPerfSlice, включая задержки диска (DiskTotalReadLatency/DiskTotalWriteLatency). Элементы nil пропускаются.
+// Результат всегда не nil, Count равен числу переданных точек.
+func VMPerfToMessage(perf []*vsphere.VMPerf) *pb.VMPerfSlice {
+	out := &pb.VMPerfSlice{Perf: make([]*pb.VMPerf, 0, len(perf))}
+	for _, p := range perf {
+		if p == nil {
+			continue
+		}
+		out.Perf = append(out.Perf, &pb.VMPerf{
+			Id:                    p.ID,
+			Start:                 timestamppb.New(p.Start),
+			CpuUsage:              p.CPUUsage,
+			MemUsage:              p.MemUsage,
+			DiskUsage:             p.DiskUsage,
+			DiskWrite:             p.DiskWrite,
+			DiskRead:              p.DiskRead,
+			NetUsage:              p.NetUsage,
+			NetReceived:           p.NetReceived,
+			NetTransmitted:        p.NetTransmitted,
+			DiskTotalReadLatency:  p.DiskTotalReadLatency,
+			DiskTotalWriteLatency: p.DiskTotalWriteLatency,
+		})
+	}
+	out.Count = int64(len(out.Perf))
+	return out
 }
 
 // HostToMessageShort конвертирует внутреннюю структуру vsphere.HostInfo в укороченное gRPC-сообщение pb.Host без пересчёта агрегированных метрик.

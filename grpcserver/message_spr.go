@@ -74,6 +74,14 @@ func ServerSprRecodToMessage(in *models.ServerSprRecords, out *pb.ServerSprRecor
 	out.Cluster = in.Cluster
 	out.Datacenter = in.Datacenter
 	out.Vcenter = in.Vcenter
+	out.MacAddress = in.MacAddress
+	out.HWSprId = in.HWSprId
+	out.ZabbixHostId = in.ZabbixHostId
+	out.ScomHostId = in.ScomHostId
+	out.SerialNumber = in.SerialNumber
+	out.SourceUpdateType = int32(in.SourceUpdateType)
+	out.TagName = in.TagName
+	out.TagDescription = in.TagDescription
 }
 
 // VMSprRecodToMessage конвертирует запись справочника ВМ models.VMSprRecord в gRPC-сообщение pb.VMSprRecord.
@@ -112,6 +120,16 @@ func VMSprRecodToMessage(in *models.VMSprRecord, out *pb.VMSprRecord) {
 	out.MemUsageMaximum = in.Mem_usage_maximum
 	out.DiskUsageMaximum = in.Disk_usage_maximum
 	out.NetUsageMaximum = in.Net_usage_maximum
+	out.Vm_MacAddress = in.Vm_MacAddress
+	out.GuestDetailedData = in.Vm_GuestDetailedData
+	out.ToolsStatus = in.Vm_ToolsStatus
+	out.DomainName = in.Vm_DomainName
+	out.DatacenterName = in.DatacenterName
+	out.Production = int32(in.Production)
+	out.TypeWork = int32(in.TypeWork)
+	out.Vm_EsxHost = in.Vm_EsxHost
+	out.Vm_Network = in.Vm_Network
+	out.WorkStation = in.WorkStation
 }
 
 // ClusterSprRecordsToMessage конвертирует запись справочника кластеров models.ClusterSprRecords в gRPC-сообщение pb.ClusterSprRecord.

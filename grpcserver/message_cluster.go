@@ -1,8 +1,6 @@
 package grpcserver
 
 import (
-	"loadmon/protocol"
-
 	pb "loadmon/protocol"
 	vsphere "loadmon/vspheremetrics"
 
@@ -40,6 +38,20 @@ func clusterAssignMetrics(cl vsphere.Cluster, out *pb.Cluster) {
 	out.NetUsageAverage = cl.NetUsageAverage
 	out.NetUsageMinimum = cl.NetUsageMinimum
 	out.NetUsageMinimumTime = timestamppb.New(cl.NetUsageMinimumTime)
+	out.DiskTotalReadLatencyMaximum = cl.DiskTotalReadLatencyMaximum
+	out.DiskTotalReadLatencyMaximumTime = timestamppb.New(cl.DiskTotalReadLatencyMaximumTime)
+	out.DiskTotalReadLatencyAverage = cl.DiskTotalReadLatencyAverage
+	out.DiskTotalReadLatencyMinimum = cl.DiskTotalReadLatencyMinimum
+	out.DiskTotalReadLatencyMinimumTime = timestamppb.New(cl.DiskTotalReadLatencyMinimumTime)
+	out.DiskTotalWriteLatencyMaximum = cl.DiskTotalWriteLatencyMaximum
+	out.DiskTotalWriteLatencyMaximumTime = timestamppb.New(cl.DiskTotalWriteLatencyMaximumTime)
+	out.DiskTotalWriteLatencyAverage = cl.DiskTotalWriteLatencyAverage
+	out.DiskTotalWriteLatencyMinimum = cl.DiskTotalWriteLatencyMinimum
+	out.DiskTotalWriteLatencyMinimumTime = timestamppb.New(cl.DiskTotalWriteLatencyMinimumTime)
+	out.CpuBilling = cl.CPUBilling
+	out.MemBilling = cl.MemBilling
+	out.DiskBilling = cl.DiskBilling
+	out.NetBilling = cl.NetBilling
 }
 
 // ClusterToMessage конвертирует vsphere.Cluster в базовое gRPC-сообщение pb.Cluster (без детальных метрик).
@@ -172,25 +184,28 @@ func ClusterToMessageFull(cl vsphere.Cluster, out *pb.ClusterFull) {
 	out.NetUsageAverage = cl.NetUsageAverage
 	out.NetUsageMinimum = cl.NetUsageMinimum
 	out.NetUsageMinimumTime = timestamppb.New(cl.NetUsageMinimumTime)
-
+	out.DiskTotalReadLatencyMaximum = cl.DiskTotalReadLatencyMaximum
+	out.DiskTotalReadLatencyMaximumTime = timestamppb.New(cl.DiskTotalReadLatencyMaximumTime)
+	out.DiskTotalReadLatencyAverage = cl.DiskTotalReadLatencyAverage
+	out.DiskTotalReadLatencyMinimum = cl.DiskTotalReadLatencyMinimum
+	out.DiskTotalReadLatencyMinimumTime = timestamppb.New(cl.DiskTotalReadLatencyMinimumTime)
+	out.DiskTotalWriteLatencyMaximum = cl.DiskTotalWriteLatencyMaximum
+	out.DiskTotalWriteLatencyMaximumTime = timestamppb.New(cl.DiskTotalWriteLatencyMaximumTime)
+	out.DiskTotalWriteLatencyAverage = cl.DiskTotalWriteLatencyAverage
+	out.DiskTotalWriteLatencyMinimum = cl.DiskTotalWriteLatencyMinimum
+	out.DiskTotalWriteLatencyMinimumTime = timestamppb.New(cl.DiskTotalWriteLatencyMinimumTime)
+	out.CpuBilling = cl.CPUBilling
+	out.MemBilling = cl.MemBilling
+	out.DiskBilling = cl.DiskBilling
+	out.NetBilling = cl.NetBilling
 	out.HostCount = cl.HostCount
 	out.VMCount = cl.VMCount
 
 	out.PerfCount = cl.PerfCount
 	for _, p := range cl.Perf {
-		perf := protocol.CLPerf{}
-		perf.Id = p.ID
-		perf.Start = timestamppb.New(p.Start)
-		perf.CpuUsage = p.CPUUsage
-		perf.CpuUtilization = p.CPUUtilization
-		perf.MemUsage = p.MemUsage
-		perf.DiskUsage = p.DiskUsage
-		perf.DiskRead = p.DiskRead
-		perf.DiskWrite = p.DiskWrite
-		perf.NetUsage = p.NetUsage
-		perf.NetReceived = p.NetReceived
-		perf.NetTransmitted = p.NetTransmitted
-		out.Perf = append(out.Perf, &perf)
+		perf := &pb.CLPerf{}
+		ClusterMetricToMessage(p, perf)
+		out.Perf = append(out.Perf, perf)
 	}
 	for _, s := range cl.Storage {
 		ds := pb.Datastore{Id: s.ID,
@@ -250,6 +265,8 @@ func ClusterMetricToMessage(in *vsphere.CLPerf, out *pb.CLPerf) {
 	out.NetUsage = in.NetUsage
 	out.NetReceived = in.NetReceived
 	out.NetTransmitted = in.NetTransmitted
+	out.DiskTotalReadLatency = in.DiskTotalReadLatency
+	out.DiskTotalWriteLatency = in.DiskTotalWriteLatency
 }
 
 // ServerSprRecodToMessage конвертирует запись справочника серверов models.ServerSprRecords в gRPC-сообщение pb.ServerSprRecords.

@@ -96,6 +96,53 @@ func UpdateClusterSprRecord(in *models.ClusterSprRecords) (int64, int) {
 	return 0, 3 //ошибка операции
 }
 
+// AddClusterRecord добавляет новую ежедневную историческую запись кластера
+// (cluster_record) через сервис LoadmonDB. Возвращает (id, статус): статус 1 -
+// успех, 2 - ошибка вставки на сервере; при ошибке подключения возвращает
+// (0, 1) - как и остальные Add*/Update* функции этого файла, - при ошибке RPC
+// (0, 3).
+func AddClusterRecord(in *models.ClusterRecord) (int64, int) {
+	c, conn, ctx, cancel, err := dialDB()
+	if err != nil {
+		return 0, 1
+	}
+	defer conn.Close()
+	defer cancel()
+	req := pb.ClusterRecord{}
+	ClusterRecordToMessage(in, &req)
+	res, err := c.AddClusterRecord(ctx, &req)
+	if err == nil {
+		return res.Id, int(res.Status)
+	}
+	log.Printf("AddClusterRecord: %v", err)
+	return 0, 3 //ошибка операции
+}
+
+// GetServerSpr возвращает активную запись справочника серверов
+// (server_spr_records, Stat = 1) через сервис LoadmonDB по FQDN сервера fqdn
+// (сравнение с NameFQDN без учёта регистра) - подробности в
+// grpcserver.(*serverdb).GetServer. Возвращает ошибку при пустом FQDN, ошибке
+// подключения/RPC или если запись не найдена.
+func GetServerSpr(fqdn string) (*models.ServerSprRecords, error) {
+	if fqdn == "" {
+		return nil, errors.New("не указан FQDN сервера")
+	}
+	c, conn, ctx, cancel, err := dialDB()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	defer cancel()
+	res, err := c.GetServer(ctx, &pb.DBKeyString{Key: fqdn})
+	if err != nil {
+		log.Printf("GetServer(%s): %v", fqdn, err)
+		return nil, err
+	}
+	out := models.ServerSprRecords{}
+	MessageToServerSprRecod(res, &out)
+	return &out, nil
+}
+
 // UpdateVMSprDatacenterName обновляет поле VMSprRecord.DatacenterName (код ЦОД
 // DatacenterSite.CodeJira, определённый через физический ESXi хост ВМ) через
 // сервис LoadmonDB, по Id справочной записи ВМ (vm_spr_record.Id). Вызывается

@@ -74,6 +74,13 @@ func MessageToServerSprRecod(in *pb.ServerSprRecords, out *models.ServerSprRecor
 	out.Datacenter = in.Datacenter
 	out.Cluster = in.Cluster
 	out.ClusterId = in.ClusterId
+	out.HWSprId = in.HWSprId
+	out.ZabbixHostId = in.ZabbixHostId
+	out.ScomHostId = in.ScomHostId
+	out.SerialNumber = in.SerialNumber
+	out.SourceUpdateType = int(in.SourceUpdateType)
+	out.TagName = in.TagName
+	out.TagDescription = in.TagDescription
 }
 
 // MessageToVMSprRecod конвертирует gRPC-сообщение pb.VMSprRecord (запись справочника виртуальных машин) в доменную модель models.VMSprRecord. При in == nil или out == nil ничего не делает.
@@ -111,6 +118,16 @@ func MessageToVMSprRecod(in *pb.VMSprRecord, out *models.VMSprRecord) {
 	out.Mem_usage_maximum = in.MemUsageMaximum
 	out.Disk_usage_maximum = in.DiskUsageMaximum
 	out.Net_usage_maximum = in.NetUsageMaximum
+	out.Vm_MacAddress = in.Vm_MacAddress
+	out.Vm_GuestDetailedData = in.GuestDetailedData
+	out.Vm_ToolsStatus = in.ToolsStatus
+	out.Vm_DomainName = in.DomainName
+	out.DatacenterName = in.DatacenterName
+	out.Production = int(in.Production)
+	out.TypeWork = int(in.TypeWork)
+	out.Vm_EsxHost = in.Vm_EsxHost
+	out.Vm_Network = in.Vm_Network
+	out.WorkStation = in.WorkStation
 }
 
 // ServerHardwareToMessage конвертирует доменную модель oneview.ServerHardware (данные сервера HPE OneView) в gRPC-сообщение pb.ServerHardware для передачи по сети. При in == nil или out == nil ничего не делает.

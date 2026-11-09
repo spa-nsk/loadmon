@@ -1,215 +1,53 @@
-// Package grpcserver реализует gRPC-серверную часть системы мониторинга
-// loadmon: два gRPC-сервиса, Loadmon (сервер server, инвентарь и метрики
-// VMware vSphere, оборудования HPE OneView и т.п. — контракт см. в
-// protocol/*.proto) и LoadmonDB (сервер serverdb, доступ к данным,
-// сохранённым в БД проекта). Сервисы принимают запросы, полученные клиентом
-// пакета grpcclient, выполняют выборку/агрегацию данных из внутренних
-// пакетов проекта (vspheremetrics, oneview, models и др.) и упаковывают
-// результат в сгенерированные gRPC-сообщения пакета protocol. Файл
-// serverfunc.go содержит запуск серверов и вспомогательные функции, файл
-// message_srv.go — функции-конвертеры доменных моделей в gRPC-сообщения.
+// Файл содержит функции глубокого копирования gRPC-сообщений кластеров и
+// хранилищ, полученных от удалённых обработчиков (config.Switch.Endpoint),
+// перед пересылкой клиенту.
+//
+// Все функции реализованы через proto.Clone: копируются ВСЕ поля сообщения
+// (включая вложенные Perf, Storages, VmKeys и поля, добавленные в
+// protocol/vm.proto позже), и нет риска забыть новое поле или получить
+// nil-разыменование вложенных сообщений (ранее ручное копирование теряло
+// ClusterId/TypeWork и падало на Storages[].VmKeys == nil).
 package grpcserver
 
 import (
 	pb "loadmon/protocol"
+
+	"google.golang.org/protobuf/proto"
 )
 
+// CopyClusterFull создаёт независимую копию сообщения pb.ClusterFull (с метриками Perf и Storages). При nil возвращает пустое сообщение.
 func CopyClusterFull(pbcl *pb.ClusterFull) *pb.ClusterFull {
-	pbclf := pb.ClusterFull{
-		Id:                    pbcl.Id,
-		Date:                  pbcl.Date,
-		Vcenter:               pbcl.Vcenter,
-		Datacenter:            pbcl.Datacenter,
-		Name:                  pbcl.Name,
-		CpuMhzAvg:             pbcl.CpuMhzAvg,
-		AllNumCpuPkgs:         pbcl.AllNumCpuPkgs,
-		AllNumCpuCores:        pbcl.AllNumCpuCores,
-		AllNumCpuThreads:      pbcl.AllNumCpuThreads,
-		AllMemorySizeGB:       pbcl.AllMemorySizeGB,
-		AllCapacityGb:         pbcl.AllCapacityGb,
-		AllFreeSpaceGb:        pbcl.AllFreeSpaceGb,
-		AllPercentUsed:        pbcl.AllPercentUsed,
-		AllocatedCoreCount:    pbcl.AllocatedCoreCount,
-		AllocatedMemorySizeGb: pbcl.AllocatedMemorySizeGb,
-		CoreTransferRate:      pbcl.CoreTransferRate,
-		MemoryTransferRate:    pbcl.MemoryTransferRate,
-		CpuUsageMaximum:       pbcl.CpuUsageMaximum,
-		CpuUsageMaximumTime:   pbcl.CpuUsageMaximumTime,
-		CpuUsageAverage:       pbcl.CpuUsageAverage,
-		CpuUsageMinimum:       pbcl.CpuUsageMinimum,
-		CpuUsageMinimumTime:   pbcl.CpuUsageMinimumTime,
-		MemUsageMaximum:       pbcl.MemUsageMaximum,
-		MemUsageMaximumTime:   pbcl.MemUsageMaximumTime,
-		MemUsageAverage:       pbcl.MemUsageAverage,
-		MemUsageMinimum:       pbcl.MemUsageMinimum,
-		MemUsageMinimumTime:   pbcl.MemUsageMinimumTime,
-		DiskUsageMaximum:      pbcl.DiskUsageMaximum,
-		DiskUsageMaximumTime:  pbcl.DiskUsageMaximumTime,
-		DiskUsageAverage:      pbcl.DiskUsageAverage,
-		DiskUsageMinimum:      pbcl.DiskUsageMinimum,
-		DiskUsageMinimumTime:  pbcl.DiskUsageMinimumTime,
-		DiskWriteMaximum:      pbcl.DiskWriteMaximum,
-		DiskWriteMaximumTime:  pbcl.DiskWriteMaximumTime,
-		DiskWriteAverage:      pbcl.DiskWriteAverage,
-		DiskWriteMinimum:      pbcl.DiskWriteMinimum,
-		DiskWriteMinimumTime:  pbcl.DiskWriteMinimumTime,
-		DiskReadMaximum:       pbcl.DiskReadMaximum,
-		DiskReadMaximumTime:   pbcl.DiskReadMaximumTime,
-		DiskReadAverage:       pbcl.DiskReadAverage,
-		DiskReadMinimum:       pbcl.DiskReadMinimum,
-		DiskReadMinimumTime:   pbcl.DiskReadMinimumTime,
-		NetUsageMaximum:       pbcl.NetUsageMaximum,
-		NetUsageMaximumTime:   pbcl.NetUsageMaximumTime,
-		NetUsageAverage:       pbcl.NetUsageAverage,
-		NetUsageMinimum:       pbcl.NetUsageMinimum,
-		NetUsageMinimumTime:   pbcl.NetUsageMinimumTime,
-		PerfCount:             pbcl.PerfCount,
-		HostFlag:              pbcl.HostFlag,
-		HostCount:             pbcl.HostCount,
-		VMCount:               pbcl.VMCount,
-		Perf:                  make([]*pb.CLPerf, len(pbcl.Perf)),
-		Storages:              make([]*pb.Datastore, len(pbcl.Storages))}
-
-	for i, perfcl := range pbcl.Perf {
-		perf := pb.CLPerf{
-			Id:             perfcl.Id,
-			Start:          perfcl.Start,
-			CpuUsage:       perfcl.CpuUsage,
-			CpuUtilization: perfcl.CpuUtilization,
-			MemUsage:       perfcl.MemUsage,
-			DiskUsage:      perfcl.DiskUsage,
-			DiskWrite:      perfcl.DiskWrite,
-			DiskRead:       perfcl.DiskRead,
-			NetUsage:       perfcl.NetUsage,
-			NetReceived:    perfcl.NetReceived,
-			NetTransmitted: perfcl.NetTransmitted}
-		pbclf.Perf[i] = &perf
+	if pbcl == nil {
+		return &pb.ClusterFull{}
 	}
-	for i, st := range pbcl.Storages {
-		stn := pb.Datastore{
-			Id:          st.Id,
-			UID:         st.UID,
-			StorageName: st.StorageName,
-			CapacityGb:  st.CapacityGb,
-			FreeSpaceGb: st.FreeSpaceGb,
-			PercentUsed: st.PercentUsed}
-		stn.VmKeys.Count = st.VmKeys.Count
-		for _, key := range st.VmKeys.KeyRecs {
-			stn.VmKeys.KeyRecs = append(stn.VmKeys.KeyRecs, key)
-		}
-		pbclf.Storages[i] = &stn
-	}
-	return &pbclf
+	return proto.Clone(pbcl).(*pb.ClusterFull)
 }
 
-// CopyClusterStorages создаёт независимую копию сообщения pb.Datastore, полученного от удалённого gRPC-эндпоинта, перед пересылкой клиенту.
+// CopyClusterStorages создаёт независимую копию сообщения pb.Datastore, полученного от удалённого gRPC-эндпоинта, перед пересылкой клиенту. При nil возвращает пустое сообщение.
 func CopyClusterStorages(st *pb.Datastore) *pb.Datastore {
-	stn := pb.Datastore{
-		Id:          st.Id,
-		UID:         st.UID,
-		StorageName: st.StorageName,
-		CapacityGb:  st.CapacityGb,
-		FreeSpaceGb: st.FreeSpaceGb,
-		PercentUsed: st.PercentUsed}
-	stn.VmKeys.Count = st.VmKeys.Count
-	for _, key := range st.VmKeys.KeyRecs {
-		stn.VmKeys.KeyRecs = append(stn.VmKeys.KeyRecs, key)
-	}
-	return &stn
+	return CopyDatastore(st)
 }
 
-// GetClusterMetrics отдаёт клиенту потоком историю метрик производительности конкретного кластера (предварительно пересчитывая агрегаты через cl.CalcPerfomance()). Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется на каждый из них через gRPC-клиент, иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().
-// Возвращает ошибку, если кластер с указанными vCenter/датацентром/именем не найден.
+// CopyCLPerf создаёт независимую копию точки метрик кластера pb.CLPerf. При nil возвращает пустое сообщение.
 func CopyCLPerf(in *pb.CLPerf) *pb.CLPerf {
-	clperf := pb.CLPerf{
-		Id:             in.Id,
-		Start:          in.Start,
-		CpuUsage:       in.CpuUsage,
-		CpuUtilization: in.CpuUtilization,
-		MemUsage:       in.MemUsage,
-		DiskUsage:      in.DiskUsage,
-		DiskWrite:      in.DiskWrite,
-		DiskRead:       in.DiskRead,
-		NetUsage:       in.NetUsage,
-		NetReceived:    in.NetReceived,
-		NetTransmitted: in.NetTransmitted}
-	return &clperf
+	if in == nil {
+		return &pb.CLPerf{}
+	}
+	return proto.Clone(in).(*pb.CLPerf)
 }
 
-// GetClusterMedium отдаёт клиенту потоком информацию о кластерах с агрегированными метриками производительности (без списка хостов/хранилищ). Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется на каждый из них через gRPC-клиент, иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().
+// CopyClusterMedium создаёт независимую копию сообщения pb.Cluster (агрегированные метрики без хостов/хранилищ). При nil возвращает пустое сообщение.
 func CopyClusterMedium(pbcl *pb.Cluster) *pb.Cluster {
-	pbclf := pb.Cluster{
-		Id:                    pbcl.Id,
-		Date:                  pbcl.Date,
-		Vcenter:               pbcl.Vcenter,
-		Datacenter:            pbcl.Datacenter,
-		Name:                  pbcl.Name,
-		CpuMhzAvg:             pbcl.CpuMhzAvg,
-		AllNumCpuPkgs:         pbcl.AllNumCpuPkgs,
-		AllNumCpuCores:        pbcl.AllNumCpuCores,
-		AllNumCpuThreads:      pbcl.AllNumCpuThreads,
-		AllMemorySizeGB:       pbcl.AllMemorySizeGB,
-		AllCapacityGb:         pbcl.AllCapacityGb,
-		AllFreeSpaceGb:        pbcl.AllFreeSpaceGb,
-		AllPercentUsed:        pbcl.AllPercentUsed,
-		AllocatedCoreCount:    pbcl.AllocatedCoreCount,
-		AllocatedMemorySizeGb: pbcl.AllocatedMemorySizeGb,
-		CoreTransferRate:      pbcl.CoreTransferRate,
-		MemoryTransferRate:    pbcl.MemoryTransferRate,
-		CpuUsageMaximum:       pbcl.CpuUsageMaximum,
-		CpuUsageMaximumTime:   pbcl.CpuUsageMaximumTime,
-		CpuUsageAverage:       pbcl.CpuUsageAverage,
-		CpuUsageMinimum:       pbcl.CpuUsageMinimum,
-		CpuUsageMinimumTime:   pbcl.CpuUsageMinimumTime,
-		MemUsageMaximum:       pbcl.MemUsageMaximum,
-		MemUsageMaximumTime:   pbcl.MemUsageMaximumTime,
-		MemUsageAverage:       pbcl.MemUsageAverage,
-		MemUsageMinimum:       pbcl.MemUsageMinimum,
-		MemUsageMinimumTime:   pbcl.MemUsageMinimumTime,
-		DiskUsageMaximum:      pbcl.DiskUsageMaximum,
-		DiskUsageMaximumTime:  pbcl.DiskUsageMaximumTime,
-		DiskUsageAverage:      pbcl.DiskUsageAverage,
-		DiskUsageMinimum:      pbcl.DiskUsageMinimum,
-		DiskUsageMinimumTime:  pbcl.DiskUsageMinimumTime,
-		DiskWriteMaximum:      pbcl.DiskWriteMaximum,
-		DiskWriteMaximumTime:  pbcl.DiskWriteMaximumTime,
-		DiskWriteAverage:      pbcl.DiskWriteAverage,
-		DiskWriteMinimum:      pbcl.DiskWriteMinimum,
-		DiskWriteMinimumTime:  pbcl.DiskWriteMinimumTime,
-		DiskReadMaximum:       pbcl.DiskReadMaximum,
-		DiskReadMaximumTime:   pbcl.DiskReadMaximumTime,
-		DiskReadAverage:       pbcl.DiskReadAverage,
-		DiskReadMinimum:       pbcl.DiskReadMinimum,
-		DiskReadMinimumTime:   pbcl.DiskReadMinimumTime,
-		NetUsageMaximum:       pbcl.NetUsageMaximum,
-		NetUsageMaximumTime:   pbcl.NetUsageMaximumTime,
-		NetUsageAverage:       pbcl.NetUsageAverage,
-		NetUsageMinimum:       pbcl.NetUsageMinimum,
-		NetUsageMinimumTime:   pbcl.NetUsageMinimumTime,
-		PerfCount:             pbcl.PerfCount,
-		HostFlag:              pbcl.HostFlag,
-		HostCount:             pbcl.HostCount,
-		VMCount:               pbcl.VMCount}
-
-	return &pbclf
+	if pbcl == nil {
+		return &pb.Cluster{}
+	}
+	return proto.Clone(pbcl).(*pb.Cluster)
 }
 
-// CopyDatastore создаёт независимую копию сообщения pb.Datastore вместе со списком ключей связанных ВМ (VmKeys).
+// CopyDatastore создаёт независимую копию сообщения pb.Datastore вместе со списком ключей связанных ВМ (VmKeys). При nil возвращает пустое сообщение.
 func CopyDatastore(in *pb.Datastore) *pb.Datastore {
-	out := pb.Datastore{
-		Id:          in.Id,
-		UID:         in.UID,
-		StorageName: in.StorageName,
-		CapacityGb:  in.CapacityGb,
-		FreeSpaceGb: in.FreeSpaceGb,
-		PercentUsed: in.PercentUsed,
+	if in == nil {
+		return &pb.Datastore{}
 	}
-
-	out.VmKeys.Count = in.VmKeys.Count
-	for _, key := range in.VmKeys.KeyRecs {
-		out.VmKeys.KeyRecs = append(out.VmKeys.KeyRecs, key)
-	}
-	return &out
+	return proto.Clone(in).(*pb.Datastore)
 }
-
-// GetHostFull отдаёт клиенту потоком полную информацию о хостах, отфильтрованную по vCenter/датацентру/кластеру/имени, с пересчитанными агрегированными метриками. Если сконфигурированы удалённые обработчики (config.Switch.Endpoint), запрос ретранслируется на каждый из них через gRPC-клиент, иначе данные берутся из локальной инфраструктуры vsphere.GetGlobalVMInfrastructure().

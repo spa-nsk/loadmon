@@ -3,6 +3,8 @@ package grpcclient
 import (
 	pb "loadmon/protocol"
 	vsphere "loadmon/vspheremetrics"
+
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 // MessageToHostInfoFull конвертирует полное gRPC-сообщение pb.HostFull (хост vSphere со всеми метриками) в доменную модель vsphere.HostInfo. При in == nil или hs == nil ничего не делает.
@@ -84,6 +86,21 @@ func MessageToHostInfoFull(in *pb.HostFull, hs *vsphere.HostInfo) {
 	hs.NetUsageAverage = in.NetUsageAverage
 	hs.NetUsageMinimum = in.NetUsageMinimum
 	hs.NetUsageMinimumTime = in.NetUsageMinimumTime.AsTime()
+	hs.DiskTotalReadLatencyMaximum = in.DiskTotalReadLatencyMaximum
+	hs.DiskTotalReadLatencyMaximumTime = in.DiskTotalReadLatencyMaximumTime.AsTime()
+	hs.DiskTotalReadLatencyAverage = in.DiskTotalReadLatencyAverage
+	hs.DiskTotalReadLatencyMinimum = in.DiskTotalReadLatencyMinimum
+	hs.DiskTotalReadLatencyMinimumTime = in.DiskTotalReadLatencyMinimumTime.AsTime()
+	hs.DiskTotalWriteLatencyMaximum = in.DiskTotalWriteLatencyMaximum
+	hs.DiskTotalWriteLatencyMaximumTime = in.DiskTotalWriteLatencyMaximumTime.AsTime()
+	hs.DiskTotalWriteLatencyAverage = in.DiskTotalWriteLatencyAverage
+	hs.DiskTotalWriteLatencyMinimum = in.DiskTotalWriteLatencyMinimum
+	hs.DiskTotalWriteLatencyMinimumTime = in.DiskTotalWriteLatencyMinimumTime.AsTime()
+	hs.CPUBilling = in.CpuBilling
+	hs.MemBilling = in.MemBilling
+	hs.DiskBilling = in.DiskBilling
+	hs.NetBilling = in.NetBilling
+	hs.Product = HostProductRPC(in.Product)
 	hs.PerfCount = in.PerfCount
 
 	for _, p := range in.Perf {
@@ -186,6 +203,21 @@ func MessageToHostInfo(in *pb.Host, hs *vsphere.HostInfo) {
 
 	hs.NetUsageMinimum = in.NetUsageMinimum
 	hs.NetUsageMinimumTime = in.NetUsageMinimumTime.AsTime()
+	hs.DiskTotalReadLatencyMaximum = in.DiskTotalReadLatencyMaximum
+	hs.DiskTotalReadLatencyMaximumTime = in.DiskTotalReadLatencyMaximumTime.AsTime()
+	hs.DiskTotalReadLatencyAverage = in.DiskTotalReadLatencyAverage
+	hs.DiskTotalReadLatencyMinimum = in.DiskTotalReadLatencyMinimum
+	hs.DiskTotalReadLatencyMinimumTime = in.DiskTotalReadLatencyMinimumTime.AsTime()
+	hs.DiskTotalWriteLatencyMaximum = in.DiskTotalWriteLatencyMaximum
+	hs.DiskTotalWriteLatencyMaximumTime = in.DiskTotalWriteLatencyMaximumTime.AsTime()
+	hs.DiskTotalWriteLatencyAverage = in.DiskTotalWriteLatencyAverage
+	hs.DiskTotalWriteLatencyMinimum = in.DiskTotalWriteLatencyMinimum
+	hs.DiskTotalWriteLatencyMinimumTime = in.DiskTotalWriteLatencyMinimumTime.AsTime()
+	hs.CPUBilling = in.CpuBilling
+	hs.MemBilling = in.MemBilling
+	hs.DiskBilling = in.DiskBilling
+	hs.NetBilling = in.NetBilling
+	hs.Product = HostProductRPC(in.Product)
 
 	hs.PerfCount = in.PerfCount
 	//count := in.PerfCount
@@ -232,7 +264,7 @@ func MessageToClusterMedium(in *pb.Cluster, cl *vsphere.Cluster) {
 	cl.AllocatedCoreCount = int(in.AllocatedCoreCount)
 	cl.AllocatedMemorySizeGb = int(in.AllocatedMemorySizeGb)
 	cl.CoreTransferRate = in.CoreTransferRate
-	cl.MemoryTransferRate = in.CoreTransferRate
+	cl.MemoryTransferRate = in.MemoryTransferRate
 	cl.CPUUsageMaximum = in.CpuUsageMaximum
 	cl.CPUUsageMaximumTime = in.CpuUsageMaximumTime.AsTime()
 	cl.CPUUsageAverage = in.CpuUsageAverage
@@ -263,6 +295,20 @@ func MessageToClusterMedium(in *pb.Cluster, cl *vsphere.Cluster) {
 	cl.NetUsageAverage = in.NetUsageAverage
 	cl.NetUsageMinimum = in.NetUsageMinimum
 	cl.NetUsageMinimumTime = in.NetUsageMinimumTime.AsTime()
+	cl.DiskTotalReadLatencyMaximum = in.DiskTotalReadLatencyMaximum
+	cl.DiskTotalReadLatencyMaximumTime = in.DiskTotalReadLatencyMaximumTime.AsTime()
+	cl.DiskTotalReadLatencyAverage = in.DiskTotalReadLatencyAverage
+	cl.DiskTotalReadLatencyMinimum = in.DiskTotalReadLatencyMinimum
+	cl.DiskTotalReadLatencyMinimumTime = in.DiskTotalReadLatencyMinimumTime.AsTime()
+	cl.DiskTotalWriteLatencyMaximum = in.DiskTotalWriteLatencyMaximum
+	cl.DiskTotalWriteLatencyMaximumTime = in.DiskTotalWriteLatencyMaximumTime.AsTime()
+	cl.DiskTotalWriteLatencyAverage = in.DiskTotalWriteLatencyAverage
+	cl.DiskTotalWriteLatencyMinimum = in.DiskTotalWriteLatencyMinimum
+	cl.DiskTotalWriteLatencyMinimumTime = in.DiskTotalWriteLatencyMinimumTime.AsTime()
+	cl.CPUBilling = in.CpuBilling
+	cl.MemBilling = in.MemBilling
+	cl.DiskBilling = in.DiskBilling
+	cl.NetBilling = in.NetBilling
 	cl.HostCount = in.HostCount
 	cl.VMCount = in.VMCount
 	cl.PerfCount = in.PerfCount
@@ -324,22 +370,26 @@ func MessageToClusterFull(in *pb.ClusterFull, cl *vsphere.Cluster) {
 	cl.NetUsageAverage = in.NetUsageAverage
 	cl.NetUsageMinimum = in.NetUsageMinimum
 	cl.NetUsageMinimumTime = in.NetUsageMinimumTime.AsTime()
+	cl.DiskTotalReadLatencyMaximum = in.DiskTotalReadLatencyMaximum
+	cl.DiskTotalReadLatencyMaximumTime = in.DiskTotalReadLatencyMaximumTime.AsTime()
+	cl.DiskTotalReadLatencyAverage = in.DiskTotalReadLatencyAverage
+	cl.DiskTotalReadLatencyMinimum = in.DiskTotalReadLatencyMinimum
+	cl.DiskTotalReadLatencyMinimumTime = in.DiskTotalReadLatencyMinimumTime.AsTime()
+	cl.DiskTotalWriteLatencyMaximum = in.DiskTotalWriteLatencyMaximum
+	cl.DiskTotalWriteLatencyMaximumTime = in.DiskTotalWriteLatencyMaximumTime.AsTime()
+	cl.DiskTotalWriteLatencyAverage = in.DiskTotalWriteLatencyAverage
+	cl.DiskTotalWriteLatencyMinimum = in.DiskTotalWriteLatencyMinimum
+	cl.DiskTotalWriteLatencyMinimumTime = in.DiskTotalWriteLatencyMinimumTime.AsTime()
+	cl.CPUBilling = in.CpuBilling
+	cl.MemBilling = in.MemBilling
+	cl.DiskBilling = in.DiskBilling
+	cl.NetBilling = in.NetBilling
 	cl.HostCount = in.HostCount
 	cl.VMCount = in.VMCount
 	cl.PerfCount = in.PerfCount
 	for _, p := range in.Perf {
 		perf := vsphere.CLPerf{}
-		perf.ID = p.Id
-		perf.Start = p.Start.AsTime()
-		perf.CPUUsage = p.CpuUsage
-		perf.CPUUtilization = p.CpuUtilization
-		perf.MemUsage = p.MemUsage
-		perf.DiskUsage = p.DiskUsage
-		perf.DiskRead = p.DiskRead
-		perf.DiskWrite = p.DiskWrite
-		perf.NetUsage = p.NetUsage
-		perf.NetReceived = p.NetReceived
-		perf.NetTransmitted = p.NetTransmitted
+		MessageToClusterMetric(p, &perf)
 		cl.Perf = append(cl.Perf, &perf)
 	}
 	for _, s := range in.Storages {
@@ -393,6 +443,8 @@ func MessageToClusterMetric(in *pb.CLPerf, clp *vsphere.CLPerf) {
 	clp.NetUsage = in.NetUsage
 	clp.NetReceived = in.NetReceived
 	clp.NetTransmitted = in.NetTransmitted
+	clp.DiskTotalReadLatency = in.DiskTotalReadLatency
+	clp.DiskTotalWriteLatency = in.DiskTotalWriteLatency
 }
 
 // MessageToHostMetric конвертирует одну точку метрик хоста pb.HSPerf в доменную модель vsphere.HSPerf. При in == nil или clp == nil ничего не делает.
@@ -411,6 +463,32 @@ func MessageToHostMetric(in *pb.HSPerf, clp *vsphere.HSPerf) {
 	clp.NetUsage = in.NetUsage
 	clp.NetReceived = in.NetReceived
 	clp.NetTransmitted = in.NetTransmitted
+	clp.DiskTotalReadLatency = in.DiskTotalReadLatency
+	clp.DiskTotalWriteLatency = in.DiskTotalWriteLatency
 }
 
 // MessageToServerSprRecod конвертирует gRPC-сообщение pb.ServerSprRecords (запись справочника серверов) в доменную модель models.ServerSprRecords. При in == nil или out == nil ничего не делает.
+
+// HostProductRPC конвертирует pb.HostProduct в сведения о продукте ESXi (vim25 types.AboutInfo). При in == nil возвращает нулевое значение.
+func HostProductRPC(in *pb.HostProduct) types.AboutInfo {
+	if in == nil {
+		return types.AboutInfo{}
+	}
+	return types.AboutInfo{
+		Name:                  in.Name,
+		FullName:              in.FullName,
+		Vendor:                in.Vendor,
+		Version:               in.Version,
+		PatchLevel:            in.PatchLevel,
+		Build:                 in.Build,
+		LocaleVersion:         in.LocaleVersion,
+		LocaleBuild:           in.LocaleBuild,
+		OsType:                in.OsType,
+		ProductLineId:         in.ProductLineId,
+		ApiType:               in.ApiType,
+		ApiVersion:            in.ApiVersion,
+		LicenseProductName:    in.LicenseProductName,
+		LicenseProductVersion: in.LicenseProductVersion,
+		InstanceUuid:          in.InstanceUuid,
+	}
+}

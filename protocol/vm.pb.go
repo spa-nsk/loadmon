@@ -2024,20 +2024,22 @@ func (x *HSPerf) GetDiskTotalWriteLatency() float64 {
 }
 
 type CLPerf struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
-	Start          *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=Start,proto3" json:"Start,omitempty"`
-	CpuUsage       float64                `protobuf:"fixed64,3,opt,name=CpuUsage,proto3" json:"CpuUsage,omitempty"`
-	CpuUtilization float64                `protobuf:"fixed64,4,opt,name=CpuUtilization,proto3" json:"CpuUtilization,omitempty"`
-	MemUsage       float64                `protobuf:"fixed64,5,opt,name=MemUsage,proto3" json:"MemUsage,omitempty"`
-	DiskUsage      float64                `protobuf:"fixed64,6,opt,name=DiskUsage,proto3" json:"DiskUsage,omitempty"`
-	DiskWrite      float64                `protobuf:"fixed64,7,opt,name=DiskWrite,proto3" json:"DiskWrite,omitempty"`
-	DiskRead       float64                `protobuf:"fixed64,8,opt,name=DiskRead,proto3" json:"DiskRead,omitempty"`
-	NetUsage       float64                `protobuf:"fixed64,9,opt,name=NetUsage,proto3" json:"NetUsage,omitempty"`
-	NetReceived    float64                `protobuf:"fixed64,10,opt,name=NetReceived,proto3" json:"NetReceived,omitempty"`
-	NetTransmitted float64                `protobuf:"fixed64,11,opt,name=NetTransmitted,proto3" json:"NetTransmitted,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
+	Start                 *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=Start,proto3" json:"Start,omitempty"`
+	CpuUsage              float64                `protobuf:"fixed64,3,opt,name=CpuUsage,proto3" json:"CpuUsage,omitempty"`
+	CpuUtilization        float64                `protobuf:"fixed64,4,opt,name=CpuUtilization,proto3" json:"CpuUtilization,omitempty"`
+	MemUsage              float64                `protobuf:"fixed64,5,opt,name=MemUsage,proto3" json:"MemUsage,omitempty"`
+	DiskUsage             float64                `protobuf:"fixed64,6,opt,name=DiskUsage,proto3" json:"DiskUsage,omitempty"`
+	DiskWrite             float64                `protobuf:"fixed64,7,opt,name=DiskWrite,proto3" json:"DiskWrite,omitempty"`
+	DiskRead              float64                `protobuf:"fixed64,8,opt,name=DiskRead,proto3" json:"DiskRead,omitempty"`
+	NetUsage              float64                `protobuf:"fixed64,9,opt,name=NetUsage,proto3" json:"NetUsage,omitempty"`
+	NetReceived           float64                `protobuf:"fixed64,10,opt,name=NetReceived,proto3" json:"NetReceived,omitempty"`
+	NetTransmitted        float64                `protobuf:"fixed64,11,opt,name=NetTransmitted,proto3" json:"NetTransmitted,omitempty"`
+	DiskTotalReadLatency  float64                `protobuf:"fixed64,12,opt,name=DiskTotalReadLatency,proto3" json:"DiskTotalReadLatency,omitempty"`
+	DiskTotalWriteLatency float64                `protobuf:"fixed64,13,opt,name=DiskTotalWriteLatency,proto3" json:"DiskTotalWriteLatency,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *CLPerf) Reset() {
@@ -2143,6 +2145,20 @@ func (x *CLPerf) GetNetReceived() float64 {
 func (x *CLPerf) GetNetTransmitted() float64 {
 	if x != nil {
 		return x.NetTransmitted
+	}
+	return 0
+}
+
+func (x *CLPerf) GetDiskTotalReadLatency() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatency
+	}
+	return 0
+}
+
+func (x *CLPerf) GetDiskTotalWriteLatency() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatency
 	}
 	return 0
 }
@@ -2304,13 +2320,14 @@ func (x *CLPerfSlice) GetPerf() []*CLPerf {
 }
 
 type GuestDiskInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DiskPath      string                 `protobuf:"bytes,1,opt,name=DiskPath,proto3" json:"DiskPath,omitempty"`
-	CapacityGb    float64                `protobuf:"fixed64,2,opt,name=CapacityGb,proto3" json:"CapacityGb,omitempty"`
-	FreeSpaceGb   float64                `protobuf:"fixed64,3,opt,name=FreeSpaceGb,proto3" json:"FreeSpaceGb,omitempty"`
-	PercentUsed   float64                `protobuf:"fixed64,4,opt,name=PercentUsed,proto3" json:"PercentUsed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DiskPath       string                 `protobuf:"bytes,1,opt,name=DiskPath,proto3" json:"DiskPath,omitempty"`
+	CapacityGb     float64                `protobuf:"fixed64,2,opt,name=CapacityGb,proto3" json:"CapacityGb,omitempty"`
+	FreeSpaceGb    float64                `protobuf:"fixed64,3,opt,name=FreeSpaceGb,proto3" json:"FreeSpaceGb,omitempty"`
+	PercentUsed    float64                `protobuf:"fixed64,4,opt,name=PercentUsed,proto3" json:"PercentUsed,omitempty"`
+	FileSystemType string                 `protobuf:"bytes,5,opt,name=FileSystemType,proto3" json:"FileSystemType,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GuestDiskInfo) Reset() {
@@ -2369,6 +2386,13 @@ func (x *GuestDiskInfo) GetPercentUsed() float64 {
 		return x.PercentUsed
 	}
 	return 0
+}
+
+func (x *GuestDiskInfo) GetFileSystemType() string {
+	if x != nil {
+		return x.FileSystemType
+	}
+	return ""
 }
 
 type GuestDiskSlice struct {
@@ -3159,9 +3183,20 @@ type VMPoint struct {
 	// аддитивно: поля IPAddress/MacAddress/Network (57? см. номера выше)
 	// не изменены и продолжают заполняться как раньше, это ДОПОЛНИТЕЛЬНОЕ
 	// представление тех же данных из vm.Guest.Net.
-	Interfaces    []*NetInterface `protobuf:"bytes,77,rep,name=Interfaces,proto3" json:"Interfaces,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Interfaces []*NetInterface `protobuf:"bytes,77,rep,name=Interfaces,proto3" json:"Interfaces,omitempty"`
+	// Агрегаты задержек диска (мс) - добавлено при аудите контрактов (2026-11).
+	DiskTotalReadLatencyMaximum      float64                `protobuf:"fixed64,78,opt,name=DiskTotalReadLatencyMaximum,proto3" json:"DiskTotalReadLatencyMaximum,omitempty"`
+	DiskTotalReadLatencyMaximumTime  *timestamppb.Timestamp `protobuf:"bytes,79,opt,name=DiskTotalReadLatencyMaximumTime,proto3" json:"DiskTotalReadLatencyMaximumTime,omitempty"`
+	DiskTotalReadLatencyAverage      float64                `protobuf:"fixed64,80,opt,name=DiskTotalReadLatencyAverage,proto3" json:"DiskTotalReadLatencyAverage,omitempty"`
+	DiskTotalReadLatencyMinimum      float64                `protobuf:"fixed64,81,opt,name=DiskTotalReadLatencyMinimum,proto3" json:"DiskTotalReadLatencyMinimum,omitempty"`
+	DiskTotalReadLatencyMinimumTime  *timestamppb.Timestamp `protobuf:"bytes,82,opt,name=DiskTotalReadLatencyMinimumTime,proto3" json:"DiskTotalReadLatencyMinimumTime,omitempty"`
+	DiskTotalWriteLatencyMaximum     float64                `protobuf:"fixed64,83,opt,name=DiskTotalWriteLatencyMaximum,proto3" json:"DiskTotalWriteLatencyMaximum,omitempty"`
+	DiskTotalWriteLatencyMaximumTime *timestamppb.Timestamp `protobuf:"bytes,84,opt,name=DiskTotalWriteLatencyMaximumTime,proto3" json:"DiskTotalWriteLatencyMaximumTime,omitempty"`
+	DiskTotalWriteLatencyAverage     float64                `protobuf:"fixed64,85,opt,name=DiskTotalWriteLatencyAverage,proto3" json:"DiskTotalWriteLatencyAverage,omitempty"`
+	DiskTotalWriteLatencyMinimum     float64                `protobuf:"fixed64,86,opt,name=DiskTotalWriteLatencyMinimum,proto3" json:"DiskTotalWriteLatencyMinimum,omitempty"`
+	DiskTotalWriteLatencyMinimumTime *timestamppb.Timestamp `protobuf:"bytes,87,opt,name=DiskTotalWriteLatencyMinimumTime,proto3" json:"DiskTotalWriteLatencyMinimumTime,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *VMPoint) Reset() {
@@ -3733,6 +3768,76 @@ func (x *VMPoint) GetInterfaces() []*NetInterface {
 	return nil
 }
 
+func (x *VMPoint) GetDiskTotalReadLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximum
+	}
+	return 0
+}
+
+func (x *VMPoint) GetDiskTotalReadLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *VMPoint) GetDiskTotalReadLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyAverage
+	}
+	return 0
+}
+
+func (x *VMPoint) GetDiskTotalReadLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimum
+	}
+	return 0
+}
+
+func (x *VMPoint) GetDiskTotalReadLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *VMPoint) GetDiskTotalWriteLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximum
+	}
+	return 0
+}
+
+func (x *VMPoint) GetDiskTotalWriteLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *VMPoint) GetDiskTotalWriteLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyAverage
+	}
+	return 0
+}
+
+func (x *VMPoint) GetDiskTotalWriteLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimum
+	}
+	return 0
+}
+
+func (x *VMPoint) GetDiskTotalWriteLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimumTime
+	}
+	return nil
+}
+
 // NetInterface — один сетевой интерфейс (пара MAC+IP) сервера в
 // структурированном виде, соответствует vspheremetrics.NetInterfacePoint.
 // Общее сообщение для VMPoint.Interfaces и Host/HostFull.Interfaces.
@@ -3862,8 +3967,36 @@ type VMPointShort struct {
 	GuestDetailedData    string                 `protobuf:"bytes,54,opt,name=GuestDetailedData,proto3" json:"GuestDetailedData,omitempty"`
 	ToolsStatus          string                 `protobuf:"bytes,55,opt,name=ToolsStatus,proto3" json:"ToolsStatus,omitempty"`
 	DomainName           string                 `protobuf:"bytes,56,opt,name=DomainName,proto3" json:"DomainName,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Добавлено при аудите контрактов (2026-11): агрегаты задержек диска, billing и поля размещения/конфигурации.
+	DiskTotalReadLatencyMaximum      float64                `protobuf:"fixed64,57,opt,name=DiskTotalReadLatencyMaximum,proto3" json:"DiskTotalReadLatencyMaximum,omitempty"`
+	DiskTotalReadLatencyMaximumTime  *timestamppb.Timestamp `protobuf:"bytes,58,opt,name=DiskTotalReadLatencyMaximumTime,proto3" json:"DiskTotalReadLatencyMaximumTime,omitempty"`
+	DiskTotalReadLatencyAverage      float64                `protobuf:"fixed64,59,opt,name=DiskTotalReadLatencyAverage,proto3" json:"DiskTotalReadLatencyAverage,omitempty"`
+	DiskTotalReadLatencyMinimum      float64                `protobuf:"fixed64,60,opt,name=DiskTotalReadLatencyMinimum,proto3" json:"DiskTotalReadLatencyMinimum,omitempty"`
+	DiskTotalReadLatencyMinimumTime  *timestamppb.Timestamp `protobuf:"bytes,61,opt,name=DiskTotalReadLatencyMinimumTime,proto3" json:"DiskTotalReadLatencyMinimumTime,omitempty"`
+	DiskTotalWriteLatencyMaximum     float64                `protobuf:"fixed64,62,opt,name=DiskTotalWriteLatencyMaximum,proto3" json:"DiskTotalWriteLatencyMaximum,omitempty"`
+	DiskTotalWriteLatencyMaximumTime *timestamppb.Timestamp `protobuf:"bytes,63,opt,name=DiskTotalWriteLatencyMaximumTime,proto3" json:"DiskTotalWriteLatencyMaximumTime,omitempty"`
+	DiskTotalWriteLatencyAverage     float64                `protobuf:"fixed64,64,opt,name=DiskTotalWriteLatencyAverage,proto3" json:"DiskTotalWriteLatencyAverage,omitempty"`
+	DiskTotalWriteLatencyMinimum     float64                `protobuf:"fixed64,65,opt,name=DiskTotalWriteLatencyMinimum,proto3" json:"DiskTotalWriteLatencyMinimum,omitempty"`
+	DiskTotalWriteLatencyMinimumTime *timestamppb.Timestamp `protobuf:"bytes,66,opt,name=DiskTotalWriteLatencyMinimumTime,proto3" json:"DiskTotalWriteLatencyMinimumTime,omitempty"`
+	CpuBilling                       float64                `protobuf:"fixed64,67,opt,name=CpuBilling,proto3" json:"CpuBilling,omitempty"`
+	MemBilling                       float64                `protobuf:"fixed64,68,opt,name=MemBilling,proto3" json:"MemBilling,omitempty"`
+	DiskBilling                      float64                `protobuf:"fixed64,69,opt,name=DiskBilling,proto3" json:"DiskBilling,omitempty"`
+	NetBilling                       float64                `protobuf:"fixed64,70,opt,name=NetBilling,proto3" json:"NetBilling,omitempty"`
+	Vcenter                          string                 `protobuf:"bytes,71,opt,name=Vcenter,proto3" json:"Vcenter,omitempty"`
+	Datacenter                       string                 `protobuf:"bytes,72,opt,name=Datacenter,proto3" json:"Datacenter,omitempty"`
+	Cluster                          string                 `protobuf:"bytes,73,opt,name=Cluster,proto3" json:"Cluster,omitempty"`
+	KeyName                          string                 `protobuf:"bytes,74,opt,name=KeyName,proto3" json:"KeyName,omitempty"`
+	Uuid                             string                 `protobuf:"bytes,75,opt,name=Uuid,proto3" json:"Uuid,omitempty"`
+	GuestId                          string                 `protobuf:"bytes,76,opt,name=GuestId,proto3" json:"GuestId,omitempty"`
+	Annotation                       string                 `protobuf:"bytes,77,opt,name=Annotation,proto3" json:"Annotation,omitempty"`
+	NumEthernetCards                 int32                  `protobuf:"varint,78,opt,name=NumEthernetCards,proto3" json:"NumEthernetCards,omitempty"`
+	NumVirtualDisks                  int32                  `protobuf:"varint,79,opt,name=NumVirtualDisks,proto3" json:"NumVirtualDisks,omitempty"`
+	DiskCommittedGB                  float64                `protobuf:"fixed64,80,opt,name=DiskCommittedGB,proto3" json:"DiskCommittedGB,omitempty"`
+	DiskUncommittedGB                float64                `protobuf:"fixed64,81,opt,name=DiskUncommittedGB,proto3" json:"DiskUncommittedGB,omitempty"`
+	EsxHost                          string                 `protobuf:"bytes,82,opt,name=EsxHost,proto3" json:"EsxHost,omitempty"`
+	Interfaces                       []*NetInterface        `protobuf:"bytes,83,rep,name=Interfaces,proto3" json:"Interfaces,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *VMPointShort) Reset() {
@@ -4288,6 +4421,195 @@ func (x *VMPointShort) GetDomainName() string {
 	return ""
 }
 
+func (x *VMPointShort) GetDiskTotalReadLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximum
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskTotalReadLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *VMPointShort) GetDiskTotalReadLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyAverage
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskTotalReadLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimum
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskTotalReadLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *VMPointShort) GetDiskTotalWriteLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximum
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskTotalWriteLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *VMPointShort) GetDiskTotalWriteLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyAverage
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskTotalWriteLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimum
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskTotalWriteLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *VMPointShort) GetCpuBilling() float64 {
+	if x != nil {
+		return x.CpuBilling
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetMemBilling() float64 {
+	if x != nil {
+		return x.MemBilling
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskBilling() float64 {
+	if x != nil {
+		return x.DiskBilling
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetNetBilling() float64 {
+	if x != nil {
+		return x.NetBilling
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetVcenter() string {
+	if x != nil {
+		return x.Vcenter
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetDatacenter() string {
+	if x != nil {
+		return x.Datacenter
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetCluster() string {
+	if x != nil {
+		return x.Cluster
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetKeyName() string {
+	if x != nil {
+		return x.KeyName
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetUuid() string {
+	if x != nil {
+		return x.Uuid
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetGuestId() string {
+	if x != nil {
+		return x.GuestId
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetAnnotation() string {
+	if x != nil {
+		return x.Annotation
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetNumEthernetCards() int32 {
+	if x != nil {
+		return x.NumEthernetCards
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetNumVirtualDisks() int32 {
+	if x != nil {
+		return x.NumVirtualDisks
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskCommittedGB() float64 {
+	if x != nil {
+		return x.DiskCommittedGB
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetDiskUncommittedGB() float64 {
+	if x != nil {
+		return x.DiskUncommittedGB
+	}
+	return 0
+}
+
+func (x *VMPointShort) GetEsxHost() string {
+	if x != nil {
+		return x.EsxHost
+	}
+	return ""
+}
+
+func (x *VMPointShort) GetInterfaces() []*NetInterface {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
 type VMPointSlice struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Count         int64                  `protobuf:"varint,1,opt,name=Count,proto3" json:"Count,omitempty"`
@@ -4405,9 +4727,25 @@ type Host struct {
 	// Interfaces — структурированные сетевые интерфейсы хоста ESXi (Stage 1
 	// доработки хранения сетевых интерфейсов серверов, см. CHANGELOG.md).
 	// Добавлено аддитивно, IpAddress/MacAddress выше не изменены.
-	Interfaces    []*NetInterface `protobuf:"bytes,61,rep,name=Interfaces,proto3" json:"Interfaces,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Interfaces []*NetInterface `protobuf:"bytes,61,rep,name=Interfaces,proto3" json:"Interfaces,omitempty"`
+	// Добавлено при аудите контрактов (2026-11): billing, агрегаты задержек диска, версия ESXi.
+	CpuBilling                       float64                `protobuf:"fixed64,62,opt,name=CpuBilling,proto3" json:"CpuBilling,omitempty"`
+	MemBilling                       float64                `protobuf:"fixed64,63,opt,name=MemBilling,proto3" json:"MemBilling,omitempty"`
+	DiskBilling                      float64                `protobuf:"fixed64,64,opt,name=DiskBilling,proto3" json:"DiskBilling,omitempty"`
+	NetBilling                       float64                `protobuf:"fixed64,65,opt,name=NetBilling,proto3" json:"NetBilling,omitempty"`
+	DiskTotalReadLatencyMaximum      float64                `protobuf:"fixed64,66,opt,name=DiskTotalReadLatencyMaximum,proto3" json:"DiskTotalReadLatencyMaximum,omitempty"`
+	DiskTotalReadLatencyMaximumTime  *timestamppb.Timestamp `protobuf:"bytes,67,opt,name=DiskTotalReadLatencyMaximumTime,proto3" json:"DiskTotalReadLatencyMaximumTime,omitempty"`
+	DiskTotalReadLatencyAverage      float64                `protobuf:"fixed64,68,opt,name=DiskTotalReadLatencyAverage,proto3" json:"DiskTotalReadLatencyAverage,omitempty"`
+	DiskTotalReadLatencyMinimum      float64                `protobuf:"fixed64,69,opt,name=DiskTotalReadLatencyMinimum,proto3" json:"DiskTotalReadLatencyMinimum,omitempty"`
+	DiskTotalReadLatencyMinimumTime  *timestamppb.Timestamp `protobuf:"bytes,70,opt,name=DiskTotalReadLatencyMinimumTime,proto3" json:"DiskTotalReadLatencyMinimumTime,omitempty"`
+	DiskTotalWriteLatencyMaximum     float64                `protobuf:"fixed64,71,opt,name=DiskTotalWriteLatencyMaximum,proto3" json:"DiskTotalWriteLatencyMaximum,omitempty"`
+	DiskTotalWriteLatencyMaximumTime *timestamppb.Timestamp `protobuf:"bytes,72,opt,name=DiskTotalWriteLatencyMaximumTime,proto3" json:"DiskTotalWriteLatencyMaximumTime,omitempty"`
+	DiskTotalWriteLatencyAverage     float64                `protobuf:"fixed64,73,opt,name=DiskTotalWriteLatencyAverage,proto3" json:"DiskTotalWriteLatencyAverage,omitempty"`
+	DiskTotalWriteLatencyMinimum     float64                `protobuf:"fixed64,74,opt,name=DiskTotalWriteLatencyMinimum,proto3" json:"DiskTotalWriteLatencyMinimum,omitempty"`
+	DiskTotalWriteLatencyMinimumTime *timestamppb.Timestamp `protobuf:"bytes,75,opt,name=DiskTotalWriteLatencyMinimumTime,proto3" json:"DiskTotalWriteLatencyMinimumTime,omitempty"`
+	Product                          *HostProduct           `protobuf:"bytes,76,opt,name=Product,proto3" json:"Product,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *Host) Reset() {
@@ -4867,6 +5205,111 @@ func (x *Host) GetInterfaces() []*NetInterface {
 	return nil
 }
 
+func (x *Host) GetCpuBilling() float64 {
+	if x != nil {
+		return x.CpuBilling
+	}
+	return 0
+}
+
+func (x *Host) GetMemBilling() float64 {
+	if x != nil {
+		return x.MemBilling
+	}
+	return 0
+}
+
+func (x *Host) GetDiskBilling() float64 {
+	if x != nil {
+		return x.DiskBilling
+	}
+	return 0
+}
+
+func (x *Host) GetNetBilling() float64 {
+	if x != nil {
+		return x.NetBilling
+	}
+	return 0
+}
+
+func (x *Host) GetDiskTotalReadLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximum
+	}
+	return 0
+}
+
+func (x *Host) GetDiskTotalReadLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *Host) GetDiskTotalReadLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyAverage
+	}
+	return 0
+}
+
+func (x *Host) GetDiskTotalReadLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimum
+	}
+	return 0
+}
+
+func (x *Host) GetDiskTotalReadLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *Host) GetDiskTotalWriteLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximum
+	}
+	return 0
+}
+
+func (x *Host) GetDiskTotalWriteLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *Host) GetDiskTotalWriteLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyAverage
+	}
+	return 0
+}
+
+func (x *Host) GetDiskTotalWriteLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimum
+	}
+	return 0
+}
+
+func (x *Host) GetDiskTotalWriteLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *Host) GetProduct() *HostProduct {
+	if x != nil {
+		return x.Product
+	}
+	return nil
+}
+
 type HostFull struct {
 	state                      protoimpl.MessageState `protogen:"open.v1"`
 	Id                         int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
@@ -4933,9 +5376,25 @@ type HostFull struct {
 	// Interfaces — то же самое, что Host.Interfaces (поле 61) выше, для
 	// "полного" хостового сообщения. Stage 1 доработки хранения сетевых
 	// интерфейсов серверов, см. CHANGELOG.md.
-	Interfaces    []*NetInterface `protobuf:"bytes,62,rep,name=Interfaces,proto3" json:"Interfaces,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Interfaces []*NetInterface `protobuf:"bytes,62,rep,name=Interfaces,proto3" json:"Interfaces,omitempty"`
+	// Добавлено при аудите контрактов (2026-11): billing, агрегаты задержек диска, версия ESXi.
+	CpuBilling                       float64                `protobuf:"fixed64,63,opt,name=CpuBilling,proto3" json:"CpuBilling,omitempty"`
+	MemBilling                       float64                `protobuf:"fixed64,64,opt,name=MemBilling,proto3" json:"MemBilling,omitempty"`
+	DiskBilling                      float64                `protobuf:"fixed64,65,opt,name=DiskBilling,proto3" json:"DiskBilling,omitempty"`
+	NetBilling                       float64                `protobuf:"fixed64,66,opt,name=NetBilling,proto3" json:"NetBilling,omitempty"`
+	DiskTotalReadLatencyMaximum      float64                `protobuf:"fixed64,67,opt,name=DiskTotalReadLatencyMaximum,proto3" json:"DiskTotalReadLatencyMaximum,omitempty"`
+	DiskTotalReadLatencyMaximumTime  *timestamppb.Timestamp `protobuf:"bytes,68,opt,name=DiskTotalReadLatencyMaximumTime,proto3" json:"DiskTotalReadLatencyMaximumTime,omitempty"`
+	DiskTotalReadLatencyAverage      float64                `protobuf:"fixed64,69,opt,name=DiskTotalReadLatencyAverage,proto3" json:"DiskTotalReadLatencyAverage,omitempty"`
+	DiskTotalReadLatencyMinimum      float64                `protobuf:"fixed64,70,opt,name=DiskTotalReadLatencyMinimum,proto3" json:"DiskTotalReadLatencyMinimum,omitempty"`
+	DiskTotalReadLatencyMinimumTime  *timestamppb.Timestamp `protobuf:"bytes,71,opt,name=DiskTotalReadLatencyMinimumTime,proto3" json:"DiskTotalReadLatencyMinimumTime,omitempty"`
+	DiskTotalWriteLatencyMaximum     float64                `protobuf:"fixed64,72,opt,name=DiskTotalWriteLatencyMaximum,proto3" json:"DiskTotalWriteLatencyMaximum,omitempty"`
+	DiskTotalWriteLatencyMaximumTime *timestamppb.Timestamp `protobuf:"bytes,73,opt,name=DiskTotalWriteLatencyMaximumTime,proto3" json:"DiskTotalWriteLatencyMaximumTime,omitempty"`
+	DiskTotalWriteLatencyAverage     float64                `protobuf:"fixed64,74,opt,name=DiskTotalWriteLatencyAverage,proto3" json:"DiskTotalWriteLatencyAverage,omitempty"`
+	DiskTotalWriteLatencyMinimum     float64                `protobuf:"fixed64,75,opt,name=DiskTotalWriteLatencyMinimum,proto3" json:"DiskTotalWriteLatencyMinimum,omitempty"`
+	DiskTotalWriteLatencyMinimumTime *timestamppb.Timestamp `protobuf:"bytes,76,opt,name=DiskTotalWriteLatencyMinimumTime,proto3" json:"DiskTotalWriteLatencyMinimumTime,omitempty"`
+	Product                          *HostProduct           `protobuf:"bytes,77,opt,name=Product,proto3" json:"Product,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *HostFull) Reset() {
@@ -5402,6 +5861,111 @@ func (x *HostFull) GetInterfaces() []*NetInterface {
 	return nil
 }
 
+func (x *HostFull) GetCpuBilling() float64 {
+	if x != nil {
+		return x.CpuBilling
+	}
+	return 0
+}
+
+func (x *HostFull) GetMemBilling() float64 {
+	if x != nil {
+		return x.MemBilling
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskBilling() float64 {
+	if x != nil {
+		return x.DiskBilling
+	}
+	return 0
+}
+
+func (x *HostFull) GetNetBilling() float64 {
+	if x != nil {
+		return x.NetBilling
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskTotalReadLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximum
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskTotalReadLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *HostFull) GetDiskTotalReadLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyAverage
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskTotalReadLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimum
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskTotalReadLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *HostFull) GetDiskTotalWriteLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximum
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskTotalWriteLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *HostFull) GetDiskTotalWriteLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyAverage
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskTotalWriteLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimum
+	}
+	return 0
+}
+
+func (x *HostFull) GetDiskTotalWriteLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *HostFull) GetProduct() *HostProduct {
+	if x != nil {
+		return x.Product
+	}
+	return nil
+}
+
 type Cluster struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	Id                    int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
@@ -5457,8 +6021,23 @@ type Cluster struct {
 	VMCount               int64                  `protobuf:"varint,51,opt,name=VMCount,proto3" json:"VMCount,omitempty"`
 	TypeWork              int32                  `protobuf:"varint,52,opt,name=TypeWork,proto3" json:"TypeWork,omitempty"`
 	ClusterId             string                 `protobuf:"bytes,53,opt,name=ClusterId,proto3" json:"ClusterId,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Добавлено при аудите контрактов (2026-11): billing и агрегаты задержек диска.
+	CpuBilling                       float64                `protobuf:"fixed64,54,opt,name=CpuBilling,proto3" json:"CpuBilling,omitempty"`
+	MemBilling                       float64                `protobuf:"fixed64,55,opt,name=MemBilling,proto3" json:"MemBilling,omitempty"`
+	DiskBilling                      float64                `protobuf:"fixed64,56,opt,name=DiskBilling,proto3" json:"DiskBilling,omitempty"`
+	NetBilling                       float64                `protobuf:"fixed64,57,opt,name=NetBilling,proto3" json:"NetBilling,omitempty"`
+	DiskTotalReadLatencyMaximum      float64                `protobuf:"fixed64,58,opt,name=DiskTotalReadLatencyMaximum,proto3" json:"DiskTotalReadLatencyMaximum,omitempty"`
+	DiskTotalReadLatencyMaximumTime  *timestamppb.Timestamp `protobuf:"bytes,59,opt,name=DiskTotalReadLatencyMaximumTime,proto3" json:"DiskTotalReadLatencyMaximumTime,omitempty"`
+	DiskTotalReadLatencyAverage      float64                `protobuf:"fixed64,60,opt,name=DiskTotalReadLatencyAverage,proto3" json:"DiskTotalReadLatencyAverage,omitempty"`
+	DiskTotalReadLatencyMinimum      float64                `protobuf:"fixed64,61,opt,name=DiskTotalReadLatencyMinimum,proto3" json:"DiskTotalReadLatencyMinimum,omitempty"`
+	DiskTotalReadLatencyMinimumTime  *timestamppb.Timestamp `protobuf:"bytes,62,opt,name=DiskTotalReadLatencyMinimumTime,proto3" json:"DiskTotalReadLatencyMinimumTime,omitempty"`
+	DiskTotalWriteLatencyMaximum     float64                `protobuf:"fixed64,63,opt,name=DiskTotalWriteLatencyMaximum,proto3" json:"DiskTotalWriteLatencyMaximum,omitempty"`
+	DiskTotalWriteLatencyMaximumTime *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=DiskTotalWriteLatencyMaximumTime,proto3" json:"DiskTotalWriteLatencyMaximumTime,omitempty"`
+	DiskTotalWriteLatencyAverage     float64                `protobuf:"fixed64,65,opt,name=DiskTotalWriteLatencyAverage,proto3" json:"DiskTotalWriteLatencyAverage,omitempty"`
+	DiskTotalWriteLatencyMinimum     float64                `protobuf:"fixed64,66,opt,name=DiskTotalWriteLatencyMinimum,proto3" json:"DiskTotalWriteLatencyMinimum,omitempty"`
+	DiskTotalWriteLatencyMinimumTime *timestamppb.Timestamp `protobuf:"bytes,67,opt,name=DiskTotalWriteLatencyMinimumTime,proto3" json:"DiskTotalWriteLatencyMinimumTime,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *Cluster) Reset() {
@@ -5862,6 +6441,104 @@ func (x *Cluster) GetClusterId() string {
 	return ""
 }
 
+func (x *Cluster) GetCpuBilling() float64 {
+	if x != nil {
+		return x.CpuBilling
+	}
+	return 0
+}
+
+func (x *Cluster) GetMemBilling() float64 {
+	if x != nil {
+		return x.MemBilling
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskBilling() float64 {
+	if x != nil {
+		return x.DiskBilling
+	}
+	return 0
+}
+
+func (x *Cluster) GetNetBilling() float64 {
+	if x != nil {
+		return x.NetBilling
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskTotalReadLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximum
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskTotalReadLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *Cluster) GetDiskTotalReadLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyAverage
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskTotalReadLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimum
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskTotalReadLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *Cluster) GetDiskTotalWriteLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximum
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskTotalWriteLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *Cluster) GetDiskTotalWriteLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyAverage
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskTotalWriteLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimum
+	}
+	return 0
+}
+
+func (x *Cluster) GetDiskTotalWriteLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimumTime
+	}
+	return nil
+}
+
 type ClusterFull struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	Id                    int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
@@ -5919,8 +6596,23 @@ type ClusterFull struct {
 	VMCount               int64                  `protobuf:"varint,53,opt,name=VMCount,proto3" json:"VMCount,omitempty"`
 	TypeWork              int32                  `protobuf:"varint,54,opt,name=TypeWork,proto3" json:"TypeWork,omitempty"`
 	ClusterId             string                 `protobuf:"bytes,55,opt,name=ClusterId,proto3" json:"ClusterId,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Добавлено при аудите контрактов (2026-11): billing и агрегаты задержек диска.
+	CpuBilling                       float64                `protobuf:"fixed64,56,opt,name=CpuBilling,proto3" json:"CpuBilling,omitempty"`
+	MemBilling                       float64                `protobuf:"fixed64,57,opt,name=MemBilling,proto3" json:"MemBilling,omitempty"`
+	DiskBilling                      float64                `protobuf:"fixed64,58,opt,name=DiskBilling,proto3" json:"DiskBilling,omitempty"`
+	NetBilling                       float64                `protobuf:"fixed64,59,opt,name=NetBilling,proto3" json:"NetBilling,omitempty"`
+	DiskTotalReadLatencyMaximum      float64                `protobuf:"fixed64,60,opt,name=DiskTotalReadLatencyMaximum,proto3" json:"DiskTotalReadLatencyMaximum,omitempty"`
+	DiskTotalReadLatencyMaximumTime  *timestamppb.Timestamp `protobuf:"bytes,61,opt,name=DiskTotalReadLatencyMaximumTime,proto3" json:"DiskTotalReadLatencyMaximumTime,omitempty"`
+	DiskTotalReadLatencyAverage      float64                `protobuf:"fixed64,62,opt,name=DiskTotalReadLatencyAverage,proto3" json:"DiskTotalReadLatencyAverage,omitempty"`
+	DiskTotalReadLatencyMinimum      float64                `protobuf:"fixed64,63,opt,name=DiskTotalReadLatencyMinimum,proto3" json:"DiskTotalReadLatencyMinimum,omitempty"`
+	DiskTotalReadLatencyMinimumTime  *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=DiskTotalReadLatencyMinimumTime,proto3" json:"DiskTotalReadLatencyMinimumTime,omitempty"`
+	DiskTotalWriteLatencyMaximum     float64                `protobuf:"fixed64,65,opt,name=DiskTotalWriteLatencyMaximum,proto3" json:"DiskTotalWriteLatencyMaximum,omitempty"`
+	DiskTotalWriteLatencyMaximumTime *timestamppb.Timestamp `protobuf:"bytes,66,opt,name=DiskTotalWriteLatencyMaximumTime,proto3" json:"DiskTotalWriteLatencyMaximumTime,omitempty"`
+	DiskTotalWriteLatencyAverage     float64                `protobuf:"fixed64,67,opt,name=DiskTotalWriteLatencyAverage,proto3" json:"DiskTotalWriteLatencyAverage,omitempty"`
+	DiskTotalWriteLatencyMinimum     float64                `protobuf:"fixed64,68,opt,name=DiskTotalWriteLatencyMinimum,proto3" json:"DiskTotalWriteLatencyMinimum,omitempty"`
+	DiskTotalWriteLatencyMinimumTime *timestamppb.Timestamp `protobuf:"bytes,69,opt,name=DiskTotalWriteLatencyMinimumTime,proto3" json:"DiskTotalWriteLatencyMinimumTime,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *ClusterFull) Reset() {
@@ -6338,6 +7030,104 @@ func (x *ClusterFull) GetClusterId() string {
 	return ""
 }
 
+func (x *ClusterFull) GetCpuBilling() float64 {
+	if x != nil {
+		return x.CpuBilling
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetMemBilling() float64 {
+	if x != nil {
+		return x.MemBilling
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskBilling() float64 {
+	if x != nil {
+		return x.DiskBilling
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetNetBilling() float64 {
+	if x != nil {
+		return x.NetBilling
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskTotalReadLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximum
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskTotalReadLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *ClusterFull) GetDiskTotalReadLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyAverage
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskTotalReadLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimum
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskTotalReadLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalReadLatencyMinimumTime
+	}
+	return nil
+}
+
+func (x *ClusterFull) GetDiskTotalWriteLatencyMaximum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximum
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskTotalWriteLatencyMaximumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMaximumTime
+	}
+	return nil
+}
+
+func (x *ClusterFull) GetDiskTotalWriteLatencyAverage() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyAverage
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskTotalWriteLatencyMinimum() float64 {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimum
+	}
+	return 0
+}
+
+func (x *ClusterFull) GetDiskTotalWriteLatencyMinimumTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DiskTotalWriteLatencyMinimumTime
+	}
+	return nil
+}
+
 type ClusterShort struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Vcenter       string                 `protobuf:"bytes,1,opt,name=Vcenter,proto3" json:"Vcenter,omitempty"`
@@ -6642,11 +7432,14 @@ type ServerHardware struct {
 	EnclosureInfo *Enclosure                  `protobuf:"bytes,6,opt,name=EnclosureInfo,proto3" json:"EnclosureInfo,omitempty"`
 	BayInfo       *DeviceBayInfo              `protobuf:"bytes,7,opt,name=BayInfo,proto3" json:"BayInfo,omitempty"`
 	// Расширение под oneview2.Server (полная инвентаризация).
-	Processors    []*OVProcessorInfo     `protobuf:"bytes,8,rep,name=Processors,proto3" json:"Processors,omitempty"`
-	NetworkPorts  []*OVNetworkPort       `protobuf:"bytes,9,rep,name=NetworkPorts,proto3" json:"NetworkPorts,omitempty"`
-	Devices       []*OVPCIDevice         `protobuf:"bytes,10,rep,name=Devices,proto3" json:"Devices,omitempty"`
-	Firmware      []*OVFirmwareComponent `protobuf:"bytes,11,rep,name=Firmware,proto3" json:"Firmware,omitempty"`
-	Metadata      *OVServerMetadata      `protobuf:"bytes,12,opt,name=Metadata,proto3" json:"Metadata,omitempty"`
+	Processors   []*OVProcessorInfo     `protobuf:"bytes,8,rep,name=Processors,proto3" json:"Processors,omitempty"`
+	NetworkPorts []*OVNetworkPort       `protobuf:"bytes,9,rep,name=NetworkPorts,proto3" json:"NetworkPorts,omitempty"`
+	Devices      []*OVPCIDevice         `protobuf:"bytes,10,rep,name=Devices,proto3" json:"Devices,omitempty"`
+	Firmware     []*OVFirmwareComponent `protobuf:"bytes,11,rep,name=Firmware,proto3" json:"Firmware,omitempty"`
+	Metadata     *OVServerMetadata      `protobuf:"bytes,12,opt,name=Metadata,proto3" json:"Metadata,omitempty"`
+	// Добавлено при аудите контрактов (2026-11): питание сервера и корзины.
+	Power         *OVPowerWatts `protobuf:"bytes,13,opt,name=Power,proto3" json:"Power,omitempty"`
+	ChassisPower  *OVPowerWatts `protobuf:"bytes,14,opt,name=ChassisPower,proto3" json:"ChassisPower,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6761,6 +7554,20 @@ func (x *ServerHardware) GetFirmware() []*OVFirmwareComponent {
 func (x *ServerHardware) GetMetadata() *OVServerMetadata {
 	if x != nil {
 		return x.Metadata
+	}
+	return nil
+}
+
+func (x *ServerHardware) GetPower() *OVPowerWatts {
+	if x != nil {
+		return x.Power
+	}
+	return nil
+}
+
+func (x *ServerHardware) GetChassisPower() *OVPowerWatts {
+	if x != nil {
+		return x.ChassisPower
 	}
 	return nil
 }
@@ -7415,6 +8222,7 @@ type MemoryModule struct {
 	Channel           int32                  `protobuf:"varint,17,opt,name=Channel,proto3" json:"Channel,omitempty"`
 	Slot              int32                  `protobuf:"varint,18,opt,name=Slot,proto3" json:"Slot,omitempty"`
 	Attributes        []string               `protobuf:"bytes,19,rep,name=Attributes,proto3" json:"Attributes,omitempty"`
+	MemoryController  int32                  `protobuf:"varint,20,opt,name=MemoryController,proto3" json:"MemoryController,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -7582,6 +8390,13 @@ func (x *MemoryModule) GetAttributes() []string {
 	return nil
 }
 
+func (x *MemoryModule) GetMemoryController() int32 {
+	if x != nil {
+		return x.MemoryController
+	}
+	return 0
+}
+
 type ServerHardwareLocalStorage struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	URI             string                 `protobuf:"bytes,1,opt,name=URI,proto3" json:"URI,omitempty"`
@@ -7746,6 +8561,7 @@ type LocalStorage struct {
 	SerialNumber             string                   `protobuf:"bytes,15,opt,name=SerialNumber,proto3" json:"SerialNumber,omitempty"`                         //серийный номер
 	Status                   *Status                  `protobuf:"bytes,16,opt,name=Status,proto3" json:"Status,omitempty"`                                     //состояние
 	StorageEnclosures        []*LocalStorageEnclosure `protobuf:"bytes,17,rep,name=StorageEnclosures,proto3" json:"StorageEnclosures,omitempty"`               //корзины для дисков
+	CurrentOperatingMode     string                   `protobuf:"bytes,18,opt,name=CurrentOperatingMode,proto3" json:"CurrentOperatingMode,omitempty"`         //режим работы контроллера (RAID/HBA/Mixed)
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -7897,6 +8713,13 @@ func (x *LocalStorage) GetStorageEnclosures() []*LocalStorageEnclosure {
 		return x.StorageEnclosures
 	}
 	return nil
+}
+
+func (x *LocalStorage) GetCurrentOperatingMode() string {
+	if x != nil {
+		return x.CurrentOperatingMode
+	}
+	return ""
 }
 
 type CacheModuleStatus struct {
@@ -8264,6 +9087,10 @@ type LocalLogicalDrive struct {
 	LogicalDriveType       string                 `protobuf:"bytes,5,opt,name=LogicalDriveType,proto3" json:"LogicalDriveType,omitempty"`              //тип логического диска
 	Raid                   string                 `protobuf:"bytes,6,opt,name=Raid,proto3" json:"Raid,omitempty"`                                      //уровень Raid "5", ...
 	Status                 *Status                `protobuf:"bytes,7,opt,name=Status,proto3" json:"Status,omitempty"`                                  //состояние
+	Name                   string                 `protobuf:"bytes,8,opt,name=Name,proto3" json:"Name,omitempty"`
+	InterfaceType          string                 `protobuf:"bytes,9,opt,name=InterfaceType,proto3" json:"InterfaceType,omitempty"`
+	VolumeUniqueID         string                 `protobuf:"bytes,10,opt,name=VolumeUniqueID,proto3" json:"VolumeUniqueID,omitempty"`
+	Acceleration           string                 `protobuf:"bytes,11,opt,name=Acceleration,proto3" json:"Acceleration,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -8347,6 +9174,34 @@ func (x *LocalLogicalDrive) GetStatus() *Status {
 	return nil
 }
 
+func (x *LocalLogicalDrive) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LocalLogicalDrive) GetInterfaceType() string {
+	if x != nil {
+		return x.InterfaceType
+	}
+	return ""
+}
+
+func (x *LocalLogicalDrive) GetVolumeUniqueID() string {
+	if x != nil {
+		return x.VolumeUniqueID
+	}
+	return ""
+}
+
+func (x *LocalLogicalDrive) GetAcceleration() string {
+	if x != nil {
+		return x.Acceleration
+	}
+	return ""
+}
+
 // LocalPhysicalDrive - описание диска
 type LocalPhysicalDrive struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
@@ -8361,6 +9216,8 @@ type LocalPhysicalDrive struct {
 	Model                  string                 `protobuf:"bytes,9,opt,name=Model,proto3" json:"Model,omitempty"`                                   //модель "MB4000JVYZQ"
 	SerialNumber           string                 `protobuf:"bytes,10,opt,name=SerialNumber,proto3" json:"SerialNumber,omitempty"`                    //серийный номер "ZC17LE2X"
 	Status                 *Status                `protobuf:"bytes,11,opt,name=Status,proto3" json:"Status,omitempty"`                                //состояние
+	InterfaceType          string                 `protobuf:"bytes,12,opt,name=InterfaceType,proto3" json:"InterfaceType,omitempty"`
+	CapacityGB             int32                  `protobuf:"varint,13,opt,name=CapacityGB,proto3" json:"CapacityGB,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -8470,6 +9327,20 @@ func (x *LocalPhysicalDrive) GetStatus() *Status {
 		return x.Status
 	}
 	return nil
+}
+
+func (x *LocalPhysicalDrive) GetInterfaceType() string {
+	if x != nil {
+		return x.InterfaceType
+	}
+	return ""
+}
+
+func (x *LocalPhysicalDrive) GetCapacityGB() int32 {
+	if x != nil {
+		return x.CapacityGB
+	}
+	return 0
 }
 
 // LocalStorageEnclosure - описание корзины для дисков
@@ -8627,6 +9498,8 @@ type DatacenterInfo struct {
 	Name                    string                 `protobuf:"bytes,14,opt,name=Name,proto3" json:"Name,omitempty"`
 	State                   string                 `protobuf:"bytes,15,opt,name=State,proto3" json:"State,omitempty"`
 	Status                  string                 `protobuf:"bytes,16,opt,name=Status,proto3" json:"Status,omitempty"`
+	CoolingCapacity         int32                  `protobuf:"varint,17,opt,name=CoolingCapacity,proto3" json:"CoolingCapacity,omitempty"`
+	Height                  int32                  `protobuf:"varint,18,opt,name=Height,proto3" json:"Height,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -8773,6 +9646,20 @@ func (x *DatacenterInfo) GetStatus() string {
 	return ""
 }
 
+func (x *DatacenterInfo) GetCoolingCapacity() int32 {
+	if x != nil {
+		return x.CoolingCapacity
+	}
+	return 0
+}
+
+func (x *DatacenterInfo) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
 type Racks struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	UHeight      int32                  `protobuf:"varint,1,opt,name=UHeight,proto3" json:"UHeight,omitempty"`
@@ -8793,6 +9680,9 @@ type Racks struct {
 	TopUSlot      int32  `protobuf:"varint,13,opt,name=TopUSlot,proto3" json:"TopUSlot,omitempty"`
 	MountUHeight  int32  `protobuf:"varint,14,opt,name=MountUHeight,proto3" json:"MountUHeight,omitempty"`
 	MountLocation string `protobuf:"bytes,15,opt,name=MountLocation,proto3" json:"MountLocation,omitempty"`
+	Model         string `protobuf:"bytes,16,opt,name=Model,proto3" json:"Model,omitempty"`
+	PartNumber    string `protobuf:"bytes,17,opt,name=PartNumber,proto3" json:"PartNumber,omitempty"`
+	ThermalLimit  int32  `protobuf:"varint,18,opt,name=ThermalLimit,proto3" json:"ThermalLimit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8932,6 +9822,27 @@ func (x *Racks) GetMountLocation() string {
 	return ""
 }
 
+func (x *Racks) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Racks) GetPartNumber() string {
+	if x != nil {
+		return x.PartNumber
+	}
+	return ""
+}
+
+func (x *Racks) GetThermalLimit() int32 {
+	if x != nil {
+		return x.ThermalLimit
+	}
+	return 0
+}
+
 type DeviceBayInfo struct {
 	state                                   protoimpl.MessageState `protogen:"open.v1"`
 	Type                                    string                 `protobuf:"bytes,1,opt,name=Type,proto3" json:"Type,omitempty"`
@@ -8948,6 +9859,9 @@ type DeviceBayInfo struct {
 	ChangeState                             string                 `protobuf:"bytes,12,opt,name=ChangeState,proto3" json:"ChangeState,omitempty"`
 	AvailableForHalfHeightDoubleWideProfile bool                   `protobuf:"varint,13,opt,name=AvailableForHalfHeightDoubleWideProfile,proto3" json:"AvailableForHalfHeightDoubleWideProfile,omitempty"`
 	AvailableForFullHeightDoubleWideProfile bool                   `protobuf:"varint,14,opt,name=AvailableForFullHeightDoubleWideProfile,proto3" json:"AvailableForFullHeightDoubleWideProfile,omitempty"`
+	Model                                   string                 `protobuf:"bytes,15,opt,name=Model,proto3" json:"Model,omitempty"`
+	ProfileURI                              string                 `protobuf:"bytes,16,opt,name=ProfileURI,proto3" json:"ProfileURI,omitempty"`
+	Covered                                 bool                   `protobuf:"varint,17,opt,name=Covered,proto3" json:"Covered,omitempty"`
 	unknownFields                           protoimpl.UnknownFields
 	sizeCache                               protoimpl.SizeCache
 }
@@ -9076,6 +9990,27 @@ func (x *DeviceBayInfo) GetAvailableForHalfHeightDoubleWideProfile() bool {
 func (x *DeviceBayInfo) GetAvailableForFullHeightDoubleWideProfile() bool {
 	if x != nil {
 		return x.AvailableForFullHeightDoubleWideProfile
+	}
+	return false
+}
+
+func (x *DeviceBayInfo) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *DeviceBayInfo) GetProfileURI() string {
+	if x != nil {
+		return x.ProfileURI
+	}
+	return ""
+}
+
+func (x *DeviceBayInfo) GetCovered() bool {
+	if x != nil {
+		return x.Covered
 	}
 	return false
 }
@@ -9562,6 +10497,9 @@ type Enclosure struct {
 	VcmURL                     string                 `protobuf:"bytes,38,opt,name=VcmURL,proto3" json:"VcmURL,omitempty"`
 	OaBays                     int32                  `protobuf:"varint,39,opt,name=OaBays,proto3" json:"OaBays,omitempty"`
 	MigrationState             string                 `protobuf:"bytes,40,opt,name=MigrationState,proto3" json:"MigrationState,omitempty"`
+	GroupURI                   string                 `protobuf:"bytes,41,opt,name=GroupURI,proto3" json:"GroupURI,omitempty"`
+	LogicalEnclosureURI        string                 `protobuf:"bytes,42,opt,name=LogicalEnclosureURI,proto3" json:"LogicalEnclosureURI,omitempty"`
+	URI                        string                 `protobuf:"bytes,43,opt,name=URI,proto3" json:"URI,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -9872,6 +10810,27 @@ func (x *Enclosure) GetOaBays() int32 {
 func (x *Enclosure) GetMigrationState() string {
 	if x != nil {
 		return x.MigrationState
+	}
+	return ""
+}
+
+func (x *Enclosure) GetGroupURI() string {
+	if x != nil {
+		return x.GroupURI
+	}
+	return ""
+}
+
+func (x *Enclosure) GetLogicalEnclosureURI() string {
+	if x != nil {
+		return x.LogicalEnclosureURI
+	}
+	return ""
+}
+
+func (x *Enclosure) GetURI() string {
+	if x != nil {
+		return x.URI
 	}
 	return ""
 }
@@ -10428,6 +11387,241 @@ func (x *OVServerMetadata) GetSources() []*OVServerSource {
 	return nil
 }
 
+// HostProduct - сведения о продукте ESXi (vim25 AboutInfo): имя, версия, сборка
+// и т.п. Соответствует vspheremetrics.HostInfo.Product.
+type HostProduct struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Name                  string                 `protobuf:"bytes,1,opt,name=Name,proto3" json:"Name,omitempty"`
+	FullName              string                 `protobuf:"bytes,2,opt,name=FullName,proto3" json:"FullName,omitempty"`
+	Vendor                string                 `protobuf:"bytes,3,opt,name=Vendor,proto3" json:"Vendor,omitempty"`
+	Version               string                 `protobuf:"bytes,4,opt,name=Version,proto3" json:"Version,omitempty"`
+	PatchLevel            string                 `protobuf:"bytes,5,opt,name=PatchLevel,proto3" json:"PatchLevel,omitempty"`
+	Build                 string                 `protobuf:"bytes,6,opt,name=Build,proto3" json:"Build,omitempty"`
+	LocaleVersion         string                 `protobuf:"bytes,7,opt,name=LocaleVersion,proto3" json:"LocaleVersion,omitempty"`
+	LocaleBuild           string                 `protobuf:"bytes,8,opt,name=LocaleBuild,proto3" json:"LocaleBuild,omitempty"`
+	OsType                string                 `protobuf:"bytes,9,opt,name=OsType,proto3" json:"OsType,omitempty"`
+	ProductLineId         string                 `protobuf:"bytes,10,opt,name=ProductLineId,proto3" json:"ProductLineId,omitempty"`
+	ApiType               string                 `protobuf:"bytes,11,opt,name=ApiType,proto3" json:"ApiType,omitempty"`
+	ApiVersion            string                 `protobuf:"bytes,12,opt,name=ApiVersion,proto3" json:"ApiVersion,omitempty"`
+	LicenseProductName    string                 `protobuf:"bytes,13,opt,name=LicenseProductName,proto3" json:"LicenseProductName,omitempty"`
+	LicenseProductVersion string                 `protobuf:"bytes,14,opt,name=LicenseProductVersion,proto3" json:"LicenseProductVersion,omitempty"`
+	InstanceUuid          string                 `protobuf:"bytes,15,opt,name=InstanceUuid,proto3" json:"InstanceUuid,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *HostProduct) Reset() {
+	*x = HostProduct{}
+	mi := &file_vm_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostProduct) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostProduct) ProtoMessage() {}
+
+func (x *HostProduct) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostProduct.ProtoReflect.Descriptor instead.
+func (*HostProduct) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *HostProduct) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *HostProduct) GetFullName() string {
+	if x != nil {
+		return x.FullName
+	}
+	return ""
+}
+
+func (x *HostProduct) GetVendor() string {
+	if x != nil {
+		return x.Vendor
+	}
+	return ""
+}
+
+func (x *HostProduct) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *HostProduct) GetPatchLevel() string {
+	if x != nil {
+		return x.PatchLevel
+	}
+	return ""
+}
+
+func (x *HostProduct) GetBuild() string {
+	if x != nil {
+		return x.Build
+	}
+	return ""
+}
+
+func (x *HostProduct) GetLocaleVersion() string {
+	if x != nil {
+		return x.LocaleVersion
+	}
+	return ""
+}
+
+func (x *HostProduct) GetLocaleBuild() string {
+	if x != nil {
+		return x.LocaleBuild
+	}
+	return ""
+}
+
+func (x *HostProduct) GetOsType() string {
+	if x != nil {
+		return x.OsType
+	}
+	return ""
+}
+
+func (x *HostProduct) GetProductLineId() string {
+	if x != nil {
+		return x.ProductLineId
+	}
+	return ""
+}
+
+func (x *HostProduct) GetApiType() string {
+	if x != nil {
+		return x.ApiType
+	}
+	return ""
+}
+
+func (x *HostProduct) GetApiVersion() string {
+	if x != nil {
+		return x.ApiVersion
+	}
+	return ""
+}
+
+func (x *HostProduct) GetLicenseProductName() string {
+	if x != nil {
+		return x.LicenseProductName
+	}
+	return ""
+}
+
+func (x *HostProduct) GetLicenseProductVersion() string {
+	if x != nil {
+		return x.LicenseProductVersion
+	}
+	return ""
+}
+
+func (x *HostProduct) GetInstanceUuid() string {
+	if x != nil {
+		return x.InstanceUuid
+	}
+	return ""
+}
+
+// OVPowerWatts - потребление/лимит питания (Вт), oneview2.PowerWatts.
+type OVPowerWatts struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Avg24HW       float64                `protobuf:"fixed64,1,opt,name=Avg24hW,proto3" json:"Avg24hW,omitempty"`
+	Peak24HW      float64                `protobuf:"fixed64,2,opt,name=Peak24hW,proto3" json:"Peak24hW,omitempty"`
+	RatedMaxW     float64                `protobuf:"fixed64,3,opt,name=RatedMaxW,proto3" json:"RatedMaxW,omitempty"`
+	Source        string                 `protobuf:"bytes,4,opt,name=Source,proto3" json:"Source,omitempty"`
+	RatedSource   string                 `protobuf:"bytes,5,opt,name=RatedSource,proto3" json:"RatedSource,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OVPowerWatts) Reset() {
+	*x = OVPowerWatts{}
+	mi := &file_vm_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OVPowerWatts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OVPowerWatts) ProtoMessage() {}
+
+func (x *OVPowerWatts) ProtoReflect() protoreflect.Message {
+	mi := &file_vm_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OVPowerWatts.ProtoReflect.Descriptor instead.
+func (*OVPowerWatts) Descriptor() ([]byte, []int) {
+	return file_vm_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *OVPowerWatts) GetAvg24HW() float64 {
+	if x != nil {
+		return x.Avg24HW
+	}
+	return 0
+}
+
+func (x *OVPowerWatts) GetPeak24HW() float64 {
+	if x != nil {
+		return x.Peak24HW
+	}
+	return 0
+}
+
+func (x *OVPowerWatts) GetRatedMaxW() float64 {
+	if x != nil {
+		return x.RatedMaxW
+	}
+	return 0
+}
+
+func (x *OVPowerWatts) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *OVPowerWatts) GetRatedSource() string {
+	if x != nil {
+		return x.RatedSource
+	}
+	return ""
+}
+
 var File_vm_proto protoreflect.FileDescriptor
 
 const file_vm_proto_rawDesc = "" +
@@ -10581,7 +11775,7 @@ const file_vm_proto_rawDesc = "" +
 	" \x01(\x01R\vNetReceived\x12&\n" +
 	"\x0eNetTransmitted\x18\v \x01(\x01R\x0eNetTransmitted\x122\n" +
 	"\x14DiskTotalReadLatency\x18\f \x01(\x01R\x14DiskTotalReadLatency\x124\n" +
-	"\x15DiskTotalWriteLatency\x18\r \x01(\x01R\x15DiskTotalWriteLatency\"\xe8\x02\n" +
+	"\x15DiskTotalWriteLatency\x18\r \x01(\x01R\x15DiskTotalWriteLatency\"\xd2\x03\n" +
 	"\x06CLPerf\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x120\n" +
 	"\x05Start\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05Start\x12\x1a\n" +
@@ -10594,7 +11788,9 @@ const file_vm_proto_rawDesc = "" +
 	"\bNetUsage\x18\t \x01(\x01R\bNetUsage\x12 \n" +
 	"\vNetReceived\x18\n" +
 	" \x01(\x01R\vNetReceived\x12&\n" +
-	"\x0eNetTransmitted\x18\v \x01(\x01R\x0eNetTransmitted\"I\n" +
+	"\x0eNetTransmitted\x18\v \x01(\x01R\x0eNetTransmitted\x122\n" +
+	"\x14DiskTotalReadLatency\x18\f \x01(\x01R\x14DiskTotalReadLatency\x124\n" +
+	"\x15DiskTotalWriteLatency\x18\r \x01(\x01R\x15DiskTotalWriteLatency\"I\n" +
 	"\vVMPerfSlice\x12\x14\n" +
 	"\x05Count\x18\x01 \x01(\x03R\x05Count\x12$\n" +
 	"\x04Perf\x18\x02 \x03(\v2\x10.protocol.VMPerfR\x04Perf\"I\n" +
@@ -10603,14 +11799,15 @@ const file_vm_proto_rawDesc = "" +
 	"\x04Perf\x18\x02 \x03(\v2\x10.protocol.HSPerfR\x04Perf\"I\n" +
 	"\vCLPerfSlice\x12\x14\n" +
 	"\x05Count\x18\x01 \x01(\x03R\x05Count\x12$\n" +
-	"\x04Perf\x18\x02 \x03(\v2\x10.protocol.CLPerfR\x04Perf\"\x8f\x01\n" +
+	"\x04Perf\x18\x02 \x03(\v2\x10.protocol.CLPerfR\x04Perf\"\xb7\x01\n" +
 	"\rGuestDiskInfo\x12\x1a\n" +
 	"\bDiskPath\x18\x01 \x01(\tR\bDiskPath\x12\x1e\n" +
 	"\n" +
 	"CapacityGb\x18\x02 \x01(\x01R\n" +
 	"CapacityGb\x12 \n" +
 	"\vFreeSpaceGb\x18\x03 \x01(\x01R\vFreeSpaceGb\x12 \n" +
-	"\vPercentUsed\x18\x04 \x01(\x01R\vPercentUsed\"_\n" +
+	"\vPercentUsed\x18\x04 \x01(\x01R\vPercentUsed\x12&\n" +
+	"\x0eFileSystemType\x18\x05 \x01(\tR\x0eFileSystemType\"_\n" +
 	"\x0eGuestDiskSlice\x12\x14\n" +
 	"\x05Count\x18\x01 \x01(\x03R\x05Count\x127\n" +
 	"\n" +
@@ -10677,7 +11874,7 @@ const file_vm_proto_rawDesc = "" +
 	"\bScsiLuns\x18\x02 \x03(\v2\x11.protocol.ScsiLunR\bScsiLuns\":\n" +
 	"\x06Metric\x12\x1a\n" +
 	"\bInstance\x18\x01 \x01(\tR\bInstance\x12\x14\n" +
-	"\x05Value\x18\x02 \x01(\x01R\x05Value\"\xd6\x19\n" +
+	"\x05Value\x18\x02 \x01(\x01R\x05Value\"\x84 \n" +
 	"\aVMPoint\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x12\n" +
 	"\x04Name\x18\x02 \x01(\tR\x04Name\x12$\n" +
@@ -10776,7 +11973,17 @@ const file_vm_proto_rawDesc = "" +
 	"\aEsxHost\x18L \x01(\tR\aEsxHost\x126\n" +
 	"\n" +
 	"Interfaces\x18M \x03(\v2\x16.protocol.NetInterfaceR\n" +
-	"Interfaces\"\x8e\x01\n" +
+	"Interfaces\x12@\n" +
+	"\x1bDiskTotalReadLatencyMaximum\x18N \x01(\x01R\x1bDiskTotalReadLatencyMaximum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMaximumTime\x18O \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMaximumTime\x12@\n" +
+	"\x1bDiskTotalReadLatencyAverage\x18P \x01(\x01R\x1bDiskTotalReadLatencyAverage\x12@\n" +
+	"\x1bDiskTotalReadLatencyMinimum\x18Q \x01(\x01R\x1bDiskTotalReadLatencyMinimum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMinimumTime\x18R \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMinimumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMaximum\x18S \x01(\x01R\x1cDiskTotalWriteLatencyMaximum\x12f\n" +
+	" DiskTotalWriteLatencyMaximumTime\x18T \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMaximumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyAverage\x18U \x01(\x01R\x1cDiskTotalWriteLatencyAverage\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMinimum\x18V \x01(\x01R\x1cDiskTotalWriteLatencyMinimum\x12f\n" +
+	" DiskTotalWriteLatencyMinimumTime\x18W \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMinimumTime\"\x8e\x01\n" +
 	"\fNetInterface\x12\x1e\n" +
 	"\n" +
 	"MacAddress\x18\x01 \x01(\tR\n" +
@@ -10785,7 +11992,7 @@ const file_vm_proto_rawDesc = "" +
 	"\vNetworkName\x18\x03 \x01(\tR\vNetworkName\x12\x1e\n" +
 	"\n" +
 	"SubnetMask\x18\x04 \x01(\tR\n" +
-	"SubnetMask\"\xd4\x13\n" +
+	"SubnetMask\"\xc0\x1e\n" +
 	"\fVMPointShort\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x12\n" +
 	"\x04Name\x18\x02 \x01(\tR\x04Name\x12$\n" +
@@ -10851,10 +12058,49 @@ const file_vm_proto_rawDesc = "" +
 	"\vToolsStatus\x187 \x01(\tR\vToolsStatus\x12\x1e\n" +
 	"\n" +
 	"DomainName\x188 \x01(\tR\n" +
-	"DomainName\"S\n" +
+	"DomainName\x12@\n" +
+	"\x1bDiskTotalReadLatencyMaximum\x189 \x01(\x01R\x1bDiskTotalReadLatencyMaximum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMaximumTime\x18: \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMaximumTime\x12@\n" +
+	"\x1bDiskTotalReadLatencyAverage\x18; \x01(\x01R\x1bDiskTotalReadLatencyAverage\x12@\n" +
+	"\x1bDiskTotalReadLatencyMinimum\x18< \x01(\x01R\x1bDiskTotalReadLatencyMinimum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMinimumTime\x18= \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMinimumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMaximum\x18> \x01(\x01R\x1cDiskTotalWriteLatencyMaximum\x12f\n" +
+	" DiskTotalWriteLatencyMaximumTime\x18? \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMaximumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyAverage\x18@ \x01(\x01R\x1cDiskTotalWriteLatencyAverage\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMinimum\x18A \x01(\x01R\x1cDiskTotalWriteLatencyMinimum\x12f\n" +
+	" DiskTotalWriteLatencyMinimumTime\x18B \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMinimumTime\x12\x1e\n" +
+	"\n" +
+	"CpuBilling\x18C \x01(\x01R\n" +
+	"CpuBilling\x12\x1e\n" +
+	"\n" +
+	"MemBilling\x18D \x01(\x01R\n" +
+	"MemBilling\x12 \n" +
+	"\vDiskBilling\x18E \x01(\x01R\vDiskBilling\x12\x1e\n" +
+	"\n" +
+	"NetBilling\x18F \x01(\x01R\n" +
+	"NetBilling\x12\x18\n" +
+	"\aVcenter\x18G \x01(\tR\aVcenter\x12\x1e\n" +
+	"\n" +
+	"Datacenter\x18H \x01(\tR\n" +
+	"Datacenter\x12\x18\n" +
+	"\aCluster\x18I \x01(\tR\aCluster\x12\x18\n" +
+	"\aKeyName\x18J \x01(\tR\aKeyName\x12\x12\n" +
+	"\x04Uuid\x18K \x01(\tR\x04Uuid\x12\x18\n" +
+	"\aGuestId\x18L \x01(\tR\aGuestId\x12\x1e\n" +
+	"\n" +
+	"Annotation\x18M \x01(\tR\n" +
+	"Annotation\x12*\n" +
+	"\x10NumEthernetCards\x18N \x01(\x05R\x10NumEthernetCards\x12(\n" +
+	"\x0fNumVirtualDisks\x18O \x01(\x05R\x0fNumVirtualDisks\x12(\n" +
+	"\x0fDiskCommittedGB\x18P \x01(\x01R\x0fDiskCommittedGB\x12,\n" +
+	"\x11DiskUncommittedGB\x18Q \x01(\x01R\x11DiskUncommittedGB\x12\x18\n" +
+	"\aEsxHost\x18R \x01(\tR\aEsxHost\x126\n" +
+	"\n" +
+	"Interfaces\x18S \x03(\v2\x16.protocol.NetInterfaceR\n" +
+	"Interfaces\"S\n" +
 	"\fVMPointSlice\x12\x14\n" +
 	"\x05Count\x18\x01 \x01(\x03R\x05Count\x12-\n" +
-	"\bVMPoints\x18\x02 \x03(\v2\x11.protocol.VMPointR\bVMPoints\"\xb6\x15\n" +
+	"\bVMPoints\x18\x02 \x03(\v2\x11.protocol.VMPointR\bVMPoints\"\x97\x1d\n" +
 	"\x04Host\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x18\n" +
 	"\aVcenter\x18\x02 \x01(\tR\aVcenter\x12\x1e\n" +
@@ -10927,7 +12173,28 @@ const file_vm_proto_rawDesc = "" +
 	"MacAddress\x126\n" +
 	"\n" +
 	"Interfaces\x18= \x03(\v2\x16.protocol.NetInterfaceR\n" +
-	"Interfaces\"\xe0\x15\n" +
+	"Interfaces\x12\x1e\n" +
+	"\n" +
+	"CpuBilling\x18> \x01(\x01R\n" +
+	"CpuBilling\x12\x1e\n" +
+	"\n" +
+	"MemBilling\x18? \x01(\x01R\n" +
+	"MemBilling\x12 \n" +
+	"\vDiskBilling\x18@ \x01(\x01R\vDiskBilling\x12\x1e\n" +
+	"\n" +
+	"NetBilling\x18A \x01(\x01R\n" +
+	"NetBilling\x12@\n" +
+	"\x1bDiskTotalReadLatencyMaximum\x18B \x01(\x01R\x1bDiskTotalReadLatencyMaximum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMaximumTime\x18C \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMaximumTime\x12@\n" +
+	"\x1bDiskTotalReadLatencyAverage\x18D \x01(\x01R\x1bDiskTotalReadLatencyAverage\x12@\n" +
+	"\x1bDiskTotalReadLatencyMinimum\x18E \x01(\x01R\x1bDiskTotalReadLatencyMinimum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMinimumTime\x18F \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMinimumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMaximum\x18G \x01(\x01R\x1cDiskTotalWriteLatencyMaximum\x12f\n" +
+	" DiskTotalWriteLatencyMaximumTime\x18H \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMaximumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyAverage\x18I \x01(\x01R\x1cDiskTotalWriteLatencyAverage\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMinimum\x18J \x01(\x01R\x1cDiskTotalWriteLatencyMinimum\x12f\n" +
+	" DiskTotalWriteLatencyMinimumTime\x18K \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMinimumTime\x12/\n" +
+	"\aProduct\x18L \x01(\v2\x15.protocol.HostProductR\aProduct\"\xc1\x1d\n" +
 	"\bHostFull\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x18\n" +
 	"\aVcenter\x18\x02 \x01(\tR\aVcenter\x12\x1e\n" +
@@ -11001,7 +12268,28 @@ const file_vm_proto_rawDesc = "" +
 	"MacAddress\x126\n" +
 	"\n" +
 	"Interfaces\x18> \x03(\v2\x16.protocol.NetInterfaceR\n" +
-	"Interfaces\"\xed\x13\n" +
+	"Interfaces\x12\x1e\n" +
+	"\n" +
+	"CpuBilling\x18? \x01(\x01R\n" +
+	"CpuBilling\x12\x1e\n" +
+	"\n" +
+	"MemBilling\x18@ \x01(\x01R\n" +
+	"MemBilling\x12 \n" +
+	"\vDiskBilling\x18A \x01(\x01R\vDiskBilling\x12\x1e\n" +
+	"\n" +
+	"NetBilling\x18B \x01(\x01R\n" +
+	"NetBilling\x12@\n" +
+	"\x1bDiskTotalReadLatencyMaximum\x18C \x01(\x01R\x1bDiskTotalReadLatencyMaximum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMaximumTime\x18D \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMaximumTime\x12@\n" +
+	"\x1bDiskTotalReadLatencyAverage\x18E \x01(\x01R\x1bDiskTotalReadLatencyAverage\x12@\n" +
+	"\x1bDiskTotalReadLatencyMinimum\x18F \x01(\x01R\x1bDiskTotalReadLatencyMinimum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMinimumTime\x18G \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMinimumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMaximum\x18H \x01(\x01R\x1cDiskTotalWriteLatencyMaximum\x12f\n" +
+	" DiskTotalWriteLatencyMaximumTime\x18I \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMaximumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyAverage\x18J \x01(\x01R\x1cDiskTotalWriteLatencyAverage\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMinimum\x18K \x01(\x01R\x1cDiskTotalWriteLatencyMinimum\x12f\n" +
+	" DiskTotalWriteLatencyMinimumTime\x18L \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMinimumTime\x12/\n" +
+	"\aProduct\x18M \x01(\v2\x15.protocol.HostProductR\aProduct\"\x9d\x1b\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12.\n" +
 	"\x04Date\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x04Date\x12\x18\n" +
@@ -11058,7 +12346,27 @@ const file_vm_proto_rawDesc = "" +
 	"\tHostCount\x182 \x01(\x03R\tHostCount\x12\x18\n" +
 	"\aVMCount\x183 \x01(\x03R\aVMCount\x12\x1a\n" +
 	"\bTypeWork\x184 \x01(\x05R\bTypeWork\x12\x1c\n" +
-	"\tClusterId\x185 \x01(\tR\tClusterId\"\xc8\x14\n" +
+	"\tClusterId\x185 \x01(\tR\tClusterId\x12\x1e\n" +
+	"\n" +
+	"CpuBilling\x186 \x01(\x01R\n" +
+	"CpuBilling\x12\x1e\n" +
+	"\n" +
+	"MemBilling\x187 \x01(\x01R\n" +
+	"MemBilling\x12 \n" +
+	"\vDiskBilling\x188 \x01(\x01R\vDiskBilling\x12\x1e\n" +
+	"\n" +
+	"NetBilling\x189 \x01(\x01R\n" +
+	"NetBilling\x12@\n" +
+	"\x1bDiskTotalReadLatencyMaximum\x18: \x01(\x01R\x1bDiskTotalReadLatencyMaximum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMaximumTime\x18; \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMaximumTime\x12@\n" +
+	"\x1bDiskTotalReadLatencyAverage\x18< \x01(\x01R\x1bDiskTotalReadLatencyAverage\x12@\n" +
+	"\x1bDiskTotalReadLatencyMinimum\x18= \x01(\x01R\x1bDiskTotalReadLatencyMinimum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMinimumTime\x18> \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMinimumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMaximum\x18? \x01(\x01R\x1cDiskTotalWriteLatencyMaximum\x12f\n" +
+	" DiskTotalWriteLatencyMaximumTime\x18@ \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMaximumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyAverage\x18A \x01(\x01R\x1cDiskTotalWriteLatencyAverage\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMinimum\x18B \x01(\x01R\x1cDiskTotalWriteLatencyMinimum\x12f\n" +
+	" DiskTotalWriteLatencyMinimumTime\x18C \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMinimumTime\"\xf8\x1b\n" +
 	"\vClusterFull\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12.\n" +
 	"\x04Date\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x04Date\x12\x18\n" +
@@ -11117,7 +12425,27 @@ const file_vm_proto_rawDesc = "" +
 	"\tHostCount\x184 \x01(\x03R\tHostCount\x12\x18\n" +
 	"\aVMCount\x185 \x01(\x03R\aVMCount\x12\x1a\n" +
 	"\bTypeWork\x186 \x01(\x05R\bTypeWork\x12\x1c\n" +
-	"\tClusterId\x187 \x01(\tR\tClusterId\"\\\n" +
+	"\tClusterId\x187 \x01(\tR\tClusterId\x12\x1e\n" +
+	"\n" +
+	"CpuBilling\x188 \x01(\x01R\n" +
+	"CpuBilling\x12\x1e\n" +
+	"\n" +
+	"MemBilling\x189 \x01(\x01R\n" +
+	"MemBilling\x12 \n" +
+	"\vDiskBilling\x18: \x01(\x01R\vDiskBilling\x12\x1e\n" +
+	"\n" +
+	"NetBilling\x18; \x01(\x01R\n" +
+	"NetBilling\x12@\n" +
+	"\x1bDiskTotalReadLatencyMaximum\x18< \x01(\x01R\x1bDiskTotalReadLatencyMaximum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMaximumTime\x18= \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMaximumTime\x12@\n" +
+	"\x1bDiskTotalReadLatencyAverage\x18> \x01(\x01R\x1bDiskTotalReadLatencyAverage\x12@\n" +
+	"\x1bDiskTotalReadLatencyMinimum\x18? \x01(\x01R\x1bDiskTotalReadLatencyMinimum\x12d\n" +
+	"\x1fDiskTotalReadLatencyMinimumTime\x18@ \x01(\v2\x1a.google.protobuf.TimestampR\x1fDiskTotalReadLatencyMinimumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMaximum\x18A \x01(\x01R\x1cDiskTotalWriteLatencyMaximum\x12f\n" +
+	" DiskTotalWriteLatencyMaximumTime\x18B \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMaximumTime\x12B\n" +
+	"\x1cDiskTotalWriteLatencyAverage\x18C \x01(\x01R\x1cDiskTotalWriteLatencyAverage\x12B\n" +
+	"\x1cDiskTotalWriteLatencyMinimum\x18D \x01(\x01R\x1cDiskTotalWriteLatencyMinimum\x12f\n" +
+	" DiskTotalWriteLatencyMinimumTime\x18E \x01(\v2\x1a.google.protobuf.TimestampR DiskTotalWriteLatencyMinimumTime\"\\\n" +
 	"\fClusterShort\x12\x18\n" +
 	"\aVcenter\x18\x01 \x01(\tR\aVcenter\x12\x1e\n" +
 	"\n" +
@@ -11140,7 +12468,7 @@ const file_vm_proto_rawDesc = "" +
 	"\fSerialNumber\x18\x02 \x01(\tR\fSerialNumber\x12\x14\n" +
 	"\x05Model\x18\x03 \x01(\tR\x05Model\x12$\n" +
 	"\rEnclosureType\x18\x04 \x01(\tR\rEnclosureType\x12)\n" +
-	"\x04Bays\x18\x05 \x03(\v2\x15.protocol.BladeBayRefR\x04Bays\"\xa1\x05\n" +
+	"\x04Bays\x18\x05 \x03(\v2\x15.protocol.BladeBayRefR\x04Bays\"\x8b\x06\n" +
 	"\x0eServerHardware\x12.\n" +
 	"\x04Base\x18\x01 \x01(\v2\x1a.protocol.OVServerHardwareR\x04Base\x126\n" +
 	"\x06Memory\x18\x02 \x01(\v2\x1e.protocol.ServerHardwareMemoryR\x06Memory\x12>\n" +
@@ -11158,7 +12486,9 @@ const file_vm_proto_rawDesc = "" +
 	"\aDevices\x18\n" +
 	" \x03(\v2\x15.protocol.OVPCIDeviceR\aDevices\x129\n" +
 	"\bFirmware\x18\v \x03(\v2\x1d.protocol.OVFirmwareComponentR\bFirmware\x126\n" +
-	"\bMetadata\x18\f \x01(\v2\x1a.protocol.OVServerMetadataR\bMetadata\"\x94\n" +
+	"\bMetadata\x18\f \x01(\v2\x1a.protocol.OVServerMetadataR\bMetadata\x12,\n" +
+	"\x05Power\x18\r \x01(\v2\x16.protocol.OVPowerWattsR\x05Power\x12:\n" +
+	"\fChassisPower\x18\x0e \x01(\v2\x16.protocol.OVPowerWattsR\fChassisPower\"\x94\n" +
 	"\n" +
 	"\x10OVServerHardware\x12\x1a\n" +
 	"\bHostname\x18\x01 \x01(\tR\bHostname\x12\x1e\n" +
@@ -11235,7 +12565,7 @@ const file_vm_proto_rawDesc = "" +
 	"DIMMStatus\x126\n" +
 	"\x16MinimumVoltageVoltsX10\x18\x02 \x01(\x05R\x16MinimumVoltageVoltsX10\",\n" +
 	"\tOemMemory\x12\x1f\n" +
-	"\x03Hpe\x18\x01 \x01(\v2\r.protocol.HpeR\x03Hpe\"\xbb\x05\n" +
+	"\x03Hpe\x18\x01 \x01(\v2\r.protocol.HpeR\x03Hpe\"\xe7\x05\n" +
 	"\fMemoryModule\x12&\n" +
 	"\x0eBaseModuleType\x18\x01 \x01(\tR\x0eBaseModuleType\x12 \n" +
 	"\vCapacityMiB\x18\x02 \x01(\x05R\vCapacityMiB\x12$\n" +
@@ -11262,7 +12592,8 @@ const file_vm_proto_rawDesc = "" +
 	"\x04Slot\x18\x12 \x01(\x05R\x04Slot\x12\x1e\n" +
 	"\n" +
 	"Attributes\x18\x13 \x03(\tR\n" +
-	"Attributes\"\xfa\x01\n" +
+	"Attributes\x12*\n" +
+	"\x10MemoryController\x18\x14 \x01(\x05R\x10MemoryController\"\xfa\x01\n" +
 	"\x1aServerHardwareLocalStorage\x12\x10\n" +
 	"\x03URI\x18\x01 \x01(\tR\x03URI\x12(\n" +
 	"\x0fCollectionState\x18\x02 \x01(\tR\x0fCollectionState\x126\n" +
@@ -11273,7 +12604,7 @@ const file_vm_proto_rawDesc = "" +
 	"\x04Name\x18\a \x01(\tR\x04Name\"6\n" +
 	"\x06Status\x12\x16\n" +
 	"\x06Health\x18\x01 \x01(\tR\x06Health\x12\x14\n" +
-	"\x05State\x18\x02 \x01(\tR\x05State\"\xff\x06\n" +
+	"\x05State\x18\x02 \x01(\tR\x05State\"\xb3\a\n" +
 	"\fLocalStorage\x12 \n" +
 	"\vAdapterType\x18\x01 \x01(\tR\vAdapterType\x12.\n" +
 	"\x12CacheMemorySizeMiB\x18\x02 \x01(\x05R\x12CacheMemorySizeMiB\x128\n" +
@@ -11292,7 +12623,8 @@ const file_vm_proto_rawDesc = "" +
 	"\x0ePhysicalDrives\x18\x0e \x03(\v2\x1c.protocol.LocalPhysicalDriveR\x0ePhysicalDrives\x12\"\n" +
 	"\fSerialNumber\x18\x0f \x01(\tR\fSerialNumber\x12(\n" +
 	"\x06Status\x18\x10 \x01(\v2\x10.protocol.StatusR\x06Status\x12M\n" +
-	"\x11StorageEnclosures\x18\x11 \x03(\v2\x1f.protocol.LocalStorageEnclosureR\x11StorageEnclosures\"+\n" +
+	"\x11StorageEnclosures\x18\x11 \x03(\v2\x1f.protocol.LocalStorageEnclosureR\x11StorageEnclosures\x122\n" +
+	"\x14CurrentOperatingMode\x18\x12 \x01(\tR\x14CurrentOperatingMode\"+\n" +
 	"\x11CacheModuleStatus\x12\x16\n" +
 	"\x06Health\x18\x01 \x01(\tR\x06Health\"D\n" +
 	"\x0fControllerBoard\x121\n" +
@@ -11316,7 +12648,7 @@ const file_vm_proto_rawDesc = "" +
 	"\x05Model\x18\t \x01(\tR\x05Model\x12\"\n" +
 	"\fSerialNumber\x18\n" +
 	" \x01(\tR\fSerialNumber\x12(\n" +
-	"\x06Status\x18\v \x01(\v2\x10.protocol.StatusR\x06Status\"\xc3\x02\n" +
+	"\x06Status\x18\v \x01(\v2\x10.protocol.StatusR\x06Status\"\xc9\x03\n" +
 	"\x11LocalLogicalDrive\x12 \n" +
 	"\vCapacityMiB\x18\x01 \x01(\x01R\vCapacityMiB\x12:\n" +
 	"\n" +
@@ -11326,7 +12658,12 @@ const file_vm_proto_rawDesc = "" +
 	"\x12LogicalDriveNumber\x18\x04 \x01(\x05R\x12LogicalDriveNumber\x12*\n" +
 	"\x10LogicalDriveType\x18\x05 \x01(\tR\x10LogicalDriveType\x12\x12\n" +
 	"\x04Raid\x18\x06 \x01(\tR\x04Raid\x12(\n" +
-	"\x06Status\x18\a \x01(\v2\x10.protocol.StatusR\x06Status\"\xc5\x03\n" +
+	"\x06Status\x18\a \x01(\v2\x10.protocol.StatusR\x06Status\x12\x12\n" +
+	"\x04Name\x18\b \x01(\tR\x04Name\x12$\n" +
+	"\rInterfaceType\x18\t \x01(\tR\rInterfaceType\x12&\n" +
+	"\x0eVolumeUniqueID\x18\n" +
+	" \x01(\tR\x0eVolumeUniqueID\x12\"\n" +
+	"\fAcceleration\x18\v \x01(\tR\fAcceleration\"\x8b\x04\n" +
 	"\x12LocalPhysicalDrive\x12 \n" +
 	"\vCapacityMiB\x18\x01 \x01(\x01R\vCapacityMiB\x126\n" +
 	"\x16DiskDriveStatusReasons\x18\x02 \x03(\tR\x16DiskDriveStatusReasons\x12\"\n" +
@@ -11339,7 +12676,11 @@ const file_vm_proto_rawDesc = "" +
 	"\x05Model\x18\t \x01(\tR\x05Model\x12\"\n" +
 	"\fSerialNumber\x18\n" +
 	" \x01(\tR\fSerialNumber\x12(\n" +
-	"\x06Status\x18\v \x01(\v2\x10.protocol.StatusR\x06Status\"\xf0\x01\n" +
+	"\x06Status\x18\v \x01(\v2\x10.protocol.StatusR\x06Status\x12$\n" +
+	"\rInterfaceType\x18\f \x01(\tR\rInterfaceType\x12\x1e\n" +
+	"\n" +
+	"CapacityGB\x18\r \x01(\x05R\n" +
+	"CapacityGB\"\xf0\x01\n" +
 	"\x15LocalStorageEnclosure\x12$\n" +
 	"\rDriveBayCount\x18\x01 \x01(\x05R\rDriveBayCount\x12C\n" +
 	"\x0fFirmwareVersion\x18\x02 \x01(\v2\x19.protocol.FirmwareVersionR\x0fFirmwareVersion\x12\x1a\n" +
@@ -11349,7 +12690,7 @@ const file_vm_proto_rawDesc = "" +
 	"\bContents\x12\f\n" +
 	"\x01X\x18\x01 \x01(\x01R\x01X\x12\f\n" +
 	"\x01Y\x18\x02 \x01(\x01R\x01Y\x12\x1a\n" +
-	"\bRotation\x18\x03 \x01(\x01R\bRotation\"\xb4\x04\n" +
+	"\bRotation\x18\x03 \x01(\x01R\bRotation\"\xf6\x04\n" +
 	"\x0eDatacenterInfo\x12\x14\n" +
 	"\x05Width\x18\x01 \x01(\x05R\x05Width\x12\x14\n" +
 	"\x05Depth\x18\x02 \x01(\x05R\x05Depth\x12\x1a\n" +
@@ -11367,7 +12708,9 @@ const file_vm_proto_rawDesc = "" +
 	"\x17DefaultPowerLineVoltage\x18\r \x01(\x05R\x17DefaultPowerLineVoltage\x12\x12\n" +
 	"\x04Name\x18\x0e \x01(\tR\x04Name\x12\x14\n" +
 	"\x05State\x18\x0f \x01(\tR\x05State\x12\x16\n" +
-	"\x06Status\x18\x10 \x01(\tR\x06Status\"\xc3\x03\n" +
+	"\x06Status\x18\x10 \x01(\tR\x06Status\x12(\n" +
+	"\x0fCoolingCapacity\x18\x11 \x01(\x05R\x0fCoolingCapacity\x12\x16\n" +
+	"\x06Height\x18\x12 \x01(\x05R\x06Height\"\x9d\x04\n" +
 	"\x05Racks\x12\x18\n" +
 	"\aUHeight\x18\x01 \x01(\x05R\aUHeight\x12\x14\n" +
 	"\x05Width\x18\x02 \x01(\x05R\x05Width\x12\x16\n" +
@@ -11384,7 +12727,12 @@ const file_vm_proto_rawDesc = "" +
 	"\x06Status\x18\f \x01(\tR\x06Status\x12\x1a\n" +
 	"\bTopUSlot\x18\r \x01(\x05R\bTopUSlot\x12\"\n" +
 	"\fMountUHeight\x18\x0e \x01(\x05R\fMountUHeight\x12$\n" +
-	"\rMountLocation\x18\x0f \x01(\tR\rMountLocation\"\x9b\x05\n" +
+	"\rMountLocation\x18\x0f \x01(\tR\rMountLocation\x12\x14\n" +
+	"\x05Model\x18\x10 \x01(\tR\x05Model\x12\x1e\n" +
+	"\n" +
+	"PartNumber\x18\x11 \x01(\tR\n" +
+	"PartNumber\x12\"\n" +
+	"\fThermalLimit\x18\x12 \x01(\x05R\fThermalLimit\"\xeb\x05\n" +
 	"\rDeviceBayInfo\x12\x12\n" +
 	"\x04Type\x18\x01 \x01(\tR\x04Type\x12\x1c\n" +
 	"\tBayNumber\x18\x02 \x01(\x05R\tBayNumber\x12&\n" +
@@ -11400,7 +12748,12 @@ const file_vm_proto_rawDesc = "" +
 	"\rBayPowerState\x18\v \x01(\tR\rBayPowerState\x12 \n" +
 	"\vChangeState\x18\f \x01(\tR\vChangeState\x12X\n" +
 	"'AvailableForHalfHeightDoubleWideProfile\x18\r \x01(\bR'AvailableForHalfHeightDoubleWideProfile\x12X\n" +
-	"'AvailableForFullHeightDoubleWideProfile\x18\x0e \x01(\bR'AvailableForFullHeightDoubleWideProfile\"\xff\x01\n" +
+	"'AvailableForFullHeightDoubleWideProfile\x18\x0e \x01(\bR'AvailableForFullHeightDoubleWideProfile\x12\x14\n" +
+	"\x05Model\x18\x0f \x01(\tR\x05Model\x12\x1e\n" +
+	"\n" +
+	"ProfileURI\x18\x10 \x01(\tR\n" +
+	"ProfileURI\x12\x18\n" +
+	"\aCovered\x18\x11 \x01(\bR\aCovered\"\xff\x01\n" +
 	"\x13InterconnectBayInfo\x12\x1c\n" +
 	"\tBayNumber\x18\x01 \x01(\x05R\tBayNumber\x12,\n" +
 	"\x11InterconnectModel\x18\x02 \x01(\tR\x11InterconnectModel\x12\"\n" +
@@ -11452,7 +12805,7 @@ const file_vm_proto_rawDesc = "" +
 	"\fFqdnHostName\x18\v \x01(\tR\fFqdnHostName\x12\x1e\n" +
 	"\n" +
 	"DhcpEnable\x18\f \x01(\bR\n" +
-	"DhcpEnable\"\xed\f\n" +
+	"DhcpEnable\"\xcd\r\n" +
 	"\tEnclosure\x12\x12\n" +
 	"\x04Type\x18\x01 \x01(\tR\x04Type\x12\x1a\n" +
 	"\bCategory\x18\x02 \x01(\tR\bCategory\x124\n" +
@@ -11498,7 +12851,10 @@ const file_vm_proto_rawDesc = "" +
 	"\aVcmMode\x18% \x01(\tR\aVcmMode\x12\x16\n" +
 	"\x06VcmURL\x18& \x01(\tR\x06VcmURL\x12\x16\n" +
 	"\x06OaBays\x18' \x01(\x05R\x06OaBays\x12&\n" +
-	"\x0eMigrationState\x18( \x01(\tR\x0eMigrationState\"\xb5\x02\n" +
+	"\x0eMigrationState\x18( \x01(\tR\x0eMigrationState\x12\x1a\n" +
+	"\bGroupURI\x18) \x01(\tR\bGroupURI\x120\n" +
+	"\x13LogicalEnclosureURI\x18* \x01(\tR\x13LogicalEnclosureURI\x12\x10\n" +
+	"\x03URI\x18+ \x01(\tR\x03URI\"\xb5\x02\n" +
 	"\x0fOVProcessorInfo\x12\x0e\n" +
 	"\x02ID\x18\x01 \x01(\tR\x02ID\x12\x16\n" +
 	"\x06Socket\x18\x02 \x01(\tR\x06Socket\x12\x14\n" +
@@ -11564,7 +12920,34 @@ const file_vm_proto_rawDesc = "" +
 	"\aProduct\x18\x02 \x01(\tR\aProduct\x12\x1a\n" +
 	"\bEndpoint\x18\x03 \x01(\tR\bEndpoint\x12\x1a\n" +
 	"\bWarnings\x18\x04 \x03(\tR\bWarnings\x122\n" +
-	"\aSources\x18\x05 \x03(\v2\x18.protocol.OVServerSourceR\aSources2\x9f\x18\n" +
+	"\aSources\x18\x05 \x03(\v2\x18.protocol.OVServerSourceR\aSources\"\xef\x03\n" +
+	"\vHostProduct\x12\x12\n" +
+	"\x04Name\x18\x01 \x01(\tR\x04Name\x12\x1a\n" +
+	"\bFullName\x18\x02 \x01(\tR\bFullName\x12\x16\n" +
+	"\x06Vendor\x18\x03 \x01(\tR\x06Vendor\x12\x18\n" +
+	"\aVersion\x18\x04 \x01(\tR\aVersion\x12\x1e\n" +
+	"\n" +
+	"PatchLevel\x18\x05 \x01(\tR\n" +
+	"PatchLevel\x12\x14\n" +
+	"\x05Build\x18\x06 \x01(\tR\x05Build\x12$\n" +
+	"\rLocaleVersion\x18\a \x01(\tR\rLocaleVersion\x12 \n" +
+	"\vLocaleBuild\x18\b \x01(\tR\vLocaleBuild\x12\x16\n" +
+	"\x06OsType\x18\t \x01(\tR\x06OsType\x12$\n" +
+	"\rProductLineId\x18\n" +
+	" \x01(\tR\rProductLineId\x12\x18\n" +
+	"\aApiType\x18\v \x01(\tR\aApiType\x12\x1e\n" +
+	"\n" +
+	"ApiVersion\x18\f \x01(\tR\n" +
+	"ApiVersion\x12.\n" +
+	"\x12LicenseProductName\x18\r \x01(\tR\x12LicenseProductName\x124\n" +
+	"\x15LicenseProductVersion\x18\x0e \x01(\tR\x15LicenseProductVersion\x12\"\n" +
+	"\fInstanceUuid\x18\x0f \x01(\tR\fInstanceUuid\"\x9c\x01\n" +
+	"\fOVPowerWatts\x12\x18\n" +
+	"\aAvg24hW\x18\x01 \x01(\x01R\aAvg24hW\x12\x1a\n" +
+	"\bPeak24hW\x18\x02 \x01(\x01R\bPeak24hW\x12\x1c\n" +
+	"\tRatedMaxW\x18\x03 \x01(\x01R\tRatedMaxW\x12\x16\n" +
+	"\x06Source\x18\x04 \x01(\tR\x06Source\x12 \n" +
+	"\vRatedSource\x18\x05 \x01(\tR\vRatedSource2\x9f\x18\n" +
 	"\aLoadmon\x125\n" +
 	"\vGetVCenters\x12\x0f.protocol.VCReq\x1a\x11.protocol.VCenter\"\x000\x01\x12:\n" +
 	"\rGetDatacenter\x12\x0f.protocol.DCReq\x1a\x14.protocol.Datacenter\"\x000\x01\x129\n" +
@@ -11629,7 +13012,7 @@ func file_vm_proto_rawDescGZIP() []byte {
 	return file_vm_proto_rawDescData
 }
 
-var file_vm_proto_msgTypes = make([]protoimpl.MessageInfo, 97)
+var file_vm_proto_msgTypes = make([]protoimpl.MessageInfo, 99)
 var file_vm_proto_goTypes = []any{
 	(*EndpointReq)(nil),                // 0: protocol.EndpointReq
 	(*RegisterEndpoint)(nil),           // 1: protocol.RegisterEndpoint
@@ -11728,21 +13111,23 @@ var file_vm_proto_goTypes = []any{
 	(*OVFirmwareComponent)(nil),        // 94: protocol.OVFirmwareComponent
 	(*OVServerSource)(nil),             // 95: protocol.OVServerSource
 	(*OVServerMetadata)(nil),           // 96: protocol.OVServerMetadata
-	(*timestamppb.Timestamp)(nil),      // 97: google.protobuf.Timestamp
+	(*HostProduct)(nil),                // 97: protocol.HostProduct
+	(*OVPowerWatts)(nil),               // 98: protocol.OVPowerWatts
+	(*timestamppb.Timestamp)(nil),      // 99: google.protobuf.Timestamp
 }
 var file_vm_proto_depIdxs = []int32{
 	10,  // 0: protocol.RegisterEndpoint.VCenter:type_name -> protocol.VCenter
 	11,  // 1: protocol.RegisterEndpoint.OneView:type_name -> protocol.OV
-	97,  // 2: protocol.ClearMetricKey.Start:type_name -> google.protobuf.Timestamp
-	97,  // 3: protocol.ClearMetricKey.End:type_name -> google.protobuf.Timestamp
-	97,  // 4: protocol.Duration.Start:type_name -> google.protobuf.Timestamp
-	97,  // 5: protocol.Duration.End:type_name -> google.protobuf.Timestamp
+	99,  // 2: protocol.ClearMetricKey.Start:type_name -> google.protobuf.Timestamp
+	99,  // 3: protocol.ClearMetricKey.End:type_name -> google.protobuf.Timestamp
+	99,  // 4: protocol.Duration.Start:type_name -> google.protobuf.Timestamp
+	99,  // 5: protocol.Duration.End:type_name -> google.protobuf.Timestamp
 	26,  // 6: protocol.VMListKey.KeyRecs:type_name -> protocol.VMKeyRec
 	27,  // 7: protocol.HSListKey.KeyRecs:type_name -> protocol.HSKeyRec
 	28,  // 8: protocol.CLListKey.KeyRecs:type_name -> protocol.CLKeyRec
-	97,  // 9: protocol.VMPerf.Start:type_name -> google.protobuf.Timestamp
-	97,  // 10: protocol.HSPerf.Start:type_name -> google.protobuf.Timestamp
-	97,  // 11: protocol.CLPerf.Start:type_name -> google.protobuf.Timestamp
+	99,  // 9: protocol.VMPerf.Start:type_name -> google.protobuf.Timestamp
+	99,  // 10: protocol.HSPerf.Start:type_name -> google.protobuf.Timestamp
+	99,  // 11: protocol.CLPerf.Start:type_name -> google.protobuf.Timestamp
 	32,  // 12: protocol.VMPerfSlice.Perf:type_name -> protocol.VMPerf
 	33,  // 13: protocol.HSPerfSlice.Perf:type_name -> protocol.HSPerf
 	34,  // 14: protocol.CLPerfSlice.Perf:type_name -> protocol.CLPerf
@@ -11752,241 +13137,270 @@ var file_vm_proto_depIdxs = []int32{
 	29,  // 18: protocol.Datastore.VmKeys:type_name -> protocol.VMListKey
 	44,  // 19: protocol.DatastoreSlice.Datastores:type_name -> protocol.Datastore
 	46,  // 20: protocol.ScsiLunSlice.ScsiLuns:type_name -> protocol.ScsiLun
-	97,  // 21: protocol.VMPoint.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 22: protocol.VMPoint.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 23: protocol.VMPoint.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 24: protocol.VMPoint.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 25: protocol.VMPoint.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 26: protocol.VMPoint.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 27: protocol.VMPoint.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 28: protocol.VMPoint.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 29: protocol.VMPoint.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 30: protocol.VMPoint.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 31: protocol.VMPoint.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 32: protocol.VMPoint.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 21: protocol.VMPoint.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 22: protocol.VMPoint.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 23: protocol.VMPoint.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 24: protocol.VMPoint.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 25: protocol.VMPoint.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 26: protocol.VMPoint.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 27: protocol.VMPoint.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 28: protocol.VMPoint.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 29: protocol.VMPoint.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 30: protocol.VMPoint.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 31: protocol.VMPoint.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 32: protocol.VMPoint.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
 	32,  // 33: protocol.VMPoint.Perf:type_name -> protocol.VMPerf
 	42,  // 34: protocol.VMPoint.VMFiles:type_name -> protocol.VMFile
 	38,  // 35: protocol.VMPoint.VMDisk:type_name -> protocol.GuestDiskInfo
 	40,  // 36: protocol.VMPoint.UsageDatastore:type_name -> protocol.VMUsageOnDatastore
 	50,  // 37: protocol.VMPoint.Interfaces:type_name -> protocol.NetInterface
-	97,  // 38: protocol.VMPointShort.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 39: protocol.VMPointShort.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 40: protocol.VMPointShort.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 41: protocol.VMPointShort.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 42: protocol.VMPointShort.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 43: protocol.VMPointShort.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 44: protocol.VMPointShort.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 45: protocol.VMPointShort.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 46: protocol.VMPointShort.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 47: protocol.VMPointShort.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 48: protocol.VMPointShort.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 49: protocol.VMPointShort.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	49,  // 50: protocol.VMPointSlice.VMPoints:type_name -> protocol.VMPoint
-	97,  // 51: protocol.Host.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 52: protocol.Host.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 53: protocol.Host.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 54: protocol.Host.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 55: protocol.Host.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 56: protocol.Host.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 57: protocol.Host.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 58: protocol.Host.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 59: protocol.Host.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 60: protocol.Host.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 61: protocol.Host.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 62: protocol.Host.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	50,  // 63: protocol.Host.Interfaces:type_name -> protocol.NetInterface
-	97,  // 64: protocol.HostFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 65: protocol.HostFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 66: protocol.HostFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 67: protocol.HostFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 68: protocol.HostFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 69: protocol.HostFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 70: protocol.HostFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 71: protocol.HostFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 72: protocol.HostFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 73: protocol.HostFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 74: protocol.HostFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 75: protocol.HostFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	33,  // 76: protocol.HostFull.Perf:type_name -> protocol.HSPerf
-	50,  // 77: protocol.HostFull.Interfaces:type_name -> protocol.NetInterface
-	97,  // 78: protocol.Cluster.Date:type_name -> google.protobuf.Timestamp
-	97,  // 79: protocol.Cluster.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 80: protocol.Cluster.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 81: protocol.Cluster.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 82: protocol.Cluster.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 83: protocol.Cluster.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 84: protocol.Cluster.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 85: protocol.Cluster.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 86: protocol.Cluster.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 87: protocol.Cluster.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 88: protocol.Cluster.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 89: protocol.Cluster.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 90: protocol.Cluster.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 91: protocol.ClusterFull.Date:type_name -> google.protobuf.Timestamp
-	97,  // 92: protocol.ClusterFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 93: protocol.ClusterFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 94: protocol.ClusterFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 95: protocol.ClusterFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 96: protocol.ClusterFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 97: protocol.ClusterFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 98: protocol.ClusterFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 99: protocol.ClusterFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 100: protocol.ClusterFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 101: protocol.ClusterFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
-	97,  // 102: protocol.ClusterFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
-	97,  // 103: protocol.ClusterFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
-	34,  // 104: protocol.ClusterFull.Perf:type_name -> protocol.CLPerf
-	44,  // 105: protocol.ClusterFull.Storages:type_name -> protocol.Datastore
-	60,  // 106: protocol.BladeEnclosure.Bays:type_name -> protocol.BladeBayRef
-	63,  // 107: protocol.ServerHardware.Base:type_name -> protocol.OVServerHardware
-	64,  // 108: protocol.ServerHardware.Memory:type_name -> protocol.ServerHardwareMemory
-	70,  // 109: protocol.ServerHardware.Storage:type_name -> protocol.ServerHardwareLocalStorage
-	83,  // 110: protocol.ServerHardware.Datacenter:type_name -> protocol.DatacenterInfo
-	84,  // 111: protocol.ServerHardware.Rack:type_name -> protocol.Racks
-	90,  // 112: protocol.ServerHardware.EnclosureInfo:type_name -> protocol.Enclosure
-	85,  // 113: protocol.ServerHardware.BayInfo:type_name -> protocol.DeviceBayInfo
-	91,  // 114: protocol.ServerHardware.Processors:type_name -> protocol.OVProcessorInfo
-	92,  // 115: protocol.ServerHardware.NetworkPorts:type_name -> protocol.OVNetworkPort
-	93,  // 116: protocol.ServerHardware.Devices:type_name -> protocol.OVPCIDevice
-	94,  // 117: protocol.ServerHardware.Firmware:type_name -> protocol.OVFirmwareComponent
-	96,  // 118: protocol.ServerHardware.Metadata:type_name -> protocol.OVServerMetadata
-	97,  // 119: protocol.ServerHardwareMemory.Modified:type_name -> google.protobuf.Timestamp
-	69,  // 120: protocol.ServerHardwareMemory.Data:type_name -> protocol.MemoryModule
-	67,  // 121: protocol.OemMemory.Hpe:type_name -> protocol.Hpe
-	66,  // 122: protocol.MemoryModule.MemoryLocation:type_name -> protocol.MemoryLocation
-	68,  // 123: protocol.MemoryModule.Oem:type_name -> protocol.OemMemory
-	65,  // 124: protocol.MemoryModule.Status:type_name -> protocol.MemoryStatus
-	97,  // 125: protocol.ServerHardwareLocalStorage.Modified:type_name -> google.protobuf.Timestamp
-	72,  // 126: protocol.ServerHardwareLocalStorage.Data:type_name -> protocol.LocalStorage
-	73,  // 127: protocol.LocalStorage.CacheModuleStatus:type_name -> protocol.CacheModuleStatus
-	74,  // 128: protocol.LocalStorage.ControllerBoard:type_name -> protocol.ControllerBoard
-	77,  // 129: protocol.LocalStorage.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	79,  // 130: protocol.LocalStorage.LogicalDrives:type_name -> protocol.LocalLogicalDrive
-	80,  // 131: protocol.LocalStorage.PhysicalDrives:type_name -> protocol.LocalPhysicalDrive
-	71,  // 132: protocol.LocalStorage.Status:type_name -> protocol.Status
-	81,  // 133: protocol.LocalStorage.StorageEnclosures:type_name -> protocol.LocalStorageEnclosure
-	75,  // 134: protocol.ControllerBoard.Status:type_name -> protocol.ControllerSatus
-	76,  // 135: protocol.FirmwareVersion.Current:type_name -> protocol.Version
-	77,  // 136: protocol.LogicalDataDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	71,  // 137: protocol.LogicalDataDrive.Status:type_name -> protocol.Status
-	78,  // 138: protocol.LocalLogicalDrive.DataDrives:type_name -> protocol.LogicalDataDrive
-	71,  // 139: protocol.LocalLogicalDrive.Status:type_name -> protocol.Status
-	77,  // 140: protocol.LocalPhysicalDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	71,  // 141: protocol.LocalPhysicalDrive.Status:type_name -> protocol.Status
-	77,  // 142: protocol.LocalStorageEnclosure.FirmwareVersion:type_name -> protocol.FirmwareVersion
-	71,  // 143: protocol.LocalStorageEnclosure.Status:type_name -> protocol.Status
-	82,  // 144: protocol.DatacenterInfo.Contents:type_name -> protocol.Contents
-	97,  // 145: protocol.DatacenterInfo.Created:type_name -> google.protobuf.Timestamp
-	97,  // 146: protocol.DatacenterInfo.Modified:type_name -> google.protobuf.Timestamp
-	97,  // 147: protocol.Racks.Created:type_name -> google.protobuf.Timestamp
-	97,  // 148: protocol.Racks.Modified:type_name -> google.protobuf.Timestamp
-	97,  // 149: protocol.Enclosure.Created:type_name -> google.protobuf.Timestamp
-	97,  // 150: protocol.Enclosure.Modified:type_name -> google.protobuf.Timestamp
-	85,  // 151: protocol.Enclosure.DeviceBays:type_name -> protocol.DeviceBayInfo
-	86,  // 152: protocol.Enclosure.InterconnectBays:type_name -> protocol.InterconnectBayInfo
-	87,  // 153: protocol.Enclosure.FanBays:type_name -> protocol.FanBayInfo
-	88,  // 154: protocol.Enclosure.PowerSupplyBays:type_name -> protocol.PowerSupplyBayInfo
-	89,  // 155: protocol.Enclosure.ManagerBays:type_name -> protocol.ManagerBayInfo
-	95,  // 156: protocol.OVServerMetadata.Sources:type_name -> protocol.OVServerSource
-	9,   // 157: protocol.Loadmon.GetVCenters:input_type -> protocol.VCReq
-	12,  // 158: protocol.Loadmon.GetDatacenter:input_type -> protocol.DCReq
-	14,  // 159: protocol.Loadmon.GetCluster:input_type -> protocol.CLReq
-	14,  // 160: protocol.Loadmon.GetClusterMedium:input_type -> protocol.CLReq
-	14,  // 161: protocol.Loadmon.GetClusterMetrics:input_type -> protocol.CLReq
-	14,  // 162: protocol.Loadmon.GetClusterFull:input_type -> protocol.CLReq
-	14,  // 163: protocol.Loadmon.GetClusterStorages:input_type -> protocol.CLReq
-	14,  // 164: protocol.Loadmon.GetClusterHost:input_type -> protocol.CLReq
-	15,  // 165: protocol.Loadmon.GetHostFull:input_type -> protocol.HSReq
-	16,  // 166: protocol.Loadmon.GetVMByKey:input_type -> protocol.VMReqKey
-	19,  // 167: protocol.Loadmon.GetVMByKeyDirect:input_type -> protocol.VMReqListKey
-	29,  // 168: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
-	29,  // 169: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
-	16,  // 170: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
-	19,  // 171: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
-	20,  // 172: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
-	21,  // 173: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
-	22,  // 174: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
-	25,  // 175: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
-	23,  // 176: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
-	24,  // 177: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
-	16,  // 178: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
-	16,  // 179: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
-	16,  // 180: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
-	16,  // 181: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
-	17,  // 182: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
-	17,  // 183: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
-	18,  // 184: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
-	17,  // 185: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
-	15,  // 186: protocol.Loadmon.GetHostByKeyDirect:input_type -> protocol.HSReq
-	58,  // 187: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
-	18,  // 188: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
-	8,   // 189: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
-	8,   // 190: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
-	6,   // 191: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
-	5,   // 192: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
-	5,   // 193: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
-	58,  // 194: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
-	59,  // 195: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
-	58,  // 196: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
-	2,   // 197: protocol.Loadmon.GetServerHardwareList:input_type -> protocol.HWReq
-	3,   // 198: protocol.Loadmon.GetHWDatacenterNames:input_type -> protocol.Empty
-	3,   // 199: protocol.Loadmon.GetHWRackNames:input_type -> protocol.Empty
-	59,  // 200: protocol.Loadmon.GetBladeEnclosureByName:input_type -> protocol.ServerName
-	58,  // 201: protocol.Loadmon.GetBladeEnclosureBySN:input_type -> protocol.SerialNumber
-	1,   // 202: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
-	0,   // 203: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
-	10,  // 204: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
-	13,  // 205: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
-	57,  // 206: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
-	55,  // 207: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
-	34,  // 208: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
-	56,  // 209: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
-	44,  // 210: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
-	53,  // 211: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
-	54,  // 212: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
-	49,  // 213: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
-	49,  // 214: protocol.Loadmon.GetVMByKeyDirect:output_type -> protocol.VMPoint
-	52,  // 215: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
-	49,  // 216: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
-	51,  // 217: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
-	29,  // 218: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
-	30,  // 219: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
-	31,  // 220: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
-	29,  // 221: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
-	29,  // 222: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
-	29,  // 223: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
-	29,  // 224: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
-	35,  // 225: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
-	43,  // 226: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
-	39,  // 227: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
-	41,  // 228: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
-	33,  // 229: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
-	36,  // 230: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
-	37,  // 231: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
-	53,  // 232: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
-	53,  // 233: protocol.Loadmon.GetHostByKeyDirect:output_type -> protocol.Host
-	53,  // 234: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
-	55,  // 235: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
-	44,  // 236: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
-	44,  // 237: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
-	7,   // 238: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
-	7,   // 239: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
-	7,   // 240: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
-	62,  // 241: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
-	62,  // 242: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
-	62,  // 243: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
-	62,  // 244: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
-	4,   // 245: protocol.Loadmon.GetHWDatacenterNames:output_type -> protocol.NameList
-	4,   // 246: protocol.Loadmon.GetHWRackNames:output_type -> protocol.NameList
-	61,  // 247: protocol.Loadmon.GetBladeEnclosureByName:output_type -> protocol.BladeEnclosure
-	61,  // 248: protocol.Loadmon.GetBladeEnclosureBySN:output_type -> protocol.BladeEnclosure
-	7,   // 249: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
-	1,   // 250: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
-	204, // [204:251] is the sub-list for method output_type
-	157, // [157:204] is the sub-list for method input_type
-	157, // [157:157] is the sub-list for extension type_name
-	157, // [157:157] is the sub-list for extension extendee
-	0,   // [0:157] is the sub-list for field type_name
+	99,  // 38: protocol.VMPoint.DiskTotalReadLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 39: protocol.VMPoint.DiskTotalReadLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 40: protocol.VMPoint.DiskTotalWriteLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 41: protocol.VMPoint.DiskTotalWriteLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 42: protocol.VMPointShort.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 43: protocol.VMPointShort.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 44: protocol.VMPointShort.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 45: protocol.VMPointShort.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 46: protocol.VMPointShort.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 47: protocol.VMPointShort.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 48: protocol.VMPointShort.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 49: protocol.VMPointShort.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 50: protocol.VMPointShort.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 51: protocol.VMPointShort.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 52: protocol.VMPointShort.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 53: protocol.VMPointShort.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 54: protocol.VMPointShort.DiskTotalReadLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 55: protocol.VMPointShort.DiskTotalReadLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 56: protocol.VMPointShort.DiskTotalWriteLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 57: protocol.VMPointShort.DiskTotalWriteLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	50,  // 58: protocol.VMPointShort.Interfaces:type_name -> protocol.NetInterface
+	49,  // 59: protocol.VMPointSlice.VMPoints:type_name -> protocol.VMPoint
+	99,  // 60: protocol.Host.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 61: protocol.Host.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 62: protocol.Host.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 63: protocol.Host.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 64: protocol.Host.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 65: protocol.Host.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 66: protocol.Host.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 67: protocol.Host.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 68: protocol.Host.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 69: protocol.Host.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 70: protocol.Host.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 71: protocol.Host.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	50,  // 72: protocol.Host.Interfaces:type_name -> protocol.NetInterface
+	99,  // 73: protocol.Host.DiskTotalReadLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 74: protocol.Host.DiskTotalReadLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 75: protocol.Host.DiskTotalWriteLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 76: protocol.Host.DiskTotalWriteLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	97,  // 77: protocol.Host.Product:type_name -> protocol.HostProduct
+	99,  // 78: protocol.HostFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 79: protocol.HostFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 80: protocol.HostFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 81: protocol.HostFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 82: protocol.HostFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 83: protocol.HostFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 84: protocol.HostFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 85: protocol.HostFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 86: protocol.HostFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 87: protocol.HostFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 88: protocol.HostFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 89: protocol.HostFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	33,  // 90: protocol.HostFull.Perf:type_name -> protocol.HSPerf
+	50,  // 91: protocol.HostFull.Interfaces:type_name -> protocol.NetInterface
+	99,  // 92: protocol.HostFull.DiskTotalReadLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 93: protocol.HostFull.DiskTotalReadLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 94: protocol.HostFull.DiskTotalWriteLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 95: protocol.HostFull.DiskTotalWriteLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	97,  // 96: protocol.HostFull.Product:type_name -> protocol.HostProduct
+	99,  // 97: protocol.Cluster.Date:type_name -> google.protobuf.Timestamp
+	99,  // 98: protocol.Cluster.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 99: protocol.Cluster.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 100: protocol.Cluster.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 101: protocol.Cluster.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 102: protocol.Cluster.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 103: protocol.Cluster.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 104: protocol.Cluster.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 105: protocol.Cluster.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 106: protocol.Cluster.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 107: protocol.Cluster.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 108: protocol.Cluster.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 109: protocol.Cluster.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 110: protocol.Cluster.DiskTotalReadLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 111: protocol.Cluster.DiskTotalReadLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 112: protocol.Cluster.DiskTotalWriteLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 113: protocol.Cluster.DiskTotalWriteLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 114: protocol.ClusterFull.Date:type_name -> google.protobuf.Timestamp
+	99,  // 115: protocol.ClusterFull.CpuUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 116: protocol.ClusterFull.CpuUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 117: protocol.ClusterFull.MemUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 118: protocol.ClusterFull.MemUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 119: protocol.ClusterFull.DiskUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 120: protocol.ClusterFull.DiskUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 121: protocol.ClusterFull.DiskWriteMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 122: protocol.ClusterFull.DiskWriteMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 123: protocol.ClusterFull.DiskReadMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 124: protocol.ClusterFull.DiskReadMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 125: protocol.ClusterFull.NetUsageMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 126: protocol.ClusterFull.NetUsageMinimumTime:type_name -> google.protobuf.Timestamp
+	34,  // 127: protocol.ClusterFull.Perf:type_name -> protocol.CLPerf
+	44,  // 128: protocol.ClusterFull.Storages:type_name -> protocol.Datastore
+	99,  // 129: protocol.ClusterFull.DiskTotalReadLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 130: protocol.ClusterFull.DiskTotalReadLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	99,  // 131: protocol.ClusterFull.DiskTotalWriteLatencyMaximumTime:type_name -> google.protobuf.Timestamp
+	99,  // 132: protocol.ClusterFull.DiskTotalWriteLatencyMinimumTime:type_name -> google.protobuf.Timestamp
+	60,  // 133: protocol.BladeEnclosure.Bays:type_name -> protocol.BladeBayRef
+	63,  // 134: protocol.ServerHardware.Base:type_name -> protocol.OVServerHardware
+	64,  // 135: protocol.ServerHardware.Memory:type_name -> protocol.ServerHardwareMemory
+	70,  // 136: protocol.ServerHardware.Storage:type_name -> protocol.ServerHardwareLocalStorage
+	83,  // 137: protocol.ServerHardware.Datacenter:type_name -> protocol.DatacenterInfo
+	84,  // 138: protocol.ServerHardware.Rack:type_name -> protocol.Racks
+	90,  // 139: protocol.ServerHardware.EnclosureInfo:type_name -> protocol.Enclosure
+	85,  // 140: protocol.ServerHardware.BayInfo:type_name -> protocol.DeviceBayInfo
+	91,  // 141: protocol.ServerHardware.Processors:type_name -> protocol.OVProcessorInfo
+	92,  // 142: protocol.ServerHardware.NetworkPorts:type_name -> protocol.OVNetworkPort
+	93,  // 143: protocol.ServerHardware.Devices:type_name -> protocol.OVPCIDevice
+	94,  // 144: protocol.ServerHardware.Firmware:type_name -> protocol.OVFirmwareComponent
+	96,  // 145: protocol.ServerHardware.Metadata:type_name -> protocol.OVServerMetadata
+	98,  // 146: protocol.ServerHardware.Power:type_name -> protocol.OVPowerWatts
+	98,  // 147: protocol.ServerHardware.ChassisPower:type_name -> protocol.OVPowerWatts
+	99,  // 148: protocol.ServerHardwareMemory.Modified:type_name -> google.protobuf.Timestamp
+	69,  // 149: protocol.ServerHardwareMemory.Data:type_name -> protocol.MemoryModule
+	67,  // 150: protocol.OemMemory.Hpe:type_name -> protocol.Hpe
+	66,  // 151: protocol.MemoryModule.MemoryLocation:type_name -> protocol.MemoryLocation
+	68,  // 152: protocol.MemoryModule.Oem:type_name -> protocol.OemMemory
+	65,  // 153: protocol.MemoryModule.Status:type_name -> protocol.MemoryStatus
+	99,  // 154: protocol.ServerHardwareLocalStorage.Modified:type_name -> google.protobuf.Timestamp
+	72,  // 155: protocol.ServerHardwareLocalStorage.Data:type_name -> protocol.LocalStorage
+	73,  // 156: protocol.LocalStorage.CacheModuleStatus:type_name -> protocol.CacheModuleStatus
+	74,  // 157: protocol.LocalStorage.ControllerBoard:type_name -> protocol.ControllerBoard
+	77,  // 158: protocol.LocalStorage.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	79,  // 159: protocol.LocalStorage.LogicalDrives:type_name -> protocol.LocalLogicalDrive
+	80,  // 160: protocol.LocalStorage.PhysicalDrives:type_name -> protocol.LocalPhysicalDrive
+	71,  // 161: protocol.LocalStorage.Status:type_name -> protocol.Status
+	81,  // 162: protocol.LocalStorage.StorageEnclosures:type_name -> protocol.LocalStorageEnclosure
+	75,  // 163: protocol.ControllerBoard.Status:type_name -> protocol.ControllerSatus
+	76,  // 164: protocol.FirmwareVersion.Current:type_name -> protocol.Version
+	77,  // 165: protocol.LogicalDataDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	71,  // 166: protocol.LogicalDataDrive.Status:type_name -> protocol.Status
+	78,  // 167: protocol.LocalLogicalDrive.DataDrives:type_name -> protocol.LogicalDataDrive
+	71,  // 168: protocol.LocalLogicalDrive.Status:type_name -> protocol.Status
+	77,  // 169: protocol.LocalPhysicalDrive.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	71,  // 170: protocol.LocalPhysicalDrive.Status:type_name -> protocol.Status
+	77,  // 171: protocol.LocalStorageEnclosure.FirmwareVersion:type_name -> protocol.FirmwareVersion
+	71,  // 172: protocol.LocalStorageEnclosure.Status:type_name -> protocol.Status
+	82,  // 173: protocol.DatacenterInfo.Contents:type_name -> protocol.Contents
+	99,  // 174: protocol.DatacenterInfo.Created:type_name -> google.protobuf.Timestamp
+	99,  // 175: protocol.DatacenterInfo.Modified:type_name -> google.protobuf.Timestamp
+	99,  // 176: protocol.Racks.Created:type_name -> google.protobuf.Timestamp
+	99,  // 177: protocol.Racks.Modified:type_name -> google.protobuf.Timestamp
+	99,  // 178: protocol.Enclosure.Created:type_name -> google.protobuf.Timestamp
+	99,  // 179: protocol.Enclosure.Modified:type_name -> google.protobuf.Timestamp
+	85,  // 180: protocol.Enclosure.DeviceBays:type_name -> protocol.DeviceBayInfo
+	86,  // 181: protocol.Enclosure.InterconnectBays:type_name -> protocol.InterconnectBayInfo
+	87,  // 182: protocol.Enclosure.FanBays:type_name -> protocol.FanBayInfo
+	88,  // 183: protocol.Enclosure.PowerSupplyBays:type_name -> protocol.PowerSupplyBayInfo
+	89,  // 184: protocol.Enclosure.ManagerBays:type_name -> protocol.ManagerBayInfo
+	95,  // 185: protocol.OVServerMetadata.Sources:type_name -> protocol.OVServerSource
+	9,   // 186: protocol.Loadmon.GetVCenters:input_type -> protocol.VCReq
+	12,  // 187: protocol.Loadmon.GetDatacenter:input_type -> protocol.DCReq
+	14,  // 188: protocol.Loadmon.GetCluster:input_type -> protocol.CLReq
+	14,  // 189: protocol.Loadmon.GetClusterMedium:input_type -> protocol.CLReq
+	14,  // 190: protocol.Loadmon.GetClusterMetrics:input_type -> protocol.CLReq
+	14,  // 191: protocol.Loadmon.GetClusterFull:input_type -> protocol.CLReq
+	14,  // 192: protocol.Loadmon.GetClusterStorages:input_type -> protocol.CLReq
+	14,  // 193: protocol.Loadmon.GetClusterHost:input_type -> protocol.CLReq
+	15,  // 194: protocol.Loadmon.GetHostFull:input_type -> protocol.HSReq
+	16,  // 195: protocol.Loadmon.GetVMByKey:input_type -> protocol.VMReqKey
+	19,  // 196: protocol.Loadmon.GetVMByKeyDirect:input_type -> protocol.VMReqListKey
+	29,  // 197: protocol.Loadmon.GetVMsSliceByKeyList:input_type -> protocol.VMListKey
+	29,  // 198: protocol.Loadmon.GetVMStreamByKeyList:input_type -> protocol.VMListKey
+	16,  // 199: protocol.Loadmon.GetVMShortByKey:input_type -> protocol.VMReqKey
+	19,  // 200: protocol.Loadmon.GetVMListKey:input_type -> protocol.VMReqListKey
+	20,  // 201: protocol.Loadmon.GetHostListKey:input_type -> protocol.HSReqListKey
+	21,  // 202: protocol.Loadmon.GetClusterListKey:input_type -> protocol.CLReqListKey
+	22,  // 203: protocol.Loadmon.GetVMListKeyByVMName:input_type -> protocol.VMReqVMName
+	25,  // 204: protocol.Loadmon.GetVMListKeyByCluster:input_type -> protocol.VMReqCluster
+	23,  // 205: protocol.Loadmon.GetVMListKeyByVcenter:input_type -> protocol.VMReqVcenter
+	24,  // 206: protocol.Loadmon.GetVMListKeyByDatacenter:input_type -> protocol.VMReqDatacenter
+	16,  // 207: protocol.Loadmon.GetVMPerfByKey:input_type -> protocol.VMReqKey
+	16,  // 208: protocol.Loadmon.GetVMFiles:input_type -> protocol.VMReqKey
+	16,  // 209: protocol.Loadmon.GetVMGuestDiskInfo:input_type -> protocol.VMReqKey
+	16,  // 210: protocol.Loadmon.GetVMUsageOnDatastore:input_type -> protocol.VMReqKey
+	17,  // 211: protocol.Loadmon.GetHostPerf:input_type -> protocol.HSReqKey
+	17,  // 212: protocol.Loadmon.GetHostPerfByKey:input_type -> protocol.HSReqKey
+	18,  // 213: protocol.Loadmon.GetClusterPerfByKey:input_type -> protocol.CLReqKey
+	17,  // 214: protocol.Loadmon.GetHostByKey:input_type -> protocol.HSReqKey
+	15,  // 215: protocol.Loadmon.GetHostByKeyDirect:input_type -> protocol.HSReq
+	58,  // 216: protocol.Loadmon.GetHostBySN:input_type -> protocol.SerialNumber
+	18,  // 217: protocol.Loadmon.GetClusterByKey:input_type -> protocol.CLReqKey
+	8,   // 218: protocol.Loadmon.GetDSData:input_type -> protocol.KeyString
+	8,   // 219: protocol.Loadmon.GetAllDSData:input_type -> protocol.KeyString
+	6,   // 220: protocol.Loadmon.ClearMetric:input_type -> protocol.Duration
+	5,   // 221: protocol.Loadmon.ClearMetricByKey:input_type -> protocol.ClearMetricKey
+	5,   // 222: protocol.Loadmon.ClearAllMetricByKey:input_type -> protocol.ClearMetricKey
+	58,  // 223: protocol.Loadmon.GetServerHardwareBySN:input_type -> protocol.SerialNumber
+	59,  // 224: protocol.Loadmon.GetServerHardwareByName:input_type -> protocol.ServerName
+	58,  // 225: protocol.Loadmon.GetServerHardwareByVirtualSN:input_type -> protocol.SerialNumber
+	2,   // 226: protocol.Loadmon.GetServerHardwareList:input_type -> protocol.HWReq
+	3,   // 227: protocol.Loadmon.GetHWDatacenterNames:input_type -> protocol.Empty
+	3,   // 228: protocol.Loadmon.GetHWRackNames:input_type -> protocol.Empty
+	59,  // 229: protocol.Loadmon.GetBladeEnclosureByName:input_type -> protocol.ServerName
+	58,  // 230: protocol.Loadmon.GetBladeEnclosureBySN:input_type -> protocol.SerialNumber
+	1,   // 231: protocol.Loadmon.RegisterWorkProcess:input_type -> protocol.RegisterEndpoint
+	0,   // 232: protocol.Loadmon.GetClusterSprRecords:input_type -> protocol.EndpointReq
+	10,  // 233: protocol.Loadmon.GetVCenters:output_type -> protocol.VCenter
+	13,  // 234: protocol.Loadmon.GetDatacenter:output_type -> protocol.Datacenter
+	57,  // 235: protocol.Loadmon.GetCluster:output_type -> protocol.ClusterShort
+	55,  // 236: protocol.Loadmon.GetClusterMedium:output_type -> protocol.Cluster
+	34,  // 237: protocol.Loadmon.GetClusterMetrics:output_type -> protocol.CLPerf
+	56,  // 238: protocol.Loadmon.GetClusterFull:output_type -> protocol.ClusterFull
+	44,  // 239: protocol.Loadmon.GetClusterStorages:output_type -> protocol.Datastore
+	53,  // 240: protocol.Loadmon.GetClusterHost:output_type -> protocol.Host
+	54,  // 241: protocol.Loadmon.GetHostFull:output_type -> protocol.HostFull
+	49,  // 242: protocol.Loadmon.GetVMByKey:output_type -> protocol.VMPoint
+	49,  // 243: protocol.Loadmon.GetVMByKeyDirect:output_type -> protocol.VMPoint
+	52,  // 244: protocol.Loadmon.GetVMsSliceByKeyList:output_type -> protocol.VMPointSlice
+	49,  // 245: protocol.Loadmon.GetVMStreamByKeyList:output_type -> protocol.VMPoint
+	51,  // 246: protocol.Loadmon.GetVMShortByKey:output_type -> protocol.VMPointShort
+	29,  // 247: protocol.Loadmon.GetVMListKey:output_type -> protocol.VMListKey
+	30,  // 248: protocol.Loadmon.GetHostListKey:output_type -> protocol.HSListKey
+	31,  // 249: protocol.Loadmon.GetClusterListKey:output_type -> protocol.CLListKey
+	29,  // 250: protocol.Loadmon.GetVMListKeyByVMName:output_type -> protocol.VMListKey
+	29,  // 251: protocol.Loadmon.GetVMListKeyByCluster:output_type -> protocol.VMListKey
+	29,  // 252: protocol.Loadmon.GetVMListKeyByVcenter:output_type -> protocol.VMListKey
+	29,  // 253: protocol.Loadmon.GetVMListKeyByDatacenter:output_type -> protocol.VMListKey
+	35,  // 254: protocol.Loadmon.GetVMPerfByKey:output_type -> protocol.VMPerfSlice
+	43,  // 255: protocol.Loadmon.GetVMFiles:output_type -> protocol.VMFileSlice
+	39,  // 256: protocol.Loadmon.GetVMGuestDiskInfo:output_type -> protocol.GuestDiskSlice
+	41,  // 257: protocol.Loadmon.GetVMUsageOnDatastore:output_type -> protocol.VMUsageOnDatastoreSlice
+	33,  // 258: protocol.Loadmon.GetHostPerf:output_type -> protocol.HSPerf
+	36,  // 259: protocol.Loadmon.GetHostPerfByKey:output_type -> protocol.HSPerfSlice
+	37,  // 260: protocol.Loadmon.GetClusterPerfByKey:output_type -> protocol.CLPerfSlice
+	53,  // 261: protocol.Loadmon.GetHostByKey:output_type -> protocol.Host
+	53,  // 262: protocol.Loadmon.GetHostByKeyDirect:output_type -> protocol.Host
+	53,  // 263: protocol.Loadmon.GetHostBySN:output_type -> protocol.Host
+	55,  // 264: protocol.Loadmon.GetClusterByKey:output_type -> protocol.Cluster
+	44,  // 265: protocol.Loadmon.GetDSData:output_type -> protocol.Datastore
+	44,  // 266: protocol.Loadmon.GetAllDSData:output_type -> protocol.Datastore
+	7,   // 267: protocol.Loadmon.ClearMetric:output_type -> protocol.StatusWork
+	7,   // 268: protocol.Loadmon.ClearMetricByKey:output_type -> protocol.StatusWork
+	7,   // 269: protocol.Loadmon.ClearAllMetricByKey:output_type -> protocol.StatusWork
+	62,  // 270: protocol.Loadmon.GetServerHardwareBySN:output_type -> protocol.ServerHardware
+	62,  // 271: protocol.Loadmon.GetServerHardwareByName:output_type -> protocol.ServerHardware
+	62,  // 272: protocol.Loadmon.GetServerHardwareByVirtualSN:output_type -> protocol.ServerHardware
+	62,  // 273: protocol.Loadmon.GetServerHardwareList:output_type -> protocol.ServerHardware
+	4,   // 274: protocol.Loadmon.GetHWDatacenterNames:output_type -> protocol.NameList
+	4,   // 275: protocol.Loadmon.GetHWRackNames:output_type -> protocol.NameList
+	61,  // 276: protocol.Loadmon.GetBladeEnclosureByName:output_type -> protocol.BladeEnclosure
+	61,  // 277: protocol.Loadmon.GetBladeEnclosureBySN:output_type -> protocol.BladeEnclosure
+	7,   // 278: protocol.Loadmon.RegisterWorkProcess:output_type -> protocol.StatusWork
+	1,   // 279: protocol.Loadmon.GetClusterSprRecords:output_type -> protocol.RegisterEndpoint
+	233, // [233:280] is the sub-list for method output_type
+	186, // [186:233] is the sub-list for method input_type
+	186, // [186:186] is the sub-list for extension type_name
+	186, // [186:186] is the sub-list for extension extendee
+	0,   // [0:186] is the sub-list for field type_name
 }
 
 func init() { file_vm_proto_init() }
@@ -12000,7 +13414,7 @@ func file_vm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vm_proto_rawDesc), len(file_vm_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   97,
+			NumMessages:   99,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
