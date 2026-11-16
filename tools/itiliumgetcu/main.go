@@ -1,19 +1,19 @@
-// Command itiliumgetcu — тестовый вызов кастомного HTTP-сервиса 1С:ITILIUM
-// `/hs/api/getCU` через пакет loadmon/itilium (доменная NTLM-авторизация).
+// Command itiliumgetcu — тестовый вызов `/hs/api/getCU` через loadmon/itilium
+// (доменная NTLM-авторизация).
 //
-// Пример (BCS DEV), как в запросе:
+// Пример (BCS, серверы):
 //
 //	go run ./tools/itiliumgetcu ^
-//	  -base https://itsd.global.bcs/DEV ^
+//	  -base https://itsd.global.bcs/ITILIUM ^
 //	  -domain itildomail -user itiluser -password "%ITILIUM_PASSWORD%" ^
-//	  -cu-class 145 -next-ver 1 -limit 50 ^
+//	  -cu-class 145 -cu-status all ^
 //	  -fields code,status,modelServ,hostname,ip,linksUnit,sn,user,where,statusHistory ^
 //	  -out getcu.json
 //
-// Пароль: флаг -password, иначе переменная окружения ITILIUM_PASSWORD,
-// иначе utilities.GetKeyData(domain\user) / GetKeyData(user).
+//	go run ./tools/itiliumgetcu -list-classes
 //
-// В БД ничего не пишет. Нужен доступ к DNS/сети itsd.global.bcs.
+// Ответ: { rows:[{ rowKey,uid,deleted,status{label,value},code{…},… }] , … }.
+// При -all листает страницы по last/hasMore (если API их отдаёт).
 package main
 
 import (
@@ -31,21 +31,31 @@ import (
 )
 
 func main() {
-	base := flag.String("base", "https://itsd.global.bcs/DEV", "корень публикации 1С (без /hs/...)")
+	base := flag.String("base", "https://itsd.global.bcs/ITILIUM", "корень публикации 1С")
 	domain := flag.String("domain", "itildomail", "AD-домен")
 	user := flag.String("user", "itiluser", "логин без домена")
 	password := flag.String("password", "", "пароль (иначе ITILIUM_PASSWORD / GetKeyData)")
-	auth := flag.String("auth", itilium.AuthNTLM, "режим: ntlm (доменный) или basic")
-	apiPrefix := flag.String("api-prefix", itilium.DefaultAPIPrefix, "префикс HTTP-сервиса относительно base")
-	cuClass := flag.Int("cu-class", 145, "cuClass")
-	nextVer := flag.Int("next-ver", 1, "nextVer (0 - не передавать)")
-	limit := flag.Int("limit", 50, "limit")
-	fields := flag.String("fields", strings.Join(itilium.DefaultServerCUFields, ","), "список полей через запятую")
-	insecure := flag.Bool("insecure", false, "пропуск проверки TLS-сертификата")
-	timeout := flag.Duration("timeout", 2*time.Minute, "таймаут HTTP")
-	out := flag.String("out", "", "файл для сырого JSON (пусто - stdout)")
-	pretty := flag.Bool("pretty", true, "pretty-print JSON в stdout при отсутствии -out")
+	auth := flag.String("auth", itilium.AuthNTLM, "ntlm или basic")
+	apiPrefix := flag.String("api-prefix", itilium.DefaultAPIPrefix, "префикс HTTP-сервиса")
+	cuClass := flag.Int("cu-class", itilium.CUClassServers, "cuClass (145=серверы)")
+	cuStatus := flag.String("cu-status", itilium.CUStatusAll, "cuStatus (all - все)")
+	nextVer := flag.String("next-ver", "", "nextVer (пусто - не передавать)")
+	limit := flag.Int("limit", 0, "limit (0 - не передавать)")
+	fields := flag.String("fields", strings.Join(itilium.DefaultServerCUFields, ","), "fields через запятую")
+	all := flag.Bool("all", false, "листать страницы по last/hasMore")
+	listClasses := flag.Bool("list-classes", false, "напечатать справочник cuClass и выйти")
+	insecure := flag.Bool("insecure", false, "пропуск проверки TLS")
+	timeout := flag.Duration("timeout", 2*time.Minute, "таймаут одного HTTP-запроса")
+	out := flag.String("out", "", "файл для JSON")
+	pretty := flag.Bool("pretty", true, "pretty-print при выводе в stdout")
 	flag.Parse()
+
+	if *listClasses {
+		for _, c := range itilium.CUClasses() {
+			fmt.Printf("%3d  %s\n", c.Code, c.Name)
+		}
+		return
+	}
 
 	pass := strings.TrimSpace(*password)
 	if pass == "" {
@@ -66,65 +76,101 @@ func main() {
 	}
 
 	c, err := itilium.NewClient(itilium.Config{
-		Name:               "getcu",
-		BaseURL:            *base,
-		Login:              *user,
-		Password:           pass,
-		Domain:             *domain,
-		AuthMode:           *auth,
-		APIPrefix:          *apiPrefix,
-		Timeout:            *timeout,
-		InsecureSkipVerify: *insecure,
+		Name: "getcu", BaseURL: *base, Login: *user, Password: pass,
+		Domain: *domain, AuthMode: *auth, APIPrefix: *apiPrefix,
+		Timeout: *timeout, InsecureSkipVerify: *insecure,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	q := itilium.GetCUQuery{
-		NextVer: *nextVer,
-		CUClass: *cuClass,
-		Limit:   *limit,
+		NextVer: *nextVer, CUClass: *cuClass, CUStatus: *cuStatus, Limit: *limit,
 	}
 	if f := strings.TrimSpace(*fields); f != "" {
 		q.Fields = splitCSV(f)
 	}
 
+	className := itilium.CUClassName(*cuClass)
+	if className == "" {
+		className = "?"
+	}
 	api := c.API()
-	log.Printf("GET %s (auth=%s user=%s\\%s)", api.GetCUURL(q), *auth, *domain, *user)
-
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	resp, raw, err := api.GetCU(ctx, q)
-	if err != nil {
-		log.Fatalf("getCU: %v", err)
+
+	var (
+		allRows []itilium.CURow
+		last    string
+		total   int
+		pages   int
+		rawLast []byte
+	)
+
+	for {
+		pages++
+		log.Printf("GET %s (class=%d %s, auth=%s %s\\%s)", api.GetCUURL(q), *cuClass, className, *auth, *domain, *user)
+		resp, raw, err := api.GetCURaw(ctx, q)
+		if err != nil {
+			log.Fatalf("getCU: %v", err)
+		}
+		rawLast = raw
+		total = resp.TotalCount
+		last = resp.Last
+		allRows = append(allRows, resp.Rows...)
+		log.Printf("страница %d: rows=%d totalCount=%d last=%q hasMore=%v", pages, len(resp.Rows), resp.TotalCount, resp.Last, resp.HasMore)
+		printBrief(resp.Rows)
+
+		if !*all {
+			break
+		}
+		next, ok := resp.NextPageQuery(q)
+		if !ok {
+			break
+		}
+		q = next
 	}
 
-	units := resp.Units()
-	log.Printf("получено КЕ: %d, nextVer=%q, raw=%d байт", len(units), resp.NextVer.String(), len(raw))
+	log.Printf("итого: страниц=%d rows=%d totalCount=%d last=%q", pages, len(allRows), total, last)
+
+	payload := any(rawLast)
+	if *all {
+		payload = itilium.GetCUResponse{Rows: allRows, TotalCount: total, Last: last, HasMore: false}
+	}
 
 	if *out != "" {
-		if err := os.WriteFile(*out, raw, 0o644); err != nil {
+		b, err := marshalOut(payload, true)
+		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("сырой ответ записан в %s", *out)
-		if len(units) > 0 {
-			printBrief(units)
+		if err := os.WriteFile(*out, b, 0o644); err != nil {
+			log.Fatal(err)
 		}
+		log.Printf("записано в %s (%d байт)", *out, len(b))
 		return
 	}
+	b, err := marshalOut(payload, *pretty)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(b))
+}
 
-	if *pretty {
-		var v any
-		if err := json.Unmarshal(raw, &v); err != nil {
-			fmt.Println(string(raw))
-			return
+func marshalOut(v any, pretty bool) ([]byte, error) {
+	if b, ok := v.([]byte); ok {
+		if !pretty {
+			return b, nil
 		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		_ = enc.Encode(v)
-		return
+		var anyV any
+		if err := json.Unmarshal(b, &anyV); err != nil {
+			return b, nil
+		}
+		return json.MarshalIndent(anyV, "", "  ")
 	}
-	fmt.Println(string(raw))
+	if pretty {
+		return json.MarshalIndent(v, "", "  ")
+	}
+	return json.Marshal(v)
 }
 
 func splitCSV(s string) []string {
@@ -139,13 +185,14 @@ func splitCSV(s string) []string {
 	return out
 }
 
-func printBrief(units []itilium.CU) {
-	n := len(units)
+func printBrief(rows []itilium.CURow) {
+	n := len(rows)
 	if n > 5 {
 		n = 5
 	}
 	for i := 0; i < n; i++ {
-		u := units[i]
-		log.Printf("  [%d] code=%s hostname=%s ip=%s sn=%s", i, u.Code, u.Hostname, u.IP, u.SN)
+		u := rows[i]
+		log.Printf("  [%d] code=%s name=%s hostname=%s ip=%s sn=%s status=%s",
+			i, u.Code.String(), u.Name.String(), u.Hostname.String(), u.IP.String(), u.SN.String(), u.Status.Label)
 	}
 }

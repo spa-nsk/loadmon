@@ -3,6 +3,7 @@ package itilium
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -10,20 +11,25 @@ import (
 )
 
 // APIClient — методы кастомного HTTP-сервиса `/hs/api` (выгрузка КЕ и др.).
-// Контракт getCU сверен с боевым URL BCS
-// `…/DEV/hs/api/getCU?nextVer=…&cuClass=…&fields=…&limit=…` (не входит в
-// публичную документацию 1c-itilium.ru External/Portal).
+// Контракт getCU: BCS `…/ITILIUM/hs/api/getCU?cuClass=…&cuStatus=…&fields=…`
+// (и опционально nextVer/limit). Схема строки КЕ — объекты label/value.
 type APIClient struct {
 	c *Client
 }
 
+const (
+	// CUStatusAll — все статусы КЕ (типовой отбор в BCS).
+	CUStatusAll = "all"
+)
+
 // GetCUQuery — query-параметры GET getCU.
 type GetCUQuery struct {
-	NextVer int      // курсор/версия выгрузки; 0 - не передавать
-	CUClass int      // класс КЕ (классификатор); 0 - не передавать
-	Fields  []string // список полей; пусто - не передавать
-	Limit   int      // размер страницы; 0 - не передавать
-	Extra   url.Values
+	NextVer  string // курсор страницы; пусто - не передавать
+	CUClass  int    // класс КЕ; 0 - не передавать
+	CUStatus string // например CUStatusAll; пусто - не передавать
+	Fields   []string
+	Limit    int
+	Extra    url.Values
 }
 
 func (q GetCUQuery) values() url.Values {
@@ -35,11 +41,14 @@ func (q GetCUQuery) values() url.Values {
 			}
 		}
 	}
-	if q.NextVer != 0 {
-		v.Set("nextVer", strconv.Itoa(q.NextVer))
+	if q.NextVer != "" {
+		v.Set("nextVer", q.NextVer)
 	}
 	if q.CUClass != 0 {
 		v.Set("cuClass", strconv.Itoa(q.CUClass))
+	}
+	if q.CUStatus != "" {
+		v.Set("cuStatus", q.CUStatus)
 	}
 	if len(q.Fields) > 0 {
 		v.Set("fields", strings.Join(q.Fields, ","))
@@ -50,84 +59,115 @@ func (q GetCUQuery) values() url.Values {
 	return v
 }
 
-// DefaultServerCUFields — набор полей из примера BCS для серверных КЕ.
+// DefaultServerCUFields — набор полей для серверных КЕ (cuClass=145).
 var DefaultServerCUFields = []string{
 	"code", "status", "modelServ", "hostname", "ip", "linksUnit", "sn", "user", "where", "statusHistory",
 }
 
-// CU — конфигурационная единица в ответе getCU (поля по запросу fields;
-// неизвестные ключи сохраняются в Extra).
-type CU struct {
-	Code          FlexString      `json:"code"`
-	Status        json.RawMessage `json:"status"`
-	ModelServ     json.RawMessage `json:"modelServ"`
-	Hostname      FlexString      `json:"hostname"`
-	IP            FlexString      `json:"ip"`
-	LinksUnit     json.RawMessage `json:"linksUnit"`
-	SN            FlexString      `json:"sn"`
-	User          json.RawMessage `json:"user"`
-	Where         json.RawMessage `json:"where"`
-	StatusHistory json.RawMessage `json:"statusHistory"`
-
-	// Extra — остальные поля объекта, не попавшие в типизированные.
-	Extra map[string]json.RawMessage `json:"-"`
+// LabelValue — поле КЕ вида {"label":"…","value":"…"}.
+// UnmarshalJSON также принимает голую JSON-строку (тогда Value=строка).
+type LabelValue struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
 }
 
-// UnmarshalJSON сохраняет известные поля и складывает прочие в Extra.
-func (cu *CU) UnmarshalJSON(data []byte) error {
-	type alias CU
+func (lv *LabelValue) UnmarshalJSON(data []byte) error {
+	data = bytesTrimSpace(data)
+	if len(data) == 0 || string(data) == "null" {
+		*lv = LabelValue{}
+		return nil
+	}
+	if data[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		*lv = LabelValue{Value: s}
+		return nil
+	}
+	type alias LabelValue
 	var a alias
 	if err := json.Unmarshal(data, &a); err != nil {
 		return err
 	}
-	*cu = CU(a)
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	known := map[string]struct{}{
-		"code": {}, "status": {}, "modelServ": {}, "hostname": {}, "ip": {},
-		"linksUnit": {}, "sn": {}, "user": {}, "where": {}, "statusHistory": {},
-	}
-	cu.Extra = make(map[string]json.RawMessage)
-	for k, v := range raw {
-		if _, ok := known[k]; !ok {
-			cu.Extra[k] = v
-		}
-	}
+	*lv = LabelValue(a)
 	return nil
 }
 
-// GetCUResponse — типичный ответ getCU. Схема на BCS может отличаться
-// (массив / объект с data/items/nextVer) — парсер принимает оба варианта;
-// сырое тело доступно в Raw.
-type GetCUResponse struct {
-	NextVer FlexString `json:"nextVer"`
-	Data    []CU       `json:"data"`
-	Items   []CU       `json:"items"`
-	Result  []CU       `json:"result"`
-	CUs     []CU       `json:"cus"`
-	Raw     json.RawMessage
-}
-
-// Units возвращает первый непустой список КЕ из известных ключей ответа.
-func (r *GetCUResponse) Units() []CU {
-	switch {
-	case len(r.Data) > 0:
-		return r.Data
-	case len(r.Items) > 0:
-		return r.Items
-	case len(r.Result) > 0:
-		return r.Result
-	case len(r.CUs) > 0:
-		return r.CUs
+// String возвращает Value, если не пуст, иначе Label.
+func (lv LabelValue) String() string {
+	if lv.Value != "" {
+		return lv.Value
 	}
-	return []CU{}
+	return lv.Label
 }
 
-// GetCU — GET getCU с query-параметрами. Возвращает разобранный ответ и
-// сырое тело (удобно сохранить при первой сверке схемы).
-func (a *APIClient) GetCU(ctx context.Context, q GetCUQuery) (*GetCUResponse, []byte, error) {
+// CURow — строка КЕ в ответе getCU (элемент rows).
+// Базовые поля — как в структуре ItilliumCu; дополнительные (hostname, ip, …)
+// появляются при указании fields= и тоже могут быть label/value или строкой.
+type CURow struct {
+	RowKey      string     `json:"rowKey"`
+	UID         string     `json:"uid"`
+	Deleted     bool       `json:"deleted"`
+	Status      LabelValue `json:"status"`
+	Code        LabelValue `json:"code"`
+	SortField   string     `json:"sortField"`
+	Name        LabelValue `json:"name"`
+	Description LabelValue `json:"description"`
+	Author      LabelValue `json:"author"`
+	CuClass     string     `json:"cuClass"`
+	LinksUnit   string     `json:"linksUnit,omitempty"`
+
+	// Поля из fields= (серверы и др.).
+	ModelServ     LabelValue `json:"modelServ,omitempty"`
+	Hostname      LabelValue `json:"hostname,omitempty"`
+	IP            LabelValue `json:"ip,omitempty"`
+	SN            LabelValue `json:"sn,omitempty"`
+	User          LabelValue `json:"user,omitempty"`
+	Where         LabelValue `json:"where,omitempty"`
+	StatusHistory LabelValue `json:"statusHistory,omitempty"`
+	StatusName    LabelValue `json:"statusName,omitempty"`
+}
+
+// GetCUResponse — ответ GET getCU.
+// Обязательное поле — rows. Остальные (пагинация/ошибка) присутствуют
+// не на всех публикациях; при отсутствии остаются нулевыми.
+type GetCUResponse struct {
+	IsError    bool    `json:"isError"`
+	Rows       []CURow `json:"rows"`
+	TotalCount int     `json:"totalCount"`
+	Last       string  `json:"last"`
+	HasMore    bool    `json:"hasMore"`
+}
+
+// NextPageQuery копирует q и подставляет NextVer = Last.
+// ok=false, если HasMore=false или Last пуст.
+func (r *GetCUResponse) NextPageQuery(q GetCUQuery) (GetCUQuery, bool) {
+	if r == nil || !r.HasMore || r.Last == "" {
+		return q, false
+	}
+	q.NextVer = r.Last
+	return q, true
+}
+
+// GetCU — GET getCU. При IsError=true возвращает ошибку (HTTP может быть 200).
+func (a *APIClient) GetCU(ctx context.Context, q GetCUQuery) (*GetCUResponse, error) {
+	full := a.c.resolveQuery(a.c.apiPre, "getCU", q.values())
+	var out GetCUResponse
+	if err := a.c.doJSON(ctx, http.MethodGet, full, nil, &out); err != nil {
+		return nil, err
+	}
+	if out.Rows == nil {
+		out.Rows = []CURow{}
+	}
+	if out.IsError {
+		return &out, fmt.Errorf("itilium: getCU isError=true (rows=%d last=%q)", len(out.Rows), out.Last)
+	}
+	return &out, nil
+}
+
+// GetCURaw — как GetCU, плюс сырое тело ответа.
+func (a *APIClient) GetCURaw(ctx context.Context, q GetCUQuery) (*GetCUResponse, []byte, error) {
 	full := a.c.resolveQuery(a.c.apiPre, "getCU", q.values())
 	raw, status, err := a.c.DoRaw(ctx, http.MethodGet, full, nil)
 	if err != nil {
@@ -136,24 +176,19 @@ func (a *APIClient) GetCU(ctx context.Context, q GetCUQuery) (*GetCUResponse, []
 	if status < 200 || status >= 300 {
 		return nil, raw, &APIError{Method: http.MethodGet, URL: full, Status: status, Body: string(raw)}
 	}
-	out := &GetCUResponse{Raw: append(json.RawMessage(nil), raw...)}
-	if len(raw) == 0 {
-		return out, raw, nil
-	}
-	// Ответ-массив: [ {...}, ... ]
-	if raw[0] == '[' {
-		var list []CU
-		if err := json.Unmarshal(raw, &list); err != nil {
-			return out, raw, err
+	var out GetCUResponse
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &out); err != nil {
+			return nil, raw, fmt.Errorf("itilium: decode getCU: %w", err)
 		}
-		out.Data = list
-		return out, raw, nil
 	}
-	if err := json.Unmarshal(raw, out); err != nil {
-		return out, raw, err
+	if out.Rows == nil {
+		out.Rows = []CURow{}
 	}
-	out.Raw = append(json.RawMessage(nil), raw...)
-	return out, raw, nil
+	if out.IsError {
+		return &out, raw, fmt.Errorf("itilium: getCU isError=true (rows=%d last=%q)", len(out.Rows), out.Last)
+	}
+	return &out, raw, nil
 }
 
 // GetCUURL возвращает полный URL запроса (для логов/примеров).
