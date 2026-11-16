@@ -143,6 +143,45 @@ func GetServerSpr(fqdn string) (*models.ServerSprRecords, error) {
 	return &out, nil
 }
 
+// GetDBVMPerf возвращает детальные метрики загрузки виртуальной машины
+// (vm_perf) за последние 3 суток через сервис LoadmonDB по ключу ВМ key (формат
+// Vcenter/Datacenter/Cluster/Vm_Name), в порядке возрастания Start - подробности
+// в grpcserver.(*serverdb).GetDBVMPerf. Отсутствие метрик не ошибка (пустой
+// срез). Возвращает ошибку при пустом ключе, ошибке подключения/RPC или если ВМ
+// не найдена в справочнике.
+func GetDBVMPerf(key string) ([]*models.VMPerfRecord, error) {
+	if key == "" {
+		return nil, errors.New("не указан ключ виртуальной машины")
+	}
+	c, conn, ctx, cancel, err := dialDB()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	defer cancel()
+	res, err := c.GetDBVMPerf(ctx, &pb.VMReqKey{Key: key})
+	if err != nil {
+		log.Printf("GetDBVMPerf(%s): %v", key, err)
+		return nil, err
+	}
+	return messageToVMPerfRecords(res), nil
+}
+
+// messageToVMPerfRecords преобразует ответ GetDBVMPerf в срез моделей
+// (nil-элементы пропускаются, результат никогда не nil).
+func messageToVMPerfRecords(in *pb.VMPerfRecordSlice) []*models.VMPerfRecord {
+	out := make([]*models.VMPerfRecord, 0, len(in.GetPerf()))
+	for _, m := range in.GetPerf() {
+		if m == nil {
+			continue
+		}
+		rec := &models.VMPerfRecord{}
+		MessageToVMPerfRecord(m, rec)
+		out = append(out, rec)
+	}
+	return out
+}
+
 // UpdateVMSprDatacenterName обновляет поле VMSprRecord.DatacenterName (код ЦОД
 // DatacenterSite.CodeJira, определённый через физический ESXi хост ВМ) через
 // сервис LoadmonDB, по Id справочной записи ВМ (vm_spr_record.Id). Вызывается

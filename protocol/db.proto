@@ -15,6 +15,7 @@
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
+import "vm.proto"; // VMReqKey (параметр GetDBVMPerf)
 
 option go_package = "loadmon/protocol";
 
@@ -53,6 +54,19 @@ service LoadmonDB {
   rpc AddClusterSprRecord(ClusterSprRecord) returns(ClusterSprId){}
   rpc UpdateClusterSprRecord(ClusterSprRecord) returns(ClusterSprId){}
   rpc AddClusterRecord(ClusterRecord) returns(ClusterRecordId){}
+  // GetDBVMPerf - детальные метрики загрузки виртуальной машины за последние
+  // 3 суток из таблицы vm_perf (VMPerfRecord). VMReqKey.Key - ключ ВМ в формате
+  // Vcenter/Datacenter/Cluster/Vm_Name (VMSprRecord.KeyName). Записи отсортированы
+  // по Start по возрастанию; если данных нет - пустой массив (Count=0), если ВМ
+  // в справочнике не найдена - ошибка.
+  rpc GetDBVMPerf(VMReqKey) returns(VMPerfRecordSlice){}
+  // GetDBVMRecord - записи ВМ (vm_record, VMRecord) за период. Ключ ВМ - как в
+  // VMReqKey (Vcenter/Datacenter/Cluster/Vm_Name), период [Start, End]
+  // включительно по VMRecord.Date. Не заданная граница (nil) не ограничивает
+  // выборку. Записи отсортированы по Date по возрастанию; если записей нет -
+  // пустой массив (Count=0), если ВМ в справочнике не найдена или End < Start -
+  // ошибка.
+  rpc GetDBVMRecord(VMRecordPeriodReq) returns(VMRecordSlice){}
   // UpdateVMSprDatacenterName - точечное обновление поля VMSprRecord.DatacenterName
   // (код ЦОД DatacenterSite.CodeJira, определяемый через физический ESXi хост
   // виртуальной машины). Отдельный RPC, а не часть общего сохранения VMSprRecord,
@@ -311,6 +325,19 @@ message VMRecord {
   string                    Vm_Network=61;
 }
 
+// VMRecordPeriodReq - запрос записей ВМ за период (параметр GetDBVMRecord).
+message VMRecordPeriodReq {
+  string                    Key = 1;   //ключ ВМ как в VMReqKey: Vcenter/Datacenter/Cluster/Vm_Name
+  google.protobuf.Timestamp Start = 2; //начало периода (включительно), nil - без нижней границы
+  google.protobuf.Timestamp End = 3;   //окончание периода (включительно), nil - без верхней границы
+}
+
+// VMRecordSlice - массив записей ВМ (ответ GetDBVMRecord).
+message VMRecordSlice {
+  int64             Count = 1;         //количество записей в Records
+  repeated VMRecord Records = 2;
+}
+
 message HostRecord {
   int64               Id=1;
   int64               ServerId=2;
@@ -489,4 +516,10 @@ message VMPerfRecord{
   double              Net_usage = 11;            //Использование сети (комбинированные скорости передачи и скорости приема) в течение интервала kbps
   double              Net_received = 12;         //Использование сети (скорость приема) в течение интервала kbps
   double              Net_transmitted = 13;      //Использование сети (скорость передачи) в течение интервала kbps
+}
+
+// VMPerfRecordSlice - массив детальных метрик ВМ (ответ GetDBVMPerf).
+message VMPerfRecordSlice {
+  int64                 Count = 1;               //количество записей в Perf
+  repeated VMPerfRecord Perf = 2;
 }
