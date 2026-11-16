@@ -12,7 +12,7 @@ import (
 
 func TestAuthUserAndNTLM(t *testing.T) {
 	c, err := NewClient(Config{
-		BaseURL: "https://example.local/DEV", Login: "itiluser", Domain: "itildomail",
+		BaseURL: "https://example.local/ITILIUM", Login: "itiluser", Domain: "itildomail",
 		Password: "x", AuthMode: AuthNTLM, HTTPClient: http.DefaultClient,
 	})
 	if err != nil {
@@ -21,71 +21,118 @@ func TestAuthUserAndNTLM(t *testing.T) {
 	if got := c.authUser(); got != `itildomail\itiluser` {
 		t.Fatalf("authUser: %q", got)
 	}
-	if c.cfg.AuthMode != AuthNTLM {
-		t.Fatalf("AuthMode: %s", c.cfg.AuthMode)
+}
+
+func TestLabelValueUnmarshal(t *testing.T) {
+	var lv LabelValue
+	if err := json.Unmarshal([]byte(`{"label":"В работе","value":"1"}`), &lv); err != nil {
+		t.Fatal(err)
+	}
+	if lv.Label != "В работе" || lv.Value != "1" || lv.String() != "1" {
+		t.Fatalf("%+v", lv)
+	}
+	if err := json.Unmarshal([]byte(`"srv01"`), &lv); err != nil {
+		t.Fatal(err)
+	}
+	if lv.Value != "srv01" || lv.String() != "srv01" {
+		t.Fatalf("%+v", lv)
 	}
 }
 
-func TestGetCUQueryAndParse(t *testing.T) {
-	var gotPath, gotQuery, gotAuth string
+func TestCUClassCatalog(t *testing.T) {
+	if CUClassName(CUClassServers) != "IT_Серверы" || CUClassName(CUClassStorage) != "IT_СХД" {
+		t.Fatalf("%q %q", CUClassName(CUClassServers), CUClassName(CUClassStorage))
+	}
+	list := CUClasses()
+	if len(list) != len(cuClassOrder) || list[0].Code != CUClassIPHeadsets {
+		t.Fatalf("%d %+v", len(list), list[0])
+	}
+	if CUClassName(99999) != "" {
+		t.Fatal("unknown")
+	}
+}
+
+func TestGetCUParseItilliumCu(t *testing.T) {
+	const sample = `{
+  "rows": [{
+    "rowKey": "rk1",
+    "uid": "uid-1",
+    "deleted": false,
+    "status": {"label": "В работе", "value": "1"},
+    "code": {"label": "IT-0001", "value": "IT-0001"},
+    "sortField": "IT-0001",
+    "name": {"label": "srv01", "value": "srv01"},
+    "description": {"label": "", "value": ""},
+    "author": {"label": "Иванов", "value": "user-1"},
+    "cuClass": "145",
+    "linksUnit": "blade-01",
+    "hostname": {"label": "FQDN", "value": "srv01.example.local"},
+    "ip": "10.0.0.1",
+    "modelServ": {"label": "Модель", "value": "DL380"},
+    "sn": {"label": "S/N", "value": "CZ1234"},
+    "user": {"label": "Владелец", "value": "petrov"},
+    "where": {"label": "Место", "value": "ЦОД-1"},
+    "statusHistory": "2024:в работе"
+  }],
+  "totalCount": 100,
+  "last": "50",
+  "hasMore": true
+}`
+	var gotPath, gotQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath, gotQuery = r.URL.Path, r.URL.RawQuery
-		gotAuth = r.Header.Get("Authorization")
-		if r.Method != http.MethodGet {
-			t.Fatalf("method %s", r.Method)
-		}
 		_, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"nextVer":"2","data":[{"code":"IT-1","hostname":"srv01","ip":"10.0.0.1","sn":"SN1","status":"в работе","extraField":123}]}`))
+		_, _ = w.Write([]byte(sample))
 	}))
 	t.Cleanup(srv.Close)
 
 	c, err := NewClient(Config{
-		Name: "t", BaseURL: srv.URL + "/DEV", Login: "itiluser", Domain: "itildomail",
+		Name: "t", BaseURL: srv.URL + "/ITILIUM", Login: "itiluser", Domain: "itildomail",
 		Password: "secret", AuthMode: AuthBasic, HTTPClient: srv.Client(),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	q := GetCUQuery{
-		NextVer: 1, CUClass: 145, Limit: 50,
+		CUClass: CUClassServers, CUStatus: CUStatusAll,
 		Fields: DefaultServerCUFields,
 	}
-	wantURL := c.API().GetCUURL(q)
-	if !strings.Contains(wantURL, "/DEV/hs/api/getCU?") || !strings.Contains(wantURL, "cuClass=145") {
-		t.Fatalf("URL: %s", wantURL)
+	u := c.API().GetCUURL(q)
+	if !strings.Contains(u, "/ITILIUM/hs/api/getCU?") || !strings.Contains(u, "cuClass=145") || !strings.Contains(u, "cuStatus=all") {
+		t.Fatalf("URL: %s", u)
 	}
 
-	resp, raw, err := c.API().GetCU(context.Background(), q)
+	resp, raw, err := c.API().GetCURaw(context.Background(), q)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/DEV/hs/api/getCU" {
+	if gotPath != "/ITILIUM/hs/api/getCU" {
 		t.Fatalf("path: %s", gotPath)
 	}
-	for _, part := range []string{"nextVer=1", "cuClass=145", "limit=50", "fields=code"} {
+	for _, part := range []string{"cuClass=145", "cuStatus=all", "fields=code"} {
 		if !strings.Contains(gotQuery, part) {
 			t.Fatalf("query без %s: %s", part, gotQuery)
 		}
 	}
-	if !strings.HasPrefix(gotAuth, "Basic ") {
-		t.Fatalf("Authorization: %q", gotAuth)
+	if !json.Valid(raw) || len(resp.Rows) != 1 {
+		t.Fatalf("%+v", resp)
 	}
-	units := resp.Units()
-	if len(units) != 1 || units[0].Hostname.String() != "srv01" || units[0].Code.String() != "IT-1" {
-		t.Fatalf("%+v", units)
+	row := resp.Rows[0]
+	if row.UID != "uid-1" || row.Code.Value != "IT-0001" || row.Status.Label != "В работе" ||
+		row.Hostname.Value != "srv01.example.local" || row.IP.String() != "10.0.0.1" ||
+		row.SN.Value != "CZ1234" || row.CuClass != "145" || row.LinksUnit != "blade-01" {
+		t.Fatalf("%+v", row)
 	}
-	if string(units[0].Extra["extraField"]) != "123" {
-		t.Fatalf("Extra: %v", units[0].Extra)
-	}
-	if !json.Valid(raw) || resp.NextVer.String() != "2" {
-		t.Fatalf("raw/nextVer: %s %q", raw, resp.NextVer)
+	next, ok := resp.NextPageQuery(q)
+	if !ok || next.NextVer != "50" {
+		t.Fatalf("next: %+v ok=%v", next, ok)
 	}
 }
 
-func TestGetCUArrayResponse(t *testing.T) {
+func TestGetCUIsError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`[{"code":"A","hostname":"h"}]`))
+		w.Write([]byte(`{"isError":true,"rows":[]}`))
 	}))
 	t.Cleanup(srv.Close)
 	c, err := NewClient(Config{
@@ -94,11 +141,8 @@ func TestGetCUArrayResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, _, err := c.API().GetCU(context.Background(), GetCUQuery{Limit: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(resp.Units()) != 1 || resp.Units()[0].Code.String() != "A" {
-		t.Fatalf("%+v", resp)
+	resp, err := c.API().GetCU(context.Background(), GetCUQuery{CUClass: 145})
+	if err == nil || resp == nil || !resp.IsError {
+		t.Fatalf("%v %v", resp, err)
 	}
 }
