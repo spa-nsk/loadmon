@@ -38,6 +38,8 @@ const (
 	LoadmonDB_AddClusterSprRecord_FullMethodName            = "/protocol.LoadmonDB/AddClusterSprRecord"
 	LoadmonDB_UpdateClusterSprRecord_FullMethodName         = "/protocol.LoadmonDB/UpdateClusterSprRecord"
 	LoadmonDB_AddClusterRecord_FullMethodName               = "/protocol.LoadmonDB/AddClusterRecord"
+	LoadmonDB_GetDBVMPerf_FullMethodName                    = "/protocol.LoadmonDB/GetDBVMPerf"
+	LoadmonDB_GetDBVMRecord_FullMethodName                  = "/protocol.LoadmonDB/GetDBVMRecord"
 	LoadmonDB_UpdateVMSprDatacenterName_FullMethodName      = "/protocol.LoadmonDB/UpdateVMSprDatacenterName"
 	LoadmonDB_UpdateClusterSprDatacenterName_FullMethodName = "/protocol.LoadmonDB/UpdateClusterSprDatacenterName"
 )
@@ -80,6 +82,19 @@ type LoadmonDBClient interface {
 	AddClusterSprRecord(ctx context.Context, in *ClusterSprRecord, opts ...grpc.CallOption) (*ClusterSprId, error)
 	UpdateClusterSprRecord(ctx context.Context, in *ClusterSprRecord, opts ...grpc.CallOption) (*ClusterSprId, error)
 	AddClusterRecord(ctx context.Context, in *ClusterRecord, opts ...grpc.CallOption) (*ClusterRecordId, error)
+	// GetDBVMPerf - детальные метрики загрузки виртуальной машины за последние
+	// 3 суток из таблицы vm_perf (VMPerfRecord). VMReqKey.Key - ключ ВМ в формате
+	// Vcenter/Datacenter/Cluster/Vm_Name (VMSprRecord.KeyName). Записи отсортированы
+	// по Start по возрастанию; если данных нет - пустой массив (Count=0), если ВМ
+	// в справочнике не найдена - ошибка.
+	GetDBVMPerf(ctx context.Context, in *VMReqKey, opts ...grpc.CallOption) (*VMPerfRecordSlice, error)
+	// GetDBVMRecord - записи ВМ (vm_record, VMRecord) за период. Ключ ВМ - как в
+	// VMReqKey (Vcenter/Datacenter/Cluster/Vm_Name), период [Start, End]
+	// включительно по VMRecord.Date. Не заданная граница (nil) не ограничивает
+	// выборку. Записи отсортированы по Date по возрастанию; если записей нет -
+	// пустой массив (Count=0), если ВМ в справочнике не найдена или End < Start -
+	// ошибка.
+	GetDBVMRecord(ctx context.Context, in *VMRecordPeriodReq, opts ...grpc.CallOption) (*VMRecordSlice, error)
 	// UpdateVMSprDatacenterName - точечное обновление поля VMSprRecord.DatacenterName
 	// (код ЦОД DatacenterSite.CodeJira, определяемый через физический ESXi хост
 	// виртуальной машины). Отдельный RPC, а не часть общего сохранения VMSprRecord,
@@ -161,6 +176,26 @@ func (c *loadmonDBClient) AddClusterRecord(ctx context.Context, in *ClusterRecor
 	return out, nil
 }
 
+func (c *loadmonDBClient) GetDBVMPerf(ctx context.Context, in *VMReqKey, opts ...grpc.CallOption) (*VMPerfRecordSlice, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VMPerfRecordSlice)
+	err := c.cc.Invoke(ctx, LoadmonDB_GetDBVMPerf_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *loadmonDBClient) GetDBVMRecord(ctx context.Context, in *VMRecordPeriodReq, opts ...grpc.CallOption) (*VMRecordSlice, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VMRecordSlice)
+	err := c.cc.Invoke(ctx, LoadmonDB_GetDBVMRecord_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *loadmonDBClient) UpdateVMSprDatacenterName(ctx context.Context, in *VMSprDatacenterNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ClusterSprId)
@@ -219,6 +254,19 @@ type LoadmonDBServer interface {
 	AddClusterSprRecord(context.Context, *ClusterSprRecord) (*ClusterSprId, error)
 	UpdateClusterSprRecord(context.Context, *ClusterSprRecord) (*ClusterSprId, error)
 	AddClusterRecord(context.Context, *ClusterRecord) (*ClusterRecordId, error)
+	// GetDBVMPerf - детальные метрики загрузки виртуальной машины за последние
+	// 3 суток из таблицы vm_perf (VMPerfRecord). VMReqKey.Key - ключ ВМ в формате
+	// Vcenter/Datacenter/Cluster/Vm_Name (VMSprRecord.KeyName). Записи отсортированы
+	// по Start по возрастанию; если данных нет - пустой массив (Count=0), если ВМ
+	// в справочнике не найдена - ошибка.
+	GetDBVMPerf(context.Context, *VMReqKey) (*VMPerfRecordSlice, error)
+	// GetDBVMRecord - записи ВМ (vm_record, VMRecord) за период. Ключ ВМ - как в
+	// VMReqKey (Vcenter/Datacenter/Cluster/Vm_Name), период [Start, End]
+	// включительно по VMRecord.Date. Не заданная граница (nil) не ограничивает
+	// выборку. Записи отсортированы по Date по возрастанию; если записей нет -
+	// пустой массив (Count=0), если ВМ в справочнике не найдена или End < Start -
+	// ошибка.
+	GetDBVMRecord(context.Context, *VMRecordPeriodReq) (*VMRecordSlice, error)
 	// UpdateVMSprDatacenterName - точечное обновление поля VMSprRecord.DatacenterName
 	// (код ЦОД DatacenterSite.CodeJira, определяемый через физический ESXi хост
 	// виртуальной машины). Отдельный RPC, а не часть общего сохранения VMSprRecord,
@@ -255,6 +303,12 @@ func (UnimplementedLoadmonDBServer) UpdateClusterSprRecord(context.Context, *Clu
 }
 func (UnimplementedLoadmonDBServer) AddClusterRecord(context.Context, *ClusterRecord) (*ClusterRecordId, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddClusterRecord not implemented")
+}
+func (UnimplementedLoadmonDBServer) GetDBVMPerf(context.Context, *VMReqKey) (*VMPerfRecordSlice, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDBVMPerf not implemented")
+}
+func (UnimplementedLoadmonDBServer) GetDBVMRecord(context.Context, *VMRecordPeriodReq) (*VMRecordSlice, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDBVMRecord not implemented")
 }
 func (UnimplementedLoadmonDBServer) UpdateVMSprDatacenterName(context.Context, *VMSprDatacenterNameRequest) (*ClusterSprId, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateVMSprDatacenterName not implemented")
@@ -366,6 +420,42 @@ func _LoadmonDB_AddClusterRecord_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LoadmonDB_GetDBVMPerf_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VMReqKey)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonDBServer).GetDBVMPerf(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LoadmonDB_GetDBVMPerf_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonDBServer).GetDBVMPerf(ctx, req.(*VMReqKey))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LoadmonDB_GetDBVMRecord_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VMRecordPeriodReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoadmonDBServer).GetDBVMRecord(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LoadmonDB_GetDBVMRecord_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoadmonDBServer).GetDBVMRecord(ctx, req.(*VMRecordPeriodReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _LoadmonDB_UpdateVMSprDatacenterName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(VMSprDatacenterNameRequest)
 	if err := dec(in); err != nil {
@@ -424,6 +514,14 @@ var LoadmonDB_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddClusterRecord",
 			Handler:    _LoadmonDB_AddClusterRecord_Handler,
+		},
+		{
+			MethodName: "GetDBVMPerf",
+			Handler:    _LoadmonDB_GetDBVMPerf_Handler,
+		},
+		{
+			MethodName: "GetDBVMRecord",
+			Handler:    _LoadmonDB_GetDBVMRecord_Handler,
 		},
 		{
 			MethodName: "UpdateVMSprDatacenterName",

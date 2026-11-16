@@ -1987,6 +1987,120 @@ func (x *VMRecord) GetVm_Network() string {
 	return ""
 }
 
+// VMRecordPeriodReq - запрос записей ВМ за период (параметр GetDBVMRecord).
+type VMRecordPeriodReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`     //ключ ВМ как в VMReqKey: Vcenter/Datacenter/Cluster/Vm_Name
+	Start         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=Start,proto3" json:"Start,omitempty"` //начало периода (включительно), nil - без нижней границы
+	End           *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=End,proto3" json:"End,omitempty"`     //окончание периода (включительно), nil - без верхней границы
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VMRecordPeriodReq) Reset() {
+	*x = VMRecordPeriodReq{}
+	mi := &file_db_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VMRecordPeriodReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VMRecordPeriodReq) ProtoMessage() {}
+
+func (x *VMRecordPeriodReq) ProtoReflect() protoreflect.Message {
+	mi := &file_db_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VMRecordPeriodReq.ProtoReflect.Descriptor instead.
+func (*VMRecordPeriodReq) Descriptor() ([]byte, []int) {
+	return file_db_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *VMRecordPeriodReq) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *VMRecordPeriodReq) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *VMRecordPeriodReq) GetEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+// VMRecordSlice - массив записей ВМ (ответ GetDBVMRecord).
+type VMRecordSlice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int64                  `protobuf:"varint,1,opt,name=Count,proto3" json:"Count,omitempty"` //количество записей в Records
+	Records       []*VMRecord            `protobuf:"bytes,2,rep,name=Records,proto3" json:"Records,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VMRecordSlice) Reset() {
+	*x = VMRecordSlice{}
+	mi := &file_db_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VMRecordSlice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VMRecordSlice) ProtoMessage() {}
+
+func (x *VMRecordSlice) ProtoReflect() protoreflect.Message {
+	mi := &file_db_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VMRecordSlice.ProtoReflect.Descriptor instead.
+func (*VMRecordSlice) Descriptor() ([]byte, []int) {
+	return file_db_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *VMRecordSlice) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *VMRecordSlice) GetRecords() []*VMRecord {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
 type HostRecord struct {
 	state                            protoimpl.MessageState `protogen:"open.v1"`
 	Id                               int64                  `protobuf:"varint,1,opt,name=Id,proto3" json:"Id,omitempty"`
@@ -2059,7 +2173,7 @@ type HostRecord struct {
 
 func (x *HostRecord) Reset() {
 	*x = HostRecord{}
-	mi := &file_db_proto_msgTypes[10]
+	mi := &file_db_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2071,7 +2185,7 @@ func (x *HostRecord) String() string {
 func (*HostRecord) ProtoMessage() {}
 
 func (x *HostRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_db_proto_msgTypes[10]
+	mi := &file_db_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2084,7 +2198,7 @@ func (x *HostRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostRecord.ProtoReflect.Descriptor instead.
 func (*HostRecord) Descriptor() ([]byte, []int) {
-	return file_db_proto_rawDescGZIP(), []int{10}
+	return file_db_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *HostRecord) GetId() int64 {
@@ -2605,7 +2719,7 @@ type ClusterRecord struct {
 
 func (x *ClusterRecord) Reset() {
 	*x = ClusterRecord{}
-	mi := &file_db_proto_msgTypes[11]
+	mi := &file_db_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2617,7 +2731,7 @@ func (x *ClusterRecord) String() string {
 func (*ClusterRecord) ProtoMessage() {}
 
 func (x *ClusterRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_db_proto_msgTypes[11]
+	mi := &file_db_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2630,7 +2744,7 @@ func (x *ClusterRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterRecord.ProtoReflect.Descriptor instead.
 func (*ClusterRecord) Descriptor() ([]byte, []int) {
-	return file_db_proto_rawDescGZIP(), []int{11}
+	return file_db_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ClusterRecord) GetId() int64 {
@@ -3088,7 +3202,7 @@ type ClusterPerf struct {
 
 func (x *ClusterPerf) Reset() {
 	*x = ClusterPerf{}
-	mi := &file_db_proto_msgTypes[12]
+	mi := &file_db_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3100,7 +3214,7 @@ func (x *ClusterPerf) String() string {
 func (*ClusterPerf) ProtoMessage() {}
 
 func (x *ClusterPerf) ProtoReflect() protoreflect.Message {
-	mi := &file_db_proto_msgTypes[12]
+	mi := &file_db_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3113,7 +3227,7 @@ func (x *ClusterPerf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClusterPerf.ProtoReflect.Descriptor instead.
 func (*ClusterPerf) Descriptor() ([]byte, []int) {
-	return file_db_proto_rawDescGZIP(), []int{12}
+	return file_db_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ClusterPerf) GetId() int64 {
@@ -3228,7 +3342,7 @@ type HostPerf struct {
 
 func (x *HostPerf) Reset() {
 	*x = HostPerf{}
-	mi := &file_db_proto_msgTypes[13]
+	mi := &file_db_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3240,7 +3354,7 @@ func (x *HostPerf) String() string {
 func (*HostPerf) ProtoMessage() {}
 
 func (x *HostPerf) ProtoReflect() protoreflect.Message {
-	mi := &file_db_proto_msgTypes[13]
+	mi := &file_db_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3253,7 +3367,7 @@ func (x *HostPerf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostPerf.ProtoReflect.Descriptor instead.
 func (*HostPerf) Descriptor() ([]byte, []int) {
-	return file_db_proto_rawDescGZIP(), []int{13}
+	return file_db_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *HostPerf) GetId() int64 {
@@ -3368,7 +3482,7 @@ type VMPerfRecord struct {
 
 func (x *VMPerfRecord) Reset() {
 	*x = VMPerfRecord{}
-	mi := &file_db_proto_msgTypes[14]
+	mi := &file_db_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3380,7 +3494,7 @@ func (x *VMPerfRecord) String() string {
 func (*VMPerfRecord) ProtoMessage() {}
 
 func (x *VMPerfRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_db_proto_msgTypes[14]
+	mi := &file_db_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3393,7 +3507,7 @@ func (x *VMPerfRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VMPerfRecord.ProtoReflect.Descriptor instead.
 func (*VMPerfRecord) Descriptor() ([]byte, []int) {
-	return file_db_proto_rawDescGZIP(), []int{14}
+	return file_db_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *VMPerfRecord) GetId() int64 {
@@ -3487,11 +3601,64 @@ func (x *VMPerfRecord) GetNetTransmitted() float64 {
 	return 0
 }
 
+// VMPerfRecordSlice - массив детальных метрик ВМ (ответ GetDBVMPerf).
+type VMPerfRecordSlice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int64                  `protobuf:"varint,1,opt,name=Count,proto3" json:"Count,omitempty"` //количество записей в Perf
+	Perf          []*VMPerfRecord        `protobuf:"bytes,2,rep,name=Perf,proto3" json:"Perf,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VMPerfRecordSlice) Reset() {
+	*x = VMPerfRecordSlice{}
+	mi := &file_db_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VMPerfRecordSlice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VMPerfRecordSlice) ProtoMessage() {}
+
+func (x *VMPerfRecordSlice) ProtoReflect() protoreflect.Message {
+	mi := &file_db_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VMPerfRecordSlice.ProtoReflect.Descriptor instead.
+func (*VMPerfRecordSlice) Descriptor() ([]byte, []int) {
+	return file_db_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *VMPerfRecordSlice) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *VMPerfRecordSlice) GetPerf() []*VMPerfRecord {
+	if x != nil {
+		return x.Perf
+	}
+	return nil
+}
+
 var File_db_proto protoreflect.FileDescriptor
 
 const file_db_proto_rawDesc = "" +
 	"\n" +
-	"\bdb.proto\x12\bprotocol\x1a\x1fgoogle/protobuf/timestamp.proto\"\x1f\n" +
+	"\bdb.proto\x12\bprotocol\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\bvm.proto\"\x1f\n" +
 	"\vDBKeyString\x12\x10\n" +
 	"\x03Key\x18\x01 \x01(\tR\x03Key\"d\n" +
 	"\x0eClusterSprKey1\x12\x18\n" +
@@ -3750,7 +3917,14 @@ const file_db_proto_rawDesc = "" +
 	"NetBilling\x18< \x01(\x01R\n" +
 	"NetBilling\x12\x1d\n" +
 	"\n" +
-	"Vm_Network\x18= \x01(\tR\tVmNetwork\"\xae\x1a\n" +
+	"Vm_Network\x18= \x01(\tR\tVmNetwork\"\x85\x01\n" +
+	"\x11VMRecordPeriodReq\x12\x10\n" +
+	"\x03Key\x18\x01 \x01(\tR\x03Key\x120\n" +
+	"\x05Start\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05Start\x12,\n" +
+	"\x03End\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x03End\"S\n" +
+	"\rVMRecordSlice\x12\x14\n" +
+	"\x05Count\x18\x01 \x01(\x03R\x05Count\x12,\n" +
+	"\aRecords\x18\x02 \x03(\v2\x12.protocol.VMRecordR\aRecords\"\xae\x1a\n" +
 	"\n" +
 	"HostRecord\x12\x0e\n" +
 	"\x02Id\x18\x01 \x01(\x03R\x02Id\x12\x1a\n" +
@@ -3950,13 +4124,18 @@ const file_db_proto_rawDesc = "" +
 	" \x01(\x01R\bDiskRead\x12\x1b\n" +
 	"\tNet_usage\x18\v \x01(\x01R\bNetUsage\x12!\n" +
 	"\fNet_received\x18\f \x01(\x01R\vNetReceived\x12'\n" +
-	"\x0fNet_transmitted\x18\r \x01(\x01R\x0eNetTransmitted2\xca\x04\n" +
+	"\x0fNet_transmitted\x18\r \x01(\x01R\x0eNetTransmitted\"U\n" +
+	"\x11VMPerfRecordSlice\x12\x14\n" +
+	"\x05Count\x18\x01 \x01(\x03R\x05Count\x12*\n" +
+	"\x04Perf\x18\x02 \x03(\v2\x16.protocol.VMPerfRecordR\x04Perf2\xd5\x05\n" +
 	"\tLoadmonDB\x12@\n" +
 	"\tGetServer\x12\x15.protocol.DBKeyString\x1a\x1a.protocol.ServerSprRecords\"\x00\x12P\n" +
 	"\x14GetClusterSprRecords\x12\x18.protocol.ClusterSprKey1\x1a\x1a.protocol.ClusterSprRecord\"\x000\x01\x12K\n" +
 	"\x13AddClusterSprRecord\x12\x1a.protocol.ClusterSprRecord\x1a\x16.protocol.ClusterSprId\"\x00\x12N\n" +
 	"\x16UpdateClusterSprRecord\x12\x1a.protocol.ClusterSprRecord\x1a\x16.protocol.ClusterSprId\"\x00\x12H\n" +
-	"\x10AddClusterRecord\x12\x17.protocol.ClusterRecord\x1a\x19.protocol.ClusterRecordId\"\x00\x12[\n" +
+	"\x10AddClusterRecord\x12\x17.protocol.ClusterRecord\x1a\x19.protocol.ClusterRecordId\"\x00\x12@\n" +
+	"\vGetDBVMPerf\x12\x12.protocol.VMReqKey\x1a\x1b.protocol.VMPerfRecordSlice\"\x00\x12G\n" +
+	"\rGetDBVMRecord\x12\x1b.protocol.VMRecordPeriodReq\x1a\x17.protocol.VMRecordSlice\"\x00\x12[\n" +
 	"\x19UpdateVMSprDatacenterName\x12$.protocol.VMSprDatacenterNameRequest\x1a\x16.protocol.ClusterSprId\"\x00\x12e\n" +
 	"\x1eUpdateClusterSprDatacenterName\x12).protocol.ClusterSprDatacenterNameRequest\x1a\x16.protocol.ClusterSprId\"\x00B\x12Z\x10loadmon/protocolb\x06proto3"
 
@@ -3972,7 +4151,7 @@ func file_db_proto_rawDescGZIP() []byte {
 	return file_db_proto_rawDescData
 }
 
-var file_db_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_db_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_db_proto_goTypes = []any{
 	(*DBKeyString)(nil),                     // 0: protocol.DBKeyString
 	(*ClusterSprKey1)(nil),                  // 1: protocol.ClusterSprKey1
@@ -3984,93 +4163,105 @@ var file_db_proto_goTypes = []any{
 	(*ClusterSprRecord)(nil),                // 7: protocol.ClusterSprRecord
 	(*ClusterSprDatacenterNameRequest)(nil), // 8: protocol.ClusterSprDatacenterNameRequest
 	(*VMRecord)(nil),                        // 9: protocol.VMRecord
-	(*HostRecord)(nil),                      // 10: protocol.HostRecord
-	(*ClusterRecord)(nil),                   // 11: protocol.ClusterRecord
-	(*ClusterPerf)(nil),                     // 12: protocol.ClusterPerf
-	(*HostPerf)(nil),                        // 13: protocol.HostPerf
-	(*VMPerfRecord)(nil),                    // 14: protocol.VMPerfRecord
-	(*timestamppb.Timestamp)(nil),           // 15: google.protobuf.Timestamp
+	(*VMRecordPeriodReq)(nil),               // 10: protocol.VMRecordPeriodReq
+	(*VMRecordSlice)(nil),                   // 11: protocol.VMRecordSlice
+	(*HostRecord)(nil),                      // 12: protocol.HostRecord
+	(*ClusterRecord)(nil),                   // 13: protocol.ClusterRecord
+	(*ClusterPerf)(nil),                     // 14: protocol.ClusterPerf
+	(*HostPerf)(nil),                        // 15: protocol.HostPerf
+	(*VMPerfRecord)(nil),                    // 16: protocol.VMPerfRecord
+	(*VMPerfRecordSlice)(nil),               // 17: protocol.VMPerfRecordSlice
+	(*timestamppb.Timestamp)(nil),           // 18: google.protobuf.Timestamp
+	(*VMReqKey)(nil),                        // 19: protocol.VMReqKey
 }
 var file_db_proto_depIdxs = []int32{
-	15, // 0: protocol.ServerSprRecords.TimeActiveState:type_name -> google.protobuf.Timestamp
-	15, // 1: protocol.ServerSprRecords.TimeDeActiveState:type_name -> google.protobuf.Timestamp
-	15, // 2: protocol.ServerSprRecords.TimeCreate:type_name -> google.protobuf.Timestamp
-	15, // 3: protocol.ServerSprRecords.TimeActiveMonitoring:type_name -> google.protobuf.Timestamp
-	15, // 4: protocol.ServerSprRecords.Time_Mfy:type_name -> google.protobuf.Timestamp
-	15, // 5: protocol.ClusterSprRecord.Time_Mfy:type_name -> google.protobuf.Timestamp
-	15, // 6: protocol.VMRecord.Date:type_name -> google.protobuf.Timestamp
-	15, // 7: protocol.VMRecord.Cpu_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 8: protocol.VMRecord.Cpu_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 9: protocol.VMRecord.Mem_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 10: protocol.VMRecord.Mem_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 11: protocol.VMRecord.Disk_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 12: protocol.VMRecord.Disk_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 13: protocol.VMRecord.Disk_totalReadLatency_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 14: protocol.VMRecord.Disk_totalReadLatency_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 15: protocol.VMRecord.Disk_totalWriteLatency_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 16: protocol.VMRecord.Disk_totalWriteLatency_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 17: protocol.VMRecord.Disk_write_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 18: protocol.VMRecord.Disk_write_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 19: protocol.VMRecord.Disk_read_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 20: protocol.VMRecord.Disk_read_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 21: protocol.VMRecord.Net_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 22: protocol.VMRecord.Net_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 23: protocol.HostRecord.Date:type_name -> google.protobuf.Timestamp
-	15, // 24: protocol.HostRecord.Cpu_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 25: protocol.HostRecord.Cpu_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 26: protocol.HostRecord.Mem_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 27: protocol.HostRecord.Mem_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 28: protocol.HostRecord.Disk_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 29: protocol.HostRecord.Disk_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 30: protocol.HostRecord.Disk_totalReadLatency_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 31: protocol.HostRecord.Disk_totalReadLatency_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 32: protocol.HostRecord.Disk_totalWriteLatency_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 33: protocol.HostRecord.Disk_totalWriteLatency_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 34: protocol.HostRecord.Disk_write_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 35: protocol.HostRecord.Disk_write_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 36: protocol.HostRecord.Disk_read_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 37: protocol.HostRecord.Disk_read_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 38: protocol.HostRecord.Net_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 39: protocol.HostRecord.Net_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 40: protocol.ClusterRecord.Date:type_name -> google.protobuf.Timestamp
-	15, // 41: protocol.ClusterRecord.Cpu_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 42: protocol.ClusterRecord.Cpu_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 43: protocol.ClusterRecord.Mem_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 44: protocol.ClusterRecord.Mem_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 45: protocol.ClusterRecord.Disk_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 46: protocol.ClusterRecord.Disk_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 47: protocol.ClusterRecord.Disk_totalReadLatency_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 48: protocol.ClusterRecord.Disk_totalReadLatency_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 49: protocol.ClusterRecord.Disk_totalWriteLatency_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 50: protocol.ClusterRecord.Disk_totalWriteLatency_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 51: protocol.ClusterRecord.Disk_write_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 52: protocol.ClusterRecord.Disk_write_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 53: protocol.ClusterRecord.Disk_read_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 54: protocol.ClusterRecord.Disk_read_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 55: protocol.ClusterRecord.Net_usage_maximum_time:type_name -> google.protobuf.Timestamp
-	15, // 56: protocol.ClusterRecord.Net_usage_minimum_time:type_name -> google.protobuf.Timestamp
-	15, // 57: protocol.ClusterPerf.Start:type_name -> google.protobuf.Timestamp
-	15, // 58: protocol.HostPerf.Start:type_name -> google.protobuf.Timestamp
-	15, // 59: protocol.VMPerfRecord.Start:type_name -> google.protobuf.Timestamp
-	0,  // 60: protocol.LoadmonDB.GetServer:input_type -> protocol.DBKeyString
-	1,  // 61: protocol.LoadmonDB.GetClusterSprRecords:input_type -> protocol.ClusterSprKey1
-	7,  // 62: protocol.LoadmonDB.AddClusterSprRecord:input_type -> protocol.ClusterSprRecord
-	7,  // 63: protocol.LoadmonDB.UpdateClusterSprRecord:input_type -> protocol.ClusterSprRecord
-	11, // 64: protocol.LoadmonDB.AddClusterRecord:input_type -> protocol.ClusterRecord
-	6,  // 65: protocol.LoadmonDB.UpdateVMSprDatacenterName:input_type -> protocol.VMSprDatacenterNameRequest
-	8,  // 66: protocol.LoadmonDB.UpdateClusterSprDatacenterName:input_type -> protocol.ClusterSprDatacenterNameRequest
-	4,  // 67: protocol.LoadmonDB.GetServer:output_type -> protocol.ServerSprRecords
-	7,  // 68: protocol.LoadmonDB.GetClusterSprRecords:output_type -> protocol.ClusterSprRecord
-	2,  // 69: protocol.LoadmonDB.AddClusterSprRecord:output_type -> protocol.ClusterSprId
-	2,  // 70: protocol.LoadmonDB.UpdateClusterSprRecord:output_type -> protocol.ClusterSprId
-	3,  // 71: protocol.LoadmonDB.AddClusterRecord:output_type -> protocol.ClusterRecordId
-	2,  // 72: protocol.LoadmonDB.UpdateVMSprDatacenterName:output_type -> protocol.ClusterSprId
-	2,  // 73: protocol.LoadmonDB.UpdateClusterSprDatacenterName:output_type -> protocol.ClusterSprId
-	67, // [67:74] is the sub-list for method output_type
-	60, // [60:67] is the sub-list for method input_type
-	60, // [60:60] is the sub-list for extension type_name
-	60, // [60:60] is the sub-list for extension extendee
-	0,  // [0:60] is the sub-list for field type_name
+	18, // 0: protocol.ServerSprRecords.TimeActiveState:type_name -> google.protobuf.Timestamp
+	18, // 1: protocol.ServerSprRecords.TimeDeActiveState:type_name -> google.protobuf.Timestamp
+	18, // 2: protocol.ServerSprRecords.TimeCreate:type_name -> google.protobuf.Timestamp
+	18, // 3: protocol.ServerSprRecords.TimeActiveMonitoring:type_name -> google.protobuf.Timestamp
+	18, // 4: protocol.ServerSprRecords.Time_Mfy:type_name -> google.protobuf.Timestamp
+	18, // 5: protocol.ClusterSprRecord.Time_Mfy:type_name -> google.protobuf.Timestamp
+	18, // 6: protocol.VMRecord.Date:type_name -> google.protobuf.Timestamp
+	18, // 7: protocol.VMRecord.Cpu_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 8: protocol.VMRecord.Cpu_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 9: protocol.VMRecord.Mem_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 10: protocol.VMRecord.Mem_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 11: protocol.VMRecord.Disk_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 12: protocol.VMRecord.Disk_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 13: protocol.VMRecord.Disk_totalReadLatency_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 14: protocol.VMRecord.Disk_totalReadLatency_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 15: protocol.VMRecord.Disk_totalWriteLatency_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 16: protocol.VMRecord.Disk_totalWriteLatency_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 17: protocol.VMRecord.Disk_write_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 18: protocol.VMRecord.Disk_write_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 19: protocol.VMRecord.Disk_read_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 20: protocol.VMRecord.Disk_read_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 21: protocol.VMRecord.Net_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 22: protocol.VMRecord.Net_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 23: protocol.VMRecordPeriodReq.Start:type_name -> google.protobuf.Timestamp
+	18, // 24: protocol.VMRecordPeriodReq.End:type_name -> google.protobuf.Timestamp
+	9,  // 25: protocol.VMRecordSlice.Records:type_name -> protocol.VMRecord
+	18, // 26: protocol.HostRecord.Date:type_name -> google.protobuf.Timestamp
+	18, // 27: protocol.HostRecord.Cpu_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 28: protocol.HostRecord.Cpu_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 29: protocol.HostRecord.Mem_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 30: protocol.HostRecord.Mem_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 31: protocol.HostRecord.Disk_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 32: protocol.HostRecord.Disk_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 33: protocol.HostRecord.Disk_totalReadLatency_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 34: protocol.HostRecord.Disk_totalReadLatency_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 35: protocol.HostRecord.Disk_totalWriteLatency_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 36: protocol.HostRecord.Disk_totalWriteLatency_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 37: protocol.HostRecord.Disk_write_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 38: protocol.HostRecord.Disk_write_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 39: protocol.HostRecord.Disk_read_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 40: protocol.HostRecord.Disk_read_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 41: protocol.HostRecord.Net_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 42: protocol.HostRecord.Net_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 43: protocol.ClusterRecord.Date:type_name -> google.protobuf.Timestamp
+	18, // 44: protocol.ClusterRecord.Cpu_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 45: protocol.ClusterRecord.Cpu_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 46: protocol.ClusterRecord.Mem_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 47: protocol.ClusterRecord.Mem_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 48: protocol.ClusterRecord.Disk_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 49: protocol.ClusterRecord.Disk_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 50: protocol.ClusterRecord.Disk_totalReadLatency_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 51: protocol.ClusterRecord.Disk_totalReadLatency_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 52: protocol.ClusterRecord.Disk_totalWriteLatency_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 53: protocol.ClusterRecord.Disk_totalWriteLatency_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 54: protocol.ClusterRecord.Disk_write_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 55: protocol.ClusterRecord.Disk_write_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 56: protocol.ClusterRecord.Disk_read_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 57: protocol.ClusterRecord.Disk_read_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 58: protocol.ClusterRecord.Net_usage_maximum_time:type_name -> google.protobuf.Timestamp
+	18, // 59: protocol.ClusterRecord.Net_usage_minimum_time:type_name -> google.protobuf.Timestamp
+	18, // 60: protocol.ClusterPerf.Start:type_name -> google.protobuf.Timestamp
+	18, // 61: protocol.HostPerf.Start:type_name -> google.protobuf.Timestamp
+	18, // 62: protocol.VMPerfRecord.Start:type_name -> google.protobuf.Timestamp
+	16, // 63: protocol.VMPerfRecordSlice.Perf:type_name -> protocol.VMPerfRecord
+	0,  // 64: protocol.LoadmonDB.GetServer:input_type -> protocol.DBKeyString
+	1,  // 65: protocol.LoadmonDB.GetClusterSprRecords:input_type -> protocol.ClusterSprKey1
+	7,  // 66: protocol.LoadmonDB.AddClusterSprRecord:input_type -> protocol.ClusterSprRecord
+	7,  // 67: protocol.LoadmonDB.UpdateClusterSprRecord:input_type -> protocol.ClusterSprRecord
+	13, // 68: protocol.LoadmonDB.AddClusterRecord:input_type -> protocol.ClusterRecord
+	19, // 69: protocol.LoadmonDB.GetDBVMPerf:input_type -> protocol.VMReqKey
+	10, // 70: protocol.LoadmonDB.GetDBVMRecord:input_type -> protocol.VMRecordPeriodReq
+	6,  // 71: protocol.LoadmonDB.UpdateVMSprDatacenterName:input_type -> protocol.VMSprDatacenterNameRequest
+	8,  // 72: protocol.LoadmonDB.UpdateClusterSprDatacenterName:input_type -> protocol.ClusterSprDatacenterNameRequest
+	4,  // 73: protocol.LoadmonDB.GetServer:output_type -> protocol.ServerSprRecords
+	7,  // 74: protocol.LoadmonDB.GetClusterSprRecords:output_type -> protocol.ClusterSprRecord
+	2,  // 75: protocol.LoadmonDB.AddClusterSprRecord:output_type -> protocol.ClusterSprId
+	2,  // 76: protocol.LoadmonDB.UpdateClusterSprRecord:output_type -> protocol.ClusterSprId
+	3,  // 77: protocol.LoadmonDB.AddClusterRecord:output_type -> protocol.ClusterRecordId
+	17, // 78: protocol.LoadmonDB.GetDBVMPerf:output_type -> protocol.VMPerfRecordSlice
+	11, // 79: protocol.LoadmonDB.GetDBVMRecord:output_type -> protocol.VMRecordSlice
+	2,  // 80: protocol.LoadmonDB.UpdateVMSprDatacenterName:output_type -> protocol.ClusterSprId
+	2,  // 81: protocol.LoadmonDB.UpdateClusterSprDatacenterName:output_type -> protocol.ClusterSprId
+	73, // [73:82] is the sub-list for method output_type
+	64, // [64:73] is the sub-list for method input_type
+	64, // [64:64] is the sub-list for extension type_name
+	64, // [64:64] is the sub-list for extension extendee
+	0,  // [0:64] is the sub-list for field type_name
 }
 
 func init() { file_db_proto_init() }
@@ -4078,13 +4269,14 @@ func file_db_proto_init() {
 	if File_db_proto != nil {
 		return
 	}
+	file_vm_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_db_proto_rawDesc), len(file_db_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
