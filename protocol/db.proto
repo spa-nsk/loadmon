@@ -75,7 +75,7 @@ service LoadmonDB {
   rpc UpdateVMSprDatacenterName(VMSprDatacenterNameRequest) returns(ClusterSprId){}
   // UpdateClusterSprDatacenterName - точечное обновление поля
   // ClusterSprRecord.DatacenterName (объединённый список кодов ЦОД всех ESXi
-  // гипервизоров кластера через ";", без дублей). Отдельный RPC, заполняется
+  // гипервизоров кластера через "||", без дублей). Отдельный RPC, заполняется
   // отдельной функцией, запускаемой параллельно с сохранением метрик (см.
   // cmdb/clusterdatacentername.go, cmdb.UpdateClusterDatacenterNames).
   rpc UpdateClusterSprDatacenterName(ClusterSprDatacenterNameRequest) returns(ClusterSprId){}
@@ -248,7 +248,7 @@ message ClusterSprRecord{
   int32 Stat=10;
   string ClusterId=11;
   // DatacenterName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
-  // всех ESXi гипервизоров кластера через ";", без дублей. Заполняется
+  // всех ESXi гипервизоров кластера через "||", без дублей. Заполняется
   // отдельно, см. rpc UpdateClusterSprDatacenterName.
   string DatacenterName=12;
 }

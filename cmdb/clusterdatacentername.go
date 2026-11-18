@@ -1,6 +1,6 @@
 // Package cmdb (файл clusterdatacentername.go) содержит отдельную функцию
 // UpdateClusterDatacenterNames, заполняющую ClusterSprRecords.DatacenterName -
-// объединённый через ";" (без дублей) список кодов ЦОД
+// объединённый через "||" (без дублей) список кодов ЦОД
 // (DatacenterSite.CodeJira) всех ESXi гипервизоров кластера:
 //
 //	ServerSprRecords (Type=2, Vcenter+ClusterId == параметры кластера) ->
@@ -71,7 +71,7 @@ func UpdateClusterDatacenterNames(cl *vsphere.Cluster, clusterSprId int64) {
 		return
 	}
 	sort.Strings(codes) // стабильный порядок склейки - не порождать лишних обновлений при неизменном составе
-	datacenterName := strings.Join(codes, ";")
+	datacenterName := strings.Join(codes, "||")
 
 	clusterSpr := models.ClusterSprRecords{Id: clusterSprId}
 	if err := o.Read(&clusterSpr, "Id"); err == nil && clusterSpr.DatacenterName == datacenterName {

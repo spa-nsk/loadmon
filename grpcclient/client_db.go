@@ -206,7 +206,7 @@ func UpdateVMSprDatacenterName(id int64, datacenterName string) int {
 }
 
 // UpdateClusterSprDatacenterName обновляет поле ClusterSprRecord.DatacenterName
-// (объединённый через ";" без дублей список кодов ЦОД DatacenterSite.CodeJira
+// (объединённый через "||" без дублей список кодов ЦОД DatacenterSite.CodeJira
 // всех ESXi гипервизоров кластера) через сервис LoadmonDB, по Id справочной
 // записи кластера (cluster_spr_records.Id). Вызывается из
 // cmdb.UpdateClusterDatacenterNames (cmdb/clusterdatacentername.go) - отдельной
