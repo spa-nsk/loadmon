@@ -509,7 +509,7 @@ type ClusterSprRecords struct {
 	Id_User  int64     `form:"Id_User"`
 	Time_Mfy time.Time `form:"Time_Mfy"`
 	// DatacenterName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
-	// всех ESXi гипервизоров кластера, через разделитель ";", без дублей.
+	// всех ESXi гипервизоров кластера, через разделитель "||", без дублей.
 	// Заполняется отдельной функцией (cmdb.UpdateClusterDatacenterNames),
 	// запускаемой параллельно с сохранением метрик, а не внутри него - по
 	// аналогии с VMSprRecord.DatacenterName.

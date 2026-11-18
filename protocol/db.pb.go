@@ -1287,7 +1287,7 @@ type ClusterSprRecord struct {
 	Stat       int32                  `protobuf:"varint,10,opt,name=Stat,proto3" json:"Stat,omitempty"`
 	ClusterId  string                 `protobuf:"bytes,11,opt,name=ClusterId,proto3" json:"ClusterId,omitempty"`
 	// DatacenterName - объединённый список кодов ЦОД (DatacenterSite.CodeJira)
-	// всех ESXi гипервизоров кластера через ";", без дублей. Заполняется
+	// всех ESXi гипервизоров кластера через "||", без дублей. Заполняется
 	// отдельно, см. rpc UpdateClusterSprDatacenterName.
 	DatacenterName string `protobuf:"bytes,12,opt,name=DatacenterName,proto3" json:"DatacenterName,omitempty"`
 	unknownFields  protoimpl.UnknownFields

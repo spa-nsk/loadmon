@@ -5,7 +5,7 @@
 // сохранённым в БД проекта).
 //
 // Настоящий файл содержит обработчик UpdateClusterSprDatacenterName - точечное
-// обновление поля ClusterSprRecord.DatacenterName (объединённый через ";" без
+// обновление поля ClusterSprRecord.DatacenterName (объединённый через "||" без
 // дублей список кодов ЦОД DatacenterSite.CodeJira всех ESXi гипервизоров
 // кластера). Вызывается отдельной функцией cmdb.UpdateClusterDatacenterNames
 // (файл cmdb/clusterdatacentername.go), запускаемой параллельно с сохранением

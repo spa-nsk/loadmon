@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Проверка ClusterSprRecords.DatacenterName: объединение code_jira всех ESXi
--- (Type=2) кластера через ";" без дублей (cmdb/clusterdatacentername.go).
+-- (Type=2) кластера через "||" без дублей (cmdb/clusterdatacentername.go).
 -- PostgreSQL.
 --
 -- ПЕРЕИМЕНОВАНО (2026-09-30) из DatastoreName/datastore_name - опечатка.
@@ -18,7 +18,7 @@ SELECT
     csr.datacenter_name AS stored_datacenter_name,
     string_agg(
         DISTINCT NULLIF(ds.code_jira, ''),
-        ';' ORDER BY NULLIF(ds.code_jira, '')
+        '||' ORDER BY NULLIF(ds.code_jira, '')
     )                   AS resolved_datacenter_name
 FROM cluster_spr_records csr
 JOIN server_spr_records h

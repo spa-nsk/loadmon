@@ -103,7 +103,7 @@ type LoadmonDBClient interface {
 	UpdateVMSprDatacenterName(ctx context.Context, in *VMSprDatacenterNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error)
 	// UpdateClusterSprDatacenterName - точечное обновление поля
 	// ClusterSprRecord.DatacenterName (объединённый список кодов ЦОД всех ESXi
-	// гипервизоров кластера через ";", без дублей). Отдельный RPC, заполняется
+	// гипервизоров кластера через "||", без дублей). Отдельный RPC, заполняется
 	// отдельной функцией, запускаемой параллельно с сохранением метрик (см.
 	// cmdb/clusterdatacentername.go, cmdb.UpdateClusterDatacenterNames).
 	UpdateClusterSprDatacenterName(ctx context.Context, in *ClusterSprDatacenterNameRequest, opts ...grpc.CallOption) (*ClusterSprId, error)
@@ -275,7 +275,7 @@ type LoadmonDBServer interface {
 	UpdateVMSprDatacenterName(context.Context, *VMSprDatacenterNameRequest) (*ClusterSprId, error)
 	// UpdateClusterSprDatacenterName - точечное обновление поля
 	// ClusterSprRecord.DatacenterName (объединённый список кодов ЦОД всех ESXi
-	// гипервизоров кластера через ";", без дублей). Отдельный RPC, заполняется
+	// гипервизоров кластера через "||", без дублей). Отдельный RPC, заполняется
 	// отдельной функцией, запускаемой параллельно с сохранением метрик (см.
 	// cmdb/clusterdatacentername.go, cmdb.UpdateClusterDatacenterNames).
 	UpdateClusterSprDatacenterName(context.Context, *ClusterSprDatacenterNameRequest) (*ClusterSprId, error)
