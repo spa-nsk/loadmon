@@ -26,6 +26,11 @@
 //
 //	-report PATH  -questions PATH
 //
+// Импорт в БД (app2.json → DB + ConfigItilium):
+//
+//	go run ./tools/itiliumgetcu -import -all
+//	go run ./tools/itiliumgetcu -import -in getcu.json
+//
 // Ответ: { rows:[{ rowKey,uid,deleted,status{label,value},code{…},… }] , … }.
 // При -all листает страницы по last/hasMore (если API их отдаёт).
 package main
@@ -41,8 +46,11 @@ import (
 	"strings"
 	"time"
 
+	"loadmon/config"
 	"loadmon/itilium"
-	"loadmon/utilities"
+
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -71,6 +79,7 @@ func main() {
 	all := flag.Bool("all", false, "листать страницы по last/hasMore")
 	listClasses := flag.Bool("list-classes", false, "напечатать справочник cuClass и выйти")
 	analyze := flag.Bool("analyze", false, "проверка выгрузки по правилам импорта + отчёты")
+	doImport := flag.Bool("import", false, "записать rows в БД из app2.json (ImportRackServersFromCU)")
 	inFile := flag.String("in", "", "прочитать GetCUResponse JSON из файла (без HTTP)")
 	reportPath := flag.String("report", "", "файл полного разбора (по умолчанию <stem>-import-check.json)")
 	questionsPath := flag.String("questions", "", "файл вопросов (по умолчанию <stem>-import-questions.json)")
@@ -85,6 +94,24 @@ func main() {
 			fmt.Printf("%3d  %s\n", c.Code, c.Name)
 		}
 		return
+	}
+
+	// Подтянуть ConfigItilium из app2.json (для -import и при Enabled).
+	var itilCfg config.ItiliumConfig
+	if _, err := config.ConfigData.LoadConfigData(); err == nil {
+		itilCfg = config.ConfigData.ConfigItilium
+		applyItiliumConfig(&itilCfg, base, domain, user, password, auth, apiPrefix, insecure, timeout, cuStatus)
+	} else if *doImport {
+		log.Fatalf("app2.json: %v (нужен для -import / LOADMON_CONFIG)", err)
+	}
+
+	if *doImport {
+		if err := initDBForImport(); err != nil {
+			log.Fatal(err)
+		}
+		if !*all && *inFile == "" {
+			log.Printf("совет: для полной выгрузки укажите -all (или -in getcu.json)")
+		}
 	}
 
 	var (
@@ -111,22 +138,9 @@ func main() {
 		pages = 1
 		log.Printf("прочитано %s: rows=%d totalCount=%d", *inFile, len(allRows), total)
 	} else {
-		pass := strings.TrimSpace(*password)
+		pass := resolveItiliumPassword(*password, *domain, *user, itilCfg)
 		if pass == "" {
-			pass = strings.TrimSpace(os.Getenv("ITILIUM_PASSWORD"))
-		}
-		if pass == "" {
-			key := *user
-			if d := strings.TrimSpace(*domain); d != "" {
-				key = d + `\` + *user
-			}
-			pass = utilities.GetKeyData(key)
-			if pass == "key" {
-				pass = utilities.GetKeyData(*user)
-			}
-			if pass == "key" {
-				log.Fatal("пароль не задан: -password, ITILIUM_PASSWORD или ключ в utilities.GetKeyData")
-			}
+			log.Fatal("пароль не задан: -password, ITILIUM_PASSWORD, ConfigItilium.Password или GetKeyData")
 		}
 
 		c, err := itilium.NewClient(itilium.Config{
@@ -179,6 +193,10 @@ func main() {
 	}
 
 	log.Printf("итого: страниц=%d rows=%d totalCount=%d last=%q", pages, len(allRows), total, last)
+
+	if *doImport {
+		runImportCU(allRows)
+	}
 
 	if *analyze {
 		printRackAnalyze(allRows)

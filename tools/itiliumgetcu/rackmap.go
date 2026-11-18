@@ -7,31 +7,11 @@ import (
 	"strings"
 
 	"loadmon/itilium"
+	"loadmon/itilliumimport"
 )
 
-// Соответствие getCU (cuClass=145) ↔ колонки Excel-импорта rack-серверов.
-// Актуальный YAML: update/rack_server.yaml (копируется в каталог app.conf
-// yaml=). Образец itilliumimport/mapping.yaml устарел. Реализация пока
-// только в этом tool — запись в БД остаётся в itilliumimport.
-
-// statusMapped — кортеж enums.status из update/rack_server.yaml:
-// Spr.Stat | Spr.PowerState | Spr.Active | Hw.PowerState | Hw.Active | Hw.ItiliumStatus
-type statusMapped struct {
-	Stat, Power, Active, HwPower, HwActive, ItiliumStatus int
-}
-
-var statusMap = map[string]statusMapped{
-	"В работе (эксплуатации)": {1, 1, 1, 1, 1, 1},
-	"В работе (эксплуатация)": {1, 1, 1, 1, 1, 1}, // вариант без «и» в getCU
-	"Выведен":         {1, 2, 2, 2, 2, 2},
-	"Списан":          {2, 2, 2, 2, 2, 3},
-	"Свободно":        {1, 2, 2, 2, 2, 4},
-	"На складе":       {1, 2, 2, 2, 2, 5},
-	"Зарезервировано": {1, 2, 2, 2, 2, 6},
-	"В ремонте":       {1, 2, 2, 2, 2, 7},
-	"В пути":          {1, 2, 2, 2, 2, 8},
-	"Черновик":        {1, 2, 2, 2, 2, 9},
-}
+// Соответствие getCU (cuClass=145) ↔ update/rack_server.yaml.
+// Запись в БД: itilliumimport.ImportRackServersFromCU (-import).
 
 var unitRangeRe = regexp.MustCompile(`^\s*(\d+)\s*-\s*(\d+)\s*$`)
 
@@ -143,9 +123,8 @@ func parsePlacement(raw string) PlacementParts {
 	return p
 }
 
-func mapStatus(label string) (statusMapped, bool) {
-	v, found := statusMap[strings.TrimSpace(label)]
-	return v, found
+func mapStatus(label string) (itilliumimport.StatusMapped, bool) {
+	return itilliumimport.MapCUStatusLabel(label)
 }
 
 func unitsInt(lv itilium.LabelValue) int {

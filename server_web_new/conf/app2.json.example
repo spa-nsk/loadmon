@@ -36,6 +36,19 @@
 	"GrpcHardwareTimeoutSec": 120,
 	"ConfigSCOM": [
 		{"Name":"scom-main","Enabled":false,"Endpoint":"https://scom-ms01.example.local/OperationsManager","AuthMode":"Network","Domain":"EXAMPLE","Login":"svc-loadmon-scom","Password":"change-me","InsecureSkipVerify":false,"ClassName":"Microsoft.Windows.Computer","IntervalSec":300,"InventoryIntervalSec":3600,"PerfDuration":60,"OperationTimeoutSec":120}],
+	"ConfigItilium": {
+		"Enabled": false,
+		"BaseURL": "https://itsd.global.bcs/ITILIUM",
+		"Domain": "itildomail",
+		"Login": "itiluser",
+		"Password": "password",
+		"AuthMode": "ntlm",
+		"APIPrefix": "/hs/api",
+		"InsecureSkipVerify": false,
+		"TimeoutSec": 120,
+		"SyncRackServers": true,
+		"CUStatus": "all"
+	},
 	"ConfigVCenters": [
 		{"Hostname":"vc.example.local","Username":"user@example.local","Password":"change-me","Wait":60}
 	],
