@@ -192,7 +192,7 @@ func printBrief(rows []itilium.CURow) {
 	}
 	for i := 0; i < n; i++ {
 		u := rows[i]
-		log.Printf("  [%d] code=%s name=%s hostname=%s ip=%s sn=%s status=%s",
-			i, u.Code.String(), u.Name.String(), u.Hostname.String(), u.IP.String(), u.SN.String(), u.Status.Label)
+		log.Printf("  [%d] code=%s name=%s hostname=%s ip=%s sn=%s links=%s status=%s",
+			i, u.Code.String(), u.Name.String(), u.Hostname.String(), u.IP.String(), u.SN.String(), u.LinksUnit.String(), u.Status.Label)
 	}
 }

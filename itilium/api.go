@@ -66,9 +66,10 @@ var DefaultServerCUFields = []string{
 
 // LabelValue — поле КЕ вида {"label":"…","value":"…"}.
 // UnmarshalJSON также принимает голую JSON-строку (тогда Value=строка).
+// Value — any: в ответах 1С бывает строка, число или bool.
 type LabelValue struct {
 	Label string `json:"label"`
-	Value string `json:"value"`
+	Value any    `json:"value"`
 }
 
 func (lv *LabelValue) UnmarshalJSON(data []byte) error {
@@ -94,30 +95,105 @@ func (lv *LabelValue) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// ValueString — строковое представление Value ("" если Value nil/пусто).
+func (lv LabelValue) ValueString() string {
+	switch v := lv.Value.(type) {
+	case nil:
+		return ""
+	case string:
+		return v
+	case bool:
+		return strconv.FormatBool(v)
+	case float64:
+		if v == float64(int64(v)) {
+			return strconv.FormatInt(int64(v), 10)
+		}
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case json.Number:
+		return v.String()
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
 // String возвращает Value, если не пуст, иначе Label.
 func (lv LabelValue) String() string {
-	if lv.Value != "" {
-		return lv.Value
+	if s := lv.ValueString(); s != "" {
+		return s
 	}
 	return lv.Label
+}
+
+// LinksUnitField — поле linksUnit: JSON-строка, один LabelValue или массив
+// LabelValue. Нормализуется в срез элементов.
+type LinksUnitField []LabelValue
+
+func (f *LinksUnitField) UnmarshalJSON(data []byte) error {
+	data = bytesTrimSpace(data)
+	if len(data) == 0 || string(data) == "null" {
+		*f = nil
+		return nil
+	}
+	switch data[0] {
+	case '"':
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		if s == "" {
+			*f = nil
+			return nil
+		}
+		*f = LinksUnitField{{Value: s}}
+		return nil
+	case '[':
+		var list []LabelValue
+		if err := json.Unmarshal(data, &list); err != nil {
+			return err
+		}
+		*f = LinksUnitField(list)
+		return nil
+	case '{':
+		var one LabelValue
+		if err := json.Unmarshal(data, &one); err != nil {
+			return err
+		}
+		*f = LinksUnitField{one}
+		return nil
+	default:
+		return fmt.Errorf("itilium: linksUnit: неожиданный JSON %s", truncate(string(data), 64))
+	}
+}
+
+// String склеивает значения элементов через "; " (для логов/краткого вывода).
+func (f LinksUnitField) String() string {
+	if len(f) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(f))
+	for _, lv := range f {
+		if s := lv.String(); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, "; ")
 }
 
 // CURow — строка КЕ в ответе getCU (элемент rows).
 // Базовые поля — как в структуре ItilliumCu; дополнительные (hostname, ip, …)
 // появляются при указании fields= и тоже могут быть label/value или строкой.
 type CURow struct {
-	RowKey      string     `json:"rowKey"`
-	UID         string     `json:"uid"`
-	Deleted     bool       `json:"deleted"`
-	Status      LabelValue `json:"status"`
-	Code        LabelValue `json:"code"`
-	SortField   string     `json:"sortField"`
-	Name        LabelValue `json:"name"`
-	Description LabelValue `json:"description"`
-	Author      LabelValue `json:"author"`
-	CuClass     string     `json:"cuClass"`
-	LinksUnit   string     `json:"linksUnit,omitempty"`
-
+	RowKey      string         `json:"rowKey"`
+	UID         string         `json:"uid"`
+	Deleted     bool           `json:"deleted"`
+	Status      LabelValue     `json:"status"`
+	Code        LabelValue     `json:"code"`
+	SortField   string         `json:"sortField"`
+	Name        LabelValue     `json:"name"`
+	Description LabelValue     `json:"description"`
+	Author      LabelValue     `json:"author"`
+	CuClass     string         `json:"cuClass"`
+	LinksUnit   LinksUnitField `json:"linksUnit,omitempty"` // строка, LabelValue или []LabelValue
 	// Поля из fields= (серверы и др.).
 	ModelServ     LabelValue `json:"modelServ,omitempty"`
 	Hostname      LabelValue `json:"hostname,omitempty"`
