@@ -8,6 +8,7 @@ import (
 
 	"loadmon/itilium"
 	"loadmon/locality"
+	"loadmon/models"
 )
 
 // Проверка getCU-выгрузки rack-серверов по правилам распознавания импорта
@@ -318,14 +319,20 @@ func checkOneRow(index int, row itilium.CURow) CheckRow {
 	}
 	cr.ServiceLocation = loc.Service
 
+	noLocOK := models.ItiliumStatusHiddenFromPlans(v.ItiliumStatus) ||
+		strings.HasPrefix(strings.TrimSpace(cr.WhereRaw), "! Покинуло ФГ")
 	if cr.WhereRaw == "" {
-		if inService {
+		if noLocOK {
+			// списан / в пути — пустое where нормально
+		} else if inService {
 			add("missing_where", sevError, "пустое where (Местоположение) при «в работе»",
 				"Нет Местоположения у сервера в работе. Какая площадка/ЦОД?")
 		} else {
 			add("missing_where", sevWarn, "пустое where (Местоположение)",
 				"Местоположение пусто. Оставляем без площадки (DatacenterSite=0)?")
 		}
+	} else if strings.HasPrefix(strings.TrimSpace(cr.WhereRaw), "! Покинуло ФГ") {
+		// импорт не заводит площадку — замечание не нужно
 	} else if loc.Service {
 		add("service_location", sevQuestion, "служебная отметка в where (! …)",
 			fmt.Sprintf("where=%q — служебная отметка. Создавать площадку с этим именем или не размещать?", cr.WhereRaw))

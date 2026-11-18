@@ -93,6 +93,29 @@ type ScomEndpoint struct {
 	OperationTimeoutSec int
 }
 
+// ItiliumConfig — подключение к публикации 1С:ITILIUM (кастомный /hs/api).
+// Пароль: пусто или "password" → utilities.GetKeyData(Domain\Login) /
+// GetKeyData(Login), как у ConfigOV.
+type ItiliumConfig struct {
+	Enabled bool
+	// BaseURL — корень публикации, напр. "https://itsd.global.bcs/ITILIUM".
+	BaseURL  string
+	Domain   string
+	Login    string
+	Password string
+	// AuthMode — "ntlm" или "basic"; пусто → ntlm при непустом Domain.
+	AuthMode string
+	// APIPrefix — префикс HTTP-сервиса; пусто → "/hs/api".
+	APIPrefix          string
+	InsecureSkipVerify bool
+	// TimeoutSec — таймаут одного HTTP-запроса; 0 → 120.
+	TimeoutSec int
+	// SyncRackServers — импортировать cuClass=145 (rack) в БД.
+	SyncRackServers bool
+	// CUStatus — параметр getCU; пусто → "all".
+	CUStatus string
+}
+
 // AuthenticationGroup описывает соответствие одной группы MS Active
 // Directory уровню привилегий loadmon (см. JsonConfig.Auth) - используется
 // при доменной (Kerberos/SPNEGO) аутентификации: список групп пользователя,
@@ -173,6 +196,11 @@ type JsonConfig struct {
 	// метрик ОС серверов и сведений для ServerSprRecords (пакет
 	// scommetrics), см. ScomEndpoint и kontext/13-scom-metrics.md.
 	ConfigSCOM []ScomEndpoint
+
+	// ConfigItilium - HTTP API 1С:ITILIUM (getCU и др.), см. ItiliumConfig
+	// и kontext/19-itilium-api.md. Импорт rack-серверов: tools/itiliumgetcu
+	// -import; ежедневный вызов из metrics_grpc - отдельно.
+	ConfigItilium ItiliumConfig
 
 	// --- Уведомления по электронной почте (SMTP) - добавлено 2026-09-04
 	// по запросу "реализовать возможность отправки уведомлений по
@@ -305,7 +333,8 @@ func (s *JsonConfig) LoadConfigData() (JsonConfig, error) {
 	if err != nil {
 		return *s, err
 	}
-	log.Printf("config: загружен %s (WorkMode=%s, vCenters=%d Oneview=%d SCOM=%d)", fullPath, s.WorkMode, len(s.ConfigVCenters), len(s.ConfigOV), len(s.ConfigSCOM))
+	log.Printf("config: загружен %s (WorkMode=%s, vCenters=%d Oneview=%d SCOM=%d Itilium=%v)",
+		fullPath, s.WorkMode, len(s.ConfigVCenters), len(s.ConfigOV), len(s.ConfigSCOM), s.ConfigItilium.Enabled)
 	return *s, nil
 }
 
