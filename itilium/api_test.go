@@ -141,10 +141,13 @@ func TestGetCUParseItilliumCu(t *testing.T) {
 	if gotPath != "/ITILIUM/hs/api/getCU" {
 		t.Fatalf("path: %s", gotPath)
 	}
-	for _, part := range []string{"cuClass=145", "cuStatus=all", "fields=code"} {
+	for _, part := range []string{"cuClass=145", "cuStatus=all", "fields=author"} {
 		if !strings.Contains(gotQuery, part) {
 			t.Fatalf("query без %s: %s", part, gotQuery)
 		}
+	}
+	if !strings.Contains(gotQuery, "modelVendS") || !strings.Contains(gotQuery, "linksUnit") {
+		t.Fatalf("query без rack-полей: %s", gotQuery)
 	}
 	if !json.Valid(raw) || len(resp.Rows) != 1 {
 		t.Fatalf("%+v", resp)

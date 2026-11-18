@@ -12,6 +12,20 @@
 //
 //	go run ./tools/itiliumgetcu -list-classes
 //
+// Анализ / проверка импорта (update/rack_server.yaml + locality):
+//
+//	go run ./tools/itiliumgetcu -analyze -all -out getcu.json
+//	go run ./tools/itiliumgetcu -analyze -in getcu.json
+//
+// При -analyze пишутся:
+//
+//	<stem>-import-check.json      — разбор всей выгрузки
+//	<stem>-import-questions.json  — только неоднозначности и вопросы (если есть)
+//
+// stem берётся из -in / -out или «getcu». Пути можно задать явно:
+//
+//	-report PATH  -questions PATH
+//
 // Ответ: { rows:[{ rowKey,uid,deleted,status{label,value},code{…},… }] , … }.
 // При -all листает страницы по last/hasMore (если API их отдаёт).
 package main
@@ -23,6 +37,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -42,12 +57,6 @@ func main() {
 	os.Unsetenv(httpKey)
 	os.Unsetenv(httpsKey)
 
-	s1 := os.Getenv(httpKey)
-	s2 := os.Getenv(httpKey)
-
-	_ = s1
-	_ = s2
-
 	base := flag.String("base", "https://itsd.global.bcs/ITILIUM", "корень публикации 1С")
 	domain := flag.String("domain", "itildomail", "AD-домен")
 	user := flag.String("user", "itiluser", "логин без домена")
@@ -61,9 +70,13 @@ func main() {
 	fields := flag.String("fields", strings.Join(itilium.DefaultServerCUFields, ","), "fields через запятую")
 	all := flag.Bool("all", false, "листать страницы по last/hasMore")
 	listClasses := flag.Bool("list-classes", false, "напечатать справочник cuClass и выйти")
+	analyze := flag.Bool("analyze", false, "проверка выгрузки по правилам импорта + отчёты")
+	inFile := flag.String("in", "", "прочитать GetCUResponse JSON из файла (без HTTP)")
+	reportPath := flag.String("report", "", "файл полного разбора (по умолчанию <stem>-import-check.json)")
+	questionsPath := flag.String("questions", "", "файл вопросов (по умолчанию <stem>-import-questions.json)")
 	insecure := flag.Bool("insecure", false, "пропуск проверки TLS")
 	timeout := flag.Duration("timeout", 2*time.Minute, "таймаут одного HTTP-запроса")
-	out := flag.String("out", "", "файл для JSON")
+	out := flag.String("out", "", "файл для сырого/полного JSON ответа getCU")
 	pretty := flag.Bool("pretty", true, "pretty-print при выводе в stdout")
 	flag.Parse()
 
@@ -74,48 +87,6 @@ func main() {
 		return
 	}
 
-	pass := strings.TrimSpace(*password)
-	if pass == "" {
-		pass = strings.TrimSpace(os.Getenv("ITILIUM_PASSWORD"))
-	}
-	if pass == "" {
-		key := *user
-		if d := strings.TrimSpace(*domain); d != "" {
-			key = d + `\` + *user
-		}
-		pass = utilities.GetKeyData(key)
-		if pass == "key" {
-			pass = utilities.GetKeyData(*user)
-		}
-		if pass == "key" {
-			log.Fatal("пароль не задан: -password, ITILIUM_PASSWORD или ключ в utilities.GetKeyData")
-		}
-	}
-
-	c, err := itilium.NewClient(itilium.Config{
-		Name: "getcu", BaseURL: *base, Login: *user, Password: pass,
-		Domain: *domain, AuthMode: *auth, APIPrefix: *apiPrefix,
-		Timeout: *timeout, InsecureSkipVerify: *insecure,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	q := itilium.GetCUQuery{
-		NextVer: *nextVer, CUClass: *cuClass, CUStatus: *cuStatus, Limit: *limit,
-	}
-	if f := strings.TrimSpace(*fields); f != "" {
-		q.Fields = splitCSV(f)
-	}
-
-	className := itilium.CUClassName(*cuClass)
-	if className == "" {
-		className = "?"
-	}
-	api := c.API()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-
 	var (
 		allRows []itilium.CURow
 		last    string
@@ -124,34 +95,129 @@ func main() {
 		rawLast []byte
 	)
 
-	for {
-		pages++
-		log.Printf("GET %s (class=%d %s, auth=%s %s\\%s)", api.GetCUURL(q), *cuClass, className, *auth, *domain, *user)
-		resp, raw, err := api.GetCURaw(ctx, q)
+	if *inFile != "" {
+		b, err := os.ReadFile(*inFile)
 		if err != nil {
-			log.Fatalf("getCU: %v", err)
+			log.Fatal(err)
 		}
-		rawLast = raw
+		var resp itilium.GetCUResponse
+		if err := json.Unmarshal(b, &resp); err != nil {
+			log.Fatalf("-in: decode: %v", err)
+		}
+		allRows = resp.Rows
 		total = resp.TotalCount
 		last = resp.Last
-		allRows = append(allRows, resp.Rows...)
-		log.Printf("страница %d: rows=%d totalCount=%d last=%q hasMore=%v", pages, len(resp.Rows), resp.TotalCount, resp.Last, resp.HasMore)
-		printBrief(resp.Rows)
+		rawLast = b
+		pages = 1
+		log.Printf("прочитано %s: rows=%d totalCount=%d", *inFile, len(allRows), total)
+	} else {
+		pass := strings.TrimSpace(*password)
+		if pass == "" {
+			pass = strings.TrimSpace(os.Getenv("ITILIUM_PASSWORD"))
+		}
+		if pass == "" {
+			key := *user
+			if d := strings.TrimSpace(*domain); d != "" {
+				key = d + `\` + *user
+			}
+			pass = utilities.GetKeyData(key)
+			if pass == "key" {
+				pass = utilities.GetKeyData(*user)
+			}
+			if pass == "key" {
+				log.Fatal("пароль не задан: -password, ITILIUM_PASSWORD или ключ в utilities.GetKeyData")
+			}
+		}
 
-		if !*all {
-			break
+		c, err := itilium.NewClient(itilium.Config{
+			Name: "getcu", BaseURL: *base, Login: *user, Password: pass,
+			Domain: *domain, AuthMode: *auth, APIPrefix: *apiPrefix,
+			Timeout: *timeout, InsecureSkipVerify: *insecure,
+		})
+		if err != nil {
+			log.Fatal(err)
 		}
-		next, ok := resp.NextPageQuery(q)
-		if !ok {
-			break
+
+		q := itilium.GetCUQuery{
+			NextVer: *nextVer, CUClass: *cuClass, CUStatus: *cuStatus, Limit: *limit,
 		}
-		q = next
+		if f := strings.TrimSpace(*fields); f != "" {
+			q.Fields = splitCSV(f)
+		}
+
+		className := itilium.CUClassName(*cuClass)
+		if className == "" {
+			className = "?"
+		}
+		api := c.API()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+
+		for {
+			pages++
+			log.Printf("GET %s (class=%d %s, auth=%s %s\\%s)", api.GetCUURL(q), *cuClass, className, *auth, *domain, *user)
+			resp, raw, err := api.GetCURaw(ctx, q)
+			if err != nil {
+				log.Fatalf("getCU: %v", err)
+			}
+			rawLast = raw
+			total = resp.TotalCount
+			last = resp.Last
+			allRows = append(allRows, resp.Rows...)
+			log.Printf("страница %d: rows=%d totalCount=%d last=%q hasMore=%v", pages, len(resp.Rows), resp.TotalCount, resp.Last, resp.HasMore)
+			printBrief(resp.Rows)
+
+			if !*all {
+				break
+			}
+			next, ok := resp.NextPageQuery(q)
+			if !ok {
+				break
+			}
+			q = next
+		}
 	}
 
 	log.Printf("итого: страниц=%d rows=%d totalCount=%d last=%q", pages, len(allRows), total, last)
 
+	if *analyze {
+		printRackAnalyze(allRows)
+		src := *inFile
+		if src == "" {
+			src = "getCU"
+			if *out != "" {
+				src = *out
+			}
+		}
+		rep, qrep := validateDump(allRows, src)
+		stem := reportStem(*inFile, *out)
+		rPath := strings.TrimSpace(*reportPath)
+		if rPath == "" {
+			rPath = stem + "-import-check.json"
+		}
+		if err := writeJSONFile(rPath, rep); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("проверка импорта: ok=%d issues=%d → %s", rep.OKCount, rep.IssueCount, rPath)
+		if len(rep.ByCode) > 0 {
+			log.Printf("коды замечаний: %v", rep.ByCode)
+		}
+		if qrep.ProblemRows > 0 {
+			qPath := strings.TrimSpace(*questionsPath)
+			if qPath == "" {
+				qPath = stem + "-import-questions.json"
+			}
+			if err := writeJSONFile(qPath, qrep); err != nil {
+				log.Fatal(err)
+			}
+			log.Printf("вопросы по неоднозначностям: rows=%d → %s", qrep.ProblemRows, qPath)
+		} else {
+			log.Printf("неоднозначностей нет — файл вопросов не создан")
+		}
+	}
+
 	payload := any(rawLast)
-	if *all {
+	if *all || *inFile != "" {
 		payload = itilium.GetCUResponse{Rows: allRows, TotalCount: total, Last: last, HasMore: false}
 	}
 
@@ -166,11 +232,36 @@ func main() {
 		log.Printf("записано в %s (%d байт)", *out, len(b))
 		return
 	}
+	if *analyze {
+		return
+	}
 	b, err := marshalOut(payload, *pretty)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(string(b))
+}
+
+func reportStem(inPath, outPath string) string {
+	for _, p := range []string{inPath, outPath} {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		base := filepath.Base(p)
+		ext := filepath.Ext(base)
+		return strings.TrimSuffix(base, ext)
+	}
+	return "getcu"
+}
+
+func writeJSONFile(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	b = append(b, '\n')
+	return os.WriteFile(path, b, 0o644)
 }
 
 func marshalOut(v any, pretty bool) ([]byte, error) {
@@ -209,7 +300,8 @@ func printBrief(rows []itilium.CURow) {
 	}
 	for i := 0; i < n; i++ {
 		u := rows[i]
-		log.Printf("  [%d] code=%s name=%s hostname=%s ip=%s sn=%s links=%s status=%s",
-			i, u.Code.String(), u.Name.String(), u.Hostname.String(), u.IP.String(), u.SN.String(), u.LinksUnit.String(), u.Status.Label)
+		log.Printf("  [%d] code=%s name=%s hostname=%s ip=%s sn=%s links=%s model=%s status=%s",
+			i, u.Code.String(), u.Name.String(), u.Hostname.String(), u.IP.String(), u.SN.String(),
+			u.LinksUnit.String(), u.ModelVendS.String(), u.Status.Label)
 	}
 }

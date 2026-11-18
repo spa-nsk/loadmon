@@ -59,9 +59,14 @@ func (q GetCUQuery) values() url.Values {
 	return v
 }
 
-// DefaultServerCUFields — набор полей для серверных КЕ (cuClass=145).
+// DefaultServerCUFields — набор полей для серверных КЕ (cuClass=145, rack).
+// Соответствие колонкам Excel-импорта (update/rack_server.yaml) —
+// см. tools/itiliumgetcu (режим -analyze) и kontext/19-itilium-api.md.
 var DefaultServerCUFields = []string{
-	"code", "status", "modelServ", "hostname", "ip", "linksUnit", "sn", "user", "where", "statusHistory",
+	"author", "code", "currency", "currencyA", "dateChPriA", "dateChPric",
+	"description", "hostname", "ip", "isActual", "linksUnit", "modelServ",
+	"modelVendS", "name", "priceA", "priceCommA", "priceComme", "priceGPL",
+	"sn", "status", "statusHistory", "statusHistoryYY", "units", "user", "where",
 }
 
 // LabelValue — поле КЕ вида {"label":"…","value":"…"}.
@@ -194,15 +199,28 @@ type CURow struct {
 	Author      LabelValue     `json:"author"`
 	CuClass     string         `json:"cuClass"`
 	LinksUnit   LinksUnitField `json:"linksUnit,omitempty"` // строка, LabelValue или []LabelValue
-	// Поля из fields= (серверы и др.).
-	ModelServ     LabelValue `json:"modelServ,omitempty"`
-	Hostname      LabelValue `json:"hostname,omitempty"`
-	IP            LabelValue `json:"ip,omitempty"`
-	SN            LabelValue `json:"sn,omitempty"`
-	User          LabelValue `json:"user,omitempty"`
-	Where         LabelValue `json:"where,omitempty"`
-	StatusHistory LabelValue `json:"statusHistory,omitempty"`
-	StatusName    LabelValue `json:"statusName,omitempty"`
+	// Поля из fields= (серверы / rack, см. DefaultServerCUFields).
+	ModelServ       LabelValue `json:"modelServ,omitempty"`  // Марка/модель (Норматив)
+	ModelVendS      LabelValue `json:"modelVendS,omitempty"` // Модель от производителя
+	Hostname        LabelValue `json:"hostname,omitempty"`
+	IP              LabelValue `json:"ip,omitempty"`
+	SN              LabelValue `json:"sn,omitempty"`
+	User            LabelValue `json:"user,omitempty"`  // Пользователь (в Excel часто «Владелец»)
+	Where           LabelValue `json:"where,omitempty"` // Местоположение
+	Units           LabelValue `json:"units,omitempty"` // Высота в юнитах
+	StatusHistory   LabelValue `json:"statusHistory,omitempty"`
+	StatusHistoryYY string     `json:"statusHistoryYY,omitempty"` // дата статуса YYYY-MM-DD
+	StatusName      LabelValue `json:"statusName,omitempty"`
+	// Стоимостные / справочные (есть в getCU, в Excel-templ не все были).
+	Currency   LabelValue `json:"currency,omitempty"`
+	CurrencyA  LabelValue `json:"currencyA,omitempty"`
+	DateChPriA LabelValue `json:"dateChPriA,omitempty"`
+	DateChPric LabelValue `json:"dateChPric,omitempty"`
+	IsActual   LabelValue `json:"isActual,omitempty"`
+	PriceA     LabelValue `json:"priceA,omitempty"`
+	PriceCommA LabelValue `json:"priceCommA,omitempty"`
+	PriceComme LabelValue `json:"priceComme,omitempty"`
+	PriceGPL   LabelValue `json:"priceGPL,omitempty"`
 }
 
 // GetCUResponse — ответ GET getCU.
