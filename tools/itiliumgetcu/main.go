@@ -31,6 +31,23 @@ import (
 )
 
 func main() {
+	httpKey := "http_proxy"
+	httpsKey := "https_proxy"
+	httpEnv := os.Getenv(httpKey)
+	defer os.Setenv(httpKey, httpEnv)
+
+	httpsEnv := os.Getenv(httpsKey)
+	defer os.Setenv(httpsKey, httpsEnv)
+
+	os.Unsetenv(httpKey)
+	os.Unsetenv(httpsKey)
+
+	s1 := os.Getenv(httpKey)
+	s2 := os.Getenv(httpKey)
+
+	_ = s1
+	_ = s2
+
 	base := flag.String("base", "https://itsd.global.bcs/ITILIUM", "корень публикации 1С")
 	domain := flag.String("domain", "itildomail", "AD-домен")
 	user := flag.String("user", "itiluser", "логин без домена")
