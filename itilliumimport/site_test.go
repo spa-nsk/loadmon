@@ -25,4 +25,13 @@ func TestCabinetFromPlacement(t *testing.T) {
 	if c != "6.2-B-01" || alt != "" || pos == nil || pos.Start != 32 || pos.End != 32 {
 		t.Fatalf("%q %q %v", c, alt, pos)
 	}
+	// getCU linksUnit: «шкаф | START-END» (раньше вся строка уходила в Name шкафа)
+	c, alt, pos = cabinetFromPlacement("6.1-B-01 | 45-45", nil)
+	if c != "6.1-B-01" || alt != "" || pos == nil || pos.Start != 45 || pos.End != 45 {
+		t.Fatalf("linksUnit range: %q %q %v", c, alt, pos)
+	}
+	c, alt, pos = cabinetFromPlacement("ЦОД М1 / R15-1 | 20-21", nil)
+	if c != "R15-1" || alt != "ЦОД М1" || pos == nil || pos.Start != 20 || pos.End != 21 {
+		t.Fatalf("colocation+range: %q %q %v", c, alt, pos)
+	}
 }
