@@ -77,6 +77,14 @@
                             {{end}}
                         </select>
                     </div>
+                    <div class="col-6">
+                        <label for="StatusHistory" class="form-label">Дата статуса Итилиум</label>
+                        <input type="date" id="StatusHistory" name="StatusHistory" class="form-control" value="{{.StatusHistoryStr}}">
+                    </div>
+                    <div class="col-12">
+                        <label for="Description" class="form-label">Описание (Итилиум)</label>
+                        <textarea id="Description" name="Description" class="form-control" rows="3">{{.HW.Description}}</textarea>
+                    </div>
                     <div class="col-12">
                         <label for="DeActivateInfo" class="form-label">Причина деактивации/списания</label>
                         <input type="text" id="DeActivateInfo" name="DeActivateInfo" class="form-control" value="{{.HW.DeActivateInfo}}" placeholder="Например: списан по акту №..., заменён на ...">

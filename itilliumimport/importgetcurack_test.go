@@ -90,6 +90,25 @@ func TestCUMemoryAndDate(t *testing.T) {
 	}
 }
 
+func TestCUStatusHistoryTime(t *testing.T) {
+	row := itilium.CURow{
+		StatusHistory: itilium.LabelValue{Value: "10.02.2023"},
+	}
+	tm, ok := cuStatusHistoryTime(row)
+	if !ok || tm.Day() != 10 || tm.Month() != 2 || tm.Year() != 2023 {
+		t.Fatalf("statusHistory: %v %v", tm, ok)
+	}
+	row = itilium.CURow{StatusHistoryYY: "2023-02-10"}
+	tm, ok = cuStatusHistoryTime(row)
+	if !ok || tm.Day() != 10 || tm.Month() != 2 || tm.Year() != 2023 {
+		t.Fatalf("statusHistoryYY: %v %v", tm, ok)
+	}
+	row = itilium.CURow{StatusHistory: itilium.LabelValue{Value: "2024:в работе"}}
+	if _, ok := cuStatusHistoryTime(row); ok {
+		t.Fatal("ожидали отказ на «2024:в работе» без YY")
+	}
+}
+
 func TestCUDetailsAndMpIP(t *testing.T) {
 	row := itilium.CURow{
 		Description: itilium.LabelValue{Value: "desc"},

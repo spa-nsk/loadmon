@@ -1765,7 +1765,11 @@ type ServerHardware struct {
 	// ItiliumStatus - реальный статус сервера по данным Итилиум (rack и blade);
 	// коды и имена - models.ItiliumStatusList. Заполняется при загрузке из
 	// Итилиум, на Active (статус эксплуатации в CMDB) не влияет.
-	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
+	ItiliumStatus int `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
+	// Description — текст «Описание» из 1С:ITILIUM getCU (поле description КЕ).
+	Description string `orm:"null;type(text)" form:"Description" csv:"Описание (Итилиум)" json:"Description"`
+	// StatusHistory — дата смены статуса из getCU statusHistory (/ statusHistoryYY).
+	StatusHistory     time.Time `orm:"null" form:"StatusHistory" csv:"Дата статуса Итилиум" json:"StatusHistory"`
 	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса" json:"TimeActiveState"`             // время изменения статуса активности введения в эксплуатацию
 	ActivatorUser     int64     `orm:"null" form:"ActivatorUser" csv:"Автор ввода в эксплуатацию" json:"ActivatorUser"`             // автор записи
 	TimeDeActiveState time.Time `orm:"null" form:"TimeDeActiveState" csv:"Дата выведения из эксплуатации" json:"TimeDeActiveState"` // время выведения из эксплуатации
