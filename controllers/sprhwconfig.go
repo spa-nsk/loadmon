@@ -948,6 +948,7 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 			this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
 			this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 			this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
+			this.Data["StatusHistoryStr"] = formatHWConfigDate(rec.StatusHistory)
 			if isTab {
 				setHwComponentFormData(this, loadHwComponents(o, rec.Id))
 			}
@@ -967,6 +968,8 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 		formActive, _ := strconv.Atoi(this.GetString("Active"))
 		models.SetActiveWithAudit(&rec.Active, &rec.TimeActiveState, &rec.ActivatorUser, &rec.TimeDeActiveState, &rec.DeActivatorUser, formActive, currentUserId)
 		rec.ItiliumStatus, _ = strconv.Atoi(this.GetString("ItiliumStatus"))
+		rec.StatusHistory = parseHWConfigDate(this.GetString("StatusHistory"))
+		rec.Description = this.GetString("Description")
 		rec.DeActivateInfo = this.GetString("DeActivateInfo")
 		rec.Vendor = this.GetString("Vendor")
 		rec.Model = this.GetString("Model")
@@ -1105,6 +1108,7 @@ func sprHwConfigEditPage(this *MainController, tpl, idStr string) {
 	this.Data["DateContractDocStr"] = formatHWConfigDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatHWConfigDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatHWConfigDate(rec.DateService)
+	this.Data["StatusHistoryStr"] = formatHWConfigDate(rec.StatusHistory)
 	if isTab {
 		setHwComponentFormData(this, loadHwComponents(o, rec.Id))
 	}

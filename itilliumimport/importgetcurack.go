@@ -131,6 +131,22 @@ func cuParseDateRU(s string) (time.Time, bool) {
 	return t, true
 }
 
+// cuStatusHistoryTime — дата из statusHistory (ДД.ММ.ГГГГ), иначе statusHistoryYY (ГГГГ-ММ-ДД).
+func cuStatusHistoryTime(row itilium.CURow) (time.Time, bool) {
+	if t, ok := cuParseDateRU(cuTrim(row.StatusHistory)); ok {
+		return t, true
+	}
+	s := strings.TrimSpace(row.StatusHistoryYY)
+	if s == "" {
+		return time.Time{}, false
+	}
+	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
 func fillEmpty(dst *string, src string) bool {
 	if strings.TrimSpace(*dst) != "" || strings.TrimSpace(src) == "" {
 		return false
@@ -227,6 +243,8 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 	}
 	memMb := cuMemoryMb(row)
 	docDate, hasDocDate := cuParseDateRU(cuTrim(row.DataDocs))
+	descOnly := cuTrim(row.Description)
+	statusHist, hasStatusHist := cuStatusHistoryTime(row)
 
 	skipLoc := locationUndefinedForCU(where, mapped.ItiliumStatus)
 	if skipLoc {
@@ -255,8 +273,12 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 	hw.ContractDoc = contractDoc
 	hw.Counterparty = provider
 	hw.MemoryMb = memMb
+	hw.Description = descOnly
 	if hasDocDate {
 		hw.DateContractDoc = docDate
+	}
+	if hasStatusHist {
+		hw.StatusHistory = statusHist
 	}
 	hw.FormFactor = 1
 	hw.ItiliumStatus = mapped.ItiliumStatus
@@ -433,6 +455,14 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 		if exist.DateContractDoc.IsZero() && hasDocDate {
 			exist.DateContractDoc = docDate
 			cols = append(cols, "DateContractDoc")
+		}
+		if descOnly != "" {
+			exist.Description = descOnly
+			cols = append(cols, "Description")
+		}
+		if hasStatusHist {
+			exist.StatusHistory = statusHist
+			cols = append(cols, "StatusHistory")
 		}
 		exist.Time_Mfy = time.Now().Local()
 		exist.Id_User = models.UserSourceManual
