@@ -16,6 +16,9 @@ type TapeLibrary struct {
 	// коды и имена - models.ItiliumStatusList.
 	ItiliumStatus   int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
 	TimeActiveState time.Time `orm:"null" form:"TimeActiveState" json:"TimeActiveState"` // дата изменения статуса в Итилиум
+	// Description / StatusHistory — из getCU (description / statusHistory).
+	Description   string    `orm:"null;type(text)" form:"Description" csv:"Описание (Итилиум)" json:"Description"`
+	StatusHistory time.Time `orm:"null" form:"StatusHistory" csv:"Дата статуса Итилиум" json:"StatusHistory"`
 	// ServerId - ссылка на ServerSprRecords.Id: сервер, к которому подключена
 	// библиотека (по «Имя ПК»); 0 - не найден в справочнике серверов.
 	ServerId int64 `orm:"null" form:"ServerId" json:"ServerId"`

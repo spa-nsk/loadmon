@@ -307,6 +307,8 @@ func sprTapeLibrariesEditPage(this *MainController, tpl, idStr string) {
 		rec.InventoryNumBuh = this.GetString("InventoryNumBuh")
 		rec.TechnicalNumberIT = this.GetString("TechnicalNumberIT")
 		rec.Anotation = this.GetString("Anotation")
+		rec.Description = this.GetString("Description")
+		rec.StatusHistory = parseStorageSystemsDate(this.GetString("StatusHistory"))
 
 		if len(parseErrors) > 0 {
 			flash.Error("Не удалось сохранить - проверьте числовые поля: %s", strings.Join(parseErrors, "; "))
@@ -369,6 +371,7 @@ func (this *MainController) fillTapeLibraryEditData(o orm.Ormer, rec models.Tape
 	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 	this.Data["ServerName"] = tapeLibraryServerNames(o, []int64{rec.ServerId})[rec.ServerId]
 	this.Data["DateContractDocStr"] = formatStorageSystemsDate(rec.DateContractDoc)
+	this.Data["StatusHistoryStr"] = formatStorageSystemsDate(rec.StatusHistory)
 }
 
 // tapeLibraryExportTable - заголовок и строки выгрузки списка (читаемые значения:

@@ -701,6 +701,8 @@ func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 
 		rec.Owner = this.GetString("Owner")
 		rec.Anotation = this.GetString("Anotation")
+		rec.Description = this.GetString("Description")
+		rec.StatusHistory = parseBladeSystemsDate(this.GetString("StatusHistory"))
 
 		rec.PowerState, _ = strconv.Atoi(this.GetString("PowerState"))
 		rec.Active, _ = strconv.Atoi(this.GetString("Active"))
@@ -788,6 +790,7 @@ func sprBladeSystemsEditPage(this *MainController, tpl, idStr string) {
 	this.Data["DateContractDocStr"] = formatBladeSystemsDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatBladeSystemsDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatBladeSystemsDate(rec.DateService)
+	this.Data["StatusHistoryStr"] = formatBladeSystemsDate(rec.StatusHistory)
 	if isTab {
 		setBladeComponentFormData(this, loadBladeComponents(o, rec.Id))
 	}

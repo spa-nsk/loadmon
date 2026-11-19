@@ -80,7 +80,7 @@ func main() {
 	listClasses := flag.Bool("list-classes", false, "напечатать справочник cuClass и выйти")
 	listFields := flag.Bool("list-fields", false, "поля КЕ для -cu-class (каталог + supplemental)")
 	analyze := flag.Bool("analyze", false, "проверка выгрузки по правилам импорта + отчёты")
-	doImport := flag.Bool("import", false, "записать rows в БД из app2.json (ImportRackServersFromCU)")
+	doImport := flag.Bool("import", false, "записать rows в БД из app2.json (Import*FromCU по -cu-class)")
 	inFile := flag.String("in", "", "прочитать GetCUResponse JSON из файла (без HTTP)")
 	reportPath := flag.String("report", "", "файл полного разбора (по умолчанию <stem>-import-check.json)")
 	questionsPath := flag.String("questions", "", "файл вопросов (по умолчанию <stem>-import-questions.json)")
@@ -209,7 +209,7 @@ func main() {
 	log.Printf("итого: страниц=%d rows=%d totalCount=%d last=%q", pages, len(allRows), total, last)
 
 	if *doImport {
-		runImportCU(allRows)
+		runImportCU(allRows, *cuClass)
 	}
 
 	if *analyze {

@@ -400,6 +400,8 @@ func sprNetworkEquipmentEditPage(this *MainController, tpl, idStr string) {
 		rec.Cost = parseFloat("Стоимость", "Cost")
 		rec.CostDiscount = parseFloat("Стоимость со скидкой", "CostDiscount")
 		rec.Annotation = this.GetString("Annotation")
+		rec.Description = this.GetString("Description")
+		rec.StatusHistory = parseStorageSystemsDate(this.GetString("StatusHistory"))
 
 		if len(parseErrors) > 0 {
 			flash.Error("Не удалось сохранить - проверьте числовые поля: %s", strings.Join(parseErrors, "; "))
@@ -478,6 +480,7 @@ func (this *MainController) fillNetworkEquipmentEditData(o orm.Ormer, rec models
 	this.Data["ItiliumStatuses"] = models.ItiliumStatusList
 	this.Data["DateContractDocStr"] = formatStorageSystemsDate(rec.DateContractDoc)
 	this.Data["TimeActiveStateStr"] = formatStorageSystemsDate(rec.TimeActiveState)
+	this.Data["StatusHistoryStr"] = formatStorageSystemsDate(rec.StatusHistory)
 }
 
 // saveSwitchNetworkLinks пересобирает связи оборудование-сеть (mark-and-sweep):

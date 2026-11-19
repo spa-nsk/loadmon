@@ -1185,17 +1185,20 @@ type BladeSystems struct {
 	PowerState        int       `form:"PowerState" csv:"Состояние питания" json:"PowerState"`               // 0 не указано 1 включен 2 выключен (последнее состояние) при отображении
 	Active            int       `form:"Active" csv:"Статус" json:"Active"`                                  // 0 не указано 1 активен 2 выведен из эксплуатации
 	// ItiliumStatus - статус по данным Итилиум; коды и имена - models.ItiliumStatusList.
-	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
-	Name              string    `form:"Name"`                                                               //короткое наименование
-	Vendor            string    `form:"Vendor"`                                                             //производитель
-	Model             string    `form:"Model"`                                                              //модель
-	Type              string    `form:"Type"`                                                               //тип c7000 ...
-	PartNum           string    `form:"PartNum"`                                                            //продуктовый номер
-	Size              int       `form:"Size"`                                                               //количество слотов
-	Used              int       `form:"Used"`                                                               //количество занятых слотов
-	SerialNum         string    `form:"SerialNum"`                                                          //серийный номер
-	Owner             string    `form:"Owner"`                                                              //владелец
-	Anotation         string    `form:"Anotation"`                                                          //описане
+	ItiliumStatus int `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
+	// Description / StatusHistory — из getCU (description / statusHistory).
+	Description   string    `orm:"null;type(text)" form:"Description" csv:"Описание (Итилиум)" json:"Description"`
+	StatusHistory time.Time `orm:"null" form:"StatusHistory" csv:"Дата статуса Итилиум" json:"StatusHistory"`
+	Name          string    `form:"Name"`       //короткое наименование
+	Vendor        string    `form:"Vendor"`     //производитель
+	Model         string    `form:"Model"`      //модель
+	Type          string    `form:"Type"`       //тип c7000 ...
+	PartNum       string    `form:"PartNum"`    //продуктовый номер
+	Size          int       `form:"Size"`       //количество слотов
+	Used          int       `form:"Used"`       //количество занятых слотов
+	SerialNum     string    `form:"SerialNum"`  //серийный номер
+	Owner         string    `form:"Owner"`      //владелец
+	Anotation     string    `form:"Anotation"`  //описане
 	StartUnitPos      int       `form:"StartUnitPos"`                                                       //стартовая позиция в шкафу (юнит с которого начинается шасси, в случае нескольких шкафов писать через запятую)
 	EndUnitPos        int       `form:"EndUnitPos"`                                                         //конечнкая позиция в шкафу (юнит с которого заканчивается шасси, в случае нескольких шкафов писать через запятую)
 	SizeUnit          int       `form:"SizeUnit"`                                                           //размер в юнитах
@@ -1291,7 +1294,10 @@ type StorageSystems struct {
 	PartNum       string    `form:"PartNum"`                                                          //код продукта у вендора
 	Status        int       `form:"Status"`                                                           //0-не указано 1-используется, 2-выключен, 3- не используется, 4 - тестирование, 5-приемка, 6- демонтирован,
 	// ItiliumStatus - статус по данным Итилиум; коды и имена - models.ItiliumStatusList.
-	ItiliumStatus int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
+	ItiliumStatus int `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум" json:"ItiliumStatus"`
+	// Description / StatusHistory — из getCU (description / statusHistory).
+	Description   string    `orm:"null;type(text)" form:"Description" csv:"Описание (Итилиум)" json:"Description"`
+	StatusHistory time.Time `orm:"null" form:"StatusHistory" csv:"Дата статуса Итилиум" json:"StatusHistory"`
 	Size          int       `form:"Size"`                                                             //максимальное количество дисков
 	Used          int       `form:"Used"`                                                             //общее количество установленных дисков
 	IpAddress     string    `form:"IpAddress"`                                                        //IP apec
@@ -2321,10 +2327,13 @@ type SwitchSprRecords struct {
 	// конфигурация update/network_equipment.yaml). Таблица и имя типа оставлены
 	// прежними (switch_spr_records), чтобы не потерять уже заведённые записи;
 	// имена новых полей совпадают с ServerHardware.
-	TypeId            int64     `orm:"null;default(0)" form:"TypeId" csv:"Тип оборудования (ссылка)"`   // FK на NetworkEquipmentType.Id
-	ItiliumStatus     int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум"`            // коды и имена - models.ItiliumStatusList
-	TimeActiveState   time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса"`        //
-	MacAddress        string    `orm:"null" form:"MacAddress" csv:"MAC адрес"`                          //
+	TypeId          int64     `orm:"null;default(0)" form:"TypeId" csv:"Тип оборудования (ссылка)"` // FK на NetworkEquipmentType.Id
+	ItiliumStatus   int       `orm:"default(0)" form:"ItiliumStatus" csv:"Статус Итилиум"`          // коды и имена - models.ItiliumStatusList
+	TimeActiveState time.Time `orm:"null" form:"TimeActiveState" csv:"Дата изменения статуса"`      //
+	// Description / StatusHistory — из getCU (description / statusHistory).
+	Description   string    `orm:"null;type(text)" form:"Description" csv:"Описание (Итилиум)" json:"Description"`
+	StatusHistory time.Time `orm:"null" form:"StatusHistory" csv:"Дата статуса Итилиум" json:"StatusHistory"`
+	MacAddress    string    `orm:"null" form:"MacAddress" csv:"MAC адрес"` //
 	StartUnitPos      int       `orm:"default(0)" form:"StartUnitPos" csv:"Номер юнита"`                //
 	SizeUnit          int       `orm:"default(0)" form:"SizeUnit" csv:"Количество юнитов"`              //
 	InventoryNum      string    `orm:"null" form:"InventoryNum" csv:"Инвентарный номер"`                //

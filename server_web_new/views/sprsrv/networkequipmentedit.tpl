@@ -39,6 +39,14 @@
                     {{end}}
                 </select>
             </div>
+            <div class="col-md-4">
+                <label for="StatusHistory" class="form-label">Дата статуса Итилиум</label>
+                <input type="date" id="StatusHistory" name="StatusHistory" class="form-control" value="{{.StatusHistoryStr}}">
+            </div>
+            <div class="col-12">
+                <label for="Description" class="form-label">Описание (Итилиум)</label>
+                <textarea id="Description" name="Description" class="form-control" rows="2">{{.SW.Description}}</textarea>
+            </div>
             <div class="col-6">
                 <label for="Vendor" class="form-label">Производитель</label>
                 <input type="text" id="Vendor" name="Vendor" class="form-control" value="{{.SW.Vendor}}">

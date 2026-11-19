@@ -679,6 +679,8 @@ func sprStorageSystemsEditPage(this *MainController, tpl, idStr string) {
 
 		rec.Owner = this.GetString("Owner")
 		rec.Anotation = this.GetString("Anotation")
+		rec.Description = this.GetString("Description")
+		rec.StatusHistory = parseStorageSystemsDate(this.GetString("StatusHistory"))
 
 		rec.InventoryNum = this.GetString("InventoryNum")
 		rec.InventoryNumBuh = this.GetString("InventoryNumBuh")
@@ -767,6 +769,7 @@ func sprStorageSystemsEditPage(this *MainController, tpl, idStr string) {
 	this.Data["DateContractDocStr"] = formatStorageSystemsDate(rec.DateContractDoc)
 	this.Data["DateInvoiceStr"] = formatStorageSystemsDate(rec.DateInvoice)
 	this.Data["DateServiceStr"] = formatStorageSystemsDate(rec.DateService)
+	this.Data["StatusHistoryStr"] = formatStorageSystemsDate(rec.StatusHistory)
 }
 
 // saveStorageSystemPlacements сохраняет набор размещений (models.
