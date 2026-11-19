@@ -37,11 +37,28 @@ func locationUndefinedForCU(where string, itiliumStatus int) bool {
 	return strings.HasPrefix(strings.TrimSpace(where), leftFGPrefix)
 }
 
+// Маркеры в description («Описание»): если modelVendS и modelServ пусты,
+// а описание содержит один из них — description считается моделью сервера.
+var cuModelDescMarkers = []string{"HP", "Chieftec", "DELL", "Inflex", "DEPO", "Cisco"}
+
 func cuModel(row itilium.CURow) string {
 	if m := strings.TrimSpace(row.ModelVendS.String()); m != "" {
 		return m
 	}
-	return strings.TrimSpace(row.ModelServ.String())
+	if m := strings.TrimSpace(row.ModelServ.String()); m != "" {
+		return m
+	}
+	desc := strings.TrimSpace(row.Description.String())
+	if desc == "" {
+		return ""
+	}
+	upper := strings.ToUpper(desc)
+	for _, marker := range cuModelDescMarkers {
+		if strings.Contains(upper, strings.ToUpper(marker)) {
+			return desc
+		}
+	}
+	return ""
 }
 
 func cuTrim(lv itilium.LabelValue) string { return strings.TrimSpace(lv.String()) }
@@ -126,7 +143,8 @@ func fillEmpty(dst *string, src string) bool {
 // ServerHardware/ServerSprRecords (+ DatacenterSite/RackCabinet) по тем же
 // правилам, что ImportItiliumServer (Excel), с уточнениями:
 //   - списан / в пути / «! Покинуло ФГ…» → без площадки и шкафа;
-//   - модель: modelVendS, иначе modelServ; у существующей HW Model не
+//   - модель: modelVendS, иначе modelServ, иначе description при наличии
+//     маркера HP/Chieftec/DELL/Inflex/DEPO/Cisco; у существующей HW Model не
 //     перезаписывается, если уже непустая.
 func ImportRackServersFromCU(rows []itilium.CURow) ImportCURackStats {
 	var st ImportCURackStats

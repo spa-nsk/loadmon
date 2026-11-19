@@ -34,6 +34,31 @@ func TestCUModelFallback(t *testing.T) {
 	if cuModel(row) != "Norm" {
 		t.Fatal(cuModel(row))
 	}
+	row.ModelServ = itilium.LabelValue{}
+	row.Description = itilium.LabelValue{Value: "HP ProLiant DL380 Gen10"}
+	if cuModel(row) != "HP ProLiant DL380 Gen10" {
+		t.Fatal(cuModel(row))
+	}
+	row.Description = itilium.LabelValue{Value: "dell poweredge r740"}
+	if cuModel(row) != "dell poweredge r740" {
+		t.Fatal(cuModel(row))
+	}
+	for _, desc := range []string{"Chieftec 4U", "Inflex box", "DEPO Storm 3450", "Cisco UCS C240"} {
+		row.Description = itilium.LabelValue{Value: desc}
+		if cuModel(row) != desc {
+			t.Fatalf("desc=%q got=%q", desc, cuModel(row))
+		}
+	}
+	row.Description = itilium.LabelValue{Value: "просто текст без вендора"}
+	if cuModel(row) != "" {
+		t.Fatal(cuModel(row))
+	}
+	// modelServ приоритетнее description
+	row.ModelServ = itilium.LabelValue{Value: "Norm"}
+	row.Description = itilium.LabelValue{Value: "HP anything"}
+	if cuModel(row) != "Norm" {
+		t.Fatal(cuModel(row))
+	}
 }
 
 func TestMapCUStatusLabel(t *testing.T) {
