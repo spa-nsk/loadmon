@@ -25,4 +25,8 @@ func TestParsePlacement(t *testing.T) {
 	if p.AltName != "" || p.Cabinet != "6.2-A-01" || p.Pos.String() != "9" {
 		t.Fatalf("%+v", p)
 	}
+	p = ParsePlacement("6.1-B-01 | 45-45")
+	if p.AltName != "" || p.Cabinet != "6.1-B-01" || p.Pos == nil || p.Pos.Start != 45 || p.Pos.End != 45 {
+		t.Fatalf("%+v", p)
+	}
 }

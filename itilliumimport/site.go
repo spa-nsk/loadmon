@@ -120,15 +120,26 @@ func resolveSite(trn orm.TxOrmer, rs *locality.Resolver, rawLocation string, use
 	return siteResult{Id: site.Id, Name: name, Loc: loc}, nil
 }
 
-// cabinetFromPlacement определяет шкаф: rawPlacement - значение "Размещение в
-// шкафу/стойке" без диапазона юнитов ("альт.наименование / шкаф"); если оно
-// пустое - шкаф из "Местоположения" (loc.Cabinet). Возвращает код шкафа
-// (чистое наименование), альтернативное наименование шкафа и позицию из
-// "Местоположения" (если шкаф взят оттуда).
+// cabinetFromPlacement определяет шкаф и юниты из «Размещение в шкафу/стойке»
+// (getCU linksUnit / Excel rack_num). Поддерживает:
+//   - «6.1-B-01 | 45-45» (шкаф + START-END);
+//   - «ЦОД М1 / R15-1 | 20-21» (альт.имя / шкаф | юниты);
+//   - чистое имя шкафа без «|» (как после Excel rack_unit_split).
+// Если rawPlacement пуст — шкаф/позиция из «Местоположения» (loc).
 func cabinetFromPlacement(rawPlacement string, loc *locality.Location) (cabinet, altName string, pos *locality.Position) {
-	altName, cabinet = splitColocationCabinetName(rawPlacement)
-	if cabinet == "" && loc != nil && loc.Cabinet != "" {
+	rawPlacement = strings.TrimSpace(rawPlacement)
+	if rawPlacement != "" {
+		if pl := locality.ParsePlacement(rawPlacement); pl != nil && strings.TrimSpace(pl.Cabinet) != "" {
+			return strings.TrimSpace(pl.Cabinet), strings.TrimSpace(pl.AltName), pl.Pos
+		}
+		// запасной путь (без ParsePlacement) — только colocation «альт / шкаф»
+		altName, cabinet = splitColocationCabinetName(rawPlacement)
+		if cabinet != "" {
+			return cabinet, altName, nil
+		}
+	}
+	if loc != nil && loc.Cabinet != "" {
 		return loc.Cabinet, "", loc.Pos
 	}
-	return cabinet, altName, nil
+	return "", "", nil
 }
