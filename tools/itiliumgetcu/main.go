@@ -1,49 +1,19 @@
-// Command itiliumgetcu — тестовый вызов `/hs/api/getCU` через loadmon/itilium
-// (доменная NTLM-авторизация).
+// Command itiliumgetcu — прототип синхронизации CMDB из 1С:ITILIUM getCU.
+// За один запуск скачивает и импортирует все поддерживаемые cuClass
+// (порядок: корзины → блейды → rack → СХД → ленты → сеть).
 //
-// Пример (BCS, серверы):
+//	go run ./tools/itiliumgetcu
 //
-//	go run ./tools/itiliumgetcu ^
-//	  -base https://itsd.global.bcs/ITILIUM ^
-//	  -domain itildomail -user itiluser -password "%ITILIUM_PASSWORD%" ^
-//	  -cu-class 145 -cu-status all ^
-//	  -fields code,status,modelServ,hostname,ip,linksUnit,sn,user,where,statusHistory ^
-//	  -out getcu.json
-//
-//	go run ./tools/itiliumgetcu -list-classes
-//
-// Анализ / проверка импорта (update/rack_server.yaml + locality):
-//
-//	go run ./tools/itiliumgetcu -analyze -all -out getcu.json
-//	go run ./tools/itiliumgetcu -analyze -in getcu.json
-//
-// При -analyze пишутся:
-//
-//	<stem>-import-check.json      — разбор всей выгрузки
-//	<stem>-import-questions.json  — только неоднозначности и вопросы (если есть)
-//
-// stem берётся из -in / -out или «getcu». Пути можно задать явно:
-//
-//	-report PATH  -questions PATH
-//
-// Импорт в БД (app2.json → DB + ConfigItilium):
-//
-//	go run ./tools/itiliumgetcu -import -all
-//	go run ./tools/itiliumgetcu -import -in getcu.json
-//
-// Ответ: { rows:[{ rowKey,uid,deleted,status{label,value},code{…},… }] , … }.
-// При -all листает страницы по last/hasMore (если API их отдаёт).
+// Параметры подключения берутся из app2.json (ConfigItilium); флаги
+// переопределяют отдельные поля. Пароль: -password, ITILIUM_PASSWORD,
+// ConfigItilium.Password или GetKeyData.
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"loadmon/config"
@@ -53,296 +23,153 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// Порядок важен: корзины (159) до блейдов (142).
+var syncCUClasses = []int{
+	itilium.CUClassBladeEnclosures, // 159
+	itilium.CUClassBlades,          // 142
+	itilium.CUClassServers,         // 145
+	itilium.CUClassStorage,         // 158
+	itilium.CUClassTapeLibraries,   // 198
+	itilium.CUClassNetwork,         // 146
+}
+
 func main() {
-	httpKey := "http_proxy"
-	httpsKey := "https_proxy"
-	httpEnv := os.Getenv(httpKey)
+	// Временно отключаем системный http(s)_proxy (часто ломает NTLM к 1С).
+	httpKey, httpsKey := "http_proxy", "https_proxy"
+	httpEnv, httpsEnv := os.Getenv(httpKey), os.Getenv(httpsKey)
 	defer os.Setenv(httpKey, httpEnv)
-
-	httpsEnv := os.Getenv(httpsKey)
 	defer os.Setenv(httpsKey, httpsEnv)
-
 	os.Unsetenv(httpKey)
 	os.Unsetenv(httpsKey)
 
-	base := flag.String("base", "https://itsd.global.bcs/ITILIUM", "корень публикации 1С")
-	domain := flag.String("domain", "itildomail", "AD-домен")
-	user := flag.String("user", "itiluser", "логин без домена")
-	password := flag.String("password", "", "пароль (иначе ITILIUM_PASSWORD / GetKeyData)")
-	auth := flag.String("auth", itilium.AuthNTLM, "ntlm или basic")
-	apiPrefix := flag.String("api-prefix", itilium.DefaultAPIPrefix, "префикс HTTP-сервиса")
-	cuClass := flag.Int("cu-class", itilium.CUClassServers, "cuClass (145=серверы)")
-	cuStatus := flag.String("cu-status", itilium.CUStatusAll, "cuStatus (all - все)")
-	nextVer := flag.String("next-ver", "", "nextVer (пусто - не передавать)")
-	limit := flag.Int("limit", 0, "limit (0 - не передавать)")
-	fields := flag.String("fields", "", "fields через запятую (пусто - DefaultFieldsForClass(-cu-class))")
-	all := flag.Bool("all", false, "листать страницы по last/hasMore")
-	listClasses := flag.Bool("list-classes", false, "напечатать справочник cuClass и выйти")
-	listFields := flag.Bool("list-fields", false, "поля КЕ для -cu-class (каталог + supplemental)")
-	analyze := flag.Bool("analyze", false, "проверка выгрузки по правилам импорта + отчёты")
-	doImport := flag.Bool("import", false, "записать rows в БД из app2.json (Import*FromCU по -cu-class)")
-	inFile := flag.String("in", "", "прочитать GetCUResponse JSON из файла (без HTTP)")
-	reportPath := flag.String("report", "", "файл полного разбора (по умолчанию <stem>-import-check.json)")
-	questionsPath := flag.String("questions", "", "файл вопросов (по умолчанию <stem>-import-questions.json)")
+	base := flag.String("base", "", "корень публикации 1С (пусто — ConfigItilium)")
+	domain := flag.String("domain", "", "AD-домен")
+	user := flag.String("user", "", "логин без домена")
+	password := flag.String("password", "", "пароль")
+	auth := flag.String("auth", "", "ntlm или basic")
+	apiPrefix := flag.String("api-prefix", "", "префикс HTTP-сервиса")
+	cuStatus := flag.String("cu-status", "", "cuStatus getCU (пусто — all / ConfigItilium)")
 	insecure := flag.Bool("insecure", false, "пропуск проверки TLS")
-	timeout := flag.Duration("timeout", 2*time.Minute, "таймаут одного HTTP-запроса")
-	out := flag.String("out", "", "файл для сырого/полного JSON ответа getCU")
-	pretty := flag.Bool("pretty", true, "pretty-print при выводе в stdout")
+	timeout := flag.Duration("timeout", 0, "таймаут одного HTTP-запроса (0 — из конфига / 2m)")
 	flag.Parse()
 
-	if *listClasses {
-		for _, c := range itilium.CUClasses() {
-			fmt.Printf("%3d  %s\n", c.Code, c.Name)
-		}
-		return
+	if err := initDBForImport(); err != nil {
+		log.Fatal(err)
 	}
-	if *listFields {
-		cat := itilium.DefaultFieldCatalog()
-		fmt.Printf("cuClass=%d %s\n", *cuClass, firstNonEmpty(cat.ClassName(*cuClass), itilium.CUClassName(*cuClass), "?"))
-		fmt.Printf("--- каталог (Список полей КЕ):\n")
-		for _, f := range cat.Fields(*cuClass) {
-			fmt.Printf("  %-12s  %s\n", f.Code, f.Label)
-		}
-		fmt.Printf("--- fields= для запроса (%d):\n", len(itilium.DefaultFieldsForClass(*cuClass)))
-		fmt.Println(strings.Join(itilium.DefaultFieldsForClass(*cuClass), ","))
-		return
-	}
+	itilCfg := config.ConfigData.ConfigItilium
+	applyItiliumConfig(&itilCfg, base, domain, user, password, auth, apiPrefix, insecure, timeout, cuStatus)
 
-	// Подтянуть ConfigItilium из app2.json (для -import и при Enabled).
-	var itilCfg config.ItiliumConfig
-	if _, err := config.ConfigData.LoadConfigData(); err == nil {
-		itilCfg = config.ConfigData.ConfigItilium
-		applyItiliumConfig(&itilCfg, base, domain, user, password, auth, apiPrefix, insecure, timeout, cuStatus)
-	} else if *doImport {
-		log.Fatalf("app2.json: %v (нужен для -import / LOADMON_CONFIG)", err)
+	if *base == "" {
+		*base = "https://itsd.global.bcs/ITILIUM"
 	}
-
-	if *doImport {
-		if err := initDBForImport(); err != nil {
-			log.Fatal(err)
-		}
-		if !*all && *inFile == "" {
-			log.Printf("совет: для полной выгрузки укажите -all (или -in getcu.json)")
-		}
+	if *domain == "" {
+		*domain = "itildomail"
+	}
+	if *user == "" {
+		*user = "itiluser"
+	}
+	if *auth == "" {
+		*auth = itilium.AuthNTLM
+	}
+	if *apiPrefix == "" {
+		*apiPrefix = itilium.DefaultAPIPrefix
+	}
+	if *cuStatus == "" {
+		*cuStatus = itilium.CUStatusAll
+	}
+	if *timeout <= 0 {
+		*timeout = 2 * time.Minute
 	}
 
-	var (
-		allRows []itilium.CURow
-		last    string
-		total   int
-		pages   int
-		rawLast []byte
-	)
-
-	if *inFile != "" {
-		b, err := os.ReadFile(*inFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		var resp itilium.GetCUResponse
-		if err := json.Unmarshal(b, &resp); err != nil {
-			log.Fatalf("-in: decode: %v", err)
-		}
-		allRows = resp.Rows
-		total = resp.TotalCount
-		last = resp.Last
-		rawLast = b
-		pages = 1
-		log.Printf("прочитано %s: rows=%d totalCount=%d", *inFile, len(allRows), total)
-	} else {
-		pass := resolveItiliumPassword(*password, *domain, *user, itilCfg)
-		if pass == "" {
-			log.Fatal("пароль не задан: -password, ITILIUM_PASSWORD, ConfigItilium.Password или GetKeyData")
-		}
-
-		c, err := itilium.NewClient(itilium.Config{
-			Name: "getcu", BaseURL: *base, Login: *user, Password: pass,
-			Domain: *domain, AuthMode: *auth, APIPrefix: *apiPrefix,
-			Timeout: *timeout, InsecureSkipVerify: *insecure,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		q := itilium.GetCUQuery{
-			NextVer: *nextVer, CUClass: *cuClass, CUStatus: *cuStatus, Limit: *limit,
-		}
-		if f := strings.TrimSpace(*fields); f != "" {
-			q.Fields = splitCSV(f)
-		} else {
-			q.Fields = itilium.DefaultFieldsForClass(*cuClass)
-		}
-
-		className := itilium.CUClassName(*cuClass)
-		if className == "" {
-			className = "?"
-		}
-		api := c.API()
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
-
-		for {
-			pages++
-			log.Printf("GET %s (class=%d %s, auth=%s %s\\%s)", api.GetCUURL(q), *cuClass, className, *auth, *domain, *user)
-			resp, raw, err := api.GetCURaw(ctx, q)
-			if err != nil {
-				log.Fatalf("getCU: %v", err)
-			}
-			rawLast = raw
-			total = resp.TotalCount
-			last = resp.Last
-			allRows = append(allRows, resp.Rows...)
-			log.Printf("страница %d: rows=%d totalCount=%d last=%q hasMore=%v", pages, len(resp.Rows), resp.TotalCount, resp.Last, resp.HasMore)
-			printBrief(resp.Rows)
-
-			if !*all {
-				break
-			}
-			next, ok := resp.NextPageQuery(q)
-			if !ok {
-				break
-			}
-			q = next
-		}
+	pass := resolveItiliumPassword(*password, *domain, *user, itilCfg)
+	if pass == "" {
+		log.Fatal("пароль не задан: -password, ITILIUM_PASSWORD, ConfigItilium.Password или GetKeyData")
 	}
 
-	log.Printf("итого: страниц=%d rows=%d totalCount=%d last=%q", pages, len(allRows), total, last)
-
-	if *doImport {
-		runImportCU(allRows, *cuClass)
-	}
-
-	if *analyze {
-		printRackAnalyze(allRows)
-		src := *inFile
-		if src == "" {
-			src = "getCU"
-			if *out != "" {
-				src = *out
-			}
-		}
-		rep, qrep := validateDump(allRows, src)
-		stem := reportStem(*inFile, *out)
-		rPath := strings.TrimSpace(*reportPath)
-		if rPath == "" {
-			rPath = stem + "-import-check.json"
-		}
-		if err := writeJSONFile(rPath, rep); err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("проверка импорта: ok=%d issues=%d → %s", rep.OKCount, rep.IssueCount, rPath)
-		if len(rep.ByCode) > 0 {
-			log.Printf("коды замечаний: %v", rep.ByCode)
-		}
-		if qrep.ProblemRows > 0 {
-			qPath := strings.TrimSpace(*questionsPath)
-			if qPath == "" {
-				qPath = stem + "-import-questions.json"
-			}
-			if err := writeJSONFile(qPath, qrep); err != nil {
-				log.Fatal(err)
-			}
-			log.Printf("вопросы по неоднозначностям: rows=%d → %s", qrep.ProblemRows, qPath)
-		} else {
-			log.Printf("неоднозначностей нет — файл вопросов не создан")
-		}
-	}
-
-	payload := any(rawLast)
-	if *all || *inFile != "" {
-		payload = itilium.GetCUResponse{Rows: allRows, TotalCount: total, Last: last, HasMore: false}
-	}
-
-	if *out != "" {
-		b, err := marshalOut(payload, true)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := os.WriteFile(*out, b, 0o644); err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("записано в %s (%d байт)", *out, len(b))
-		return
-	}
-	if *analyze {
-		return
-	}
-	b, err := marshalOut(payload, *pretty)
+	c, err := itilium.NewClient(itilium.Config{
+		Name: "getcu-sync", BaseURL: *base, Login: *user, Password: pass,
+		Domain: *domain, AuthMode: *auth, APIPrefix: *apiPrefix,
+		Timeout: *timeout, InsecureSkipVerify: *insecure,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(string(b))
-}
 
-func reportStem(inPath, outPath string) string {
-	for _, p := range []string{inPath, outPath} {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+	defer cancel()
+	api := c.API()
+
+	log.Printf("синхронизация getCU → БД: classes=%v status=%s", syncCUClasses, *cuStatus)
+	for _, cuClass := range syncCUClasses {
+		rows, err := fetchAllCU(ctx, api, cuClass, *cuStatus)
+		if err != nil {
+			log.Fatalf("getCU cuClass=%d: %v", cuClass, err)
 		}
-		base := filepath.Base(p)
-		ext := filepath.Ext(base)
-		return strings.TrimSuffix(base, ext)
+		runImportCU(rows, cuClass)
 	}
-	return "getcu"
+	log.Printf("синхронизация завершена")
 }
 
-func writeJSONFile(path string, v any) error {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return err
+func fetchAllCU(ctx context.Context, api *itilium.APIClient, cuClass int, cuStatus string) ([]itilium.CURow, error) {
+	className := itilium.CUClassName(cuClass)
+	if className == "" {
+		className = "?"
 	}
-	b = append(b, '\n')
-	return os.WriteFile(path, b, 0o644)
-}
-
-func marshalOut(v any, pretty bool) ([]byte, error) {
-	if b, ok := v.([]byte); ok {
-		if !pretty {
-			return b, nil
+	q := itilium.GetCUQuery{
+		CUClass:  cuClass,
+		CUStatus: cuStatus,
+		Fields:   itilium.DefaultFieldsForClass(cuClass),
+	}
+	var all []itilium.CURow
+	pages := 0
+	for {
+		pages++
+		log.Printf("GET getCU cuClass=%d (%s) page=%d", cuClass, className, pages)
+		resp, err := api.GetCU(ctx, q)
+		if err != nil {
+			return nil, err
 		}
-		var anyV any
-		if err := json.Unmarshal(b, &anyV); err != nil {
-			return b, nil
+		all = append(all, resp.Rows...)
+		log.Printf("  rows+=%d total=%d hasMore=%v", len(resp.Rows), len(all), resp.HasMore)
+		next, ok := resp.NextPageQuery(q)
+		if !ok {
+			break
 		}
-		return json.MarshalIndent(anyV, "", "  ")
+		q = next
 	}
-	if pretty {
-		return json.MarshalIndent(v, "", "  ")
-	}
-	return json.Marshal(v)
+	log.Printf("cuClass=%d (%s): загружено rows=%d pages=%d", cuClass, className, len(all), pages)
+	return all, nil
 }
 
-func splitCSV(s string) []string {
-	parts := strings.Split(s, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
+func applyItiliumConfig(cfg *config.ItiliumConfig, base, domain, user, password, auth, apiPrefix *string, insecure *bool, timeout *time.Duration, cuStatus *string) {
+	if cfg == nil {
+		return
 	}
-	return out
-}
-
-func firstNonEmpty(ss ...string) string {
-	for _, s := range ss {
-		if t := strings.TrimSpace(s); t != "" {
-			return t
-		}
+	if cfg.BaseURL != "" && *base == "" {
+		*base = cfg.BaseURL
 	}
-	return ""
-}
-
-func printBrief(rows []itilium.CURow) {
-	n := len(rows)
-	if n > 5 {
-		n = 5
+	if cfg.Domain != "" && *domain == "" {
+		*domain = cfg.Domain
 	}
-	for i := 0; i < n; i++ {
-		u := rows[i]
-		log.Printf("  [%d] code=%s name=%s hostname=%s ip=%s sn=%s links=%s model=%s status=%s",
-			i, u.Code.String(), u.Name.String(), u.Hostname.String(), u.IP.String(), u.SN.String(),
-			u.LinksUnit.String(), u.ModelVendS.String(), u.Status.Label)
+	if cfg.Login != "" && *user == "" {
+		*user = cfg.Login
+	}
+	if cfg.Password != "" && cfg.Password != "password" && *password == "" {
+		*password = cfg.Password
+	}
+	if cfg.AuthMode != "" && *auth == "" {
+		*auth = cfg.AuthMode
+	}
+	if cfg.APIPrefix != "" && *apiPrefix == "" {
+		*apiPrefix = cfg.APIPrefix
+	}
+	if cfg.InsecureSkipVerify {
+		*insecure = true
+	}
+	if cfg.TimeoutSec > 0 && *timeout <= 0 {
+		*timeout = time.Duration(cfg.TimeoutSec) * time.Second
+	}
+	if cfg.CUStatus != "" && *cuStatus == "" {
+		*cuStatus = cfg.CUStatus
 	}
 }
