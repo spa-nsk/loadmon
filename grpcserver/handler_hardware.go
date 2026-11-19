@@ -455,9 +455,9 @@ func mergedHWNameList(_ context.Context, call func(c pb.LoadmonClient, ctx conte
 // Ключи trailer-метаданных GetServerHardwareList (состояние сбора OneView).
 const (
 	TrailerOVRefreshing  = "x-ov-refreshing"   // "1" - сейчас идёт сбор
-	TrailerOVLastRefresh = "x-ov-last-refresh"  // unix-время последнего успешного снимка, "0" - ещё не было
-	TrailerOVLastError   = "x-ov-last-error"    // текст ошибки последнего сбора (может быть пустым)
-	TrailerOVCount       = "x-ov-server-count"  // число серверов в снимке
+	TrailerOVLastRefresh = "x-ov-last-refresh" // unix-время последнего успешного снимка, "0" - ещё не было
+	TrailerOVLastError   = "x-ov-last-error"   // текст ошибки последнего сбора (может быть пустым)
+	TrailerOVCount       = "x-ov-server-count" // число серверов в снимке
 )
 
 // OVStateTrailer формирует trailer-метаданные потока по состоянию сбора.
