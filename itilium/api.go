@@ -242,6 +242,18 @@ type CURow struct {
 	EOX        LabelValue `json:"eox,omitempty"`
 	PPribor    LabelValue `json:"pPribor,omitempty"`
 
+	// --- Другие cuClass (импорт blade/enclosure/storage/tape/network) ----
+	ModelBlade LabelValue `json:"modelBlade,omitempty"` // 142 Марка/модель
+	Bucket     LabelValue `json:"bucket,omitempty"`     // 142 Корзина
+	BayNumber  LabelValue `json:"bayNumber,omitempty"`  // 142 Bay Number
+	ModelBucke LabelValue `json:"modelBucke,omitempty"` // 159 Марка/модель корзины
+	BayCount   LabelValue `json:"bayCount,omitempty"`   // 159 Bay count
+	ModelSHD   LabelValue `json:"modelSHD,omitempty"`   // 158 Марка/модель СХД
+	TypeNet    LabelValue `json:"typeNet,omitempty"`    // 146 Тип оборудования
+	ModelNet   LabelValue `json:"modelNet,omitempty"`   // 146 Марка/модель
+	Mac        LabelValue `json:"mac,omitempty"`        // 146 MAC
+	ModelTape  LabelValue `json:"modelTape,omitempty"`  // 198 Марка/модель
+
 	// --- Supplemental (есть в getCU / импорте, нет в xls-каталоге) --------
 	ModelVendS      LabelValue `json:"modelVendS,omitempty"` // Модель от производителя
 	Units           LabelValue `json:"units,omitempty"`      // Высота в юнитах

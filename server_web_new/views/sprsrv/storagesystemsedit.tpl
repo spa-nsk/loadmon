@@ -81,6 +81,14 @@
                             {{end}}
                         </select>
                     </div>
+                    <div class="col-6">
+                        <label for="StatusHistory" class="form-label">Дата статуса Итилиум</label>
+                        <input type="date" id="StatusHistory" name="StatusHistory" class="form-control" value="{{.StatusHistoryStr}}">
+                    </div>
+                    <div class="col-12">
+                        <label for="Description" class="form-label">Описание (Итилиум)</label>
+                        <textarea id="Description" name="Description" class="form-control" rows="2">{{.ST.Description}}</textarea>
+                    </div>
                     <div class="col-4">
                         <label for="Power" class="form-label">Питание</label>
                         <select id="Power" name="Power" class="form-select">

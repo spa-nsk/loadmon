@@ -56,6 +56,14 @@
                     </select>
                 </div>
                 <div class="col-6">
+                    <label for="StatusHistory" class="form-label">Дата статуса Итилиум</label>
+                    <input type="date" id="StatusHistory" name="StatusHistory" class="form-control" value="{{.StatusHistoryStr}}">
+                </div>
+                <div class="col-12">
+                    <label for="Description" class="form-label">Описание (Итилиум)</label>
+                    <textarea id="Description" name="Description" class="form-control" rows="2">{{.TL.Description}}</textarea>
+                </div>
+                <div class="col-6">
                     <label for="Owner" class="form-label">Автор / ответственный</label>
                     <input type="text" id="Owner" name="Owner" class="form-control" value="{{.TL.Owner}}">
                 </div>

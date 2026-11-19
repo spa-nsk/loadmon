@@ -130,6 +130,21 @@ var SupplementalCUFields = map[int][]string{
 		"currency", "currencyA", "dateChPriA", "dateChPric",
 		"isActual", "priceA", "priceCommA", "priceComme", "priceGPL",
 	},
+	CUClassBlades: {
+		"linksUnit", "statusHistory", "statusHistoryYY",
+	},
+	CUClassBladeEnclosures: {
+		"linksUnit", "statusHistory", "statusHistoryYY", "units",
+	},
+	CUClassStorage: {
+		"linksUnit", "statusHistory", "statusHistoryYY",
+	},
+	CUClassNetwork: {
+		"linksUnit", "statusHistory", "statusHistoryYY", "units",
+	},
+	CUClassTapeLibraries: {
+		"linksUnit", "statusHistory", "statusHistoryYY", "units",
+	},
 }
 
 // DefaultFieldsForClass — codes для query fields= : каталог + supplemental.
