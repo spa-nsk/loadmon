@@ -1,0 +1,28 @@
+---
+description: Держать контекстные документы kontext/ синхронными с кодом
+alwaysApply: true
+---
+
+# Синхронизация `kontext/` с кодом
+
+Папка `kontext/` — харнес-контекст проекта (см. `kontext/README.md`).
+**В той же правке, что меняет код, обновляй соответствующий документ**, не
+откладывая на потом:
+
+- маршруты/контроллеры/шаблоны → `kontext/04-web-ui.md`;
+- модели, таблицы, поля БД → `kontext/03-data-model.md`;
+- gRPC/proto → `kontext/02-grpc-api.md`;
+- новые конвенции, ловушки, эталонные страницы → `kontext/05-conventions-and-gotchas.md`;
+- 3D-страницы (`bladechassis3d.js`, `server3d.js`) → `kontext/15-3d-visualization.md`;
+- canvas-визуализации площадок/шкафов, поиск размещения, `PowerLight` → `kontext/16-datacenter-visualization.md`;
+- авторизация, экран входа, `/sso`, трассировка `view2` → `kontext/17-auth-and-login.md`;
+- `app2.json`, утилиты `tools/`, симуляторы, импорт Итилиум, `sql/`, `update/` → `kontext/18-tools-config-and-ops.md`;
+- HTTP API 1С:ITILIUM / getCU → `kontext/19-itilium-api.md`;
+- поля КЕ / cuClass / `cu_fields_catalog.json` → `kontext/20-itilium-cu-fields.md`;
+- интеграции СХД/SCOM/OneView → `kontext/10`–`14`;
+- новый документ → добавить пункт в список `kontext/README.md`.
+
+Перед правкой кода сверяйся с `kontext/05-conventions-and-gotchas.md`.
+При обнаружении расхождения документа и кода правь документ. Не
+выдумывай факты: проверяй имена функций/маршрутов по коду (`rg`).
+В итоговом ответе кратко перечисляй, какие файлы `kontext/` обновлены.

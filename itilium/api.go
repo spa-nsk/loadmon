@@ -59,15 +59,10 @@ func (q GetCUQuery) values() url.Values {
 	return v
 }
 
-// DefaultServerCUFields — набор полей для серверных КЕ (cuClass=145, rack).
-// Соответствие колонкам Excel-импорта (update/rack_server.yaml) —
-// см. tools/itiliumgetcu (режим -analyze) и kontext/19-itilium-api.md.
-var DefaultServerCUFields = []string{
-	"author", "code", "currency", "currencyA", "dateChPriA", "dateChPric",
-	"description", "hostname", "ip", "isActual", "linksUnit", "modelServ",
-	"modelVendS", "name", "priceA", "priceCommA", "priceComme", "priceGPL",
-	"sn", "status", "statusHistory", "statusHistoryYY", "units", "user", "where",
-}
+// DefaultServerCUFields — fields= для cuClass=145 (каталог «Список полей КЕ»
+// + supplemental). Предпочтительно DefaultFieldsForClass(CUClassServers);
+// эта переменная — снимок для обратной совместимости флагов tools.
+var DefaultServerCUFields = DefaultFieldsForClass(CUClassServers)
 
 // LabelValue — поле КЕ вида {"label":"…","value":"…"}.
 // UnmarshalJSON также принимает голую JSON-строку (тогда Value=строка).
@@ -121,12 +116,9 @@ func (lv LabelValue) ValueString() string {
 	}
 }
 
-// String возвращает Value, если не пуст, иначе Label.
+// String возвращает Value, раньше для пустого возвращалась label
 func (lv LabelValue) String() string {
-	if s := lv.ValueString(); s != "" {
-		return s
-	}
-	return lv.Label
+	return lv.ValueString()
 }
 
 // LinksUnitField — поле linksUnit: JSON-строка, один LabelValue или массив
@@ -199,28 +191,72 @@ type CURow struct {
 	Author      LabelValue     `json:"author"`
 	CuClass     string         `json:"cuClass"`
 	LinksUnit   LinksUnitField `json:"linksUnit,omitempty"` // строка, LabelValue или []LabelValue
-	// Поля из fields= (серверы / rack, см. DefaultServerCUFields).
-	ModelServ       LabelValue `json:"modelServ,omitempty"`  // Марка/модель (Норматив)
+
+	// --- CU 145 (Серверы): коды из «Список полей КЕ.xls» -----------------
+	Legal      LabelValue `json:"legal,omitempty"`     // Юр.лицо
+	OS         LabelValue `json:"os,omitempty"`        // Операционная система
+	Domain     LabelValue `json:"domain,omitempty"`    // Домен
+	OneView    LabelValue `json:"oneview,omitempty"`   // OneView
+	Role       LabelValue `json:"role,omitempty"`      // Роль
+	DataDocs   LabelValue `json:"dataDocs,omitempty"`  // Дата документа закупки
+	RAM1       LabelValue `json:"ram_1,omitempty"`     // RAM (1)
+	CRAM1      LabelValue `json:"c_ram_1,omitempty"`   // RAM (1) (кол-во)
+	RAM2       LabelValue `json:"ram_2,omitempty"`     // RAM (2)
+	CRAM2      LabelValue `json:"c_ram_2,omitempty"`   // RAM (2) (кол-во)
+	ILOIP      LabelValue `json:"iloip,omitempty"`     // ILO IP
+	IPMI       LabelValue `json:"ipmi,omitempty"`      // IPMI
+	Complect   LabelValue `json:"complect,omitempty"`  // Комплектация
+	ModelServ  LabelValue `json:"modelServ,omitempty"` // Марка/модель(Норматив)
+	Product    LabelValue `json:"product,omitempty"`   // Продукт
+	IP         LabelValue `json:"ip,omitempty"`
+	Installed  LabelValue `json:"installed,omitempty"`  // Дата установки
+	Where      LabelValue `json:"where,omitempty"`      // Местоположение
+	RepairDate LabelValue `json:"repairDate,omitempty"` // Дата ремонта
+	Comments   LabelValue `json:"comments,omitempty"`   // Примечание
+	Hostname   LabelValue `json:"hostname,omitempty"`
+	User       LabelValue `json:"user,omitempty"` // Пользователь / Excel «Владелец»
+	Docs       LabelValue `json:"docs,omitempty"` // Документ закупки
+	Provider   LabelValue `json:"provider,omitempty"`
+	SN         LabelValue `json:"sn,omitempty"`
+	Net        LabelValue `json:"net,omitempty"` // NET / сетевой адаптер
+	RAID       LabelValue `json:"raid,omitempty"`
+	RAID2      LabelValue `json:"raid_2,omitempty"`
+	CCPU       LabelValue `json:"c_cpu,omitempty"` // Процессор (кол-во)
+	CPU        LabelValue `json:"cpu,omitempty"`
+	HDD        LabelValue `json:"hdd,omitempty"`
+	HDD2       LabelValue `json:"hdd_2,omitempty"`
+	HDD3       LabelValue `json:"hdd_3,omitempty"`
+	HDD4       LabelValue `json:"hdd_4,omitempty"`
+	HDD5       LabelValue `json:"hdd_5,omitempty"`
+	HDD6       LabelValue `json:"hdd_6,omitempty"`
+	HDD7       LabelValue `json:"hdd_7,omitempty"`
+	HDD8       LabelValue `json:"hdd_8,omitempty"`
+	Video      LabelValue `json:"video,omitempty"`
+	MB         LabelValue `json:"mb,omitempty"` // материнская плата
+	BuhLegal   LabelValue `json:"buhLegal,omitempty"`
+	BuhStatus  LabelValue `json:"buhStatus,omitempty"`
+	BuhCode    LabelValue `json:"buhCode,omitempty"` // Бухгалтерский инв.№
+	BuhComment LabelValue `json:"buhComment,omitempty"`
+	BuhInv     LabelValue `json:"buhInv,omitempty"`
+	EOS        LabelValue `json:"eos,omitempty"`
+	EOX        LabelValue `json:"eox,omitempty"`
+	PPribor    LabelValue `json:"pPribor,omitempty"`
+
+	// --- Supplemental (есть в getCU / импорте, нет в xls-каталоге) --------
 	ModelVendS      LabelValue `json:"modelVendS,omitempty"` // Модель от производителя
-	Hostname        LabelValue `json:"hostname,omitempty"`
-	IP              LabelValue `json:"ip,omitempty"`
-	SN              LabelValue `json:"sn,omitempty"`
-	User            LabelValue `json:"user,omitempty"`  // Пользователь (в Excel часто «Владелец»)
-	Where           LabelValue `json:"where,omitempty"` // Местоположение
-	Units           LabelValue `json:"units,omitempty"` // Высота в юнитах
+	Units           LabelValue `json:"units,omitempty"`      // Высота в юнитах
 	StatusHistory   LabelValue `json:"statusHistory,omitempty"`
-	StatusHistoryYY string     `json:"statusHistoryYY,omitempty"` // дата статуса YYYY-MM-DD
+	StatusHistoryYY string     `json:"statusHistoryYY,omitempty"`
 	StatusName      LabelValue `json:"statusName,omitempty"`
-	// Стоимостные / справочные (есть в getCU, в Excel-templ не все были).
-	Currency   LabelValue `json:"currency,omitempty"`
-	CurrencyA  LabelValue `json:"currencyA,omitempty"`
-	DateChPriA LabelValue `json:"dateChPriA,omitempty"`
-	DateChPric LabelValue `json:"dateChPric,omitempty"`
-	IsActual   LabelValue `json:"isActual,omitempty"`
-	PriceA     LabelValue `json:"priceA,omitempty"`
-	PriceCommA LabelValue `json:"priceCommA,omitempty"`
-	PriceComme LabelValue `json:"priceComme,omitempty"`
-	PriceGPL   LabelValue `json:"priceGPL,omitempty"`
+	Currency        LabelValue `json:"currency,omitempty"`
+	CurrencyA       LabelValue `json:"currencyA,omitempty"`
+	DateChPriA      LabelValue `json:"dateChPriA,omitempty"`
+	DateChPric      LabelValue `json:"dateChPric,omitempty"`
+	IsActual        LabelValue `json:"isActual,omitempty"`
+	PriceA          LabelValue `json:"priceA,omitempty"`
+	PriceCommA      LabelValue `json:"priceCommA,omitempty"`
+	PriceComme      LabelValue `json:"priceComme,omitempty"`
+	PriceGPL        LabelValue `json:"priceGPL,omitempty"`
 }
 
 // GetCUResponse — ответ GET getCU.

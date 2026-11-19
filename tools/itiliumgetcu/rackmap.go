@@ -173,15 +173,6 @@ func MapRackServer(r itilium.CURow) RackServerView {
 	}
 }
 
-func firstNonEmpty(ss ...string) string {
-	for _, s := range ss {
-		if t := strings.TrimSpace(s); t != "" {
-			return t
-		}
-	}
-	return ""
-}
-
 // EffectiveSizeUnit: приоритет диапазону из linksUnit, иначе units.
 func (v RackServerView) EffectiveSizeUnit() int {
 	if v.Placement.OK && v.Placement.SizeUnit > 0 {

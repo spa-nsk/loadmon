@@ -75,9 +75,10 @@ func main() {
 	cuStatus := flag.String("cu-status", itilium.CUStatusAll, "cuStatus (all - все)")
 	nextVer := flag.String("next-ver", "", "nextVer (пусто - не передавать)")
 	limit := flag.Int("limit", 0, "limit (0 - не передавать)")
-	fields := flag.String("fields", strings.Join(itilium.DefaultServerCUFields, ","), "fields через запятую")
+	fields := flag.String("fields", "", "fields через запятую (пусто - DefaultFieldsForClass(-cu-class))")
 	all := flag.Bool("all", false, "листать страницы по last/hasMore")
 	listClasses := flag.Bool("list-classes", false, "напечатать справочник cuClass и выйти")
+	listFields := flag.Bool("list-fields", false, "поля КЕ для -cu-class (каталог + supplemental)")
 	analyze := flag.Bool("analyze", false, "проверка выгрузки по правилам импорта + отчёты")
 	doImport := flag.Bool("import", false, "записать rows в БД из app2.json (ImportRackServersFromCU)")
 	inFile := flag.String("in", "", "прочитать GetCUResponse JSON из файла (без HTTP)")
@@ -93,6 +94,17 @@ func main() {
 		for _, c := range itilium.CUClasses() {
 			fmt.Printf("%3d  %s\n", c.Code, c.Name)
 		}
+		return
+	}
+	if *listFields {
+		cat := itilium.DefaultFieldCatalog()
+		fmt.Printf("cuClass=%d %s\n", *cuClass, firstNonEmpty(cat.ClassName(*cuClass), itilium.CUClassName(*cuClass), "?"))
+		fmt.Printf("--- каталог (Список полей КЕ):\n")
+		for _, f := range cat.Fields(*cuClass) {
+			fmt.Printf("  %-12s  %s\n", f.Code, f.Label)
+		}
+		fmt.Printf("--- fields= для запроса (%d):\n", len(itilium.DefaultFieldsForClass(*cuClass)))
+		fmt.Println(strings.Join(itilium.DefaultFieldsForClass(*cuClass), ","))
 		return
 	}
 
@@ -157,6 +169,8 @@ func main() {
 		}
 		if f := strings.TrimSpace(*fields); f != "" {
 			q.Fields = splitCSV(f)
+		} else {
+			q.Fields = itilium.DefaultFieldsForClass(*cuClass)
 		}
 
 		className := itilium.CUClassName(*cuClass)
@@ -309,6 +323,15 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
+}
+
+func firstNonEmpty(ss ...string) string {
+	for _, s := range ss {
+		if t := strings.TrimSpace(s); t != "" {
+			return t
+		}
+	}
+	return ""
 }
 
 func printBrief(rows []itilium.CURow) {
