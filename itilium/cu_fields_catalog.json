@@ -1,0 +1,3755 @@
+{
+  "source": "Список полей КЕ.xls",
+  "classes": [
+    {
+      "code": 170,
+      "name": "IP гарнитуры",
+      "fields": [
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "mac",
+          "label": "MAC адрес"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelHeads",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        }
+      ]
+    },
+    {
+      "code": 168,
+      "name": "IP телефоны",
+      "fields": [
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "model_ipPh",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "mac",
+          "label": "MAC адрес"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        }
+      ]
+    },
+    {
+      "code": 177,
+      "name": "PDU",
+      "fields": [
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelPDU",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        }
+      ]
+    },
+    {
+      "code": 162,
+      "name": "SAN",
+      "fields": [
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "modelSAN",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        }
+      ]
+    },
+    {
+      "code": 228,
+      "name": "USB ключи",
+      "fields": [
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "modelUSBk",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "hostUSB",
+          "label": "Хост подключения (FQDN-имя)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        }
+      ]
+    },
+    {
+      "code": 154,
+      "name": "USBOverIP",
+      "fields": [
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "ip",
+          "label": "ip"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelUSBIP",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "producer",
+          "label": "Производитель"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 189,
+      "name": "web-камеры",
+      "fields": [
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "modelWeb",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        }
+      ]
+    },
+    {
+      "code": 173,
+      "name": "Адаптеры",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelAdapt",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "typeAdapt",
+          "label": "Тип адаптера"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "mac",
+          "label": "MAC адрес"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 142,
+      "name": "Блейды",
+      "fields": [
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "modelBlade",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "ip",
+          "label": "ip"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "role",
+          "label": "Роль"
+        },
+        {
+          "code": "bayNumber",
+          "label": "Bay Number"
+        },
+        {
+          "code": "bucket",
+          "label": "Корзина"
+        }
+      ]
+    },
+    {
+      "code": 183,
+      "name": "ВКС станции",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelVCS",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "mac",
+          "label": "MAC адрес"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 179,
+      "name": "Док-станции",
+      "fields": [
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "modelDock",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 171,
+      "name": "ИБП",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataChBatt",
+          "label": "Дата замены АКБ"
+        },
+        {
+          "code": "dataProd",
+          "label": "Дата производства ИБП"
+        },
+        {
+          "code": "cardModel",
+          "label": "Модель карты мониторинга"
+        },
+        {
+          "code": "cardIP",
+          "label": "ip карты мониторинга"
+        },
+        {
+          "code": "cardSN",
+          "label": "S/N карты мониторинга"
+        },
+        {
+          "code": "verUPS",
+          "label": "Версия прошивки ИБП"
+        },
+        {
+          "code": "typeACDC",
+          "label": "Тип подключения ИБП к электросети"
+        },
+        {
+          "code": "primAkk",
+          "label": "Примечание к АКБ"
+        },
+        {
+          "code": "modelAkk",
+          "label": "Модель АКБ"
+        },
+        {
+          "code": "changeAkk",
+          "label": "Заменить АКБ (план)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelUPS",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 143,
+      "name": "КВМ",
+      "fields": [
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "modelKVM",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 181,
+      "name": "Клавиатуры",
+      "fields": [
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelKeyb",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 139,
+      "name": "Компьютеры",
+      "fields": [
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "arm",
+          "label": "Тип АРМ"
+        },
+        {
+          "code": "hdd_3",
+          "label": "HDD(3)"
+        },
+        {
+          "code": "hdd_4",
+          "label": "HDD(4)"
+        },
+        {
+          "code": "hdd_5",
+          "label": "HDD(5)"
+        },
+        {
+          "code": "hdd_6",
+          "label": "HDD(6)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "mb",
+          "label": "MB"
+        },
+        {
+          "code": "cpu",
+          "label": "Процессор"
+        },
+        {
+          "code": "hdd_2",
+          "label": "HDD(2)"
+        },
+        {
+          "code": "video",
+          "label": "Видеокарта"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "net",
+          "label": "NET"
+        },
+        {
+          "code": "raid",
+          "label": "RAID"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "modelComp",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "ram_1",
+          "label": "RAM (1)"
+        },
+        {
+          "code": "ram_2",
+          "label": "RAM (2)"
+        },
+        {
+          "code": "c_ram_1",
+          "label": "RAM (1) (кол-во)"
+        },
+        {
+          "code": "c_ram_2",
+          "label": "RAM (2) (кол-во)"
+        },
+        {
+          "code": "hdd",
+          "label": "HDD"
+        }
+      ]
+    },
+    {
+      "code": 159,
+      "name": "Корзины блейдов",
+      "fields": [
+        {
+          "code": "bayCount",
+          "label": "Bay count"
+        },
+        {
+          "code": "modelBucke",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 198,
+      "name": "Ленточные библиотеки",
+      "fields": [
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "modelTape",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "ip",
+          "label": "ip"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 203,
+      "name": "Медиаплееры",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "modelMedia",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 205,
+      "name": "Микрофоны",
+      "fields": [
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "modelMicro",
+          "label": "Марка/модель(Норматив)"
+        }
+      ]
+    },
+    {
+      "code": 148,
+      "name": "Мобильные телефоны",
+      "fields": [
+        {
+          "code": "imei_2",
+          "label": "imei (2)"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "imei",
+          "label": "imei"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "set",
+          "label": "Комплектация"
+        },
+        {
+          "code": "giveDate",
+          "label": "Дата выдачи"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelMobil",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        }
+      ]
+    },
+    {
+      "code": 140,
+      "name": "Мониторы",
+      "fields": [
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "modelMon",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 186,
+      "name": "Моноблоки",
+      "fields": [
+        {
+          "code": "modelMonob",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "hdd",
+          "label": "HDD"
+        },
+        {
+          "code": "c_ram_1",
+          "label": "RAM (1) (кол-во)"
+        },
+        {
+          "code": "ram_1",
+          "label": "RAM (1)"
+        },
+        {
+          "code": "c_ram_2",
+          "label": "RAM (2) (кол-во)"
+        },
+        {
+          "code": "ram_2",
+          "label": "RAM (2)"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "raid",
+          "label": "RAID"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "mb",
+          "label": "MB"
+        },
+        {
+          "code": "video",
+          "label": "Видеокарта"
+        },
+        {
+          "code": "net",
+          "label": "NET"
+        },
+        {
+          "code": "cpu",
+          "label": "Процессор"
+        },
+        {
+          "code": "hdd_2",
+          "label": "HDD(2)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        }
+      ]
+    },
+    {
+      "code": 182,
+      "name": "Мыши",
+      "fields": [
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "modelMouse",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        }
+      ]
+    },
+    {
+      "code": 178,
+      "name": "Неттопы",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "ram_1",
+          "label": "RAM (1)"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "ram_2",
+          "label": "RAM (2)"
+        },
+        {
+          "code": "c_ram_2",
+          "label": "RAM (2) (кол-во)"
+        },
+        {
+          "code": "hdd",
+          "label": "HDD"
+        },
+        {
+          "code": "c_ram_1",
+          "label": "RAM (1) (кол-во)"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelNetto",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "hdd_2",
+          "label": "HDD(2)"
+        },
+        {
+          "code": "cpu",
+          "label": "Процессор"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        }
+      ]
+    },
+    {
+      "code": 141,
+      "name": "Ноутбуки",
+      "fields": [
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "modelNout",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "set",
+          "label": "Комплектация"
+        },
+        {
+          "code": "giveDate",
+          "label": "Дата выдачи"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "forvpn",
+          "label": "Техника для удаленки"
+        },
+        {
+          "code": "imei",
+          "label": "imei"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 180,
+      "name": "Планшеты",
+      "fields": [
+        {
+          "code": "imei",
+          "label": "imei"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "giveDate",
+          "label": "Дата выдачи"
+        },
+        {
+          "code": "set",
+          "label": "Комплектация"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelTable",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        }
+      ]
+    },
+    {
+      "code": 144,
+      "name": "Принтеры",
+      "fields": [
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "pname",
+          "label": "Имя"
+        },
+        {
+          "code": "myUID",
+          "label": "uid"
+        },
+        {
+          "code": "modelPrint",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 201,
+      "name": "Проекторы",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "modelProj",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        }
+      ]
+    },
+    {
+      "code": 192,
+      "name": "Прочее",
+      "fields": [
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 145,
+      "name": "Серверы",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "os",
+          "label": "Операционная система"
+        },
+        {
+          "code": "domain",
+          "label": "Домен"
+        },
+        {
+          "code": "oneview",
+          "label": "OneView"
+        },
+        {
+          "code": "role",
+          "label": "Роль"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "ram_1",
+          "label": "RAM (1)"
+        },
+        {
+          "code": "iloip",
+          "label": "ILO IP"
+        },
+        {
+          "code": "complect",
+          "label": "Комплектация"
+        },
+        {
+          "code": "modelServ",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "product",
+          "label": "Продукт"
+        },
+        {
+          "code": "ip",
+          "label": "ip"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "c_ram_2",
+          "label": "RAM (2) (кол-во)"
+        },
+        {
+          "code": "hdd",
+          "label": "HDD"
+        },
+        {
+          "code": "ram_2",
+          "label": "RAM (2)"
+        },
+        {
+          "code": "c_ram_1",
+          "label": "RAM (1) (кол-во)"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "net",
+          "label": "NET"
+        },
+        {
+          "code": "raid",
+          "label": "RAID"
+        },
+        {
+          "code": "c_cpu",
+          "label": "Процессор (кол-во)"
+        },
+        {
+          "code": "raid_2",
+          "label": "RAID(2)"
+        },
+        {
+          "code": "hdd_2",
+          "label": "HDD(2)"
+        },
+        {
+          "code": "video",
+          "label": "Видеокарта"
+        },
+        {
+          "code": "mb",
+          "label": "MB"
+        },
+        {
+          "code": "cpu",
+          "label": "Процессор"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "hdd_6",
+          "label": "HDD(6)"
+        },
+        {
+          "code": "hdd_7",
+          "label": "HDD(7)"
+        },
+        {
+          "code": "hdd_8",
+          "label": "HDD(8)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "hdd_4",
+          "label": "HDD(4)"
+        },
+        {
+          "code": "hdd_5",
+          "label": "HDD(5)"
+        },
+        {
+          "code": "ipmi",
+          "label": "IPMI"
+        },
+        {
+          "code": "hdd_3",
+          "label": "HDD(3)"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        }
+      ]
+    },
+    {
+      "code": 146,
+      "name": "Сетевое оборудование",
+      "fields": [
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "mac",
+          "label": "MAC адрес"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "ip",
+          "label": "ip"
+        },
+        {
+          "code": "typeNet",
+          "label": "Тип оборудования"
+        },
+        {
+          "code": "modelNet",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 147,
+      "name": "Сканеры",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "modelScan",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        }
+      ]
+    },
+    {
+      "code": 231,
+      "name": "Сканеры штрих-кодов",
+      "fields": [
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "modelBarco",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    },
+    {
+      "code": 185,
+      "name": "Спикерфоны",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelSpeak",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        }
+      ]
+    },
+    {
+      "code": 158,
+      "name": "СХД",
+      "fields": [
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "modelSHD",
+          "label": "Марка/модель(Норматив)"
+        }
+      ]
+    },
+    {
+      "code": 226,
+      "name": "Телевизоры",
+      "fields": [
+        {
+          "code": "modelTV",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        }
+      ]
+    },
+    {
+      "code": 190,
+      "name": "Телефоны",
+      "fields": [
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "modelPhone",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "imei",
+          "label": "imei"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "imei_2",
+          "label": "imei (2)"
+        }
+      ]
+    },
+    {
+      "code": 149,
+      "name": "Тонкие клиенты",
+      "fields": [
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "hostname",
+          "label": "Имя (hostname)"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "modelThin",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "eos",
+          "label": "Дата окончания поддержки производителем"
+        },
+        {
+          "code": "eox",
+          "label": "Плановая дата замены"
+        },
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "pPribor",
+          "label": "Прибор"
+        }
+      ]
+    },
+    {
+      "code": 187,
+      "name": "Шкафы",
+      "fields": [
+        {
+          "code": "buhComment",
+          "label": "Комментарий (БУХ)"
+        },
+        {
+          "code": "buhLegal",
+          "label": "Юр.лицо (БУХ)"
+        },
+        {
+          "code": "buhInv",
+          "label": "Инв.номер (БУХ)"
+        },
+        {
+          "code": "buhStatus",
+          "label": "Статус (БУХ)"
+        },
+        {
+          "code": "buhCode",
+          "label": "Бухгалтерский инв.№"
+        },
+        {
+          "code": "sn",
+          "label": "s/n"
+        },
+        {
+          "code": "sz",
+          "label": "СЗ"
+        },
+        {
+          "code": "provider",
+          "label": "Поставщик"
+        },
+        {
+          "code": "docs",
+          "label": "Документ закупки"
+        },
+        {
+          "code": "user",
+          "label": "Пользователь"
+        },
+        {
+          "code": "comments",
+          "label": "Примечание"
+        },
+        {
+          "code": "repairDate",
+          "label": "Дата ремонта"
+        },
+        {
+          "code": "installed",
+          "label": "Дата установки"
+        },
+        {
+          "code": "where",
+          "label": "Местоположение"
+        },
+        {
+          "code": "dataDocs",
+          "label": "Дата документа закупки"
+        },
+        {
+          "code": "modelRack",
+          "label": "Марка/модель(Норматив)"
+        },
+        {
+          "code": "typeRack",
+          "label": "Тип"
+        },
+        {
+          "code": "units",
+          "label": "Высота в юнитах"
+        },
+        {
+          "code": "legal",
+          "label": "Юр.лицо"
+        }
+      ]
+    }
+  ]
+}

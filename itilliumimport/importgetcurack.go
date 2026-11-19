@@ -2,6 +2,7 @@ package itilliumimport
 
 import (
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -36,18 +37,114 @@ func locationUndefinedForCU(where string, itiliumStatus int) bool {
 	return strings.HasPrefix(strings.TrimSpace(where), leftFGPrefix)
 }
 
+// Маркеры в description («Описание»): если modelVendS и modelServ пусты,
+// а описание содержит один из них — description считается моделью сервера.
+var cuModelDescMarkers = []string{"HP", "Chieftec", "DELL", "Inflex", "DEPO", "Cisco"}
+
 func cuModel(row itilium.CURow) string {
 	if m := strings.TrimSpace(row.ModelVendS.String()); m != "" {
 		return m
 	}
-	return strings.TrimSpace(row.ModelServ.String())
+	if m := strings.TrimSpace(row.ModelServ.String()); m != "" {
+		return m
+	}
+	desc := strings.TrimSpace(row.Description.String())
+	if desc == "" {
+		return ""
+	}
+	upper := strings.ToUpper(desc)
+	for _, marker := range cuModelDescMarkers {
+		if strings.Contains(upper, strings.ToUpper(marker)) {
+			return desc
+		}
+	}
+	return ""
+}
+
+func cuTrim(lv itilium.LabelValue) string { return strings.TrimSpace(lv.String()) }
+
+func cuMpIP(row itilium.CURow) string {
+	if s := cuTrim(row.ILOIP); s != "" {
+		return s
+	}
+	return cuTrim(row.IPMI)
+}
+
+func cuDetails(row itilium.CURow) string {
+	parts := make([]string, 0, 3)
+	for _, s := range []string{cuTrim(row.Description), cuTrim(row.Comments), cuTrim(row.Complect)} {
+		if s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, "; ")
+}
+
+var cuMemoryGbRe = regexp.MustCompile(`(?i)(\d+(?:[.,]\d+)?)\s*(?:gb|гб)\b`)
+
+func cuMemoryMb(row itilium.CURow) int {
+	var totalGb float64
+	found := false
+	add := func(spec, countStr string) {
+		spec = strings.TrimSpace(spec)
+		if spec == "" {
+			return
+		}
+		m := cuMemoryGbRe.FindStringSubmatch(spec)
+		if m == nil {
+			return
+		}
+		gb, err := strconv.ParseFloat(strings.Replace(m[1], ",", ".", 1), 64)
+		if err != nil || gb <= 0 {
+			return
+		}
+		count := 1.0
+		if c := strings.TrimSpace(countStr); c != "" {
+			if v, err := strconv.ParseFloat(strings.Replace(c, ",", ".", 1), 64); err == nil && v > 0 {
+				count = v
+			}
+		}
+		totalGb += gb * count
+		found = true
+	}
+	add(cuTrim(row.RAM1), cuTrim(row.CRAM1))
+	add(cuTrim(row.RAM2), cuTrim(row.CRAM2))
+	if !found {
+		return 0
+	}
+	return int(totalGb * 1024)
+}
+
+func cuParseDateRU(s string) (time.Time, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, false
+	}
+	// «23.10.2025 0:00:00» или «23.10.2025»
+	if i := strings.IndexAny(s, " T"); i > 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	t, err := time.ParseInLocation("02.01.2006", s, time.Local)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+func fillEmpty(dst *string, src string) bool {
+	if strings.TrimSpace(*dst) != "" || strings.TrimSpace(src) == "" {
+		return false
+	}
+	*dst = src
+	return true
 }
 
 // ImportRackServersFromCU пишет КЕ getCU (cuClass=145) в
 // ServerHardware/ServerSprRecords (+ DatacenterSite/RackCabinet) по тем же
 // правилам, что ImportItiliumServer (Excel), с уточнениями:
 //   - списан / в пути / «! Покинуло ФГ…» → без площадки и шкафа;
-//   - модель: modelVendS, иначе modelServ; у существующей HW Model не
+//   - модель: modelVendS, иначе modelServ, иначе description при наличии
+//     маркера HP/Chieftec/DELL/Inflex/DEPO/Cisco; у существующей HW Model не
 //     перезаписывается, если уже непустая.
 func ImportRackServersFromCU(rows []itilium.CURow) ImportCURackStats {
 	var st ImportCURackStats
@@ -105,18 +202,31 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 		out.unknownSt = true
 	}
 
-	sn := strings.TrimSpace(row.SN.String())
+	sn := cuTrim(row.SN)
 	if sn == "" {
 		sn = tech
 	}
-	hostname := strings.TrimSpace(row.Hostname.String())
-	ip := strings.TrimSpace(row.IP.String())
-	inv := strings.TrimSpace(row.Name.String())
-	where := strings.TrimSpace(row.Where.String())
+	hostname := cuTrim(row.Hostname)
+	ip := cuTrim(row.IP)
+	inv := cuTrim(row.Name)
+	where := cuTrim(row.Where)
 	links := strings.TrimSpace(row.LinksUnit.String())
 	model := cuModel(row)
-	owner := strings.TrimSpace(row.User.String())
-	details := strings.TrimSpace(row.Description.String())
+	owner := cuTrim(row.User)
+	details := cuDetails(row)
+	osName := cuTrim(row.OS)
+	role := cuTrim(row.Role)
+	cpu := cuTrim(row.CPU)
+	mpIP := cuMpIP(row)
+	partNum := cuTrim(row.Product)
+	contractDoc := cuTrim(row.Docs)
+	provider := cuTrim(row.Provider)
+	buhInv := cuTrim(row.BuhCode)
+	if buhInv == "" {
+		buhInv = cuTrim(row.BuhInv)
+	}
+	memMb := cuMemoryMb(row)
+	docDate, hasDocDate := cuParseDateRU(cuTrim(row.DataDocs))
 
 	skipLoc := locationUndefinedForCU(where, mapped.ItiliumStatus)
 	if skipLoc {
@@ -136,8 +246,18 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 	)
 	hw.TechnicalNumberIT = tech
 	hw.InventoryNum = inv
+	hw.InventoryNumBuh = buhInv
 	hw.SerialNum = sn
 	hw.Model = model
+	hw.PartNum = partNum
+	hw.CPUModel = cpu
+	hw.MpIPAddress = mpIP
+	hw.ContractDoc = contractDoc
+	hw.Counterparty = provider
+	hw.MemoryMb = memMb
+	if hasDocDate {
+		hw.DateContractDoc = docDate
+	}
 	hw.FormFactor = 1
 	hw.ItiliumStatus = mapped.ItiliumStatus
 	hw.PowerState = mapped.HwPower
@@ -151,6 +271,8 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 	spr.IPAddress = ip
 	spr.SerialNumber = sn
 	spr.Owner = owner
+	spr.OS = osName
+	spr.Role = role
 	spr.Details = details
 	spr.Stat = mapped.Stat
 	spr.PowerState = mapped.Power
@@ -282,10 +404,35 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 			exist.InventoryNum = inv
 			cols = append(cols, "InventoryNum")
 		}
-		// Модель: не перезаписывать непустую.
-		if strings.TrimSpace(exist.Model) == "" && model != "" {
-			exist.Model = model
+		// Непустые поля HW не перезаписываем (как Model).
+		if fillEmpty(&exist.Model, model) {
 			cols = append(cols, "Model")
+		}
+		if fillEmpty(&exist.PartNum, partNum) {
+			cols = append(cols, "PartNum")
+		}
+		if fillEmpty(&exist.CPUModel, cpu) {
+			cols = append(cols, "CPUModel")
+		}
+		if fillEmpty(&exist.MpIPAddress, mpIP) {
+			cols = append(cols, "MpIPAddress")
+		}
+		if fillEmpty(&exist.ContractDoc, contractDoc) {
+			cols = append(cols, "ContractDoc")
+		}
+		if fillEmpty(&exist.Counterparty, provider) {
+			cols = append(cols, "Counterparty")
+		}
+		if fillEmpty(&exist.InventoryNumBuh, buhInv) {
+			cols = append(cols, "InventoryNumBuh")
+		}
+		if exist.MemoryMb == 0 && memMb > 0 {
+			exist.MemoryMb = memMb
+			cols = append(cols, "MemoryMb")
+		}
+		if exist.DateContractDoc.IsZero() && hasDocDate {
+			exist.DateContractDoc = docDate
+			cols = append(cols, "DateContractDoc")
 		}
 		exist.Time_Mfy = time.Now().Local()
 		exist.Id_User = models.UserSourceManual
@@ -337,18 +484,30 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 		out.inserted = true
 	} else {
 		sprsrv.HWSprId = hw.Id
+		cols := []string{"HWSprId"}
 		if sprsrv.SourceUpdateType == models.SourceUpdateManual {
 			sprsrv.Stat = spr.Stat
 			sprsrv.Active = spr.Active
 			sprsrv.PowerState = spr.PowerState
-			if _, errUp := trn.Update(&sprsrv, "HWSprId", "Stat", "Active", "PowerState"); errUp != nil {
-				log.Printf("itilliumimport: getCU %s: update spr: %v", tech, errUp)
-				trn.Rollback()
-				out.err = true
-				return out
-			}
-		} else if _, errUp := trn.Update(&sprsrv, "HWSprId"); errUp != nil {
-			log.Printf("itilliumimport: getCU %s: update spr HWSprId: %v", tech, errUp)
+			cols = append(cols, "Stat", "Active", "PowerState")
+		}
+		if fillEmpty(&sprsrv.OS, osName) {
+			cols = append(cols, "OS")
+		}
+		if fillEmpty(&sprsrv.Role, role) {
+			cols = append(cols, "Role")
+		}
+		if fillEmpty(&sprsrv.Owner, owner) {
+			cols = append(cols, "Owner")
+		}
+		if fillEmpty(&sprsrv.IPAddress, ip) {
+			cols = append(cols, "IPAddress")
+		}
+		if fillEmpty(&sprsrv.Details, details) {
+			cols = append(cols, "Details")
+		}
+		if _, errUp := trn.Update(&sprsrv, cols...); errUp != nil {
+			log.Printf("itilliumimport: getCU %s: update spr: %v", tech, errUp)
 			trn.Rollback()
 			out.err = true
 			return out
