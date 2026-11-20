@@ -42,6 +42,9 @@ type rackViewBlade struct {
 // показывается списком "без позиции").
 type rackViewItem struct {
 	Key       string          `json:"key,omitempty"` // ключ связи со списком режима «Оборудование ИТ-системы»
+	// Role - только режим «Оборудование ИТ-системы»: "host" - хост ESXi, на котором сейчас размещены
+	// ВМ системы; "cluster" - хост кластера без ВМ системы; пусто - оборудование самой системы.
+	Role string `json:"role,omitempty"`
 	Kind      string          `json:"kind"`
 	Id        int64           `json:"id"`
 	Name      string          `json:"name"`
