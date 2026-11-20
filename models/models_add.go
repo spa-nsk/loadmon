@@ -1582,6 +1582,48 @@ func (u *StorageEventLog) TableIndex() [][]string {
 	}
 }
 
+// ItiliumImportLog — журнал последнего прогона SyncGetCU (getCU → CMDB).
+// Таблица itilium_import_log полностью перезаписывается при каждом успешном
+// старте синхронизации (itilliumimport.resetImportLog). Одна строка — одна
+// обработанная КЕ или системная ошибка (fetch/getCU). Просмотр —
+// /admin/itiliumimportlog (Priv==3).
+type ItiliumImportLog struct {
+	Id int64
+	// Time — время записи строки (общее для всего прогона).
+	Time time.Time `orm:"index"`
+	// CUClass — код класса КЕ (145/142/159/…); 0 — системная строка (сбой клиента и т.п.).
+	CUClass int `orm:"index"`
+	// Result — ItiliumImportResult* (добавлен/обновлён/пропуск/ошибка).
+	Result int `orm:"index"`
+	// Key — тех. имя / SN / code КЕ.
+	Key string `orm:"index;size(256)"`
+	// Message — детали (причина пропуска, текст ошибки, флаги inactive/noLoc).
+	Message string `orm:"size(1024)"`
+}
+
+// Коды ItiliumImportLog.Result.
+const (
+	ItiliumImportResultInserted = 1 // новая запись в CMDB
+	ItiliumImportResultUpdated  = 2 // обновлена существующая
+	ItiliumImportResultSkipped  = 3 // пропуск (нет ключа и т.п.)
+	ItiliumImportResultError    = 4 // ошибка обработки / getCU
+)
+
+// TableName — имя таблицы БД для ItiliumImportLog.
+func (a *ItiliumImportLog) TableName() string {
+	return "itilium_import_log"
+}
+
+// TableIndex — индексы ItiliumImportLog.
+func (u *ItiliumImportLog) TableIndex() [][]string {
+	return [][]string{
+		[]string{"Time"},
+		[]string{"CUClass"},
+		[]string{"Result"},
+		[]string{"Key"},
+	}
+}
+
 // HardwareEventLog - журнал изменений аппаратной конфигурации серверов и
 // блейд-корзин (таблица hardware_event_log, добавлена 2026-09-04). Пишется
 // при обнаружении расхождения между уже сохранённой конфигурацией и свежими

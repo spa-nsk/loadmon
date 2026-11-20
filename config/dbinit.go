@@ -213,6 +213,7 @@ func DBInit() {
 	orm.RegisterModel(new(models.StorageEventLog))
 	orm.RegisterModel(new(models.HardwareEventLog))
 	orm.RegisterModel(new(models.ServerSprEventLog))
+	orm.RegisterModel(new(models.ItiliumImportLog))
 
 	orm.RegisterModel(new(models.MembersFG))
 	orm.RegisterModel(new(models.Counterparty))

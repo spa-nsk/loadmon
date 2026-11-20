@@ -32,8 +32,10 @@ func importOneCUStorage(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, i
 	if sn == "" {
 		log.Printf("itilliumimport: getCU storage[%d]: пропуск — нет sn", idx)
 		out.skipped = true
+		out.message = "нет sn"
 		return out
 	}
+	out.key = sn
 
 	statusLabel := strings.TrimSpace(row.Status.Label)
 	mapped, known := MapCUStatusLabel(statusLabel)

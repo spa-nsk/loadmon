@@ -34,6 +34,7 @@ func aggregateCUImportOne(st *ImportCUStats, one cuImportOne) {
 	if one.unknownSt {
 		st.UnknownSt++
 	}
+	recordImportOne(one)
 }
 
 // cuWhereScrap — «списан»/«продаж»/«утер» в тексте местоположения.

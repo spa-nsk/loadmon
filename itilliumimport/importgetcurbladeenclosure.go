@@ -32,8 +32,10 @@ func importOneCUBladeEnclosure(o orm.Ormer, rs *locality.Resolver, row itilium.C
 	if name == "" {
 		log.Printf("itilliumimport: getCU enclosure[%d]: пропуск — нет name", idx)
 		out.skipped = true
+		out.message = "нет name"
 		return out
 	}
+	out.key = name
 
 	statusLabel := strings.TrimSpace(row.Status.Label)
 	mapped, known := MapCUStatusLabel(statusLabel)

@@ -34,7 +34,12 @@ func importOneCUNetwork(o orm.Ormer, rs *locality.Resolver, typeCache map[string
 	if tech == "" && sn == "" {
 		log.Printf("itilliumimport: getCU network[%d]: пропуск — нет code/sn", idx)
 		out.skipped = true
+		out.message = "нет code/sn"
 		return out
+	}
+	out.key = tech
+	if out.key == "" {
+		out.key = sn
 	}
 
 	statusLabel := strings.TrimSpace(row.Status.Label)

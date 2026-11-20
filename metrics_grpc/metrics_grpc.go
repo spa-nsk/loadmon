@@ -17,6 +17,7 @@ import (
 	"loadmon/grpcclient"
 	"loadmon/grpcserver"
 	"loadmon/itsystem"
+	"loadmon/itilliumimport"
 	"loadmon/rackpower"
 	_ "loadmon/routers"
 	"loadmon/scommetrics"
@@ -136,6 +137,7 @@ func main() {
 			cmdb.UpdateServerInventory()
 			cmdb.ReconcileServerSprRecordsTypeAndState()
 			log.Println("Обновление конфигураций серверов завершено")
+			itilliumimport.SyncGetCU()
 		}
 		cmdb.UpdateVolumeStorage() // вернул но надо проверить и дорабатывать
 	}()
@@ -307,6 +309,7 @@ func main() {
 					cmdb.UpdateServerInventory()
 					cmdb.ReconcileServerSprRecordsTypeAndState()
 					log.Println(workStart.Format("2006-01-02 15:04:05"), "Обновление конфигураций серверов завершено")
+					itilliumimport.SyncGetCU()
 
 					cmdb.UpdateVolumeStorage() //убираем до лучших времен. Нужно переопределить список СХД |||| вернул но надо проверить и дорабатывать
 				}()

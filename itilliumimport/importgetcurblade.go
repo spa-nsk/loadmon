@@ -33,8 +33,10 @@ func importOneCUBlade(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx
 	if tech == "" {
 		log.Printf("itilliumimport: getCU blade[%d]: пропуск — нет code/uid", idx)
 		out.skipped = true
+		out.message = "нет code/uid"
 		return out
 	}
+	out.key = tech
 
 	statusLabel := strings.TrimSpace(row.Status.Label)
 	mapped, known := MapCUStatusLabel(statusLabel)

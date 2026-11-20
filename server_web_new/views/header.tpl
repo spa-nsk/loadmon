@@ -551,6 +551,11 @@
                 карточек серверов</a>
             </li>
             <li>
+              <a href="/admin/itiliumimportlog"
+                class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Журнал импорта
+                Итилиум (getCU)</a>
+            </li>
+            <li>
               <a href="/admin/metricsexport"
                 class="link-body-emphasis d-inline-flex text-decoration-none rounded link-menu">Выгрузка метрик
                 утилизации</a>
