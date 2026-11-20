@@ -94,15 +94,15 @@ type ScomEndpoint struct {
 }
 
 // ItiliumConfig — подключение к публикации 1С:ITILIUM (кастомный /hs/api).
-// Пароль: пусто или "password" → utilities.GetKeyData(Domain\Login) /
-// GetKeyData(Login), как у ConfigOV.
+// SyncGetCU берёт пароль только через utilities.GetKeyData(Login);
+// поле Password в JSON не используется.
 type ItiliumConfig struct {
 	Enabled bool
 	// BaseURL — корень публикации, напр. "https://itsd.global.bcs/ITILIUM".
 	BaseURL  string
 	Domain   string
 	Login    string
-	Password string
+	Password string // устарело; SyncGetCU → GetKeyData(Login)
 	// AuthMode — "ntlm" или "basic"; пусто → ntlm при непустом Domain.
 	AuthMode string
 	// APIPrefix — префикс HTTP-сервиса; пусто → "/hs/api".
@@ -110,7 +110,9 @@ type ItiliumConfig struct {
 	InsecureSkipVerify bool
 	// TimeoutSec — таймаут одного HTTP-запроса; 0 → 120.
 	TimeoutSec int
-	// SyncRackServers — импортировать cuClass=145 (rack) в БД.
+	// SyncRackServers — при Enabled запускать SyncGetCU (все cuClass:
+	// корзины/блейды/rack/СХД/ленты/сеть) из metrics_grpc после обновления
+	// оборудования. Имя историческое; пароль — GetKeyData(Login).
 	SyncRackServers bool
 	// CUStatus — параметр getCU; пусто → "all".
 	CUStatus string

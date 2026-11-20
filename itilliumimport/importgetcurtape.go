@@ -36,8 +36,10 @@ func importOneCUTape(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 	if sn == "" {
 		log.Printf("itilliumimport: getCU tape[%d]: пропуск — нет sn/code", idx)
 		out.skipped = true
+		out.message = "нет sn/code"
 		return out
 	}
+	out.key = sn
 
 	statusLabel := strings.TrimSpace(row.Status.Label)
 	mapped, known := MapCUStatusLabel(statusLabel)

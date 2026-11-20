@@ -169,34 +169,17 @@ func ImportRackServersFromCU(rows []itilium.CURow) ImportCURackStats {
 	rs := locality.NewResolver()
 
 	for i, row := range rows {
-		stOne := importOneCURack(o, rs, row, i)
-		switch {
-		case stOne.err:
-			st.Errors++
-		case stOne.skipped:
-			st.Skipped++
-		case stOne.inserted:
-			st.Inserted++
-		default:
-			st.Updated++
-		}
-		if stOne.inactive {
-			st.Inactive++
-		}
-		if stOne.noLoc {
-			st.NoLoc++
-		}
-		if stOne.unknownSt {
-			st.UnknownSt++
-		}
+		aggregateCUImportOne(&st, importOneCURack(o, rs, row, i))
 	}
 	log.Printf("itilliumimport: ImportRackServersFromCU: total=%d inserted=%d updated=%d skipped=%d inactive=%d noLoc=%d unknownStatus=%d errors=%d",
 		st.Total, st.Inserted, st.Updated, st.Skipped, st.Inactive, st.NoLoc, st.UnknownSt, st.Errors)
 	return st
 }
 
+// cuImportOne — исход одной КЕ (агрегация + журнал itilium_import_log).
 type cuImportOne struct {
 	inserted, skipped, inactive, noLoc, unknownSt, err bool
+	key, message                                       string
 }
 
 func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx int) cuImportOne {
@@ -208,8 +191,10 @@ func importOneCURack(o orm.Ormer, rs *locality.Resolver, row itilium.CURow, idx 
 	if tech == "" {
 		log.Printf("itilliumimport: getCU[%d]: пропуск — нет code/uid", idx)
 		out.skipped = true
+		out.message = "нет code/uid"
 		return out
 	}
+	out.key = tech
 
 	statusLabel := strings.TrimSpace(row.Status.Label)
 	mapped, known := MapCUStatusLabel(statusLabel)
