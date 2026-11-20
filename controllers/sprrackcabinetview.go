@@ -41,6 +41,7 @@ type rackViewBlade struct {
 // switch. StartU/SizeU == 0 - позиция в шкафу неизвестна (оборудование
 // показывается списком "без позиции").
 type rackViewItem struct {
+	Key       string          `json:"key,omitempty"` // ключ связи со списком режима «Оборудование ИТ-системы»
 	Kind      string          `json:"kind"`
 	Id        int64           `json:"id"`
 	Name      string          `json:"name"`

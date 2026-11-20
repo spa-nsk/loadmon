@@ -1,9 +1,11 @@
 <div class="hero-text mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
-        <h2>{{if .ShowEquipFilters}}Оборудование площадки/ЦОД{{else}}Оборудование ЦОД {{.SiteName}}{{end}}</h2>
+        <h2>{{if .ITMode}}Оборудование ИТ-системы{{if .HasSystem}} {{.SystemName}}{{end}}{{else if .ShowEquipFilters}}Оборудование площадки/ЦОД{{else}}Оборудование ЦОД {{.SiteName}}{{end}}</h2>
         <div class="text-muted" id="dvSummary">{{if .SiteName}}{{.SiteName}} &middot; {{end}}Шкафов: {{.RackCount}}</div>
     </div>
-    {{if .ShowEquipFilters}}
+    {{if .ITMode}}
+    <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/datacenterequipview/0">Оборудование площадки/ЦОД</a>
+    {{else if .ShowEquipFilters}}
     <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/datacentersitemap">Карта площадок/ЦОД</a>
     {{else}}
     <a class="btn btn-outline-primary btn-sm rounded-pill px-3" href="/sprsrv/datacentersitelist/0">К справочнику площадок</a>
@@ -17,7 +19,48 @@
 <blockquote class="blockquote">{{.flash.notice}}</blockquote>
 {{end}}
 
-{{if .ShowEquipFilters}}
+{{if .ITMode}}
+<form id="itFilter" method="GET" action="/sprsrv/itsystemequipview" class="hw-filter-bar mb-3 p-3 rounded border">
+    <label class="form-label">ИТ система</label>
+    <div class="row g-2 align-items-start">
+        <div class="col-md-3">
+            <input type="text" name="ITSystemKey" id="ITSystemKey" class="form-control"
+                value="{{.ITSystemKey}}" placeholder="CMDB-" autocomplete="off">
+            <div id="ITSystemKeyHint" class="form-text"></div>
+        </div>
+        <div class="col-md-6 position-relative">
+            <input type="text" id="ITSystemSearch" class="form-control"
+                placeholder="Поиск по справочнику: код, название, статус..." autocomplete="off">
+            <div id="ITSystemSearchResults" class="list-group position-absolute w-100 d-none it-system-dropdown"></div>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary rounded-pill px-3">Показать</button>
+            <a href="/sprsrv/itsystemequipview" class="btn btn-outline-secondary rounded-pill px-3">Сброс</a>
+        </div>
+    </div>
+    <div id="ITSystemDataList" class="d-none">
+        {{range $its := .ITSystemSpr}}
+        <div class="it-system-item"
+            data-key="{{$its.ObjectKey}}"
+            data-label="{{$its.Label}}"
+            data-full="{{$its.FullName}}"
+            data-status="{{$its.Status}}"
+            data-type="{{$its.SystemType}}"
+            data-biz="{{$its.BusinessColumn}}"
+            data-cfo="{{$its.CFO}}"></div>
+        {{end}}
+    </div>
+    {{if .ITSites}}
+    <div class="mt-2 d-flex flex-wrap align-items-center gap-2">
+        <span class="text-muted small">Площадки:</span>
+        {{range $s := .ITSites}}
+        <a class="btn btn-sm rounded-pill {{if $s.Current}}btn-primary{{else}}btn-outline-secondary{{end}}"
+           href="/sprsrv/itsystemequipview?ITSystemKey={{$.ITSystemKey}}&site={{$s.Id}}">{{$s.Name}} <span class="badge text-bg-light">{{$s.Equip}}</span></a>
+        {{end}}
+    </div>
+    {{end}}
+</form>
+{{else if .ShowEquipFilters}}
 <div class="hw-filter-bar mb-3 p-3 rounded border">
     <div class="row g-3 align-items-end">
         <div class="col-12 col-md-4 position-relative">
@@ -45,24 +88,42 @@
 {{end}}
 
 <div id="dvEquipRoot">
-<div class="dv-layout{{if .ShowEquipFilters}} dv-layout-filters{{end}}" id="dvLayout">
+<div class="dv-layout{{if or .ShowEquipFilters .ITMode}} dv-layout-filters{{end}}{{if .ITMode}} dv-layout-it{{end}}" id="dvLayout">
     <div class="dv-left">
         <div class="dv-sel d-flex align-items-center justify-content-between gap-2">
-            <div id="dvSel" class="dv-sel-text">Наведите курсор на шкаф</div>
+            <div id="dvSel" class="dv-sel-text">{{if .ITMode}}Наведите курсор на оборудование ИТ-системы - откроется карточка со ссылками{{else}}Наведите курсор на шкаф{{end}}</div>
         </div>
         <div class="dv-stage" id="dvStage">
             <canvas id="dvCanvas"></canvas>
             <div id="dvTip" class="dv-tip" hidden></div>
+            {{if .ITMode}}<div id="itCard" class="dv-tip it-card" hidden></div>{{end}}
             <div id="dvZoomInd" class="dv-zoom-ind">Масштаб: 100%</div>
             <button type="button" id="dvResetView" class="dv-reset-view" title="Сбросить масштаб и ракурс (двойной клик по пустому месту - то же)">&#8634; Вид</button>
             <div class="dv-view-hint">Колесо - масштаб (и справа у шкафа) &middot; тяните за угол основания - ракурс &middot; тяните пустое место - сдвиг</div>
         </div>
     </div>
+    {{if .ITMode}}
+    <div class="dv-right">
+        <div class="dv-right-head">
+            <div class="fw-semibold small">Используемое оборудование</div>
+            <div class="it-legend small text-muted mt-1">
+                <span><i style="background:#38bdf8"></i>сервер</span>
+                <span><i style="background:#34d399"></i>блейд-корзина</span>
+                <span><i style="background:#a78bfa"></i>СХД</span>
+                <span><i style="background:#fbbf24"></i>ВМ (без размещения)</span>
+            </div>
+        </div>
+        <div id="itListBody" class="it-list-body"></div>
+    </div>
+    {{else}}
     <div class="dv-right">
         <iframe id="dvFrame" class="dv-frame" title="Шкаф" src="about:blank"></iframe>
     </div>
+    {{end}}
 </div>
-{{if .ShowEquipFilters}}
+{{if .ITMode}}
+<div id="dvEmpty" class="dv-empty d-none">{{if .HasSystem}}Для ИТ-системы не найдено оборудования с размещением{{else}}Выберите ИТ-систему и нажмите «Показать»{{end}}</div>
+{{else if .ShowEquipFilters}}
 <div id="dvEmpty" class="dv-empty d-none">Выберите населённый пункт и площадку/ЦОД, затем нажмите «Показать»</div>
 {{end}}
 </div>
@@ -97,6 +158,29 @@
     .dv-reset-view:hover { color: #fff; border-color: #2dd4bf; }
     [data-bs-theme="light"] .dv-reset-view { background: rgba(255, 255, 255, 0.92); color: #34506a; border-color: rgba(52, 96, 120, 0.5); }
     [data-bs-theme="light"] .dv-reset-view:hover { color: #0f766e; border-color: #0d9488; }
+    .dv-layout-it { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr); }
+    @media (max-width: 1100px) { .dv-layout-it { grid-template-columns: 1fr; } .it-list-body { max-height: 50vh; } }
+    .it-list-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+    .it-legend span { display: inline-flex; align-items: center; gap: 0.3rem; margin-right: 0.8rem; }
+    .it-legend i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; }
+    .it-grp { padding: 0.3rem 0.75rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bs-secondary-color); background: var(--bs-tertiary-bg); border-bottom: 1px solid var(--bs-border-color); position: sticky; top: 0; z-index: 1; }
+    .it-li { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--bs-border-color); cursor: pointer; font-size: 0.85rem; }
+    .it-li:hover, .it-li.it-on { background: rgba(45, 212, 191, 0.14); }
+    .it-li .it-nm { font-weight: 600; }
+    .it-li .it-sub { color: var(--bs-secondary-color); font-size: 0.78rem; }
+    .it-li .it-det { display: none; margin-top: 0.35rem; font-size: 0.78rem; }
+    .it-li.it-open .it-det { display: block; }
+    .it-li .it-det dl { margin: 0; }
+    .it-li .it-det dt { color: var(--bs-secondary-color); font-weight: 500; }
+    .it-li .it-det dd { margin: 0 0 0.2rem; word-break: break-all; }
+    .it-li .it-det .it-lk { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.3rem; }
+    .it-card { pointer-events: auto; max-width: 340px; z-index: 8; }
+    .it-card a { color: #5eead4; }
+    [data-bs-theme="light"] .it-card a { color: #0f766e; }
+    .it-card .it-lk { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.4rem; }
+    .it-card td:last-child { word-break: break-all; }
+    .it-system-dropdown { z-index: 1000; max-height: 280px; overflow-y: auto; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .25); }
+    .it-system-dropdown .list-group-item small { display: block; color: var(--bs-secondary-color); }
     .dv-view-hint { position: absolute; z-index: 4; left: 10px; bottom: 8px; pointer-events: none; font-size: 0.72rem; color: rgba(170, 190, 208, 0.75); }
     [data-bs-theme="light"] .dv-view-hint { color: #3f566c; }
     .dv-tip b.dv-name { font-size: 0.95rem; color: #f8fafc; }
@@ -110,6 +194,76 @@
 </style>
 
 <script>
+{{if .ITMode}}
+(function () {
+    // Тот же выбор ИТ-системы, что в справочнике серверов (view2.tpl / updatebase.tpl)
+    var keyInput = document.getElementById('ITSystemKey');
+    var hint = document.getElementById('ITSystemKeyHint');
+    var searchInput = document.getElementById('ITSystemSearch');
+    var results = document.getElementById('ITSystemSearchResults');
+    var dataList = document.getElementById('ITSystemDataList');
+    if (!keyInput || !searchInput || !results || !dataList) return;
+    var items = Array.prototype.map.call(dataList.querySelectorAll('.it-system-item'), function (el) {
+        return {
+            key: el.getAttribute('data-key') || '', label: el.getAttribute('data-label') || '', full: el.getAttribute('data-full') || '',
+            status: el.getAttribute('data-status') || '', type: el.getAttribute('data-type') || '',
+            biz: el.getAttribute('data-biz') || '', cfo: el.getAttribute('data-cfo') || ''
+        };
+    });
+    function findByKey(key) {
+        if (!key) return null;
+        var lower = key.toLowerCase();
+        for (var i = 0; i < items.length; i++) if (items[i].key.toLowerCase() === lower) return items[i];
+        return null;
+    }
+    function describe(item) {
+        var parts = [item.key];
+        if (item.label) parts.push(item.label);
+        if (item.full) parts.push(item.full);
+        return parts.join(' — ');
+    }
+    function updateHint() {
+        var match = findByKey(keyInput.value.trim());
+        if (match) { hint.textContent = describe(match) + (match.status ? ' (' + match.status + ')' : ''); hint.classList.remove('text-danger'); }
+        else if (keyInput.value.trim() !== '') { hint.textContent = 'Код не найден в справочнике'; hint.classList.add('text-danger'); }
+        else { hint.textContent = ''; hint.classList.remove('text-danger'); }
+    }
+    function hideResults() { results.classList.add('d-none'); results.innerHTML = ''; }
+    function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function renderResults(query) {
+        var q = query.trim().toLowerCase();
+        if (q === '') { hideResults(); return; }
+        var matches = items.filter(function (item) {
+            return [item.key, item.label, item.full, item.status, item.type, item.biz, item.cfo].some(function (v) { return v.toLowerCase().indexOf(q) !== -1; });
+        }).slice(0, 50);
+        if (matches.length === 0) {
+            results.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
+            results.classList.remove('d-none');
+            return;
+        }
+        results.innerHTML = '';
+        matches.forEach(function (item) {
+            var row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'list-group-item list-group-item-action';
+            row.innerHTML = '<div>' + escapeHtml(item.key) + (item.label ? ' — ' + escapeHtml(item.label) : '') + '</div>' + (item.full ? '<small>' + escapeHtml(item.full) + '</small>' : '');
+            row.addEventListener('click', function () {
+                keyInput.value = item.key; searchInput.value = describe(item); updateHint(); hideResults();
+            });
+            results.appendChild(row);
+        });
+        results.classList.remove('d-none');
+    }
+    searchInput.addEventListener('input', function () { renderResults(searchInput.value); });
+    searchInput.addEventListener('focus', function () { if (searchInput.value.trim() !== '') renderResults(searchInput.value); });
+    document.addEventListener('click', function (evt) { if (evt.target !== searchInput && !results.contains(evt.target)) hideResults(); });
+    keyInput.addEventListener('input', updateHint);
+    keyInput.addEventListener('blur', updateHint);
+    var initial = findByKey(keyInput.value.trim());
+    if (initial) searchInput.value = describe(initial);
+    updateHint();
+})();
+{{end}}
 {{if .ShowEquipFilters}}
 (function () {
     // Фильтр населённый пункт → площадка/ЦОД (как в справочнике шкафов / площадок)
@@ -204,11 +358,14 @@
     var canvas = document.getElementById('dvCanvas');
     var emptyEl = document.getElementById('dvEmpty');
     var layoutEl = document.getElementById('dvLayout');
-    if (!DATA || !canvas || !DATA.racks || !DATA.racks.length) {
+    // IT - режим «Оборудование ИТ-системы» (/sprsrv/itsystemequipview): та же сцена, но шкафы
+    // только с оборудованием ИТ-системы; юниты рисуются на лицевой стороне шкафа, справа - список.
+    var IT = DATA && DATA.it ? DATA.it : null;
+    if (!DATA || !canvas || (!IT && (!DATA.racks || !DATA.racks.length))) {
         if (emptyEl && layoutEl) {
             layoutEl.classList.add('d-none');
             emptyEl.classList.remove('d-none');
-            if (DATA && DATA.siteName) emptyEl.textContent = 'В площадке «' + DATA.siteName + '» нет шкафов для отображения';
+            if (DATA && DATA.siteName && !IT) emptyEl.textContent = 'В площадке «' + DATA.siteName + '» нет шкафов для отображения';
         }
         return;
     }
@@ -218,7 +375,7 @@
     var stage = document.getElementById('dvStage');
     var tip = document.getElementById('dvTip');
     var ctx = canvas.getContext('2d');
-    var allRacks = DATA.racks;
+    var allRacks = DATA.racks || [];
     var racks = allRacks.filter(function (r) { return !r.shelf; });   // шкафы
     var shelves = allRacks.filter(function (r) { return r.shelf; });  // стеллаж площадки без шкафов ("вне шкафа")
     var TAU = Math.PI * 2;
@@ -374,6 +531,8 @@
         if (POWER_LIGHT === 'AnimatedLight') { drawGlowAnimatedLight(cx, cy, bw, bh, frac, dark, mode, seed); return; }
         drawGlowAnimatedFire(cx, cy, bw, bh, frac, dark, mode, seed);
     }
+    var KIND_COLOR = { server: '#38bdf8', chassis: '#34d399', storage: '#a78bfa', vm: '#fbbf24' };
+    var KIND_LABEL = { server: 'Сервер', chassis: 'Блейд-корзина', storage: 'СХД', vm: 'Виртуальная машина' };
     function pushThemeToFrame() {                    // фрейм со шкафом - отдельная страница: передаём ей текущую тему
         var f = document.getElementById('dvFrame');
         if (f && f.contentWindow) { try { f.contentWindow.postMessage({ type: 'dvTheme', theme: document.documentElement.getAttribute('data-bs-theme') }, location.origin); } catch (e) { } }
@@ -389,6 +548,14 @@
     // ---- сводка ----
     var kw = function (w) { return w >= 1000 ? (w / 1000).toFixed(1) + ' кВт' : Math.round(w) + ' Вт'; };
     (function () {
+        if (IT) {
+            var st = IT.stats || {};
+            var s0 = (DATA.siteName ? '<b>' + esc(DATA.siteName) + '</b> &middot; ' : '') + 'шкафов на площадке: <b>' + racks.length + '</b>'
+                + (shelves.length ? ' &middot; есть стеллаж' : '')
+                + ' &nbsp;|&nbsp; ИТ-система: площадок <b>' + (st.sites || 0) + '</b>, серверов <b>' + (st.servers || 0) + '</b>, ВМ <b>' + (st.vms || 0) + '</b>, СХД <b>' + (st.storages || 0) + '</b>';
+            document.getElementById('dvSummary').innerHTML = s0;
+            return;
+        }
         var s = 'Шкафов: <b>' + racks.length + '</b>' + (shelves.length ? ' &middot; есть стеллаж (оборудование вне шкафов)' : '');
         if (DATA.powerAvgW > 0) s += ' &middot; мощность (средняя 24ч): <b>' + kw(DATA.powerAvgW) + '</b>';
         if (DATA.powerPeakW > 0) s += ' &middot; пик: <b>' + kw(DATA.powerPeakW) + '</b>';
@@ -405,6 +572,7 @@
             return {
                 k: it.k, id: it.id || 0, nm: it.nm || '', vd: it.vd || '', p: it.p, u: it.u,
                 slots: it.slots || 0, blades: it.blades || [],
+                key: it.key || '', rows: it.rows || [], links: it.links || [],
                 su: Math.min(shelfSize(it), SH_CLEAR)
             };
         });
@@ -465,8 +633,11 @@
     var selected = null, hovered = null, hoverCorner = -1;
     var polys = [];                    // силуэты для hit-test: {r, u, pts}
     var G = { w: 0, h: 0, dpr: 1, s: 1, baseS: 1 };
-    function sameHit(a, b) { return !!a && !!b && a.r === b.r && a.u === b.u; }
-    function hitOf(r, u) { return { r: r, u: u == null ? -1 : u }; }
+    // eq - ключ оборудования ИТ-системы (режим IT): шкаф/секция + конкретное устройство
+    function sameHit(a, b) { return !!a && !!b && a.r === b.r && a.u === b.u && (a.eq || '') === (b.eq || ''); }
+    function hitOf(r, u, eq, item) { return { r: r, u: u == null ? -1 : u, eq: eq || '', item: item || null }; }
+    var selEq = '';                    // IT: ключ оборудования, выбранного в списке/закреплённого кликом
+    function eqActive(key) { return !!key && (key === selEq || (!!hovered && hovered.eq === key)); }
     function unitStats(r, u) {
         var s = { servers: 0, chassis: 0, storages: 0, tapes: 0, network: 0 }, pk = r.packed && r.packed[u];
         if (!pk) return s;
@@ -655,8 +826,10 @@
         poly(fa, lin(0, Math.min(fa[0][1], fa[1][1]), 0, Math.max(fa[2][1], fa[3][1]), [[0, lit ? '#2a2d34' : '#202228'], [1, '#121317']]));
         poly(top, lit ? '#4a4e5a' : '#3a3d47');
 
-        // --- передняя перфорированная дверь (локальные координаты 120 x 300) ---
-        if (hasDoor) {
+        // --- передняя перфорированная дверь (локальные координаты 120 x 300); в режиме IT дверь открыта - видно оборудование ---
+        if (hasDoor && IT) {
+            drawRackEq(r, fb, H);
+        } else if (hasDoor) {
             ctx.save();
             vertFaceXf(fb[0], fb[1], H, 120, 300);
             ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.4;
@@ -726,6 +899,73 @@
         }
 
         polys.push({ r: r, u: -1, pts: boxHull(a0, a1, b0, b1, 0, H) });
+        if (IT && hasDoor) eqHits(r, fb, H);
+    }
+
+    // ---- режим IT: оборудование ИТ-системы на лицевой стороне шкафа (локальные координаты грани 120 x 300) ----
+    var EQ_X0 = 8, EQ_X1 = 112, EQ_Y0 = 10, EQ_Y1 = 290;
+    function eqBand(r, e) {                                    // положение полосы оборудования в локальных координатах грани
+        var uh = r.uHeight || 42, unit = (EQ_Y1 - EQ_Y0) / uh;
+        var size = Math.max(1, e.sizeU || 1), start = Math.max(1, Math.min(uh, e.startU || 1));
+        if (start + size - 1 > uh) size = uh - start + 1;
+        return { y: EQ_Y0 + (uh - (start + size - 1)) * unit, h: size * unit, unit: unit };
+    }
+    function faceXY(fb, x, y, H) {                              // локальные (x, y) грани -> экран (с учётом зеркалирования vertFaceXf)
+        var l = fb[0], rr = fb[1];
+        if (l[0] > rr[0]) { l = fb[1]; rr = fb[0]; }
+        return [l[0] + (rr[0] - l[0]) * x / 120, l[1] + (rr[1] - l[1]) * x / 120 + H * CV.zk * y / 300];
+    }
+    function drawRackEq(r, fb, H) {
+        var uh = r.uHeight || 42, unit = (EQ_Y1 - EQ_Y0) / uh;
+        ctx.save();
+        vertFaceXf(fb[0], fb[1], H, 120, 300);
+        ctx.fillStyle = '#0a0c10'; ctx.fillRect(EQ_X0, EQ_Y0, EQ_X1 - EQ_X0, EQ_Y1 - EQ_Y0);
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        if (uh <= 60) for (var q = 1; q < uh; q++) ctx.fillRect(EQ_X0, EQ_Y0 + q * unit - 0.2, EQ_X1 - EQ_X0, 0.4);
+        ctx.fillStyle = '#6f7480'; ctx.fillRect(EQ_X0 - 3, EQ_Y0 - 2, 3, EQ_Y1 - EQ_Y0 + 4); ctx.fillRect(EQ_X1, EQ_Y0 - 2, 3, EQ_Y1 - EQ_Y0 + 4);
+        (r.eq || []).forEach(function (e) {
+            var bd = eqBand(r, e), col = KIND_COLOR[e.kind] || '#f472b6', on = eqActive(e.key);
+            var y = bd.y + 0.5, h = Math.max(1, bd.h - 1), x = EQ_X0 + 1.5, w = EQ_X1 - EQ_X0 - 3;
+            ctx.fillStyle = lin(0, y, 0, y + h, [[0, on ? col : '#3b4250'], [1, on ? col : '#242831']]);
+            ctx.fillRect(x, y, w, h);
+            ctx.fillStyle = col; ctx.fillRect(x, y, 3, h);                    // цветная метка типа слева
+            if (e.kind === 'chassis') {                                       // слоты корзины и занятые блейды
+                var slots = e.slots > 0 ? e.slots : 16, cols2 = slots > 8 ? 8 : slots, rows2 = Math.ceil(slots / cols2);
+                var by = {}, nbl = (e.blades || []);
+                nbl.forEach(function (b) { if (b && b.slot > 0) by[b.slot] = b; });
+                var ax = x + 6, aw = w * 0.62, cw = aw / cols2, ch = (h - 3) / rows2;
+                for (var si = 0; si < slots; si++) {
+                    var bl = by[si + 1], cx2 = ax + (si % cols2) * cw, cy2 = y + 1.5 + Math.floor(si / cols2) * ch;
+                    ctx.fillStyle = bl ? (on ? '#d1fae5' : '#34d399') : 'rgba(255,255,255,0.08)';
+                    ctx.fillRect(cx2 + 0.4, cy2 + 0.4, Math.max(0.5, cw - 0.8), Math.max(0.5, ch - 0.8));
+                }
+            } else if (h > 5) {                                               // «морда» сервера/СХД: перфорация и отсеки
+                ctx.fillStyle = 'rgba(0,0,0,0.38)';
+                var bays = e.kind === 'storage' ? 8 : 4;
+                for (var k2 = 0; k2 < bays; k2++) ctx.fillRect(x + 6 + k2 * 9, y + h * 0.2, 7, h * 0.6);
+            }
+            var lab = (e.name || '').replace(/\s+/g, ' ').trim();
+            if (h >= 6 && lab) {
+                var fs = Math.max(4, Math.min(h * 0.62, 9)), lx = x + w * (e.kind === 'chassis' ? 0.7 : 0.45);
+                ctx.font = '700 ' + fs + 'px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                var maxw = x + w - 9 - lx;
+                while (lab.length > 3 && ctx.measureText(lab).width > maxw) lab = lab.slice(0, -2);
+                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(lab, lx + 0.4, y + h / 2 + 0.4);
+                ctx.fillStyle = '#f1f5f9'; ctx.fillText(lab, lx, y + h / 2);
+            }
+            ctx.fillStyle = e.power === 1 ? '#35e06a' : (e.power === 2 ? '#ffab1a' : '#8a919c');   // светодиод питания
+            ctx.beginPath(); ctx.arc(x + w - 4, y + Math.min(h / 2, 5), Math.min(2.2, Math.max(0.9, h * 0.25)), 0, TAU); ctx.fill();
+            if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.strokeRect(x, y, w, h); }
+            else if (e.sizeGuess) { ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.setLineDash([2, 2]); ctx.lineWidth = 0.7; ctx.strokeRect(x, y, w, h); ctx.setLineDash([]); }
+        });
+        ctx.restore();
+    }
+    function eqHits(r, fb, H) {                                 // силуэты полос для наведения/клика (после шкафа - имеют приоритет)
+        (r.eq || []).forEach(function (e) {
+            var bd = eqBand(r, e);
+            var pts = [faceXY(fb, EQ_X0, bd.y, H), faceXY(fb, EQ_X1, bd.y, H), faceXY(fb, EQ_X1, bd.y + bd.h, H), faceXY(fb, EQ_X0, bd.y + bd.h, H)];
+            polys.push({ r: r, u: -1, eq: e.key || '', item: e, pts: pts });
+        });
     }
 
     // ---- стеллаж: трёхмерная проекция, габариты секции как у шкафа 42U, 5 полок ----
@@ -879,6 +1119,7 @@
         var aS = CV.aPos ? a1 : a0, bS = CV.bPos ? b1 : b0;
         // полки снизу вверх: настил, балки, затем оборудование этой полки; вышележащий настил рисуется позже и частично прикрывает оборудование ниже
         var pk = r.packed && r.packed[u];
+        if (IT) polys.push({ r: r, u: u, pts: boxHull(a0, a1, b0, b1, 0, H) });     // IT: силуэт секции - под силуэтами устройств
         for (var k = 0; k < 5; k++) {
             var z = H * 0.04 + zs * k;
             poly([P(a0, b0, z + tb), P(a1, b0, z + tb), P(a1, b1, z + tb), P(a0, b1, z + tb)], 'rgba(125,145,165,0.5)', PAL.deckEdge, 0.9);
@@ -889,7 +1130,10 @@
             if (pk) {
                 var zb = z + tb, unitH = (zs - tb - H * 0.012) / SH_CLEAR;
                 pk[k].items.forEach(function (pl) {
-                    drawShelfItem(a0, a1, b0, b1, zb + pl.off * unitH, pl.it.su * unitH * 0.86, pl.it, lit);   // 0.86 - видимый зазор между устройствами
+                    var zi = zb + pl.off * unitH, hi = pl.it.su * unitH * 0.86;
+                    var litIt = lit || (IT && eqActive(pl.it.key));
+                    drawShelfItem(a0, a1, b0, b1, zi, hi, pl.it, litIt);   // 0.86 - видимый зазор между устройствами
+                    if (IT && pl.it.key) polys.push({ r: r, u: u, eq: pl.it.key, item: pl.it, pts: boxHull(a0 + 0.03, a1 - 0.03, b0 + 0.05, b1 - 0.02, zi, zi + hi) });
                 });
             }
         }
@@ -897,7 +1141,7 @@
         labels.push({ a0: a0, a1: a1, b0: b0, b1: b1, H: H, sel: isSel, num: u + 1 });
         var hl = boxHull(a0, a1, b0, b1, 0, H);
         if (isSel || isHov) boxWire(P, a0, a1, b0, b1, 0, H, CV.aPos ? a0 : a1, CV.bPos ? b0 : b1, isSel ? PAL.sel : PAL.hov, isSel ? 2.6 : 2);
-        polys.push({ r: r, u: u, pts: hl });
+        if (!IT) polys.push({ r: r, u: u, pts: hl });
     }
 
     function render() {
@@ -933,7 +1177,7 @@
     }
     function pick(x, y) {
         for (var i = polys.length - 1; i >= 0; i--) { // последние нарисованы поверх
-            if (inPoly([x, y], polys[i].pts)) return hitOf(polys[i].r, polys[i].u);
+            if (inPoly([x, y], polys[i].pts)) return hitOf(polys[i].r, polys[i].u, polys[i].eq, polys[i].item);
         }
         return null;
     }
@@ -995,6 +1239,7 @@
     function selectHit(hit) {
         if (!hit) return;
         if (selTimer) { clearTimeout(selTimer); selTimer = null; }
+        if (IT) { selected = hit; render(); return; }                // IT: справа список, шкаф во фрейме не открываем
         if (sameHit(selected, hit) && document.getElementById('dvFrame').getAttribute('src') !== 'about:blank') return;
         selected = hit;
         var r = hit.r, st = hit.u >= 0 ? unitStats(r, hit.u) : null;
@@ -1113,7 +1358,12 @@
         var rect = canvas.getBoundingClientRect();
         var x = e.clientX - rect.left, y = e.clientY - rect.top;
         canvas.style.cursor = cornerAt(x, y) >= 0 ? 'move' : 'default';
-        if (mode === 'click' && !moved) { var h = pick(x, y); if (h) selectHit(h); }
+        if (mode === 'click' && !moved) {
+            var h = pick(x, y);
+            if (IT) { itClick(h, x, y); }
+            else if (h) selectHit(h);
+        }
+        else if (IT && mode === 'pan' && !moved) itClick(null, x, y);
         else render();
     });
     canvas.addEventListener('mousemove', function (e) {
@@ -1124,7 +1374,10 @@
         var h = ci >= 0 ? null : pick(x, y);
         var changed = false;
         if (ci !== hoverCorner) { hoverCorner = ci; changed = true; }
-        if (!sameHit(h, hovered)) {
+        if (IT) {                                                    // IT: наведение на оборудование - расширенная карточка
+            if (!sameHit(h, hovered)) { hovered = h; changed = true; }
+            itHover(h, x, y);
+        } else if (!sameHit(h, hovered)) {
             hovered = h; changed = true;
             // объект под курсором становится выбранным (с небольшой задержкой, чтобы
             // при быстром движении мыши не загружать фрейм для каждой секции)
@@ -1135,7 +1388,7 @@
         canvas.style.cursor = ci >= 0 ? 'move' : (h ? 'pointer' : 'grab');
         canvas.title = ci >= 0 ? 'Потяните за угол, чтобы изменить ракурс' : '';
     });
-    canvas.addEventListener('mouseleave', function () { hovered = null; hoverCorner = -1; if (selTimer) { clearTimeout(selTimer); selTimer = null; } tip.hidden = true; if (!dragMode) render(); });
+    canvas.addEventListener('mouseleave', function () { hovered = null; hoverCorner = -1; if (selTimer) { clearTimeout(selTimer); selTimer = null; } tip.hidden = true; if (IT) itHideSoon(); if (!dragMode) render(); });
     canvas.addEventListener('dblclick', function (e) {
         var rect = canvas.getBoundingClientRect();
         if (cornerAt(e.clientX - rect.left, e.clientY - rect.top) >= 0 || !pick(e.clientX - rect.left, e.clientY - rect.top)) resetView();
@@ -1144,7 +1397,8 @@
 
     // масштаб шкафа в правой части меняется колесом мыши внутри фрейма; индикатор масштаба показывает сам фрейм (всплывающий)
 
-    document.getElementById('dvFrame').addEventListener('load', pushThemeToFrame);
+    var dvFrameEl = document.getElementById('dvFrame');
+    if (dvFrameEl) dvFrameEl.addEventListener('load', pushThemeToFrame);
     var glowRaf = 0, hasPowerGlow = maxPower > 0;
     function resize() { layout(); render(); }
     if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
@@ -1158,9 +1412,136 @@
     layout();
     requestAnimationFrame(glowFrame);
 
+    // ---- режим IT: карточка оборудования при наведении, список справа ----
+    var itCard = document.getElementById('itCard'), itListBody = document.getElementById('itListBody');
+    var itHideT = 0, itShowT = 0, itPos = { x: 0, y: 0 }, itCardKey = '', itCardOver = false, itPinned = false, pinnedEq = '';
+    function itKv(it) { return it.rows || []; }
+    function itCardHtml(h) {
+        var it = h.item || {}, r = h.r;
+        var kind = it.kind || it.k || '', name = it.name || it.nm || '';
+        var vend = ((it.vendor || '') + ' ' + (it.model || '')).trim() || it.vd || '';
+        var pw = it.power != null ? it.power : it.p;
+        var where = [];
+        if (r.shelf) where.push('Стеллаж ' + (h.u + 1) + ' (вне шкафов)'); else where.push('Шкаф ' + esc(r.name));
+        if (!r.shelf && it.startU > 0) where.push('U' + it.startU + (it.sizeU > 1 ? '–' + (it.startU + it.sizeU - 1) : '') + (it.sizeGuess ? ' (условно)' : ''));
+        if (DATA.siteName) where.unshift(esc(DATA.siteName));
+        var s = '<b class="dv-name">' + esc(name) + '</b><div style="color:#9fb0c2;font-size:0.76rem">' + esc(KIND_LABEL[kind] || kind) + (vend ? ' &middot; ' + esc(vend) : '') + '</div>';
+        s += '<div style="margin-top:0.2rem">' + where.join(' &middot; ') + '</div><table>';
+        s += '<tr><td>Питание</td><td>' + (pw === 1 ? 'включен' : (pw === 2 ? 'выключен / спячка' : 'нет данных')) + '</td></tr>';
+        itKv(it).forEach(function (kv) { if (kv && kv.v) s += '<tr><td>' + esc(kv.k) + '</td><td>' + esc(kv.v) + '</td></tr>'; });
+        s += '</table>';
+        if ((it.links || []).length) {
+            s += '<div class="it-lk">';
+            it.links.forEach(function (l) { s += '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.title) + '</a>'; });
+            s += '</div>';
+        }
+        return s;
+    }
+    function showItCard(h, x, y) {
+        if (!itCard || !h || !h.item) return;
+        itCardKey = h.eq;
+        itCard.innerHTML = itCardHtml(h);
+        itCard.hidden = false;
+        var tw = itCard.offsetWidth, th = itCard.offsetHeight, px = x + 14, py = y + 8;
+        if (px + tw > G.w - 4) px = x - tw - 14;
+        if (py + th > G.h - 4) py = G.h - th - 4;
+        itCard.style.left = Math.max(4, px) + 'px';
+        itCard.style.top = Math.max(4, py) + 'px';
+    }
+    function itHideCard() { if (itCard) itCard.hidden = true; itCardKey = ''; itPinned = false; }
+    function itHideSoon() {
+        clearTimeout(itShowT); clearTimeout(itHideT);
+        itHideT = setTimeout(function () { if (!itPinned && !itCardOver) itHideCard(); }, 350);
+    }
+    function itHover(h, x, y) {
+        itPos = { x: x, y: y };
+        var key = h && h.eq ? h.eq : '';
+        if (!key) { itHideSoon(); return; }
+        clearTimeout(itHideT);
+        if (key === itCardKey && itCard && !itCard.hidden) return;
+        clearTimeout(itShowT);
+        itShowT = setTimeout(function () {
+            if (hovered && hovered.eq === key) { itPinned = false; showItCard(hovered, itPos.x, itPos.y); markList(key, false); }
+        }, itCard && itCard.hidden ? 60 : 220);
+    }
+    function itClick(h, x, y) {
+        if (h && h.eq) {
+            clearTimeout(itShowT); clearTimeout(itHideT);
+            pinnedEq = selEq = h.eq;
+            showItCard(h, x, y); itPinned = true;
+            markList(h.eq, true);
+        } else {
+            pinnedEq = selEq = ''; itHideCard(); markList('', false);
+        }
+        render();
+    }
+    if (itCard) {
+        itCard.addEventListener('mouseenter', function () { itCardOver = true; clearTimeout(itHideT); });
+        itCard.addEventListener('mouseleave', function () { itCardOver = false; itHideSoon(); });
+    }
+    function markList(key, scroll) {
+        if (!itListBody) return;
+        var first = null;
+        Array.prototype.forEach.call(itListBody.querySelectorAll('.it-li'), function (el) {
+            var on = !!key && el.getAttribute('data-eq') === key;
+            el.classList.toggle('it-on', on);
+            if (on && !first) first = el;
+        });
+        if (first && scroll) first.scrollIntoView({ block: 'nearest' });
+    }
+    function itUrl(siteId, focus) {
+        return '/sprsrv/itsystemequipview?ITSystemKey=' + encodeURIComponent(IT.systemKey || '') + '&site=' + siteId + (focus ? '&focus=' + encodeURIComponent(focus) : '');
+    }
+    function buildItList() {
+        if (!itListBody) return;
+        var eq = IT.equipment || [];
+        if (!eq.length) { itListBody.innerHTML = '<div class="p-3 text-muted small">Для ИТ-системы не найдено серверов, ВМ и СХД</div>'; return; }
+        var order = ['server', 'storage', 'vm'], titles = { server: 'Серверы', storage: 'СХД', vm: 'Виртуальные машины' };
+        var html = '';
+        order.forEach(function (kd) {
+            var grp = eq.filter(function (e) { return e.kind === kd; });
+            if (!grp.length) return;
+            html += '<div class="it-grp">' + titles[kd] + ' (' + grp.length + ')</div>';
+            grp.forEach(function (e) {
+                var idx = eq.indexOf(e);
+                var loc = e.rackName ? ((e.siteName ? esc(e.siteName) + ' / ' : '') + esc(e.rackName)) : (e.kind === 'vm' ? 'виртуальная, без размещения' : 'размещение не найдено');
+                var other = e.siteId > 0 && e.siteId !== IT.currentSite;
+                html += '<div class="it-li" data-i="' + idx + '" data-eq="' + esc(e.eqKey || '') + '">'
+                    + '<div class="it-nm"><i style="display:inline-block;width:0.6rem;height:0.6rem;border-radius:2px;margin-right:0.4rem;background:' + (KIND_COLOR[e.kind] || '#999') + '"></i>' + esc(e.name) + '</div>'
+                    + '<div class="it-sub">' + esc(e.subtitle || '') + '</div><div class="it-sub">' + loc + (other ? ' <b>(другая площадка)</b>' : '') + '</div>'
+                    + '<div class="it-det">';
+                var rows = (e.rows || []).filter(function (kv) { return kv && kv.v; });
+                if (rows.length) { html += '<dl>'; rows.forEach(function (kv) { html += '<dt>' + esc(kv.k) + '</dt><dd>' + esc(kv.v) + '</dd>'; }); html += '</dl>'; }
+                html += '<div class="it-lk">';
+                (e.links || []).forEach(function (l) { html += '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.title) + '</a>'; });
+                if (other) html += '<a href="' + esc(itUrl(e.siteId, e.eqKey)) + '"><b>Показать на площадке «' + esc(e.siteName) + '»</b></a>';
+                html += '</div></div></div>';
+            });
+        });
+        itListBody.innerHTML = html;
+        Array.prototype.forEach.call(itListBody.querySelectorAll('.it-li'), function (el) {
+            var key = el.getAttribute('data-eq') || '';
+            el.addEventListener('mouseenter', function () { if (key) { selEq = key; render(); } });
+            el.addEventListener('mouseleave', function () { if (selEq !== pinnedEq) { selEq = pinnedEq; render(); } });
+            el.addEventListener('click', function (ev) {
+                if (ev.target.tagName === 'A') return;
+                el.classList.toggle('it-open');
+                pinnedEq = selEq = key; markList(key, false); render();
+            });
+        });
+    }
+
     // deep-link ?rack= — выделить шкаф/стеллаж; иначе первый шкаф с оборудованием / секция стеллажа
     var focusCab = focusRackId > 0 ? allRacks.filter(function (r) { return r.id === focusRackId; })[0] : null;
-    if (focusCab) {
+    if (IT) {
+        buildItList();
+        var itFocus = qsFocus.get('focus') || '';
+        if (itFocus) {
+            pinnedEq = selEq = itFocus; markList(itFocus, true);
+            Array.prototype.forEach.call(itListBody ? itListBody.querySelectorAll('.it-li.it-on') : [], function (el) { el.classList.add('it-open'); });
+            render();
+        }
+    } else if (focusCab) {
         selectHit(focusCab.shelf ? hitOf(focusCab, 0) : hitOf(focusCab, -1));
     } else {
         var firstRack = racks.filter(function (r) { return r.servers + r.chassis + r.storages > 0; })[0] || racks[0];
