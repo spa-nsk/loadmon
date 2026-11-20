@@ -112,6 +112,7 @@ func init() {
 	beego.Router("/sprsrv/equipmentplacement/go/:kind/:id([0-9]+)", &controllers.MainController{}, "get:SprEquipmentPlacementGo")
 	beego.Router("/sprsrv/equipmentvisual", &controllers.MainController{}, "get:SprEquipmentVisual") // поиск → 3D-вид конкретного устройства (корзина / rack / blade)
 	beego.Router("/sprsrv/equipmentvisual/go/:kind/:id([0-9]+)", &controllers.MainController{}, "get:SprEquipmentVisualGo")
+	beego.Router("/sprsrv/itsystemequipview", &controllers.MainController{}, "get:SprITSystemEquipView") // визуализация оборудования ИТ-системы (площадки/шкафы + СХД по LUN), см. controllers/spritsystemequipview.go
 
 	// Справочник сетей (models.NetworkSprRecords) для серверов и других компонент инфраструктуры.
 	beego.Router("/sprsrv/networklist/:id([0-9]+)", &controllers.MainController{}, "get,post:SprNetwork")
