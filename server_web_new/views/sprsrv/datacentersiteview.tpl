@@ -50,15 +50,7 @@
             data-cfo="{{$its.CFO}}"></div>
         {{end}}
     </div>
-    {{if .ITSites}}
-    <div class="mt-2 d-flex flex-wrap align-items-center gap-2">
-        <span class="text-muted small">Площадки:</span>
-        {{range $s := .ITSites}}
-        <a class="btn btn-sm rounded-pill {{if $s.Current}}btn-primary{{else}}btn-outline-secondary{{end}}"
-           href="/sprsrv/itsystemequipview?ITSystemKey={{$.ITSystemKey}}&site={{$s.Id}}">{{$s.Name}} <span class="badge text-bg-light">{{$s.Equip}}</span></a>
-        {{end}}
-    </div>
-    {{end}}
+    <div id="itSiteChips" class="mt-2 d-flex flex-wrap align-items-center gap-2"></div>
 </form>
 {{else if .ShowEquipFilters}}
 <div class="hw-filter-bar mb-3 p-3 rounded border">
@@ -107,10 +99,11 @@
         <div class="dv-right-head">
             <div class="fw-semibold small">Используемое оборудование</div>
             <div class="it-legend small text-muted mt-1">
-                <span><i style="background:#38bdf8"></i>сервер</span>
+                <span><i style="background:#38bdf8"></i>сервер / гипервизор системы</span>
+                <span><i style="background:#fb923c"></i>хост размещения ВМ</span>
+                <span><i style="background:#94a3b8"></i>хост кластера без ВМ системы</span>
                 <span><i style="background:#34d399"></i>блейд-корзина</span>
                 <span><i style="background:#a78bfa"></i>СХД</span>
-                <span><i style="background:#fbbf24"></i>ВМ (без размещения)</span>
             </div>
         </div>
         <div id="itListBody" class="it-list-body"></div>
@@ -166,6 +159,8 @@
     .it-grp { padding: 0.3rem 0.75rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bs-secondary-color); background: var(--bs-tertiary-bg); border-bottom: 1px solid var(--bs-border-color); position: sticky; top: 0; z-index: 1; }
     .it-li { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--bs-border-color); cursor: pointer; font-size: 0.85rem; }
     .it-li:hover, .it-li.it-on { background: rgba(45, 212, 191, 0.14); }
+    .it-sub2 { padding: 0.2rem 0.75rem; font-size: 0.72rem; font-weight: 600; color: var(--bs-secondary-color); border-bottom: 1px solid var(--bs-border-color); }
+    .it-sub2.it-cl { font-weight: 500; padding-left: 1.2rem; font-style: italic; }
     .it-li .it-nm { font-weight: 600; }
     .it-li .it-sub { color: var(--bs-secondary-color); font-size: 0.78rem; }
     .it-li .it-det { display: none; margin-top: 0.35rem; font-size: 0.78rem; }
@@ -531,8 +526,11 @@
         if (POWER_LIGHT === 'AnimatedLight') { drawGlowAnimatedLight(cx, cy, bw, bh, frac, dark, mode, seed); return; }
         drawGlowAnimatedFire(cx, cy, bw, bh, frac, dark, mode, seed);
     }
-    var KIND_COLOR = { server: '#38bdf8', chassis: '#34d399', storage: '#a78bfa', vm: '#fbbf24' };
-    var KIND_LABEL = { server: 'Сервер', chassis: 'Блейд-корзина', storage: 'СХД', vm: 'Виртуальная машина' };
+    var KIND_COLOR = { server: '#38bdf8', host: '#38bdf8', chassis: '#34d399', storage: '#a78bfa', vm: '#fbbf24' };
+    var KIND_LABEL = { server: 'Сервер', host: 'Хост ESXi', chassis: 'Блейд-корзина', storage: 'СХД', vm: 'Виртуальная машина' };
+    var ROLE_COLOR = { host: '#fb923c', cluster: '#94a3b8' };          // IT: хост размещения ВМ / хост кластера без ВМ системы
+    var ROLE_LABEL = { host: 'Хост размещения ВМ', cluster: 'Хост кластера' };
+    function eqColor(e) { return ROLE_COLOR[e.role || e.r] || KIND_COLOR[e.kind || e.k] || '#f472b6'; }
     function pushThemeToFrame() {                    // фрейм со шкафом - отдельная страница: передаём ей текущую тему
         var f = document.getElementById('dvFrame');
         if (f && f.contentWindow) { try { f.contentWindow.postMessage({ type: 'dvTheme', theme: document.documentElement.getAttribute('data-bs-theme') }, location.origin); } catch (e) { } }
@@ -550,9 +548,10 @@
     (function () {
         if (IT) {
             var st = IT.stats || {};
-            var s0 = (DATA.siteName ? '<b>' + esc(DATA.siteName) + '</b> &middot; ' : '') + 'шкафов на площадке: <b>' + racks.length + '</b>'
-                + (shelves.length ? ' &middot; есть стеллаж' : '')
-                + ' &nbsp;|&nbsp; ИТ-система: площадок <b>' + (st.sites || 0) + '</b>, серверов <b>' + (st.servers || 0) + '</b>, ВМ <b>' + (st.vms || 0) + '</b>, СХД <b>' + (st.storages || 0) + '</b>';
+            var s0 = 'площадок: <b>' + (st.sites || 0) + '</b> &middot; шкафов: <b>' + (st.racks || 0) + '</b>'
+                + ' &middot; серверов: <b>' + (st.servers || 0) + '</b> &middot; ВМ: <b>' + (st.vms || 0) + '</b>'
+                + ' &middot; хостов ESXi: <b>' + (st.hosts || 0) + '</b>' + (st.clusters ? ' (кластеров: ' + st.clusters + ')' : '')
+                + ' &middot; СХД: <b>' + (st.storages || 0) + '</b>';
             document.getElementById('dvSummary').innerHTML = s0;
             return;
         }
@@ -572,7 +571,7 @@
             return {
                 k: it.k, id: it.id || 0, nm: it.nm || '', vd: it.vd || '', p: it.p, u: it.u,
                 slots: it.slots || 0, blades: it.blades || [],
-                key: it.key || '', rows: it.rows || [], links: it.links || [],
+                key: it.key || '', role: it.role || '', rows: it.rows || [], links: it.links || [],
                 su: Math.min(shelfSize(it), SH_CLEAR)
             };
         });
@@ -605,23 +604,48 @@
         return '#8b95a5';
     }
 
-    // ---- раскладка шкафов по сетке ----
-    var n = racks.length;
-    var gridCols = n ? Math.max(1, Math.ceil(Math.sqrt(n * 1.3))) : 0;   // нет шкафов - стеллаж по левому краю
-    var rows = n ? Math.ceil(n / gridCols) : 1;
+    // ---- раскладка шкафов по сетке; в режиме IT - отдельный блок (пол + подпись) на каждую площадку ----
     var maxPower = 0;
-    racks.forEach(function (r, k) {
-        r.gi = k % gridCols; r.gj = Math.floor(k / gridCols);
-        if (r.powerAvgW > maxPower) maxPower = r.powerAvgW;
+    var groups = [];
+    if (IT) {
+        var gById = {};
+        (IT.sites || []).forEach(function (s) { var g = { id: s.id, name: s.name, equip: s.equip, racks: [], shelves: [] }; groups.push(g); gById[s.id] = g; });
+        allRacks.forEach(function (r) { var g = gById[r.siteId]; if (g) (r.shelf ? g.shelves : g.racks).push(r); });
+    } else {
+        groups.push({ id: DATA.siteId || 0, name: '', equip: 0, racks: racks, shelves: shelves });
+    }
+    groups.forEach(function (g) {
+        var n = g.racks.length;
+        g.gridCols = n ? Math.max(1, Math.ceil(Math.sqrt(n * 1.3))) : 0;   // нет шкафов - стеллаж по левому краю
+        g.rows = n ? Math.ceil(n / g.gridCols) : 1;
+        g.racks.forEach(function (r, k) {
+            r.gi = k % g.gridCols; r.gj = Math.floor(k / g.gridCols);
+            if (r.powerAvgW > maxPower) maxPower = r.powerAvgW;
+        });
+        // стеллаж - справа от группы шкафов, габариты каждой секции как у шкафа 42U (на клетку по ширине)
+        var su = 0;
+        g.shelves.forEach(function (r) {
+            packShelf(r);
+            r.gi = (g.gridCols ? g.gridCols + 0.6 : 0.15) + su; r.gj = Math.floor((g.rows - 1) / 2);
+            su += r.units;
+        });
+        g.w = g.gridCols ? g.gridCols + (su ? 0.6 + su : 0) : su + 0.3;   // ширина блока с учётом стеллажа
     });
-    // стеллаж - справа от группы шкафов, габариты каждой секции как у шкафа 42U (на клетку по ширине)
-    var shelfUnits = 0;
-    shelves.forEach(function (r) {
-        packShelf(r);
-        r.gi = (gridCols ? gridCols + 0.6 : 0.15) + shelfUnits; r.gj = Math.floor((rows - 1) / 2);
-        shelfUnits += r.units;
-    });
-    var cols = (gridCols ? gridCols + (shelfUnits ? 0.6 + shelfUnits : 0) : shelfUnits + 0.3);   // ширина сцены с учётом стеллажа
+    // блоки площадок: до 3 в ряд, между ними промежутки под линии связи; cols/rows - габариты всей сцены
+    var GAP_X = 3.4, GAP_Y = 3.4, PER_ROW = 3;
+    var cols = 0, rows = 0;
+    (function () {
+        var x = 0, y = 0, rowH = 0, cnt = 0;
+        groups.forEach(function (g) {
+            if (cnt && cnt % PER_ROW === 0) { x = 0; y += rowH + GAP_Y; rowH = 0; }
+            g.ox = x; g.oy = y;
+            x += g.w + GAP_X; rowH = Math.max(rowH, g.rows);
+            cols = Math.max(cols, g.ox + g.w); rows = Math.max(rows, g.oy + g.rows);
+            cnt++;
+        });
+        if (!rows) rows = 1;
+    })();
+    groups.forEach(function (g) { g.racks.concat(g.shelves).forEach(function (r) { r.gi += g.ox; r.gj += g.oy; }); });
 
     // отдельные рисуемые объекты: шкафы и секции стеллажа (у секции - свой центр для сортировки по глубине)
     var items3d = [];
@@ -769,12 +793,108 @@
     function drawFloor() {
         ctx.fillStyle = lin(0, 0, 0, G.h, [[0, PAL.bgTop], [1, PAL.bgBot]]);
         ctx.fillRect(0, 0, G.w, G.h);
-        var fc = floorCorners().map(function (c) { return P(c[0], c[1], 0); });
-        poly(fc, lin(0, Math.min.apply(null, fc.map(function (p) { return p[1]; })), 0, Math.max.apply(null, fc.map(function (p) { return p[1]; })), [[0, PAL.floorTop], [1, PAL.floorBot]]), PAL.floorEdge, 1.5);
-        ctx.strokeStyle = PAL.grid; ctx.lineWidth = 1;
-        for (var i = 0; i <= cols; i++) { var a = P(i, 0, 0), b = P(i, rows, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
-        for (var j = 0; j <= rows; j++) { var c = P(0, j, 0), d = P(cols, j, 0); ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
+        groups.forEach(function (g) {                         // пол каждой площадки (без IT - одна плита на всю сцену)
+            var gw = g.w, gh = g.rows, ox = g.ox, oy = g.oy;
+            var fc = [[ox - FLOOR_M, oy - FLOOR_M], [ox + gw + FLOOR_M, oy - FLOOR_M], [ox + gw + FLOOR_M, oy + gh + FLOOR_M], [ox - FLOOR_M, oy + gh + FLOOR_M]].map(function (c) { return P(c[0], c[1], 0); });
+            poly(fc, lin(0, Math.min.apply(null, fc.map(function (p) { return p[1]; })), 0, Math.max.apply(null, fc.map(function (p) { return p[1]; })), [[0, PAL.floorTop], [1, PAL.floorBot]]), PAL.floorEdge, 1.5);
+            ctx.strokeStyle = PAL.grid; ctx.lineWidth = 1;
+            for (var i = 0; i <= gw; i++) { var a = P(ox + i, oy, 0), b = P(ox + i, oy + gh, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+            for (var j = 0; j <= gh; j++) { var c = P(ox, oy + j, 0), d = P(ox + gw, oy + j, 0); ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
+        });
     }
+
+    // ---- режим IT: линии связи между площадками (по полу) с анимацией передачи данных и подписи площадок ----
+    function plateEdge(g, tx, ty) {                            // точка выхода луча из центра площадки к (tx, ty) за границу её плиты
+        var cx = g.ox + g.w / 2, cy = g.oy + g.rows / 2, dx = tx - cx, dy = ty - cy;
+        var hx = g.w / 2 + FLOOR_M, hy = g.rows / 2 + FLOOR_M;
+        var t = Math.min(dx ? hx / Math.abs(dx) : 1e9, dy ? hy / Math.abs(dy) : 1e9);
+        return [cx + dx * t, cy + dy * t];
+    }
+    var siteLinks = [];
+    if (IT && groups.length > 1) {                              // до 5 площадок - каждая с каждой, иначе цепочкой
+        if (groups.length <= 5) { for (var li = 0; li < groups.length; li++) for (var lj = li + 1; lj < groups.length; lj++) siteLinks.push([groups[li], groups[lj]]); }
+        else { for (var lk = 0; lk + 1 < groups.length; lk++) siteLinks.push([groups[lk], groups[lk + 1]]); }
+    }
+    function drawSiteLinks() {
+        if (!siteLinks.length) return;
+        var dark = PAL === PALS.dark, base = dark ? '45,212,191' : '13,148,136', lw = Math.max(2, G.s * 0.045);
+        siteLinks.forEach(function (lk, idx) {
+            var A = lk[0], B = lk[1];
+            var ea = plateEdge(A, B.ox + B.w / 2, B.oy + B.rows / 2), eb = plateEdge(B, A.ox + A.w / 2, A.oy + A.rows / 2);
+            var pa = P(ea[0], ea[1], 0), pb = P(eb[0], eb[1], 0);
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(' + base + ',' + (dark ? 0.22 : 0.3) + ')'; ctx.lineWidth = lw * 2.6;       // ореол канала
+            ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+            ctx.strokeStyle = 'rgba(' + base + ',' + (dark ? 0.55 : 0.7) + ')'; ctx.lineWidth = lw;               // канал
+            ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+            ctx.setLineDash([lw * 2.2, lw * 3.2]); ctx.lineDashOffset = -glowT * lw * 6;                          // бегущие штрихи
+            ctx.strokeStyle = dark ? 'rgba(204,251,241,0.85)' : 'rgba(255,255,255,0.9)'; ctx.lineWidth = lw * 0.45;
+            ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+            ctx.setLineDash([]);
+            for (var d = 0; d < 2; d++) {                                                                         // пакеты данных в обе стороны
+                for (var k = 0; k < 3; k++) {
+                    var ph = (glowT * (d ? 0.17 : 0.23) + k / 3 + idx * 0.21 + d * 0.5) % 1, t = d ? 1 - ph : ph;
+                    var x = pa[0] + (pb[0] - pa[0]) * t, y = pa[1] + (pb[1] - pa[1]) * t, rr = lw * (d ? 1.25 : 1.6);
+                    var gr = ctx.createRadialGradient(x, y, 0, x, y, rr * 2.4);
+                    gr.addColorStop(0, d ? 'rgba(253,224,120,0.95)' : 'rgba(167,243,208,0.95)');
+                    gr.addColorStop(1, d ? 'rgba(253,224,120,0)' : 'rgba(167,243,208,0)');
+                    ctx.globalCompositeOperation = dark ? 'lighter' : 'source-over';
+                    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, rr * 2.4, 0, TAU); ctx.fill();
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.fillStyle = d ? '#fbbf24' : '#34d399'; ctx.beginPath(); ctx.arc(x, y, rr * 0.7, 0, TAU); ctx.fill();
+                }
+            }
+            [pa, pb].forEach(function (p) {                                                                       // порты каналов на границах площадок
+                ctx.fillStyle = dark ? '#0f1a22' : '#ffffff'; ctx.strokeStyle = 'rgb(' + base + ')'; ctx.lineWidth = Math.max(1.5, lw * 0.6);
+                ctx.beginPath(); ctx.arc(p[0], p[1], lw * 1.3, 0, TAU); ctx.fill(); ctx.stroke();
+            });
+            ctx.restore();
+        });
+    }
+    var siteLabelBoxes = [];
+    function drawSiteLabels() {
+        siteLabelBoxes = [];
+        if (!IT) return;
+        groups.forEach(function (g) {
+            var p = P(g.ox + g.w / 2, g.oy + g.rows / 2, G.s * 1.55 * 1.3);
+            var racksN = g.racks.length, title = g.name || ('Площадка ' + g.id);
+            var sub = 'шкафов ' + racksN + ' · оборудования ' + (g.equip || 0);
+            ctx.save();
+            ctx.font = '700 13px "Segoe UI", Arial, sans-serif';
+            var tw = Math.max(ctx.measureText(title).width, 0), w = tw + 24, h = 36;
+            ctx.font = '500 10.5px "Segoe UI", Arial, sans-serif';
+            w = Math.max(w, ctx.measureText(sub).width + 24);
+            var x = p[0] - w / 2, y = p[1] - h;
+            var hot = focusedGroup === g;
+            ctx.fillStyle = hot ? PAL.cornerBgHot : PAL.cornerBg; ctx.strokeStyle = hot ? PAL.sel : PAL.cornerEdge; ctx.lineWidth = hot ? 2 : 1.3;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(x, y, w, h, 9); else ctx.rect(x, y, w, h);
+            ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p[0] - 5, y + h); ctx.lineTo(p[0] + 5, y + h); ctx.lineTo(p[0], y + h + 7); ctx.closePath(); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = '700 13px "Segoe UI", Arial, sans-serif'; ctx.fillStyle = PAL.labelText; ctx.fillText(title, p[0], y + 12);
+            ctx.font = '500 10.5px "Segoe UI", Arial, sans-serif'; ctx.fillStyle = PAL.cornerGlyph; ctx.fillText(sub, p[0], y + 26);
+            ctx.restore();
+            siteLabelBoxes.push({ g: g, x: x, y: y, w: w, h: h + 7 });
+        });
+    }
+    function siteLabelAt(x, y) {
+        for (var i = siteLabelBoxes.length - 1; i >= 0; i--) { var b = siteLabelBoxes[i]; if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b.g; }
+        return null;
+    }
+    var focusedGroup = null;
+    function focusGroup(g) {                                    // камера на площадку: крупнее и по центру окна
+        if (!g) return;
+        focusedGroup = g;
+        var span = Math.max(g.w, g.rows) + 2.5, tot = Math.max(cols, rows);
+        cam.zoom = Math.max(1, Math.min(4, tot / span * 0.85));
+        cam.panX = 0; cam.panY = 0; setCamera();
+        var p = P(g.ox + g.w / 2, g.oy + g.rows / 2, G.s * 0.6);
+        cam.panX += G.w / 2 - p[0]; cam.panY += G.h / 2 - p[1];
+        setCamera(); tip.hidden = true; render(); showZoomInd();
+    }
+    function focusAll() { focusedGroup = null; resetView(); }
 
     // маркеры углов основания: за любой можно тянуть - меняется ракурс (курсор "move" как подсказка)
     function cornerPoints() { return floorCorners().map(function (c) { return P(c[0], c[1], 0); }); }
@@ -924,8 +1044,9 @@
         if (uh <= 60) for (var q = 1; q < uh; q++) ctx.fillRect(EQ_X0, EQ_Y0 + q * unit - 0.2, EQ_X1 - EQ_X0, 0.4);
         ctx.fillStyle = '#6f7480'; ctx.fillRect(EQ_X0 - 3, EQ_Y0 - 2, 3, EQ_Y1 - EQ_Y0 + 4); ctx.fillRect(EQ_X1, EQ_Y0 - 2, 3, EQ_Y1 - EQ_Y0 + 4);
         (r.eq || []).forEach(function (e) {
-            var bd = eqBand(r, e), col = KIND_COLOR[e.kind] || '#f472b6', on = eqActive(e.key);
+            var bd = eqBand(r, e), col = eqColor(e), on = eqActive(e.key);
             var y = bd.y + 0.5, h = Math.max(1, bd.h - 1), x = EQ_X0 + 1.5, w = EQ_X1 - EQ_X0 - 3;
+            ctx.globalAlpha = (e.role === 'cluster' && !on) ? 0.62 : 1;      // хосты кластера без ВМ системы - приглушены
             ctx.fillStyle = lin(0, y, 0, y + h, [[0, on ? col : '#3b4250'], [1, on ? col : '#242831']]);
             ctx.fillRect(x, y, w, h);
             ctx.fillStyle = col; ctx.fillRect(x, y, 3, h);                    // цветная метка типа слева
@@ -957,6 +1078,7 @@
             ctx.beginPath(); ctx.arc(x + w - 4, y + Math.min(h / 2, 5), Math.min(2.2, Math.max(0.9, h * 0.25)), 0, TAU); ctx.fill();
             if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.strokeRect(x, y, w, h); }
             else if (e.sizeGuess) { ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.setLineDash([2, 2]); ctx.lineWidth = 0.7; ctx.strokeRect(x, y, w, h); ctx.setLineDash([]); }
+            ctx.globalAlpha = 1;
         });
         ctx.restore();
     }
@@ -1147,6 +1269,7 @@
     function render() {
         ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
         drawFloor();
+        drawSiteLinks();
         polys = [];
         // порядок рисования - по глубине относительно наблюдателя (дальние первыми)
         var order = items3d.slice().sort(function (x, y) { return depthOf(x.ca, x.cb) - depthOf(y.ca, y.cb) || x.ca - y.ca; });
@@ -1163,6 +1286,7 @@
             }
             ctx.restore();
         });
+        drawSiteLabels();
         drawCorners();
     }
 
@@ -1323,7 +1447,7 @@
         if (cam.yaw > Math.PI * 2) cam.yaw -= Math.PI * 2; else if (cam.yaw < 0) cam.yaw += Math.PI * 2;
         setCamera();
     }
-    function resetView() { cam.yaw = YAW0; cam.pitch = PITCH0; cam.zoom = 1; cam.panX = 0; cam.panY = 0; setCamera(); render(); showZoomInd(); }
+    function resetView() { focusedGroup = null; cam.yaw = YAW0; cam.pitch = PITCH0; cam.zoom = 1; cam.panX = 0; cam.panY = 0; setCamera(); render(); showZoomInd(); }
 
     // ---- мышь: поворот за угол, прокрутка за пустое место, наведение/выбор шкафа ----
     var dragMode = null, dragCorner = -1, dragStart = null, lastPt = null, dragMoved = false;
@@ -1363,7 +1487,10 @@
             if (IT) { itClick(h, x, y); }
             else if (h) selectHit(h);
         }
-        else if (IT && mode === 'pan' && !moved) itClick(null, x, y);
+        else if (IT && mode === 'pan' && !moved) {
+            var sg = siteLabelAt(x, y);
+            if (sg) focusGroup(sg); else itClick(null, x, y);
+        }
         else render();
     });
     canvas.addEventListener('mousemove', function (e) {
@@ -1385,7 +1512,7 @@
             if (h && !sameHit(h, selected)) selTimer = setTimeout(function () { selTimer = null; if (sameHit(hovered, h)) selectHit(h); }, 150);
         }
         if (changed) render();
-        canvas.style.cursor = ci >= 0 ? 'move' : (h ? 'pointer' : 'grab');
+        canvas.style.cursor = ci >= 0 ? 'move' : ((h || (IT && siteLabelAt(x, y))) ? 'pointer' : 'grab');
         canvas.title = ci >= 0 ? 'Потяните за угол, чтобы изменить ракурс' : '';
     });
     canvas.addEventListener('mouseleave', function () { hovered = null; hoverCorner = -1; if (selTimer) { clearTimeout(selTimer); selTimer = null; } tip.hidden = true; if (IT) itHideSoon(); if (!dragMode) render(); });
@@ -1424,8 +1551,10 @@
         var where = [];
         if (r.shelf) where.push('Стеллаж ' + (h.u + 1) + ' (вне шкафов)'); else where.push('Шкаф ' + esc(r.name));
         if (!r.shelf && it.startU > 0) where.push('U' + it.startU + (it.sizeU > 1 ? '–' + (it.startU + it.sizeU - 1) : '') + (it.sizeGuess ? ' (условно)' : ''));
-        if (DATA.siteName) where.unshift(esc(DATA.siteName));
-        var s = '<b class="dv-name">' + esc(name) + '</b><div style="color:#9fb0c2;font-size:0.76rem">' + esc(KIND_LABEL[kind] || kind) + (vend ? ' &middot; ' + esc(vend) : '') + '</div>';
+        var sg = groupById(r.siteId);
+        if (sg) where.unshift('<b>' + esc(sg.name) + '</b>');
+        var role = it.role || it.r || '';
+        var s = '<b class="dv-name">' + esc(name) + '</b><div style="color:#9fb0c2;font-size:0.76rem">' + esc(ROLE_LABEL[role] || KIND_LABEL[kind] || kind) + (vend ? ' &middot; ' + esc(vend) : '') + '</div>';
         s += '<div style="margin-top:0.2rem">' + where.join(' &middot; ') + '</div><table>';
         s += '<tr><td>Питание</td><td>' + (pw === 1 ? 'включен' : (pw === 2 ? 'выключен / спячка' : 'нет данных')) + '</td></tr>';
         itKv(it).forEach(function (kv) { if (kv && kv.v) s += '<tr><td>' + esc(kv.k) + '</td><td>' + esc(kv.v) + '</td></tr>'; });
@@ -1489,36 +1618,77 @@
         });
         if (first && scroll) first.scrollIntoView({ block: 'nearest' });
     }
-    function itUrl(siteId, focus) {
-        return '/sprsrv/itsystemequipview?ITSystemKey=' + encodeURIComponent(IT.systemKey || '') + '&site=' + siteId + (focus ? '&focus=' + encodeURIComponent(focus) : '');
-    }
+    function groupById(id) { for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return groups[i]; return null; }
+    // чипы площадок над сценой: клик - камера на площадку
+    (function () {
+        var box = document.getElementById('itSiteChips');
+        if (!box) return;
+        if (!groups.length) return;
+        var lab = document.createElement('span'); lab.className = 'text-muted small'; lab.textContent = 'Площадки:'; box.appendChild(lab);
+        groups.forEach(function (g) {
+            var b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn btn-sm btn-outline-secondary rounded-pill';
+            b.textContent = g.name + ' (' + (g.equip || 0) + ')';
+            b.addEventListener('click', function () { focusGroup(g); });
+            box.appendChild(b);
+        });
+        if (groups.length > 1) {
+            var all = document.createElement('button');
+            all.type = 'button'; all.className = 'btn btn-sm btn-outline-primary rounded-pill'; all.textContent = 'Все площадки';
+            all.addEventListener('click', focusAll);
+            box.appendChild(all);
+        }
+    })();
+    // список справа: площадка -> тип (серверы, хосты по кластерам, СХД, ВМ); без размещения - в конце
     function buildItList() {
         if (!itListBody) return;
         var eq = IT.equipment || [];
         if (!eq.length) { itListBody.innerHTML = '<div class="p-3 text-muted small">Для ИТ-системы не найдено серверов, ВМ и СХД</div>'; return; }
-        var order = ['server', 'storage', 'vm'], titles = { server: 'Серверы', storage: 'СХД', vm: 'Виртуальные машины' };
+        var kinds = ['server', 'host', 'storage', 'vm'], titles = { server: 'Серверы', host: 'Хосты ESXi', storage: 'СХД', vm: 'Виртуальные машины' };
         var html = '';
-        order.forEach(function (kd) {
-            var grp = eq.filter(function (e) { return e.kind === kd; });
-            if (!grp.length) return;
-            html += '<div class="it-grp">' + titles[kd] + ' (' + grp.length + ')</div>';
-            grp.forEach(function (e) {
-                var idx = eq.indexOf(e);
-                var loc = e.rackName ? ((e.siteName ? esc(e.siteName) + ' / ' : '') + esc(e.rackName)) : (e.kind === 'vm' ? 'виртуальная, без размещения' : 'размещение не найдено');
-                var other = e.siteId > 0 && e.siteId !== IT.currentSite;
-                html += '<div class="it-li" data-i="' + idx + '" data-eq="' + esc(e.eqKey || '') + '">'
-                    + '<div class="it-nm"><i style="display:inline-block;width:0.6rem;height:0.6rem;border-radius:2px;margin-right:0.4rem;background:' + (KIND_COLOR[e.kind] || '#999') + '"></i>' + esc(e.name) + '</div>'
-                    + '<div class="it-sub">' + esc(e.subtitle || '') + '</div><div class="it-sub">' + loc + (other ? ' <b>(другая площадка)</b>' : '') + '</div>'
-                    + '<div class="it-det">';
-                var rows = (e.rows || []).filter(function (kv) { return kv && kv.v; });
-                if (rows.length) { html += '<dl>'; rows.forEach(function (kv) { html += '<dt>' + esc(kv.k) + '</dt><dd>' + esc(kv.v) + '</dd>'; }); html += '</dl>'; }
-                html += '<div class="it-lk">';
-                (e.links || []).forEach(function (l) { html += '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.title) + '</a>'; });
-                if (other) html += '<a href="' + esc(itUrl(e.siteId, e.eqKey)) + '"><b>Показать на площадке «' + esc(e.siteName) + '»</b></a>';
-                html += '</div></div></div>';
+        function itemHtml(e) {
+            var idx = eq.indexOf(e);
+                var loc = e.rackName ? ((e.siteName ? esc(e.siteName) + ' / ' : '') + esc(e.rackName))
+                    : (e.kind === 'vm' ? (e.subtitle || 'хост не определён') : (e.kind === 'host' ? 'шкаф хоста не указан' : 'размещение не найдено'));
+            var col = ROLE_COLOR[e.role] || KIND_COLOR[e.kind] || '#999';
+            var s = '<div class="it-li" data-i="' + idx + '" data-site="' + (e.siteId || 0) + '" data-eq="' + esc(e.eqKey || '') + '">'
+                + '<div class="it-nm"><i style="display:inline-block;width:0.6rem;height:0.6rem;border-radius:2px;margin-right:0.4rem;background:' + col + '"></i>' + esc(e.name) + '</div>'
+                + '<div class="it-sub">' + esc(e.subtitle || '') + '</div><div class="it-sub">' + loc + '</div>'
+                + '<div class="it-det">';
+            var rows = (e.rows || []).filter(function (kv) { return kv && kv.v; });
+            if (rows.length) { s += '<dl>'; rows.forEach(function (kv) { s += '<dt>' + esc(kv.k) + '</dt><dd>' + esc(kv.v) + '</dd>'; }); s += '</dl>'; }
+            s += '<div class="it-lk">';
+            (e.links || []).forEach(function (l) { s += '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.title) + '</a>'; });
+            return s + '</div></div></div>';
+        }
+        function section(title, siteId, list) {
+            if (!list.length) return;
+            html += '<div class="it-grp" data-site="' + siteId + '">' + esc(title) + ' (' + list.length + ')</div>';
+            kinds.forEach(function (kd) {
+                var grp = list.filter(function (e) { return e.kind === kd; });
+                if (!grp.length) return;
+                html += '<div class="it-sub2">' + titles[kd] + ' - ' + grp.length + '</div>';
+                if (kd === 'host') {
+                    grp.sort(function (a, b) { return String(a.cluster || '').localeCompare(b.cluster || '') || String(a.name).localeCompare(b.name); });
+                    var cur = null;
+                    grp.forEach(function (e) {
+                        if (e.cluster !== cur) { cur = e.cluster; html += '<div class="it-sub2 it-cl">Кластер: ' + esc(cur || 'не указан') + '</div>'; }
+                        html += itemHtml(e);
+                    });
+                } else grp.forEach(function (e) { html += itemHtml(e); });
             });
-        });
+        }
+        groups.forEach(function (g) { section('Площадка ' + g.name, g.id, eq.filter(function (e) { return e.siteId === g.id; })); });
+        var orphan = eq.filter(function (e) { return !(e.siteId > 0) || !groupById(e.siteId); });
+        var onHost = orphan.filter(function (e) { return e.kind === 'vm' && e.eqKey; });
+        var rest = orphan.filter(function (e) { return !(e.kind === 'vm' && e.eqKey); });
+        section('ВМ на хосте без шкафа', 0, onHost);
+        section('Без размещения в шкафах', 0, rest);
         itListBody.innerHTML = html;
+        Array.prototype.forEach.call(itListBody.querySelectorAll('.it-grp'), function (el) {
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', function () { var g = groupById(parseInt(el.getAttribute('data-site'), 10)); if (g) focusGroup(g); });
+        });
         Array.prototype.forEach.call(itListBody.querySelectorAll('.it-li'), function (el) {
             var key = el.getAttribute('data-eq') || '';
             el.addEventListener('mouseenter', function () { if (key) { selEq = key; render(); } });
@@ -1526,7 +1696,9 @@
             el.addEventListener('click', function (ev) {
                 if (ev.target.tagName === 'A') return;
                 el.classList.toggle('it-open');
-                pinnedEq = selEq = key; markList(key, false); render();
+                pinnedEq = selEq = key; markList(key, false);
+                var g = groupById(parseInt(el.getAttribute('data-site'), 10));
+                if (g && key && focusedGroup !== g) focusGroup(g); else render();
             });
         });
     }

@@ -37,6 +37,8 @@ type dcViewRack struct {
 	// Eq - только для режима «Оборудование ИТ-системы» (/sprsrv/itsystemequipview):
 	// оборудование ИТ-системы в шкафу с позицией по юнитам, строками и ссылками для карточки.
 	Eq []rackViewItem `json:"eq,omitempty"`
+	// SiteId - площадка шкафа (в режиме ИТ-системы на сцене несколько площадок сразу).
+	SiteId int64 `json:"siteId,omitempty"`
 }
 
 // dcShelfBlade - занятый слот блейд-корзины на стеллаже (для отрисовки лицевой панели).
@@ -59,6 +61,7 @@ type dcShelfItem struct {
 	Blades []dcShelfBlade `json:"blades"`          // всегда массив (даже []); иначе фронт рисовал пустой контур
 	// только режим «Оборудование ИТ-системы»: ключ связи со списком, строки и ссылки карточки
 	Key   string         `json:"key,omitempty"`
+	Role  string         `json:"role,omitempty"`
 	Rows  []rackViewKV   `json:"rows,omitempty"`
 	Links []rackViewLink `json:"links,omitempty"`
 }
