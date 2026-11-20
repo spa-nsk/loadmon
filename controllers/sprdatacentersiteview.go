@@ -34,6 +34,9 @@ type dcViewRack struct {
 	Shelf      bool          `json:"shelf,omitempty"`
 	ShelfUnits int           `json:"shelfUnits,omitempty"`
 	Items      []dcShelfItem `json:"items,omitempty"` // оборудование на стеллаже (для 3D-отрисовки)
+	// Eq - только для режима «Оборудование ИТ-системы» (/sprsrv/itsystemequipview):
+	// оборудование ИТ-системы в шкафу с позицией по юнитам, строками и ссылками для карточки.
+	Eq []rackViewItem `json:"eq,omitempty"`
 }
 
 // dcShelfBlade - занятый слот блейд-корзины на стеллаже (для отрисовки лицевой панели).
@@ -54,6 +57,10 @@ type dcShelfItem struct {
 	Power  int            `json:"p"`
 	Slots  int            `json:"slots,omitempty"` // число слотов корзины
 	Blades []dcShelfBlade `json:"blades"`          // всегда массив (даже []); иначе фронт рисовал пустой контур
+	// только режим «Оборудование ИТ-системы»: ключ связи со списком, строки и ссылки карточки
+	Key   string         `json:"key,omitempty"`
+	Rows  []rackViewKV   `json:"rows,omitempty"`
+	Links []rackViewLink `json:"links,omitempty"`
 }
 
 type dcViewData struct {
@@ -62,6 +69,8 @@ type dcViewData struct {
 	Racks      []dcViewRack `json:"racks"`
 	PowerAvgW  float64      `json:"powerAvgW"`
 	PowerPeakW float64      `json:"powerPeakW"`
+	// IT - данные режима «Оборудование ИТ-системы» (nil для обычного просмотра площадки).
+	IT *itSysScene `json:"it,omitempty"`
 }
 
 // SprDatacenterSiteView - просмотр оборудования площадки/ЦОД: слева
